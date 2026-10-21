@@ -61,7 +61,25 @@ Open https://contentrewards.com/c/campaigns/2c65001c-d6a8-4b14-9ba6-52400794b085
   containing "Alpha Futures", the official logo as profile picture, likes
   visible. Ask them to tell you when it's done.
 
-## 4. TikTok developer app (browser)
+## 4. Posting route: Upload-Post (preferred, fully automatic)
+
+- ⏸ The user signs up at https://upload-post.com and picks a plan that
+  includes TikTok. Choosing a plan spends money, so that's the user's
+  decision.
+- In the Upload-Post dashboard, create a profile named `alphafutures`.
+  ⏸ The user connects the dedicated TikTok account to it, plus Instagram and
+  YouTube if wanted. These are platform logins.
+- Copy the API key from the dashboard, then run:
+
+  ```bash
+  UPLOAD_POST_API_KEY=... python3 pipeline.py setup --yes      # Windows: $env:UPLOAD_POST_API_KEY="..."; python pipeline.py setup --yes
+  python3 pipeline.py autopilot enable --via uploadpost --platforms tiktok,instagram,youtube
+  ```
+
+  Keep only the platforms actually connected in Upload-Post. Then skip
+  step 4b.
+
+## 4b. Fallback only: TikTok developer app (drafts the user posts from the app)
 
 At https://developers.tiktok.com:
 - ⏸ The user signs in and accepts the developer terms.

@@ -60,6 +60,12 @@ Clips are **held for you** when:
 - the transcript came from auto-captions
 - (optionally) the clip contains an earnings claim
 
+**Fully automatic posting:** `autopilot enable --via uploadpost` posts
+publicly to TikTok, Instagram Reels and YouTube Shorts through Upload-Post
+(upload-post.com), a hosted posting API with its own platform approvals.
+Without it, TikTok gets inbox drafts you post from the app (see below). See
+`uploadpost.py` for setup. It needs an Upload-Post plan that includes TikTok.
+
 **The step that stays manual: submitting on Whop.** Whop publishes no API for
 Content Rewards submissions, and its only submission API (bounties, beta)
 rejects account API keys. A bot driving the submit form would run into Whop's
@@ -166,7 +172,12 @@ python -m unittest discover -s tests -v     # ~2 min; offline; synthetic video +
 python clipper.py --selftest                # renderer check across all layouts (~5 min)
 ```
 
-The 60 tests cover:
+The 67 tests cover:
+- **Upload-Post against a simulated API:** the exact fields sent (direct
+  public post, paid-partnership flag, Reels, YouTube limits), retries on
+  429/503, bad key, plan limit, platform rejection, private-post detection,
+  and a full cycle that posts to TikTok and Instagram with no taps, picks up
+  links and views, and routes to the campaign's profile.
 - **Campaign-file features:** TODO gate, missing logo blocks a campaign,
   campaign-relative footage folders, a logo actually rendered (pixel-checked)
   and rule-checked, per-campaign account routing, the engagement-floor
@@ -272,6 +283,7 @@ The 60 tests cover:
 | `youtube.py` | YouTube Data API: OAuth (keychain), resumable upload with retries, view stats |
 | `START_HERE.md`, `START.bat`, `START.command` | The simple steps, plus double-click launchers that install everything and run the guided setup |
 | `campaigns/alpha-futures.json` | The TikTok pick: $2 per 1K views, logo overlay, dedicated account, engagement floor |
+| `uploadpost.py` | Fully automatic public posting to TikTok, Instagram and YouTube through Upload-Post's API (key in the keychain) |
 | `tiktok.py` | TikTok Content Posting API: desktop OAuth with PKCE (keychain), chunked inbox/direct upload, status polling, video list for links and views |
 | `campaigns/higgsfield-20vc.json`, `moonpay-ivan-soto.json`, `pbinvesting.json` | Pre-filled briefs for the campaigns you found. Each has TODOs and won't run until you verify it. |
 | `campaigns/_template.json` | Campaign brief template |

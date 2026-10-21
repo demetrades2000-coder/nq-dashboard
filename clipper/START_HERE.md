@@ -1,101 +1,86 @@
-# Start here: the short version
+# Start here
 
-Our TikTok move is **Alpha Futures**, a futures-trading prop firm. It pays
-**$2 per 1,000 views** on TikTok, Instagram and YouTube, up to $500 per clip.
-That's double the typical campaign rate, and the brand supplies the footage.
-Its file is `campaigns/alpha-futures.json`, already filled in except for the
-parts only you can do (marked TODO).
+**Goal:** the tool makes the clips and posts them to TikTok (plus Instagram
+and YouTube if you want) on its own, every 6 hours. You only set it up once,
+and paste finished links into the campaign page.
 
-## One-time setup (about 30–45 minutes)
+**Campaign:** Alpha Futures. It pays $2 per 1,000 views on TikTok, Instagram
+and YouTube, up to $500 per clip, and the brand provides the footage. Its
+file is `campaigns/alpha-futures.json`.
 
-**1. Join the campaign** (5 min). Open the
-[Alpha Futures campaign on Content Rewards](https://contentrewards.com/c/campaigns/2c65001c-d6a8-4b14-9ba6-52400794b085),
-sign in with Whop and join. Read the rules and check the budget isn't used up.
+**How posting works:** through **Upload-Post** (upload-post.com), a posting
+service TikTok, Instagram and YouTube already allow to post publicly. That is
+what makes it hands-off; your own new TikTok app could only post privately.
+It's a paid service. By its own pricing page, the free plan is 10 uploads a
+month and may not include TikTok, and Basic is about $16–24 a month for
+unlimited uploads. Choosing a plan is your call.
 
-**2. Make a dedicated TikTok account** (5 min). The campaign requires one:
-- the name includes "Alpha Futures" (for example "Alpha Futures Clips")
-- the profile picture is their official logo
-- likes stay visible
+## One-time setup (you)
 
-**3. Get their files** (5 min). From the links on the campaign page,
-download:
-- the official **footage** into `clipper/campaigns/footage/alpha-futures/`
-- the official **logo** (PNG), saved as `clipper/campaigns/logos/alpha-futures.png`
+1. **Join the campaign:** open
+   [Alpha Futures on Content Rewards](https://contentrewards.com/c/campaigns/2c65001c-d6a8-4b14-9ba6-52400794b085),
+   sign in with Whop and join. Check the budget isn't used up.
+2. **Make the dedicated TikTok account** the campaign requires. The name
+   includes "Alpha Futures", the profile picture is their logo, and likes
+   stay visible. Optionally do the same on Instagram.
+3. **Upload-Post:**
+   - Sign up and pick a plan that includes TikTok.
+   - Create a profile named **`alphafutures`** and connect the dedicated
+     TikTok account (and Instagram/YouTube if you made them).
+   - Copy your **API key**.
+4. **Campaign files:**
+   - Download their footage into `clipper/campaigns/footage/alpha-futures/`.
+   - Save their logo as `clipper/campaigns/logos/alpha-futures.png`.
+   - Fill the 3 TODOs in `alpha-futures.json`: a line from the rules, their
+     @handle, today's date.
 
-**4. Fill the 3 TODOs** (3 min). Open `clipper/campaigns/alpha-futures.json`
-in any text editor:
-- `"evidence"`: paste one line from the rules about what you may clip.
-- `"required_mentions"`: the official Alpha Futures handle, for example
-  `"@alphafutures"`, exactly as the rules say.
-- `"verified_on"`: today's date, like `"2026-10-22"`.
+   A Claude session on your computer can do this step for you with
+   `LOCAL_CLAUDE_TASK.md`.
+5. **Run setup:** double-click `clipper/START.bat` (Windows) or
+   `clipper/START.command` (Mac).
+   - Answer **yes** to "Post fully automatically through Upload-Post?" and
+     paste the key.
+   - Answer yes to the schedule.
 
-**5. Make a TikTok developer app** (10 min, free). Do this at
-[developers.tiktok.com](https://developers.tiktok.com/):
-- Create an app.
-- Add the **Login Kit** and **Content Posting API** products, and turn on
-  "Upload".
-- Add the scopes `user.info.basic`, `video.upload` and `video.list`.
-- Under Login Kit, choose **Desktop** and add the redirect URI
-  `http://localhost:3455/callback/`.
-- Copy the **client key** and **client secret**; setup asks for them.
+That's it. It now runs every 6 hours:
+1. It picks up new footage from the folder and makes clips with captions,
+   the logo and `#ad`.
+2. It checks the rules and posts publicly to TikTok (and Instagram/YouTube)
+   through the `alphafutures` profile.
+3. It collects the links and view counts, and writes `AUTOPILOT_REPORT.md`.
 
-**6. Run setup.** Double-click `clipper/START.bat` on Windows, or
-`clipper/START.command` on Mac. It:
-- installs everything
-- checks your campaign file
-- logs into the dedicated TikTok account. When TikTok asks, sign in with the
-  Alpha Futures account, not your personal one.
-- turns on autopilot
-- schedules it every 6 hours
-- optionally runs the first batch
+## The one recurring step
 
-Say yes to phone notifications if you want a ping, with the caption, when
-drafts are ready.
+Content Rewards has no way for a program to submit, so every day or two:
+1. Open `AUTOPILOT_REPORT.md`. Under "Submit on the campaign page" are the
+   new links.
+2. Paste each into the campaign's submit form.
+3. Run `python pipeline.py submitted all`.
 
-## Your daily routine (about 2 minutes per clip)
-
-The autopilot runs on its own every 6 hours: it imports new footage, cuts
-clips, captions them, adds the logo and the `#ad` disclosure, checks the rules
-and sends the clips to your TikTok as drafts. You do two things:
-
-1. **Post the drafts.** Open TikTok on your phone and tap the draft
-   notification. Paste the caption from the ntfy notification or
-   `AUTOPILOT_REPORT.md`, turn on **Content disclosure → Paid partnership**,
-   and tap **Post**.
-2. **Submit the links.** The next cycle finds your live posts automatically.
-   Paste each link from `AUTOPILOT_REPORT.md` into the campaign's submit form
-   on Content Rewards, then run:
-
-```
-python pipeline.py submitted all
-```
-
-Keep posts up for at least 30 days, which the campaign requires. When the
-brand sends new footage, drop it in the footage folder; the next cycle picks
-it up.
+Turn on phone notifications during setup to get a ping when there are links
+to submit.
 
 ## If something's off
 
 ```
-python pipeline.py doctor      # checks everything and says exactly what to fix
-python pipeline.py status      # what each job is doing, with errors explained
-python pipeline.py review      # look at clips that were held back
+python pipeline.py doctor     # checks everything, says exactly what to fix
+python pipeline.py status     # every job and any error, in plain words
+python pipeline.py review     # clips held back by the safety checks
 ```
 
-## Why two steps stay manual
-
-- **Posting:** TikTok only lets apps it hasn't reviewed post privately or
-  send drafts. You'd need TikTok's app audit to post directly.
-- **Submitting:** Content Rewards has no API for submissions.
-
-Everything else is automated.
+Watch for these in the report:
+- **"published it as private":** Upload-Post's TikTok connection didn't post
+  publicly. Contact Upload-Post, or switch to TikTok drafts with
+  `autopilot enable --via native` and the `tiktok auth` steps in README.md.
+- **"plan limit":** your Upload-Post plan is out of uploads or doesn't
+  include TikTok.
+- **"engagement under 2%":** that post may not be paid under the campaign
+  rules.
 
 ## About the money
 
-You're paid on views the campaign verifies, at $2 per 1,000 minus the board's
-10% fee, up to $500 per clip. A clip needs at least $2 earned (1,000+ views)
-to pay out, and the campaign requires 2% engagement. Most clips get modest
-views and some get none; the report shows real numbers as they come in.
-Rates, budgets and rules change, so re-check the campaign page weekly and
-update `verified_on`. The autopilot pauses a campaign whose check is more
-than 30 days old.
+You're paid only on views the campaign verifies, at $2 per 1,000 minus a 10%
+fee, capped at $500 per clip, and a clip has to earn at least $2. Most clips
+get modest views; the report shows the real numbers. Re-check the campaign
+page weekly and update `verified_on`. The autopilot pauses a campaign whose
+check is more than 30 days old.

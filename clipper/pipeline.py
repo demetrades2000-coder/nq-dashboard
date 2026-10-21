@@ -1077,7 +1077,27 @@ def cmd_earnings(ws: WS, a) -> int:
 HOLD_DEFAULT = ["unsure of", "may depend on earlier context", "ends mid-sentence", "transcript from"]
 
 
-PLATFORMS = ("youtube", "tiktok")
+PLATFORMS = ("youtube", "tiktok", "instagram")
+NATIVE = ("youtube", "tiktok")  # platforms with a built-in direct integration; Upload-Post covers all three
+
+
+class UploadPostUploader:
+    """Fully automatic public posting through Upload-Post (profile = campaign account name)."""
+    kind = "uploadpost"
+
+    def __init__(self, platform: str, profile: str):
+        import uploadpost
+        self.up, self.platform, self.profile = uploadpost, platform, profile
+
+    def upload(self, path, title, description, tags, privacy, paid):
+        return self.up.upload(Path(path), self.platform, self.profile, title, description, paid, privacy)
+
+    def lookup(self, request_id):
+        return self.up.status(request_id).get(self.platform)
+
+    def public_stats(self, url):
+        v, l = tracker.fetch_stats(url)
+        return {"views": v, "likes": l}
 
 
 class YouTubeUploader:
@@ -1132,6 +1152,7 @@ def autopilot_policy(ws: WS) -> dict:
         "hold_on": ws.setting("autopilot.hold_on", HOLD_DEFAULT),
         "hold_income_claims": bool(ws.setting("autopilot.hold_income_claims", False)),
         "platforms": ws.setting("autopilot.platforms", ["youtube"]),
+        "via": ws.setting("autopilot.via", "native"),
     }
 
 
@@ -1168,8 +1189,8 @@ def uploads_today(ws: WS, platform: str | None = None, account: str | None = Non
 class UploaderPool:
     """One uploader per (platform, account), created on first use. Tests pass fakes keyed by platform."""
 
-    def __init__(self, rep: dict, fakes: dict | None = None):
-        self.rep, self.fakes, self.cache, self.failed = rep, fakes, {}, set()
+    def __init__(self, rep: dict, fakes: dict | None = None, via: str = "native", ws: "WS | None" = None):
+        self.rep, self.fakes, self.cache, self.failed, self.via, self.ws = rep, fakes, {}, set(), via, ws
 
     def get(self, platform: str, account: str):
         if self.fakes is not None:
@@ -1178,6 +1199,20 @@ class UploaderPool:
         if key in self.cache:
             return self.cache[key]
         if key in self.failed:
+            return None
+        if self.via == "uploadpost":
+            import uploadpost
+            if not uploadpost.has_token():
+                self.rep["notes"].append("Upload-Post isn't connected: run `pipeline.py uploadpost auth`")
+                self.failed.add(key)
+                return None
+            profile = account if account != "default" else \
+                ((self.ws.setting("uploadpost.default_user") if self.ws else None) or "default")
+            self.cache[key] = UploadPostUploader(platform, profile)
+            return self.cache[key]
+        if platform not in NATIVE:
+            self.rep["notes"].append(f"{platform} needs Upload-Post (`autopilot enable --via uploadpost`); skipped")
+            self.failed.add(key)
             return None
         try:
             mod = __import__(platform)
@@ -1281,7 +1316,7 @@ def autopilot_cycle(ws: WS, a, uploader=None, uploaders=None) -> int:
             for p in pol["platforms"]:
                 if p in camp_platforms and p not in done:
                     need.setdefault((p, campaign_account(c, p)), []).append(r)
-        pool = UploaderPool(rep, uploaders)
+        pool = UploaderPool(rep, uploaders, pol["via"], ws)
         for (p, acct), rows in need.items():
             up = pool.get(p, acct)
             if up is None:
@@ -1342,6 +1377,26 @@ def refresh_platform_stats(ws: WS, pool: "UploaderPool", rep: dict) -> None:
     for (platform, acct), up in pool.items():
         where = "platform=?" + ("" if acct is None else " AND COALESCE(account,'default')=?")
         args = [platform] + ([] if acct is None else [acct])
+        if getattr(up, "kind", "") == "uploadpost":
+            for r in ws.q(f"SELECT * FROM uploads WHERE {where} AND url IS NULL AND publish_id IS NOT NULL", args):
+                try:
+                    got = up.lookup(r["publish_id"])
+                except Exception:
+                    got = None
+                if got and got.get("url"):
+                    ws.x("UPDATE uploads SET url=?, state='live', updated=? WHERE id=?", (got["url"], now(), r["id"]))
+                    row = ws.q("SELECT * FROM clips WHERE id=?", (r["clip_id"],))[0]
+                    track_url(ws, got["url"], row)
+                    rep["notes"].append(f"{platform} link found for clip #{r['clip_id']}: {got['url']}")
+            for r in ws.q(f"SELECT * FROM uploads WHERE {where} AND url IS NOT NULL", args):
+                try:
+                    st = up.public_stats(r["url"])
+                except Exception:
+                    continue
+                if st.get("views") is not None:
+                    ws.x("UPDATE uploads SET views=?, likes=?, updated=? WHERE id=?",
+                         (int(st["views"]), int(st.get("likes") or 0), now(), r["id"]))
+            continue
         if platform == "youtube":
             rows = ws.q(f"SELECT * FROM uploads WHERE {where} AND remote_id IS NOT NULL", args)
             if not rows:
@@ -1449,7 +1504,13 @@ def cmd_autopilot(ws: WS, a) -> int:
             if bad:
                 print(f"unsupported platform(s): {bad}; supported: {', '.join(PLATFORMS)}")
                 return 1
+            via = a.via or ws.setting("autopilot.via", "native")
+            if via == "native" and "instagram" in plats:
+                print("Instagram posting needs Upload-Post: add --via uploadpost")
+                return 1
             ws.set_setting("autopilot.platforms", plats)
+        if a.via:
+            ws.set_setting("autopilot.via", a.via)
         print("Autopilot ON: clips that pass every campaign rule and review check are approved and uploaded "
               "automatically. Clips with warnings are held for you.")
     elif act == "disable":
@@ -1480,14 +1541,14 @@ def cmd_autopilot(ws: WS, a) -> int:
         return autopilot_cycle(ws, a)
     pol = autopilot_policy(ws)
     conn = []
-    for p in PLATFORMS:
+    for p in NATIVE + ("uploadpost",):
         try:
             mod = __import__(p)
             conn.append(f"{p}: {'connected' if mod.has_token() else 'not connected'}")
         except Exception:
             conn.append(f"{p}: unavailable")
     print(f"Autopilot: {'ON' if ws.setting('autopilot.enabled', False) else 'OFF'}  ({'; '.join(conn)})\n"
-          f"  upload to: {', '.join(pol['platforms'])}\n"
+          f"  upload to: {', '.join(pol['platforms'])} via {pol['via']}\n"
           f"  campaigns: {ws.setting('autopilot.campaigns', []) or 'none'}\n"
           f"  uploads/day cap per platform: {pol['max_uploads_per_day']} (today: {uploads_today(ws)})  "
           f"privacy: {pol['privacy']}  min score: {pol['min_score']:.0f}  "
@@ -1513,6 +1574,47 @@ def cmd_submitted(ws: WS, a) -> int:
     ws.x("UPDATE uploads SET submitted_at=? WHERE clip_id=? AND url IS NOT NULL", (now(), cid))
     ws.x("UPDATE clips SET submitted_at=? WHERE id=?", (now(), cid))
     print(f"#{cid} marked submitted")
+    return 0
+
+
+def cmd_uploadpost(ws: WS, a) -> int:
+    import uploadpost
+    if a.action == "auth":
+        key = os.environ.get("UPLOAD_POST_API_KEY") or getpass.getpass("Upload-Post API key (input hidden): ").strip()
+        if not key:
+            print("nothing entered")
+            return 1
+        uploadpost.save_key(key)
+        if a.default_profile:
+            ws.set_setting("uploadpost.default_user", a.default_profile)
+        print("Upload-Post key stored in the OS keychain. Next: python pipeline.py autopilot enable --via uploadpost "
+              "--platforms tiktok,instagram,youtube")
+    elif a.action == "status":
+        print("connected" if uploadpost.has_token() else "not connected")
+        return 0 if uploadpost.has_token() else 1
+    elif a.action == "disconnect":
+        uploadpost.delete_key()
+        print("key removed from the keychain")
+    return 0
+
+
+def cmd_link(ws: WS, a) -> int:
+    """Record a post's public link by hand (when a platform didn't return it)."""
+    if not re.match(r"https?://", a.url):
+        print("give the full post URL")
+        return 1
+    r = ws.q("SELECT * FROM uploads WHERE clip_id=? AND platform=?", (a.id, a.platform))
+    clip = ws.q("SELECT * FROM clips WHERE id=?", (a.id,))
+    if not clip:
+        print(f"no clip #{a.id}")
+        return 1
+    if r:
+        ws.x("UPDATE uploads SET url=?, state='live', updated=? WHERE id=?", (a.url, now(), r[0]["id"]))
+    else:
+        record_upload(ws, clip[0], a.platform, {"remote_id": None, "url": a.url, "state": "live", "notes": ["linked by hand"],
+                                                 "publish_id": None}, "", "default")
+    track_url(ws, a.url, clip[0])
+    print(f"#{a.id} {a.platform}: {a.url}")
     return 0
 
 
@@ -1672,7 +1774,12 @@ def cmd_doctor(ws: WS, a) -> int:
         except Exception as e:  # noqa: BLE001
             print(f"  ERROR  {f.name}: {e}")
     print("\nAccounts:")
-    for platform in PLATFORMS:
+    try:
+        import uploadpost
+        print(f"  {'connected    ' if uploadpost.has_token() else 'not connected'}  upload-post (automatic posting)")
+    except Exception:
+        pass
+    for platform in NATIVE:
         accts = {"default"}
         for f in camps:
             try:
@@ -1781,9 +1888,27 @@ def cmd_setup(ws: WS, a) -> int:
     chosen = [(f, c) for f, c in ready if ask(f"  Run '{c['name']}' on autopilot?")]
     for f, c in chosen:
         cmd_autopilot(ws, argparse.Namespace(action="add", campaign=str(f)))
-    print("\nStep 3/5: connect accounts (one browser login each)")
+    print("\nStep 3/5: connect accounts")
     platforms = sorted({p for _, c in chosen for p in c.get("platforms", []) if p in PLATFORMS})
-    for p in platforms:
+    via = "native"
+    import uploadpost
+    if uploadpost.has_token() or ask("  Post fully automatically through Upload-Post? (needs an upload-post.com plan "
+                                     "with TikTok; you connect your accounts there)"):
+        if not uploadpost.has_token():
+            key = os.environ.get("UPLOAD_POST_API_KEY") or getpass.getpass("    Upload-Post API key (hidden): ").strip()
+            if key:
+                try:
+                    uploadpost.save_key(key)
+                except Exception as e:  # noqa: BLE001
+                    print(f"    {e}")
+        if uploadpost.has_token():
+            via = "uploadpost"
+            profiles = sorted({campaign_account(c, p) for _, c in chosen for p in platforms})
+            print(f"  Upload-Post connected. In the Upload-Post dashboard, make sure these profile(s) exist with the "
+                  f"accounts connected: {', '.join(x if x != 'default' else 'default' for x in profiles)}")
+    if via == "native":
+        platforms = [p for p in platforms if p in NATIVE]
+    for p in (platforms if via == "native" else []):
         for acct in sorted({campaign_account(c, p) for _, c in chosen if p in c.get("platforms", [])}):
             mod = __import__(p)
             if mod.has_token(acct):
@@ -1807,7 +1932,7 @@ def cmd_setup(ws: WS, a) -> int:
     print("\nStep 4/5: autopilot")
     cmd_autopilot(ws, argparse.Namespace(action="enable", max_per_day=3, min_score=None, privacy=None,
                                          hold_income_claims=None, platforms=",".join(platforms) or "youtube",
-                                         campaign=None))
+                                         campaign=None, via=via))
     if ask("  Get a phone notification when TikTok drafts are ready? (uses the free ntfy.sh app)", "n"):
         cmd_notify(ws, argparse.Namespace(action="setup", topic=None))
     print("\nStep 5/5: schedule")
@@ -1914,7 +2039,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--min-score", type=float)
     s.add_argument("--privacy", choices=["public", "unlisted", "private"])
     s.add_argument("--hold-income-claims", choices=["yes", "no"])
-    s.add_argument("--platforms", help="comma list: youtube,tiktok (default youtube)")
+    s.add_argument("--platforms", help="comma list: youtube,tiktok,instagram (default youtube)")
+    s.add_argument("--via", choices=["native", "uploadpost"],
+                   help="uploadpost = fully automatic public posting through upload-post.com (paid plan for TikTok)")
     s.add_argument("--preset")
     s.add_argument("--limit", type=int)
     s.add_argument("--cookies-from-browser")
@@ -1933,6 +2060,13 @@ def build_parser() -> argparse.ArgumentParser:
                    help="inbox = drafts you finish in the app (works without TikTok's audit); direct = needs audit")
     s.add_argument("--pkce", choices=["hex", "b64"], default="hex")
     s.add_argument("--paste", action="store_true", help="paste the redirect URL instead of a local callback")
+    s = sub.add_parser("uploadpost", help="connect Upload-Post for fully automatic posting")
+    s.add_argument("action", choices=["auth", "status", "disconnect"])
+    s.add_argument("--default-profile", help="Upload-Post profile used when a campaign names no account")
+    s = sub.add_parser("link", help="record a post link by hand")
+    s.add_argument("id", type=int)
+    s.add_argument("platform", choices=list(PLATFORMS))
+    s.add_argument("url")
     s = sub.add_parser("submitted", help="mark posted clips as submitted on the campaign page")
     s.add_argument("which", help="clip id or 'all'")
     s = sub.add_parser("doctor", help="check this computer, campaigns and accounts; --fix installs what's missing")
@@ -1963,7 +2097,8 @@ COMMANDS = {"campaign-check": cmd_campaign_check, "import": cmd_import, "run": c
             "posted": cmd_posted, "retry": cmd_retry, "budget": cmd_budget, "secrets": cmd_secrets,
             "cleanup": cmd_cleanup, "earnings": cmd_earnings, "autopilot": cmd_autopilot, "schedule": cmd_schedule,
             "youtube": cmd_youtube, "submitted": cmd_submitted, "tiktok": cmd_tiktok,
-            "doctor": cmd_doctor, "setup": cmd_setup, "notify": cmd_notify, "campaign-set": cmd_campaign_set}
+            "doctor": cmd_doctor, "setup": cmd_setup, "notify": cmd_notify, "campaign-set": cmd_campaign_set,
+            "uploadpost": cmd_uploadpost, "link": cmd_link}
 
 
 def main(argv=None) -> int:

@@ -161,7 +161,21 @@ TikTok is the obvious second platform once v1 works.
     [API audit](https://developers.google.com/youtube/data/guides/quota_and_compliance_audits).
   - Uploads have their own quota bucket, 100 per day by default. Autopilot
     caps itself lower (3 per day by default).
-- **TikTok is automated up to an inbox draft.** Its documentation says
+- **Fully automatic posting goes through Upload-Post.**
+  [Upload-Post](https://www.upload-post.com/platforms/tiktok/) is a hosted
+  posting API that says you don't need your own TikTok app review.
+  - Its [upload API](https://docs.upload-post.com/api/upload-video/) takes
+    `post_mode=DIRECT_POST` and `privacy_level=PUBLIC_TO_EVERYONE` for TikTok,
+    and also posts Instagram Reels and YouTube.
+  - [Pricing per its own pages](https://www.upload-post.com/pricing-comparison/):
+    free is 10 uploads a month, and one page says TikTok isn't on the free
+    plan; Basic is $16–24 a month, unlimited.
+  - None of the sources I found states whether its TikTok app has passed
+    TikTok's audit. The code reads back the visibility and reports a post
+    that came out private.
+  - Alternatives: [Ayrshare](https://www.upload-post.com/ayrshare-pricing/)
+    from $149 a month, and [Zernio (formerly Late)](https://zernio.com/alternatives/ayrshare).
+- **Without Upload-Post, TikTok is automated up to an inbox draft.** Its documentation says
   unaudited posting clients can post only as private (`SELF_ONLY`) and
   allow at most 5 users in 24 hours, and sandbox mode can't post public
   videos.

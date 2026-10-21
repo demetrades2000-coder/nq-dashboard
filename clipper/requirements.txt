@@ -1,0 +1,6 @@
+yt-dlp>=2026.1.1
+faster-whisper>=1.1
+opencv-python-headless>=4.8,<5
+numpy
+imageio-ffmpeg
+anthropic

@@ -36,6 +36,38 @@ Other sources used:
 [Darebay: Vyro review](https://darebay.com/en/earnings/vyro-review) ·
 [TikTok Content Posting API: Direct Post](https://developers.tiktok.com/docs/en/content-posting-api-reference-direct-post)
 
+## Campaigns you found (checked 2026-10-21)
+
+All three are **Clip Farm** campaigns listed on Content Rewards (Whop's
+clipping marketplace). Clip Farm says it aggregates Content Rewards campaigns;
+accounts, submissions and payouts happen on Content Rewards. Each has a
+brief in `campaigns/` with `TODO`s that you fill in from the live page.
+
+| Campaign | What I could confirm | What I couldn't | Platforms |
+|---|---|---|---|
+| **Higgsfield / 20VC** | [Listing](https://contentrewards.com/discover/1ccf8238-ca36-4ff3-a6d1-76956d865ada): clip Alex Mashrabov's 20VC podcast appearance. $1.00 per 1,000 views, $1 minimum and $350 maximum payout per clip. Budget about $4K (snapshots range from $3.4K to $5K left). | The exact source video URL and the full rules | **Instagram and YouTube only, not TikTok** |
+| **Ivan Soto / MoonPay** | $1.50 per 1,000 views, 18+, listed on an [aggregator](https://clippingalpha.com/platforms/tiktok) and on [Clip Farm's page](https://contentrewards.com/clip-farm) | Budget left: snapshots disagree, and one shows **$33 of $8K**. It may be nearly used up; check before you invest time. The stricter content rules aren't captured. | TikTok, Instagram, YouTube |
+| **PBInvesting** | $1.25 per 1,000 views, a $5K "dedicated account" campaign ([aggregator listing](https://clippingalpha.com/campaigns)) | The 10,000-view minimum and the AI-content ban. Neither appeared in any source I found. | TikTok, Instagram, YouTube |
+
+About the "no AI-generated content" rule on PBInvesting:
+- The tool doesn't generate synthetic voices, faces or footage.
+- It does use speech recognition for captions and automatic cutting and
+  cropping. Whether that counts as "AI-generated" is the campaign's call, so
+  ask before posting.
+- The brief sets `ai_text_allowed: false`, which turns off Claude ranking and
+  titles for this campaign.
+
+"Dedicated account" campaigns usually want clips posted on an account used
+only for that creator. Read the rules before you post them on a shared
+account.
+
+Other sources:
+[Foundry: typical rate and the 10% fee](https://www.builtbyfoundry.io/blog/what-is-clipping-1-dollar-per-1000-views-50-campaigns) ·
+[getclippay listings](https://getclippay.com/) ·
+[ClippingAlpha podcast campaigns](https://clippingalpha.com/niches/podcast) ·
+[Clip Farm: get paid to clip](https://www.clip-farm.com/blog/get-paid-to-clip) ·
+[Content Rewards creator terms](https://contentrewards.com/terms)
+
 ## Recommendation for version 1
 
 **Program: Whop Content Rewards. Platform: YouTube Shorts.**
@@ -92,8 +124,20 @@ TikTok is the obvious second platform once v1 works.
     [API audit](https://developers.google.com/youtube/data/guides/quota_and_compliance_audits).
   - Uploads have their own quota bucket, 100 per day by default. Autopilot
     caps itself lower (3 per day by default).
-- **TikTok isn't automated.** Its documentation says unaudited posting
-  clients can post only as private (`SELF_ONLY`).
+- **TikTok is automated up to an inbox draft.** Its documentation says
+  unaudited posting clients can post only as private (`SELF_ONLY`) and
+  allow at most 5 users in 24 hours, and sandbox mode can't post public
+  videos.
+  - The [Upload API](https://developers.tiktok.com/docs/en/content-posting-api-reference-upload-video)
+    sends the video to your TikTok inbox as a draft; you tap Post in the
+    app.
+  - [Direct Post](https://developers.tiktok.com/docs/en/content-posting-api-reference-direct-post)
+    needs TikTok's app audit (a demo video and verified URLs), and TikTok
+    expects audited apps to serve a wide audience, not one person.
+  - Media upload follows the
+    [media transfer guide](https://developers.tiktok.com/docs/en/content-posting-api-media-transfer-guide);
+    login uses [Login Kit for Desktop](https://developers.tiktok.com/doc/login-kit-desktop/)
+    with PKCE and a localhost redirect.
 - **Whop submission isn't automated.** There is no API for Content Rewards
   submissions. The only submission API, a beta for
   [bounty submissions](https://docs.whop.com/api-reference/beta/bounty-submissions/submit-bounty-submission),

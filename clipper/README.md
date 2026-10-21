@@ -23,8 +23,9 @@ One-time setup, about 15 minutes:
 pip install -r requirements.txt                          # plus ffmpeg (winget / brew / apt install ffmpeg)
 cp campaigns/_template.json campaigns/acme.json          # fill it in from the campaign you joined
 python pipeline.py youtube auth --client-secret client_secret.json   # one browser consent (see youtube.py header)
+python pipeline.py tiktok auth --client-key YOUR_KEY     # one TikTok login (see tiktok.py header); optional
 python pipeline.py autopilot add campaigns/acme.json
-python pipeline.py autopilot enable --max-per-day 3      # optional: --privacy unlisted, --hold-income-claims yes
+python pipeline.py autopilot enable --platforms youtube,tiktok --max-per-day 3   # cap is per platform
 python pipeline.py budget --monthly 5                    # optional: Claude ranking, capped
 python pipeline.py schedule install --every-hours 6      # cron on macOS/Linux, Task Scheduler on Windows
 ```
@@ -35,11 +36,21 @@ Every cycle (every 6 hours by default) does the following:
 3. Clips, captions and renders them.
 4. **Auto-approves** clips that pass every campaign rule and every review
    check. Anything with a warning is held for you.
-5. **Uploads** approved clips to YouTube Shorts: the disclosure goes first in
-   the title and description, the paid-promotion flag is set, and uploads
-   stay under the daily cap.
-6. Refreshes view counts from the YouTube API.
-7. Writes `AUTOPILOT_REPORT.md`.
+5. **Uploads** approved clips to every platform the campaign pays on (a
+   campaign listing only Instagram and YouTube never gets TikTok uploads),
+   under a daily cap per platform:
+   - **YouTube Shorts:** published directly. The disclosure leads the title
+     and description, and the paid-promotion flag is set.
+   - **TikTok:** sent as a draft to your TikTok inbox. TikTok lets
+     unaudited apps post only privately, so you finish the post in the app:
+     tap the notification, paste the caption from the report, turn on
+     "Paid partnership" if needed, and tap Post. The next cycle finds the
+     live post by its caption and records its link and views. If TikTok
+     ever audits your app, `tiktok auth --mode direct` posts straight to
+     your profile.
+6. Refreshes view counts from the YouTube and TikTok APIs.
+7. Writes `AUTOPILOT_REPORT.md`. It lists the TikTok drafts to finish, with
+   their captions, and the live links to submit on each campaign.
 
 Clips are **held for you** when:
 - a campaign rule fails
@@ -155,7 +166,16 @@ python -m unittest discover -s tests -v     # ~2 min; offline; synthetic video +
 python clipper.py --selftest                # renderer check across all layouts (~5 min)
 ```
 
-The 36 tests cover:
+The 52 tests cover:
+- **TikTok against a simulated API:** chunk rules and Content-Range
+  headers, inbox and direct flows, private-only for unaudited apps,
+  explained error codes, token refresh with rotated tokens, PKCE, matching
+  finished drafts to live posts.
+- **Multi-platform cycles:** never uploads to a platform the campaign
+  doesn't pay on, picks up the link after a draft is posted, no
+  re-uploads.
+- **Shipped campaign briefs:** refused until verified; view minimum and
+  payout cap math; the no-AI campaign switches Claude off.
 - **Autopilot:** off by default; a full cycle with a simulated uploader
   (auto-approve, daily cap, paid-promotion flag, report, view refresh,
   `submitted all`); the hold policy; stale campaigns skipped; the schedule
@@ -198,8 +218,18 @@ The 36 tests cover:
     days. Set the app to "In production" (you'll see an "unverified app"
     screen; that's fine for your own channel).
 - **Submitting on Whop is manual**, because there's no API for it (see
-  Autopilot above). TikTok and Instagram uploads aren't automated. TikTok's
-  API posts only privately until the app passes TikTok's audit.
+  Autopilot above).
+- **TikTok needs one tap per clip.** Its API posts only privately until
+  TikTok audits your app, so clips arrive as inbox drafts you post from the
+  app (about 20 seconds each). TikTok also limits pending drafts (about 5 a
+  day).
+  - The TikTok code follows TikTok's API docs but is tested only against a
+    simulated API.
+  - TikTok's docs disagree on the PKCE encoding. If login fails, try
+    `tiktok auth --pkce b64`.
+- **Instagram isn't automated yet.** Higgsfield/20VC pays on Instagram and
+  YouTube only. For now its clips go to YouTube automatically; Instagram is
+  a manual upload from the ready folder.
 - **The scheduler needs a logged-in machine that's switched on.** On headless
   Linux servers, the OS keychain may not be reachable from cron; use macOS or
   Windows, or a desktop session.
@@ -235,5 +265,7 @@ The 36 tests cover:
 | `campaign.py` | Campaign briefs: permission checks, caption builder, rule checks, payout math |
 | `tracker.py` | Post and earnings tracker |
 | `youtube.py` | YouTube Data API: OAuth (keychain), resumable upload with retries, view stats |
+| `tiktok.py` | TikTok Content Posting API: desktop OAuth with PKCE (keychain), chunked inbox/direct upload, status polling, video list for links and views |
+| `campaigns/higgsfield-20vc.json`, `moonpay-ivan-soto.json`, `pbinvesting.json` | Pre-filled briefs for the campaigns you found. Each has TODOs and won't run until you verify it. |
 | `campaigns/_template.json` | Campaign brief template |
 | `tests/test_pipeline.py` | Test suite |

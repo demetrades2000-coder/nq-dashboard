@@ -67,6 +67,9 @@ CREATE TABLE IF NOT EXISTS spend (id INTEGER PRIMARY KEY, ts TEXT, model TEXT, t
 CREATE TABLE IF NOT EXISTS events (id INTEGER PRIMARY KEY, ts TEXT, level TEXT, source_id INTEGER,
   clip_id INTEGER, message TEXT);
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE IF NOT EXISTS uploads (id INTEGER PRIMARY KEY, clip_id INTEGER, platform TEXT, remote_id TEXT, url TEXT,
+  state TEXT, notes TEXT, caption TEXT, publish_id TEXT, views INTEGER DEFAULT 0, likes INTEGER DEFAULT 0,
+  submitted_at TEXT, created TEXT, updated TEXT, UNIQUE(clip_id, platform));
 """
 
 
@@ -414,6 +417,8 @@ def clip_args(c: dict, ws: WS, a) -> argparse.Namespace:
     args.cookies_from_browser = getattr(a, "cookies_from_browser", None)
     args.keep_source = True
     args.camp = c
+    if c.get("ai_text_allowed") is False:  # campaign forbids AI involvement: no Claude ranking/titles
+        args.no_ai = True
     args.min, args.max = max(3.0, args.min), max(args.min + 2, args.max)
     return args
 
@@ -1043,8 +1048,12 @@ def cmd_earnings(ws: WS, a) -> int:
 HOLD_DEFAULT = ["unsure of", "may depend on earlier context", "ends mid-sentence", "transcript from"]
 
 
+PLATFORMS = ("youtube", "tiktok")
+
+
 class YouTubeUploader:
-    """Thin adapter so the autopilot can be tested with a fake uploader."""
+    """Adapter so the autopilot can be tested with fake uploaders. Returns a normalized result."""
+    name = "youtube"
 
     def __init__(self):
         import youtube
@@ -1058,6 +1067,34 @@ class YouTubeUploader:
         return self.yt_mod.stats(self.yt, ids)
 
 
+class TikTokUploader:
+    name = "tiktok"
+
+    def __init__(self):
+        import tiktok
+        self.tt = tiktok
+        _, tok = tiktok.access_token()
+        self.mode = tok.get("mode", "inbox")
+
+    def upload(self, path, title, description, tags, privacy, paid):
+        res = self.tt.upload(Path(path), description, self.mode, paid)
+        state = {"SEND_TO_USER_INBOX": "draft", "PUBLISH_COMPLETE": "live"}.get(res["status"], "processing")
+        if state == "live" and any("allowed only" in n for n in res["notes"]):
+            state = "private"
+        return {"remote_id": res.get("remote_id"), "url": None, "state": state, "notes": res["notes"],
+                "publish_id": res["publish_id"]}
+
+    def recent(self):
+        return self.tt.recent_videos()
+
+
+def normalize_result(res: dict, requested_privacy: str) -> dict:
+    priv = res.get("privacy")
+    state = res.get("state") or ("live" if (priv or requested_privacy) == "public" else (priv or "private"))
+    return {"remote_id": res.get("remote_id") or res.get("id"), "url": res.get("url"), "state": state,
+            "notes": res.get("notes") or [], "publish_id": res.get("publish_id")}
+
+
 def autopilot_policy(ws: WS) -> dict:
     return {
         "max_uploads_per_day": int(ws.setting("autopilot.max_uploads_per_day", 3)),
@@ -1065,10 +1102,11 @@ def autopilot_policy(ws: WS) -> dict:
         "privacy": ws.setting("autopilot.privacy", "public"),
         "hold_on": ws.setting("autopilot.hold_on", HOLD_DEFAULT),
         "hold_income_claims": bool(ws.setting("autopilot.hold_income_claims", False)),
+        "platforms": ws.setting("autopilot.platforms", ["youtube"]),
     }
 
 
-def hold_reason(r: sqlite3.Row, pol: dict) -> str | None:
+def hold_reason(r, pol: dict) -> str | None:
     """Why a clip must wait for a human, or None if it may be auto-approved."""
     failing = [ch["check"] for ch in json.loads(r["checks"] or "[]") if not ch["ok"]]
     if failing:
@@ -1087,16 +1125,67 @@ def hold_reason(r: sqlite3.Row, pol: dict) -> str | None:
     return None
 
 
-def uploads_today(ws: WS) -> int:
-    return ws.q("SELECT COUNT(*) n FROM clips WHERE video_id IS NOT NULL AND posted_at >= ?",
-                (dt.date.today().isoformat(),))[0]["n"]
+def uploads_today(ws: WS, platform: str | None = None) -> int:
+    sql, args = "SELECT COUNT(*) n FROM uploads WHERE created >= ?", [dt.date.today().isoformat()]
+    if platform:
+        sql += " AND platform=?"
+        args.append(platform)
+    return ws.q(sql, args)[0]["n"]
 
 
-def autopilot_cycle(ws: WS, a, uploader=None) -> int:
+def connected_uploaders(rep: dict, wanted: list[str]) -> dict:
+    ups = {}
+    for p in wanted:
+        try:
+            if p == "youtube":
+                import youtube
+                if youtube.has_token():
+                    ups[p] = YouTubeUploader()
+                else:
+                    rep["notes"].append("YouTube not connected: run `pipeline.py youtube auth` once")
+            elif p == "tiktok":
+                import tiktok
+                if tiktok.has_token():
+                    ups[p] = TikTokUploader()
+                else:
+                    rep["notes"].append("TikTok not connected: run `pipeline.py tiktok auth --client-key ...` once")
+        except Exception as e:  # noqa: BLE001
+            rep["notes"].append(f"{p} unavailable: {classify(e)[1]}")
+    return ups
+
+
+def record_upload(ws: WS, clip_row, platform: str, res: dict, caption: str) -> None:
+    ws.x("""INSERT OR REPLACE INTO uploads(clip_id, platform, remote_id, url, state, notes, caption, publish_id, created,
+            updated, views, likes) VALUES(?,?,?,?,?,?,?,?,?,?,0,0)""",
+         (clip_row["id"], platform, res["remote_id"], res["url"], res["state"], json.dumps(res["notes"]), caption,
+          res.get("publish_id"), now(), now()))
+    first = clip_row["status"] != "posted"
+    if first:
+        ws.x("UPDATE clips SET status='posted', posted_at=? WHERE id=?", (now(), clip_row["id"]))
+    if platform == "youtube":
+        ws.x("UPDATE clips SET post_url=COALESCE(post_url, ?), video_id=COALESCE(video_id, ?), upload_notes=? WHERE id=?",
+             (res["url"], res["remote_id"], json.dumps(res["notes"]), clip_row["id"]))
+    if res["url"]:
+        track_url(ws, res["url"], clip_row)
+
+
+def track_url(ws: WS, url: str, clip_row) -> None:
+    db_path = ws.home / "earnings.json"
+    db = tracker.load_db(db_path)
+    if not any(p["url"] == url for p in db["posts"]):
+        cf = ws.q("SELECT campaign_file FROM sources WHERE id=?", (clip_row["source_id"],))[0]["campaign_file"]
+        tracker.cmd_add(argparse.Namespace(url=url, campaign=cf, clip=Path(clip_row["ready_file"] or "").name,
+                                           views=0, cpm=None, name=None), db)
+        tracker.save_db(db_path, db)
+
+
+def autopilot_cycle(ws: WS, a, uploader=None, uploaders=None) -> int:
     if not ws.setting("autopilot.enabled", False):
         print("Autopilot is off. Turn it on with: python pipeline.py autopilot enable")
         return 1
     pol = autopilot_policy(ws)
+    if uploader is not None:  # test hook: a single fake uploader acts as YouTube
+        uploaders = {"youtube": uploader}
     rep = {"started": now(), "skipped_campaigns": [], "approved": [], "held": [], "uploaded": [], "upload_errors": [],
            "notes": []}
     with RunLock(ws):
@@ -1126,66 +1215,57 @@ def autopilot_cycle(ws: WS, a, uploader=None) -> int:
                 continue
             ok, msg = approve_clip(ws, r["id"], "auto-approved by autopilot policy")
             (rep["approved"] if ok else rep["held"]).append(f"#{r['id']} {r['title'][:60]}" + ("" if ok else f": {msg}"))
-        # 4. upload approved clips to YouTube, within the daily cap
-        room = pol["max_uploads_per_day"] - uploads_today(ws)
+        # 4. upload each approved clip to every platform its campaign pays on, within per-platform daily caps
         todo = ws.q("SELECT c.*, s.campaign_file FROM clips c JOIN sources s ON s.id=c.source_id "
-                    "WHERE c.status='approved' AND c.video_id IS NULL ORDER BY c.score DESC")
-        if todo and room <= 0:
-            rep["notes"].append(f"daily upload cap ({pol['max_uploads_per_day']}) reached; {len(todo)} approved clip(s) wait")
-        if todo and room > 0 and uploader is None:
-            try:
-                import youtube
-                if youtube.has_token():
-                    uploader = YouTubeUploader()
-                else:
-                    rep["notes"].append("YouTube not connected: run `pipeline.py youtube auth` once; approved clips "
-                                        "are waiting in the ready folder")
-            except Exception as e:  # noqa: BLE001
-                rep["notes"].append(f"YouTube unavailable: {classify(e)[1]}")
+                    "WHERE c.status IN ('approved','posted') AND c.ready_file IS NOT NULL ORDER BY c.score DESC")
+        need: dict[str, list] = {p: [] for p in pol["platforms"]}
         for r in todo:
-            if uploader is None or room <= 0:
-                break
-            c = cmp.load(r["campaign_file"])
-            if "youtube" not in [p.lower() for p in c.get("platforms", [])]:
-                rep["notes"].append(f"#{r['id']}: campaign doesn't accept YouTube; not uploaded")
-                continue
-            post = json.loads(r["posts"] or "{}").get("youtube") or {"title": r["title"], "description": r["caption"]}
             try:
-                res = uploader.upload(r["ready_file"], post["title"], post["description"],
-                                      json.loads(r["hashtags"] or "[]"), pol["privacy"],
-                                      bool((c.get("disclosure") or {}).get("caption") or
-                                           (c.get("disclosure") or {}).get("on_screen")))
-            except Exception as e:  # noqa: BLE001
-                kind, msg = classify(e)
-                rep["upload_errors"].append(f"#{r['id']}: {msg}")
-                if "quota" in msg.lower() or "limit" in msg.lower():
-                    break
+                camp_platforms = [p.lower() for p in cmp.load(r["campaign_file"]).get("platforms", [])]
+            except Exception:
                 continue
-            ws.x("UPDATE clips SET status='posted', post_url=?, posted_at=?, video_id=?, upload_notes=? WHERE id=?",
-                 (res["url"], now(), res["id"], json.dumps(res.get("notes", [])), r["id"]))
-            db_path = ws.home / "earnings.json"
-            db = tracker.load_db(db_path)
-            tracker.cmd_add(argparse.Namespace(url=res["url"], campaign=r["campaign_file"],
-                                               clip=Path(r["ready_file"]).name, views=0, cpm=None, name=None), db)
-            tracker.save_db(db_path, db)
-            rep["uploaded"].append(f"#{r['id']} {res['url']} ({res['privacy']})"
-                                   + (" — " + "; ".join(res["notes"]) if res.get("notes") else ""))
-            ws.event(f"clip #{r['id']} uploaded: {res['url']}", "ok", clip_id=r["id"])
-            room -= 1
-        # 5. refresh views of our uploads
-        vids = {r["video_id"]: r["post_url"] for r in ws.q("SELECT video_id, post_url FROM clips WHERE video_id IS NOT NULL")}
-        if vids and uploader is not None:
-            try:
-                st = uploader.stats(list(vids))
-                db_path = ws.home / "earnings.json"
-                db = tracker.load_db(db_path)
-                for p in db["posts"]:
-                    vid = next((k for k, u in vids.items() if u == p["url"]), None)
-                    if vid in st:
-                        p["views"], p["likes"], p["updated"] = st[vid]["views"], st[vid]["likes"], now()
-                tracker.save_db(db_path, db)
-            except Exception as e:  # noqa: BLE001
-                rep["notes"].append(f"view refresh failed: {classify(e)[1]}")
+            done = {u["platform"] for u in ws.q("SELECT platform FROM uploads WHERE clip_id=?", (r["id"],))}
+            for p in pol["platforms"]:
+                if p in camp_platforms and p not in done:
+                    need[p].append(r)
+        wanted = [p for p, rows in need.items() if rows]
+        if uploaders is None and wanted:
+            uploaders = connected_uploaders(rep, wanted)
+        uploaders = uploaders or {}
+        for p, rows in need.items():
+            if not rows or p not in uploaders:
+                continue
+            room = pol["max_uploads_per_day"] - uploads_today(ws, p)
+            if room <= 0:
+                rep["notes"].append(f"{p}: daily upload cap ({pol['max_uploads_per_day']}) reached; {len(rows)} clip(s) wait")
+                continue
+            for r in rows[:room]:
+                c = cmp.load(r["campaign_file"])
+                post = json.loads(r["posts"] or "{}")
+                if p == "youtube":
+                    yp = post.get("youtube") or {"title": r["title"], "description": r["caption"]}
+                    title, desc = yp["title"], yp["description"]
+                else:
+                    tp = post.get(p) or cmp.platform_posts(c, r["title"], r["caption"], json.loads(r["hashtags"] or "[]")).get(p) \
+                        or {"caption": r["caption"]}
+                    title, desc = r["title"], tp["caption"]
+                paid = bool((c.get("disclosure") or {}).get("caption") or (c.get("disclosure") or {}).get("on_screen"))
+                try:
+                    res = normalize_result(uploaders[p].upload(r["ready_file"], title, desc,
+                                                               json.loads(r["hashtags"] or "[]"), pol["privacy"], paid),
+                                           pol["privacy"])
+                except Exception as e:  # noqa: BLE001
+                    msg = classify(e)[1]
+                    rep["upload_errors"].append(f"{p} #{r['id']}: {msg}")
+                    if any(k in msg.lower() for k in ("quota", "limit", "too many", "expired", "login")):
+                        break
+                    continue
+                record_upload(ws, ws.q("SELECT * FROM clips WHERE id=?", (r["id"],))[0], p, res, desc)
+                rep["uploaded"].append(f"{p} #{r['id']} {res['url'] or res['state']}"
+                                       + (" — " + "; ".join(res["notes"]) if res["notes"] else ""))
+                ws.event(f"clip #{r['id']} uploaded to {p}: {res['url'] or res['state']}", "ok", clip_id=r["id"])
+        # 5. refresh views / pick up TikTok posts finished from the inbox
+        refresh_platform_stats(ws, uploaders, rep)
     write_autopilot_report(ws, rep)
     print(f"Autopilot cycle: {len(rep['approved'])} auto-approved, {len(rep['uploaded'])} uploaded, "
           f"{len(rep['held'])} held, {len(rep['upload_errors'])} upload error(s). Report: "
@@ -1193,20 +1273,70 @@ def autopilot_cycle(ws: WS, a, uploader=None) -> int:
     return 0
 
 
+def refresh_platform_stats(ws: WS, uploaders: dict, rep: dict) -> None:
+    db_path = ws.home / "earnings.json"
+    if "youtube" in uploaders:
+        rows = ws.q("SELECT * FROM uploads WHERE platform='youtube' AND remote_id IS NOT NULL")
+        if rows:
+            try:
+                st = uploaders["youtube"].stats([r["remote_id"] for r in rows])
+                for r in rows:
+                    if r["remote_id"] in st:
+                        ws.x("UPDATE uploads SET views=?, likes=?, updated=? WHERE id=?",
+                             (st[r["remote_id"]]["views"], st[r["remote_id"]]["likes"], now(), r["id"]))
+            except Exception as e:  # noqa: BLE001
+                rep["notes"].append(f"YouTube view refresh failed: {classify(e)[1]}")
+    if "tiktok" in uploaders and hasattr(uploaders["tiktok"], "recent"):
+        try:
+            import tiktok
+            videos = uploaders["tiktok"].recent()
+            pending = ws.q("SELECT * FROM uploads WHERE platform='tiktok' AND url IS NULL")
+            found = tiktok.match_posts([{"key": r["id"], "caption": r["caption"] or ""} for r in pending], videos)
+            for uid, v in found.items():
+                ws.x("UPDATE uploads SET url=?, remote_id=?, state='live', updated=? WHERE id=?",
+                     (v.get("share_url"), str(v["id"]), now(), uid))
+                row = ws.q("SELECT c.* FROM clips c JOIN uploads u ON u.clip_id=c.id WHERE u.id=?", (uid,))[0]
+                if v.get("share_url"):
+                    track_url(ws, v["share_url"], row)
+                rep["notes"].append(f"TikTok post found for clip #{row['id']}: {v.get('share_url')}")
+            by_id = {str(v["id"]): v for v in videos}
+            for r in ws.q("SELECT * FROM uploads WHERE platform='tiktok' AND remote_id IS NOT NULL"):
+                v = by_id.get(r["remote_id"])
+                if v:
+                    ws.x("UPDATE uploads SET views=?, likes=?, updated=? WHERE id=?",
+                         (int(v.get("view_count") or 0), int(v.get("like_count") or 0), now(), r["id"]))
+        except Exception as e:  # noqa: BLE001
+            rep["notes"].append(f"TikTok refresh failed: {classify(e)[1]}")
+    db = tracker.load_db(db_path)
+    by_url = {r["url"]: r for r in ws.q("SELECT url, views, likes FROM uploads WHERE url IS NOT NULL")}
+    for p in db["posts"]:
+        if p["url"] in by_url and by_url[p["url"]]["views"]:
+            p["views"], p["likes"], p["updated"] = by_url[p["url"]]["views"], by_url[p["url"]]["likes"], now()
+    tracker.save_db(db_path, db)
+
+
 def write_autopilot_report(ws: WS, rep: dict) -> None:
-    unsub = ws.q("SELECT c.id, c.title, c.post_url, s.campaign_file FROM clips c JOIN sources s ON s.id=c.source_id "
-                 "WHERE c.status='posted' AND c.submitted_at IS NULL ORDER BY c.id")
-    L = [f"# Autopilot report", "", f"Cycle started {rep['started']}, finished {now()}.", ""]
+    drafts = ws.q("SELECT u.*, c.title FROM uploads u JOIN clips c ON c.id=u.clip_id "
+                  "WHERE u.platform='tiktok' AND u.state='draft' AND u.url IS NULL ORDER BY u.id")
+    unsub = ws.q("SELECT u.*, c.title, s.campaign_file FROM uploads u JOIN clips c ON c.id=u.clip_id "
+                 "JOIN sources s ON s.id=c.source_id WHERE u.url IS NOT NULL AND u.submitted_at IS NULL ORDER BY u.id")
+    L = ["# Autopilot report", "", f"Cycle started {rep['started']}, finished {now()}.", ""]
+    if drafts:
+        L += ["## Finish in the TikTok app", "",
+              "These are waiting as drafts in your TikTok inbox. Open each notification, paste the caption below, "
+              "turn on the paid-partnership disclosure if the campaign needs it, and tap Post. The next cycle "
+              "finds the live post and its link automatically.", ""]
+        for d in drafts:
+            L += [f"### Clip #{d['clip_id']}: {d['title']}", "", "```", d["caption"] or "", "```", ""]
     if unsub:
-        L += ["## Submit on the campaign page (the one manual step)", "",
-              "Whop has no public API for Content Rewards submissions, so paste each link into the campaign's "
-              "submit form, then run `python pipeline.py submitted all` (or `submitted <id>`).", ""]
+        L += ["## Submit on the campaign page", "",
+              "Paste each link into the campaign's submit form, then run `python pipeline.py submitted all`.", ""]
         for r in unsub:
             try:
                 page = (cmp.load(r["campaign_file"]).get("permission") or {}).get("campaign_url", "")
             except Exception:
                 page = ""
-            L.append(f"- #{r['id']} {r['post_url']}  →  {page}")
+            L.append(f"- #{r['clip_id']} [{r['platform']}] {r['url']}  →  {page}")
         L.append("")
     for key, title in (("uploaded", "Uploaded this cycle"), ("approved", "Auto-approved"),
                        ("held", "Held for you (open `pipeline.py review` to decide)"),
@@ -1216,10 +1346,9 @@ def write_autopilot_report(ws: WS, rep: dict) -> None:
             L += [f"## {title}", ""] + [f"- {x}" for x in rep[key]] + [""]
     g = LedgerGuard(ws)
     L += [f"AI spend this month: ${g.month_spent():.4f} of ${float(ws.setting('spend.monthly_cap_usd', 0) or 0):.2f}.",
-          "View counts are YouTube's public numbers; the campaign pays on the views it verifies."]
+          "View counts are the platforms' public numbers; the campaign pays on the views it verifies."]
     (ws.home / "AUTOPILOT_REPORT.md").write_text("\n".join(L) + "\n", encoding="utf-8")
-    log_dir = ws.home / "logs"
-    with (log_dir / "autopilot.jsonl").open("a", encoding="utf-8") as f:
+    with (ws.home / "logs" / "autopilot.jsonl").open("a", encoding="utf-8") as f:
         f.write(json.dumps({**rep, "finished": now()}) + "\n")
 
 
@@ -1236,6 +1365,13 @@ def cmd_autopilot(ws: WS, a) -> int:
             ws.set_setting("autopilot.privacy", a.privacy)
         if a.hold_income_claims is not None:
             ws.set_setting("autopilot.hold_income_claims", a.hold_income_claims == "yes")
+        if a.platforms:
+            plats = [p.strip().lower() for p in a.platforms.split(",") if p.strip()]
+            bad = [p for p in plats if p not in PLATFORMS]
+            if bad:
+                print(f"unsupported platform(s): {bad}; supported: {', '.join(PLATFORMS)}")
+                return 1
+            ws.set_setting("autopilot.platforms", plats)
         print("Autopilot ON: clips that pass every campaign rule and review check are approved and uploaded "
               "automatically. Clips with warnings are held for you.")
     elif act == "disable":
@@ -1254,7 +1390,9 @@ def cmd_autopilot(ws: WS, a) -> int:
         if c["_path"] not in lst:
             lst.append(c["_path"])
         ws.set_setting("autopilot.campaigns", lst)
-        print(f"added {c['name']}")
+        plats = [p for p in c.get("platforms", []) if p in PLATFORMS]
+        print(f"added {c['name']} (pays on: {', '.join(c.get('platforms', []))}; autopilot can upload to: "
+              f"{', '.join(plats) or 'none of them'})")
     elif act == "remove":
         path = str(Path(a.campaign).resolve()) if a.campaign else ""
         ws.set_setting("autopilot.campaigns", [x for x in ws.setting("autopilot.campaigns", []) if x != path])
@@ -1263,35 +1401,60 @@ def cmd_autopilot(ws: WS, a) -> int:
         cl.Tools.setup(True)
         return autopilot_cycle(ws, a)
     pol = autopilot_policy(ws)
-    try:
-        import youtube
-        yt = "connected" if youtube.has_token() else "not connected"
-    except Exception:
-        yt = "unavailable"
-    print(f"Autopilot: {'ON' if ws.setting('autopilot.enabled', False) else 'OFF'}  YouTube: {yt}\n"
+    conn = []
+    for p in PLATFORMS:
+        try:
+            mod = __import__(p)
+            conn.append(f"{p}: {'connected' if mod.has_token() else 'not connected'}")
+        except Exception:
+            conn.append(f"{p}: unavailable")
+    print(f"Autopilot: {'ON' if ws.setting('autopilot.enabled', False) else 'OFF'}  ({'; '.join(conn)})\n"
+          f"  upload to: {', '.join(pol['platforms'])}\n"
           f"  campaigns: {ws.setting('autopilot.campaigns', []) or 'none'}\n"
-          f"  uploads/day cap: {pol['max_uploads_per_day']} (today: {uploads_today(ws)})  privacy: {pol['privacy']}  "
-          f"min score: {pol['min_score']:.0f}  hold earnings claims: {pol['hold_income_claims']}")
+          f"  uploads/day cap per platform: {pol['max_uploads_per_day']} (today: {uploads_today(ws)})  "
+          f"privacy: {pol['privacy']}  min score: {pol['min_score']:.0f}  "
+          f"hold earnings claims: {pol['hold_income_claims']}")
     return 0
 
 
 def cmd_submitted(ws: WS, a) -> int:
     if a.which == "all":
-        n = len(ws.q("SELECT id FROM clips WHERE status='posted' AND submitted_at IS NULL"))
+        n = len(ws.q("SELECT id FROM uploads WHERE url IS NOT NULL AND submitted_at IS NULL"))
+        ws.x("UPDATE uploads SET submitted_at=? WHERE url IS NOT NULL AND submitted_at IS NULL", (now(),))
         ws.x("UPDATE clips SET submitted_at=? WHERE status='posted' AND submitted_at IS NULL", (now(),))
-        print(f"{n} clip(s) marked submitted")
+        print(f"{n} post(s) marked submitted")
         return 0
     try:
         cid = int(a.which)
     except ValueError:
         print("give a clip id or 'all'")
         return 1
-    r = ws.q("SELECT status FROM clips WHERE id=?", (cid,))
-    if not r or r[0]["status"] != "posted":
-        print(f"clip #{cid} isn't posted")
+    if not ws.q("SELECT id FROM uploads WHERE clip_id=? AND url IS NOT NULL", (cid,)):
+        print(f"clip #{cid} has no live post yet")
         return 1
+    ws.x("UPDATE uploads SET submitted_at=? WHERE clip_id=? AND url IS NOT NULL", (now(), cid))
     ws.x("UPDATE clips SET submitted_at=? WHERE id=?", (now(), cid))
     print(f"#{cid} marked submitted")
+    return 0
+
+
+def cmd_tiktok(ws: WS, a) -> int:
+    import tiktok
+    if a.action == "auth":
+        if not a.client_key:
+            print("--client-key is required (from developers.tiktok.com -> your app)")
+            return 1
+        secret = getpass.getpass("TikTok client secret (input hidden): ").strip()
+        print(tiktok.authorize(a.client_key, secret, a.mode, a.pkce, a.paste))
+    elif a.action == "status":
+        if not tiktok.has_token():
+            print("not connected")
+            return 1
+        _, tok = tiktok.access_token()
+        print(f"connected ({tok.get('mode')} mode; scopes: {tok.get('scope')})")
+    elif a.action == "disconnect":
+        tiktok.revoke()
+        print("TikTok token removed from the keychain (also remove the app at TikTok settings -> Security)")
     return 0
 
 
@@ -1418,6 +1581,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--min-score", type=float)
     s.add_argument("--privacy", choices=["public", "unlisted", "private"])
     s.add_argument("--hold-income-claims", choices=["yes", "no"])
+    s.add_argument("--platforms", help="comma list: youtube,tiktok (default youtube)")
     s.add_argument("--preset")
     s.add_argument("--limit", type=int)
     s.add_argument("--cookies-from-browser")
@@ -1427,6 +1591,13 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("youtube", help="connect your YouTube channel for uploads")
     s.add_argument("action", choices=["auth", "status", "disconnect"])
     s.add_argument("--client-secret")
+    s = sub.add_parser("tiktok", help="connect your TikTok account for uploads")
+    s.add_argument("action", choices=["auth", "status", "disconnect"])
+    s.add_argument("--client-key")
+    s.add_argument("--mode", choices=["inbox", "direct"], default="inbox",
+                   help="inbox = drafts you finish in the app (works without TikTok's audit); direct = needs audit")
+    s.add_argument("--pkce", choices=["hex", "b64"], default="hex")
+    s.add_argument("--paste", action="store_true", help="paste the redirect URL instead of a local callback")
     s = sub.add_parser("submitted", help="mark posted clips as submitted on the campaign page")
     s.add_argument("which", help="clip id or 'all'")
     s = sub.add_parser("earnings", help="tracker commands on this workspace (default: report)")
@@ -1438,7 +1609,7 @@ COMMANDS = {"campaign-check": cmd_campaign_check, "import": cmd_import, "run": c
             "clips": cmd_clips, "review": cmd_review, "approve": cmd_approve, "reject": cmd_reject, "fix": cmd_fix,
             "posted": cmd_posted, "retry": cmd_retry, "budget": cmd_budget, "secrets": cmd_secrets,
             "cleanup": cmd_cleanup, "earnings": cmd_earnings, "autopilot": cmd_autopilot, "schedule": cmd_schedule,
-            "youtube": cmd_youtube, "submitted": cmd_submitted}
+            "youtube": cmd_youtube, "submitted": cmd_submitted, "tiktok": cmd_tiktok}
 
 
 def main(argv=None) -> int:

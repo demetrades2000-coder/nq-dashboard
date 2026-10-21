@@ -1,0 +1,51 @@
+{
+  "name": "Ivan Soto / MoonPay (Clip Farm)",
+  "marketplace": "whop",
+  "permission": {
+    "program": "Content Rewards (Clip Farm campaign)",
+    "campaign_url": "TODO: campaign page URL (listed under https://contentrewards.com/clip-farm)",
+    "verified_on": "",
+    "evidence": "TODO",
+    "allowed_sources": []
+  },
+  "cpm": 1.5,
+  "fee_pct": 10,
+  "max_payout_per_clip": 0,
+  "min_payout": 0,
+  "platforms": [
+    "tiktok",
+    "instagram",
+    "youtube"
+  ],
+  "sources": [],
+  "language": "en",
+  "clip": {
+    "min": 15,
+    "max": 60,
+    "count": 6,
+    "latest": 2,
+    "layout": "auto",
+    "title": true,
+    "jumpcuts": true
+  },
+  "caption": {
+    "required_hashtags": [],
+    "required_mentions": [],
+    "required_text": ""
+  },
+  "on_screen": {
+    "watermark": "",
+    "highlight": "#FFE600"
+  },
+  "disclosure": {
+    "caption": "",
+    "on_screen": ""
+  },
+  "banned_phrases": [
+    "financial advice",
+    "guaranteed",
+    "100x",
+    "can't lose"
+  ],
+  "notes": "Found via search 2026-10-21: $1.50/1K views on TikTok, Instagram, YouTube; 18+. Budget snapshots conflict (one shows $33 of $8K left) - check it's not exhausted. Reported stricter content rules for finance/crypto: paste them here and extend banned_phrases."
+}

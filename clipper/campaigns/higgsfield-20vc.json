@@ -1,0 +1,45 @@
+{
+  "name": "Higgsfield 20VC (Clip Farm)",
+  "marketplace": "whop",
+  "permission": {
+    "program": "Content Rewards (Clip Farm campaign)",
+    "campaign_url": "https://contentrewards.com/discover/1ccf8238-ca36-4ff3-a6d1-76956d865ada",
+    "verified_on": "",
+    "evidence": "TODO: paste the campaign's wording about what to clip (listing says: clip Alex Mashrabov's 20VC podcast appearance)",
+    "allowed_sources": []
+  },
+  "cpm": 1.0,
+  "fee_pct": 10,
+  "max_payout_per_clip": 350,
+  "min_payout": 1,
+  "platforms": [
+    "instagram",
+    "youtube"
+  ],
+  "sources": [],
+  "language": "en",
+  "clip": {
+    "min": 15,
+    "max": 60,
+    "count": 6,
+    "latest": 2,
+    "layout": "auto",
+    "title": true,
+    "jumpcuts": true
+  },
+  "caption": {
+    "required_hashtags": [],
+    "required_mentions": [],
+    "required_text": ""
+  },
+  "on_screen": {
+    "watermark": "",
+    "highlight": "#FFE600"
+  },
+  "disclosure": {
+    "caption": "",
+    "on_screen": ""
+  },
+  "banned_phrases": [],
+  "notes": "Found via search 2026-10-21: $1.00/1K views on Instagram and YouTube, $1 min / $350 max payout, budget about $3.4K-$5K depending on snapshot. NOT paid on TikTok. TODO: add the exact 20VC episode URL to permission.allowed_sources and sources, paste the rules, set verified_on."
+}

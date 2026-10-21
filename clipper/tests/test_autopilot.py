@@ -110,7 +110,7 @@ class AutopilotTests(unittest.TestCase):
         self.assertEqual(len(up.calls), 1)
         self.assertIn("daily upload cap", (Path(self.home) / "AUTOPILOT_REPORT.md").read_text())
         rc, out = run_cli("--home", self.home, "submitted", "all")
-        self.assertIn("1 clip(s) marked submitted", out)
+        self.assertIn("1 post(s) marked submitted", out)
         self.assertNotIn("Submit on the campaign page", (self.cycle(up), (Path(self.home) / "AUTOPILOT_REPORT.md").read_text())[1])
 
     def test_03_policy_holds(self):

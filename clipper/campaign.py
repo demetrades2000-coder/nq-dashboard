@@ -173,6 +173,8 @@ def permission_problems(c: dict, max_age_days: int = 30) -> list[str]:
     for k in ("program", "campaign_url", "verified_on", "evidence", "allowed_sources"):
         if not perm.get(k):
             probs.append(f"permission.{k} is empty")
+        elif "TODO" in json.dumps(perm.get(k)):
+            probs.append(f"permission.{k} still has a TODO: fill it in from the live campaign page")
     if perm.get("verified_on"):
         try:
             age = (dt.date.today() - dt.date.fromisoformat(perm["verified_on"])).days
@@ -212,6 +214,8 @@ def source_allowed(c: dict, url_or_path: str, meta: dict | None = None) -> tuple
 
 def payout(c: dict, views: int) -> tuple[float, float]:
     """(gross, net) for one clip at a view count, applying cap, minimum and marketplace fee."""
+    if views < int(c.get("min_views") or 0):  # per-post view gate (e.g. 10,000 views before it earns)
+        return 0.0, 0.0
     gross = views / 1000 * float(c.get("cpm") or 0)
     cap = float(c.get("max_payout_per_clip") or 0)
     if cap:

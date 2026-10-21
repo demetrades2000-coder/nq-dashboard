@@ -152,7 +152,7 @@ class AutopilotViaUploadPost(unittest.TestCase):
     def test_native_mode_refuses_instagram(self):
         rc, out = run_cli("--home", self.home, "autopilot", "enable", "--platforms", "tiktok,instagram", "--via", "native")
         self.assertEqual(rc, 1)
-        self.assertIn("needs Upload-Post", out)
+        self.assertIn("needs the free route", out)
 
     def test_full_cycle_posts_everywhere_without_taps(self):
         os.environ["UPLOAD_POST_API_KEY"] = "k"

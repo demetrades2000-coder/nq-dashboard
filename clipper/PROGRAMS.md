@@ -161,7 +161,19 @@ TikTok is the obvious second platform once v1 works.
     [API audit](https://developers.google.com/youtube/data/guides/quota_and_compliance_audits).
   - Uploads have their own quota bucket, 100 per day by default. Autopilot
     caps itself lower (3 per day by default).
-- **Fully automatic posting goes through Upload-Post.**
+- **Free automatic posting goes through Zernio** (formerly Late).
+  - [Zernio's own pages](https://zernio.com/alternatives/ayrshare) say the
+    first 2 connected accounts are free, with full API access, and its
+    [TikTok docs](https://docs.zernio.com/platforms/tiktok) show public
+    posting with `privacy_level: PUBLIC_TO_EVERYONE` and the consent flags
+    TikTok requires.
+  - Uploads use the documented
+    [presign flow](https://docs.zernio.com/guides/media-uploads).
+  - A third-party review mentions 20 posts a month on the free tier
+    ([Hypertools](https://hypertools.so/tool/zernio)), so check the limit
+    on Zernio's pricing page.
+  - YouTube uses Google's free Data API (`youtube.py`).
+- **Paid alternative: Upload-Post.**
   [Upload-Post](https://www.upload-post.com/platforms/tiktok/) is a hosted
   posting API that says you don't need your own TikTok app review.
   - Its [upload API](https://docs.upload-post.com/api/upload-video/) takes

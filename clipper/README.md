@@ -60,7 +60,12 @@ Clips are **held for you** when:
 - the transcript came from auto-captions
 - (optionally) the clip contains an earnings claim
 
-**Fully automatic posting:** `autopilot enable --via uploadpost` posts
+**Free, fully automatic posting:** `autopilot enable --via free` posts publicly
+to TikTok and Instagram through Zernio's free plan (2 connected accounts,
+API included), and to YouTube Shorts through Google's free YouTube API. See
+`zernio.py`. TikTok posts need your one-time consent (`zernio auth`).
+
+**Paid alternative:** `autopilot enable --via uploadpost` posts
 publicly to TikTok, Instagram Reels and YouTube Shorts through Upload-Post
 (upload-post.com), a hosted posting API with its own platform approvals.
 Without it, TikTok gets inbox drafts you post from the app (see below). See
@@ -172,7 +177,12 @@ python -m unittest discover -s tests -v     # ~2 min; offline; synthetic video +
 python clipper.py --selftest                # renderer check across all layouts (~5 min)
 ```
 
-The 67 tests cover:
+The 74 tests cover:
+- **Zernio (free route) against a simulated API:** presign, PUT without
+  auth, and publishNow with public TikTok settings, consent flags and the
+  paid-partnership flag; TikTok refused without consent; Instagram link
+  picked up later; platform failure; retry; account matching; bad key; a
+  full free cycle that posts to Instagram and TikTok with no taps.
 - **Upload-Post against a simulated API:** the exact fields sent (direct
   public post, paid-partnership flag, Reels, YouTube limits), retries on
   429/503, bad key, plan limit, platform rejection, private-post detection,
@@ -283,6 +293,7 @@ The 67 tests cover:
 | `youtube.py` | YouTube Data API: OAuth (keychain), resumable upload with retries, view stats |
 | `START_HERE.md`, `START.bat`, `START.command` | The simple steps, plus double-click launchers that install everything and run the guided setup |
 | `campaigns/alpha-futures.json` | The TikTok pick: $2 per 1K views, logo overlay, dedicated account, engagement floor |
+| `zernio.py` | Free automatic public posting to TikTok and Instagram through Zernio's free plan (presigned upload, publishNow, link lookup) |
 | `uploadpost.py` | Fully automatic public posting to TikTok, Instagram and YouTube through Upload-Post's API (key in the keychain) |
 | `tiktok.py` | TikTok Content Posting API: desktop OAuth with PKCE (keychain), chunked inbox/direct upload, status polling, video list for links and views |
 | `campaigns/higgsfield-20vc.json`, `moonpay-ivan-soto.json`, `pbinvesting.json` | Pre-filled briefs for the campaigns you found. Each has TODOs and won't run until you verify it. |

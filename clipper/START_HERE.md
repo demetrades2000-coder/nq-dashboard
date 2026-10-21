@@ -1,79 +1,68 @@
 # Start here
 
-**Goal:** the tool makes the clips and posts them to TikTok (plus Instagram
-and YouTube if you want) on its own, every 6 hours. You only set it up once,
-and paste finished links into the campaign page.
+**What it does:** every 6 hours it makes clips from the brand's footage and
+**posts them publicly to TikTok, Instagram and YouTube on its own, for
+free**. You never tap Post.
 
-**Campaign:** Alpha Futures. It pays $2 per 1,000 views on TikTok, Instagram
-and YouTube, up to $500 per clip, and the brand provides the footage. Its
-file is `campaigns/alpha-futures.json`.
+**Campaign:** Alpha Futures pays $2 per 1,000 views on TikTok, Instagram and
+YouTube, up to $500 per clip. File: `campaigns/alpha-futures.json`.
 
-**How posting works:** through **Upload-Post** (upload-post.com), a posting
-service TikTok, Instagram and YouTube already allow to post publicly. That is
-what makes it hands-off; your own new TikTok app could only post privately.
-It's a paid service. By its own pricing page, the free plan is 10 uploads a
-month and may not include TikTok, and Basic is about $16–24 a month for
-unlimited uploads. Choosing a plan is your call.
+**How posting is free:**
+- **TikTok and Instagram** go through **Zernio** (zernio.com). Its free plan
+  connects 2 social accounts with API posting, and TikTok already allows it
+  to post publicly.
+- **YouTube Shorts** goes through Google's own YouTube API, which is free.
 
-## One-time setup (you)
+## One-time setup (you, about 30 minutes)
 
-1. **Join the campaign:** open
-   [Alpha Futures on Content Rewards](https://contentrewards.com/c/campaigns/2c65001c-d6a8-4b14-9ba6-52400794b085),
-   sign in with Whop and join. Check the budget isn't used up.
-2. **Make the dedicated TikTok account** the campaign requires. The name
-   includes "Alpha Futures", the profile picture is their logo, and likes
-   stay visible. Optionally do the same on Instagram.
-3. **Upload-Post:**
-   - Sign up and pick a plan that includes TikTok.
-   - Create a profile named **`alphafutures`** and connect the dedicated
-     TikTok account (and Instagram/YouTube if you made them).
-   - Copy your **API key**.
-4. **Campaign files:**
-   - Download their footage into `clipper/campaigns/footage/alpha-futures/`.
+1. **Join** the
+   [Alpha Futures campaign](https://contentrewards.com/c/campaigns/2c65001c-d6a8-4b14-9ba6-52400794b085)
+   with your Whop login.
+2. **Make the dedicated accounts** the campaign requires: TikTok, plus
+   Instagram if you want it. Put "Alpha Futures" in the name, use their logo
+   as the picture, and keep likes visible. Instagram must be a free
+   Professional account: Settings → Account type → Creator.
+3. **Zernio (free):**
+   - Sign up at zernio.com; no card needed.
+   - Connect the TikTok account, and Instagram as your second free account.
+   - Create an **API key**.
+4. **YouTube (optional, free):** follow the 2-minute steps at the top of
+   `youtube.py` to get a `client_secret.json`.
+5. **Campaign files:**
+   - Put their footage in `clipper/campaigns/footage/alpha-futures/`.
    - Save their logo as `clipper/campaigns/logos/alpha-futures.png`.
-   - Fill the 3 TODOs in `alpha-futures.json`: a line from the rules, their
-     @handle, today's date.
+   - Fill the 3 TODOs in `alpha-futures.json`: a rules line, their @handle,
+     today's date.
 
-   A Claude session on your computer can do this step for you with
+   A Claude session on your computer can do this step with
    `LOCAL_CLAUDE_TASK.md`.
-5. **Run setup:** double-click `clipper/START.bat` (Windows) or
-   `clipper/START.command` (Mac).
-   - Answer **yes** to "Post fully automatically through Upload-Post?" and
-     paste the key.
-   - Answer yes to the schedule.
+6. **Double-click** `clipper/START.bat` (Windows) or `clipper/START.command`
+   (Mac):
+   - Say **yes** to "Post automatically for free?" and paste the Zernio key.
+   - Say **yes** to TikTok's consent question. TikTok requires your
+     agreement for automated posts, and only you can give it.
+   - Say **yes** to the schedule.
 
-That's it. It now runs every 6 hours:
-1. It picks up new footage from the folder and makes clips with captions,
-   the logo and `#ad`.
-2. It checks the rules and posts publicly to TikTok (and Instagram/YouTube)
-   through the `alphafutures` profile.
-3. It collects the links and view counts, and writes `AUTOPILOT_REPORT.md`.
-
-## The one recurring step
+## The only recurring step
 
 Content Rewards has no way for a program to submit, so every day or two:
-1. Open `AUTOPILOT_REPORT.md`. Under "Submit on the campaign page" are the
-   new links.
+1. Open `AUTOPILOT_REPORT.md`, which lists the new public links.
 2. Paste each into the campaign's submit form.
 3. Run `python pipeline.py submitted all`.
-
-Turn on phone notifications during setup to get a ping when there are links
-to submit.
 
 ## If something's off
 
 ```
-python pipeline.py doctor     # checks everything, says exactly what to fix
-python pipeline.py status     # every job and any error, in plain words
-python pipeline.py review     # clips held back by the safety checks
+python pipeline.py doctor        # checks everything, says exactly what to fix
+python pipeline.py status        # every job and error in plain words
+python pipeline.py zernio status # which accounts Zernio sees
 ```
 
-Watch for these in the report:
-- **"published it as private":** Upload-Post's TikTok connection didn't post
-  publicly. Contact Upload-Post, or switch to TikTok drafts with
-  `autopilot enable --via native` and the `tiktok auth` steps in README.md.
-- **"plan limit":** your Upload-Post plan is out of uploads or doesn't
-  include TikTok.
+What the report can say:
+- **"posting limit reached":** TikTok caps posts made through apps per day,
+  so the rest go out next cycle. Keep the daily cap at 3, the default.
+- **"no tiktok account is connected in Zernio":** reconnect it in Zernio's
+  dashboard.
 - **"engagement under 2%":** that post may not be paid under the campaign
   rules.
 

@@ -1081,6 +1081,25 @@ PLATFORMS = ("youtube", "tiktok", "instagram")
 NATIVE = ("youtube", "tiktok")  # platforms with a built-in direct integration; Upload-Post covers all three
 
 
+class ZernioUploader:
+    """Free automatic public posting to TikTok/Instagram through Zernio's free plan."""
+    kind = "zernio"
+
+    def __init__(self, platform: str, account: str, consent: bool):
+        import zernio
+        self.z, self.platform, self.account, self.consent = zernio, platform, account, consent
+
+    def upload(self, path, title, description, tags, privacy, paid):
+        return self.z.upload(Path(path), self.platform, self.account, description, paid, privacy, self.consent)
+
+    def lookup(self, post_id):
+        return self.z.post_url(post_id, self.platform)
+
+    def public_stats(self, url):
+        v, l = tracker.fetch_stats(url)
+        return {"views": v, "likes": l}
+
+
 class UploadPostUploader:
     """Fully automatic public posting through Upload-Post (profile = campaign account name)."""
     kind = "uploadpost"
@@ -1200,6 +1219,15 @@ class UploaderPool:
             return self.cache[key]
         if key in self.failed:
             return None
+        if self.via in ("free", "zernio") and platform != "youtube":
+            import zernio
+            if not zernio.has_token():
+                self.rep["notes"].append("Zernio isn't connected: run `pipeline.py zernio auth`")
+                self.failed.add(key)
+                return None
+            consent = bool(self.ws.setting("zernio.tiktok_consent", False)) if self.ws else False
+            self.cache[key] = ZernioUploader(platform, account, consent)
+            return self.cache[key]
         if self.via == "uploadpost":
             import uploadpost
             if not uploadpost.has_token():
@@ -1377,12 +1405,17 @@ def refresh_platform_stats(ws: WS, pool: "UploaderPool", rep: dict) -> None:
     for (platform, acct), up in pool.items():
         where = "platform=?" + ("" if acct is None else " AND COALESCE(account,'default')=?")
         args = [platform] + ([] if acct is None else [acct])
-        if getattr(up, "kind", "") == "uploadpost":
+        if getattr(up, "kind", "") in ("uploadpost", "zernio"):
             for r in ws.q(f"SELECT * FROM uploads WHERE {where} AND url IS NULL AND publish_id IS NOT NULL", args):
                 try:
                     got = up.lookup(r["publish_id"])
                 except Exception:
                     got = None
+                if got and got.get("failed"):
+                    ws.x("UPDATE uploads SET state='failed', notes=?, updated=? WHERE id=?",
+                         (json.dumps([str(got["failed"])]), now(), r["id"]))
+                    rep["upload_errors"].append(f"{platform} #{r['clip_id']}: {got['failed']}")
+                    continue
                 if got and got.get("url"):
                     ws.x("UPDATE uploads SET url=?, state='live', updated=? WHERE id=?", (got["url"], now(), r["id"]))
                     row = ws.q("SELECT * FROM clips WHERE id=?", (r["clip_id"],))[0]
@@ -1506,7 +1539,7 @@ def cmd_autopilot(ws: WS, a) -> int:
                 return 1
             via = a.via or ws.setting("autopilot.via", "native")
             if via == "native" and "instagram" in plats:
-                print("Instagram posting needs Upload-Post: add --via uploadpost")
+                print("Instagram posting needs the free route: add --via free (Zernio) or --via uploadpost")
                 return 1
             ws.set_setting("autopilot.platforms", plats)
         if a.via:
@@ -1541,7 +1574,7 @@ def cmd_autopilot(ws: WS, a) -> int:
         return autopilot_cycle(ws, a)
     pol = autopilot_policy(ws)
     conn = []
-    for p in NATIVE + ("uploadpost",):
+    for p in NATIVE + ("zernio", "uploadpost"):
         try:
             mod = __import__(p)
             conn.append(f"{p}: {'connected' if mod.has_token() else 'not connected'}")
@@ -1574,6 +1607,38 @@ def cmd_submitted(ws: WS, a) -> int:
     ws.x("UPDATE uploads SET submitted_at=? WHERE clip_id=? AND url IS NOT NULL", (now(), cid))
     ws.x("UPDATE clips SET submitted_at=? WHERE id=?", (now(), cid))
     print(f"#{cid} marked submitted")
+    return 0
+
+
+def cmd_zernio(ws: WS, a) -> int:
+    import zernio
+    if a.action == "auth":
+        key = os.environ.get("ZERNIO_API_KEY") or getpass.getpass("Zernio API key (input hidden): ").strip()
+        if not key:
+            print("nothing entered")
+            return 1
+        zernio.save_key(key)
+        print("Zernio key stored in the OS keychain.")
+        consent = a.accept_tiktok_terms or ask(
+            "TikTok requires consent for each automated post. Do you agree to TikTok's terms and its music usage "
+            "confirmation for every clip this tool publishes for you?", "n")
+        ws.set_setting("zernio.tiktok_consent", bool(consent))
+        print("TikTok posting " + ("enabled." if consent else "stays off until you accept (run zernio auth again)."))
+        print("Next: python pipeline.py autopilot enable --via free --platforms tiktok,instagram,youtube")
+    elif a.action == "status":
+        if not zernio.has_token():
+            print("not connected")
+            return 1
+        try:
+            for acct in zernio.list_accounts():
+                print(f"  {acct.get('platform')}: {acct.get('username') or acct.get('displayName')} ({acct.get('_id')})")
+        except Exception as e:  # noqa: BLE001
+            print(f"connected, but listing accounts failed: {classify(e)[1]}")
+            return 1
+        print(f"TikTok consent: {'given' if ws.setting('zernio.tiktok_consent', False) else 'not given'}")
+    elif a.action == "disconnect":
+        zernio.delete_key()
+        print("key removed from the keychain")
     return 0
 
 
@@ -1774,11 +1839,12 @@ def cmd_doctor(ws: WS, a) -> int:
         except Exception as e:  # noqa: BLE001
             print(f"  ERROR  {f.name}: {e}")
     print("\nAccounts:")
-    try:
-        import uploadpost
-        print(f"  {'connected    ' if uploadpost.has_token() else 'not connected'}  upload-post (automatic posting)")
-    except Exception:
-        pass
+    for modname, label in (("zernio", "zernio (free automatic TikTok/Instagram posting)"),
+                           ("uploadpost", "upload-post (paid alternative)")):
+        try:
+            print(f"  {'connected    ' if __import__(modname).has_token() else 'not connected'}  {label}")
+        except Exception:
+            pass
     for platform in NATIVE:
         accts = {"default"}
         for f in camps:
@@ -1892,8 +1958,24 @@ def cmd_setup(ws: WS, a) -> int:
     platforms = sorted({p for _, c in chosen for p in c.get("platforms", []) if p in PLATFORMS})
     via = "native"
     import uploadpost
-    if uploadpost.has_token() or ask("  Post fully automatically through Upload-Post? (needs an upload-post.com plan "
-                                     "with TikTok; you connect your accounts there)"):
+    import zernio
+    if zernio.has_token() or ask("  Post automatically for free? (TikTok/Instagram through a free zernio.com account, "
+                                 "YouTube through Google's free API)"):
+        if not zernio.has_token():
+            key = os.environ.get("ZERNIO_API_KEY") or getpass.getpass("    Zernio API key (hidden): ").strip()
+            if key:
+                try:
+                    zernio.save_key(key)
+                except Exception as e:  # noqa: BLE001
+                    print(f"    {e}")
+        if zernio.has_token():
+            via = "free"
+            if not ws.setting("zernio.tiktok_consent", False):
+                ws.set_setting("zernio.tiktok_consent", ask(
+                    "    TikTok requires consent for each automated post: do you agree to TikTok's terms and its music "
+                    "usage confirmation for every clip this tool publishes?", "n"))
+    if via == "native" and (uploadpost.has_token() or ask("  Post fully automatically through Upload-Post? (needs an upload-post.com plan "
+                                     "with TikTok; you connect your accounts there)", "n")):
         if not uploadpost.has_token():
             key = os.environ.get("UPLOAD_POST_API_KEY") or getpass.getpass("    Upload-Post API key (hidden): ").strip()
             if key:
@@ -1908,7 +1990,7 @@ def cmd_setup(ws: WS, a) -> int:
                   f"accounts connected: {', '.join(x if x != 'default' else 'default' for x in profiles)}")
     if via == "native":
         platforms = [p for p in platforms if p in NATIVE]
-    for p in (platforms if via == "native" else []):
+    for p in (platforms if via == "native" else ["youtube"] if via == "free" and "youtube" in platforms else []):
         for acct in sorted({campaign_account(c, p) for _, c in chosen if p in c.get("platforms", [])}):
             mod = __import__(p)
             if mod.has_token(acct):
@@ -2040,8 +2122,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--privacy", choices=["public", "unlisted", "private"])
     s.add_argument("--hold-income-claims", choices=["yes", "no"])
     s.add_argument("--platforms", help="comma list: youtube,tiktok,instagram (default youtube)")
-    s.add_argument("--via", choices=["native", "uploadpost"],
-                   help="uploadpost = fully automatic public posting through upload-post.com (paid plan for TikTok)")
+    s.add_argument("--via", choices=["free", "native", "uploadpost"],
+                   help="free = automatic public posting at no cost: TikTok/Instagram via Zernio's free plan, "
+                        "YouTube via its own API; native = TikTok inbox drafts; uploadpost = paid upload-post.com")
     s.add_argument("--preset")
     s.add_argument("--limit", type=int)
     s.add_argument("--cookies-from-browser")
@@ -2060,6 +2143,10 @@ def build_parser() -> argparse.ArgumentParser:
                    help="inbox = drafts you finish in the app (works without TikTok's audit); direct = needs audit")
     s.add_argument("--pkce", choices=["hex", "b64"], default="hex")
     s.add_argument("--paste", action="store_true", help="paste the redirect URL instead of a local callback")
+    s = sub.add_parser("zernio", help="connect Zernio (free) for automatic TikTok/Instagram posting")
+    s.add_argument("action", choices=["auth", "status", "disconnect"])
+    s.add_argument("--accept-tiktok-terms", action="store_true",
+                   help="you agree to TikTok's terms and music usage confirmation for each automated post")
     s = sub.add_parser("uploadpost", help="connect Upload-Post for fully automatic posting")
     s.add_argument("action", choices=["auth", "status", "disconnect"])
     s.add_argument("--default-profile", help="Upload-Post profile used when a campaign names no account")
@@ -2098,7 +2185,7 @@ COMMANDS = {"campaign-check": cmd_campaign_check, "import": cmd_import, "run": c
             "cleanup": cmd_cleanup, "earnings": cmd_earnings, "autopilot": cmd_autopilot, "schedule": cmd_schedule,
             "youtube": cmd_youtube, "submitted": cmd_submitted, "tiktok": cmd_tiktok,
             "doctor": cmd_doctor, "setup": cmd_setup, "notify": cmd_notify, "campaign-set": cmd_campaign_set,
-            "uploadpost": cmd_uploadpost, "link": cmd_link}
+            "uploadpost": cmd_uploadpost, "link": cmd_link, "zernio": cmd_zernio}
 
 
 def main(argv=None) -> int:

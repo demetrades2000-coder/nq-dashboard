@@ -61,23 +61,35 @@ Open https://contentrewards.com/c/campaigns/2c65001c-d6a8-4b14-9ba6-52400794b085
   containing "Alpha Futures", the official logo as profile picture, likes
   visible. Ask them to tell you when it's done.
 
-## 4. Posting route: Upload-Post (preferred, fully automatic)
+## 4. Posting route: free (Zernio for TikTok and Instagram, Google API for YouTube)
 
-- ⏸ The user signs up at https://upload-post.com and picks a plan that
-  includes TikTok. Choosing a plan spends money, so that's the user's
-  decision.
-- In the Upload-Post dashboard, create a profile named `alphafutures`.
-  ⏸ The user connects the dedicated TikTok account to it, plus Instagram and
-  YouTube if wanted. These are platform logins.
-- Copy the API key from the dashboard, then run:
+- ⏸ The user signs up at https://zernio.com (free plan) and connects the
+  dedicated TikTok account, plus Instagram as the second free account. These
+  are platform logins, and Instagram must be a Professional/Creator account.
+- In the Zernio dashboard, create an API key. Then run:
 
   ```bash
-  UPLOAD_POST_API_KEY=... python3 pipeline.py setup --yes      # Windows: $env:UPLOAD_POST_API_KEY="..."; python pipeline.py setup --yes
-  python3 pipeline.py autopilot enable --via uploadpost --platforms tiktok,instagram,youtube
+  ZERNIO_API_KEY=... python3 pipeline.py zernio auth      # Windows: $env:ZERNIO_API_KEY="..."; python pipeline.py zernio auth
   ```
 
-  Keep only the platforms actually connected in Upload-Post. Then skip
-  step 4b.
+  ⏸ It asks the user to agree to TikTok's terms and music usage confirmation
+  for automated posts. Only the user may answer this. Never answer it for
+  them, and never pass `--accept-tiktok-terms` yourself.
+- Verify the accounts show up with `python pipeline.py zernio status`, then
+  run:
+
+  ```bash
+  python3 pipeline.py autopilot enable --via free --platforms tiktok,instagram
+  python3 pipeline.py autopilot add campaigns/alpha-futures.json
+  python3 pipeline.py schedule install --every-hours 6
+  python3 pipeline.py autopilot run
+  ```
+
+- YouTube (optional, free): follow step 5 below, then add it with
+  `--platforms tiktok,instagram,youtube`.
+- Paid alternative only if Zernio doesn't work: Upload-Post
+  (`pipeline.py uploadpost auth`, `--via uploadpost`). Spending money is
+  the user's decision.
 
 ## 4b. Fallback only: TikTok developer app (drafts the user posts from the app)
 

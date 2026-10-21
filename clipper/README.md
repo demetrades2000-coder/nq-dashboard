@@ -23,6 +23,61 @@ The output goes to `clips/<video-title>/`:
 | `CLIPS.md` | Ranked list with the on-screen title, post caption and hashtags, source timestamp link and transcript |
 | `clips.json` | The same data, machine-readable |
 
+## Getting paid: the campaign workflow
+
+Streamers and creators post clipping campaigns on marketplaces such as Whop
+Content Rewards, Vyro and Clipping.net. You make clips that follow their rules
+and post them on your own accounts. The marketplace verifies the views and
+pays you per 1,000. The clipper is built around that loop:
+
+```bash
+# 1. Join a campaign, then save its brief as a JSON file (2 minutes)
+cp campaigns/_template.json campaigns/acme.json      # fill in the CPM, sources, required tags and banned claims
+
+# 2. Clip it. This pulls the creator's newest uploads, skips videos already done,
+#    drops moments with banned claims, burns in the required @tag and checks every rule.
+python clipper.py --campaign campaigns/acme.json
+
+# 3. Post the clips with the captions from CLIPS.md (tiktok / instagram / youtube),
+#    then submit each post link on the campaign page.
+
+# 4. Track earnings and move your effort to whichever campaign pays best
+python tracker.py add https://www.tiktok.com/@you/video/123 --campaign campaigns/acme.json --clip clip_01.mp4
+python tracker.py refresh        # live views through yt-dlp (or: tracker.py set URL --views N)
+python tracker.py report         # net $ per campaign, per post and per platform -> clips/EARNINGS.md
+```
+
+In campaign mode, each clip in `CLIPS.md` gets:
+- **A PASS or "FIX BEFORE POSTING" check** against the campaign's length,
+  required hashtags, mentions and caption text, on-screen tag, and banned
+  claims.
+- **A ready-to-paste caption for each platform.** Required tags always
+  survive, even when a platform's character limit forces the caption to be
+  cut.
+- **A payout projection:** net earnings at 10k, 100k and 1M views, after the
+  per-clip cap and the marketplace fee.
+
+**What the market pays (October 2026, from third-party guides):**
+- **Whop:** $0.20-$6 per 1,000 views, with a median around $1.30. Clippers
+  pay a 10% fee, and payouts settle about 10 days after approval.
+- **Vyro:** about $3 per 1,000 views, capped at $1,000 per clip.
+- **Clipping.net:** up to $3 per 1,000 views.
+
+Popular campaigns saturate fast: hundreds of clippers end up cutting the same
+moments. Clip new uploads early (`--latest`), pick moments others skip
+(`-n 12`, then post the less obvious ones) and use different captions and
+styles on each account. Check every campaign's live terms before you post.
+
+Sources:
+[Whop Content Rewards guide](https://www.clipspeed.ai/blog/whop-content-rewards-clipping-guide.html) ·
+[OpenClip: Whop rates](https://openclip.app/guides/whop-clipping-guide) ·
+[Shopiator: Whop CPM](https://shopiator.com/blog/whop-content-reward-campaigns) ·
+[Ssemble: best clipping platforms 2026](https://www.ssemble.com/blog/best-clipping-platforms-2026) ·
+[OpenClip: clip streamers](https://openclip.app/guides/get-paid-to-clip-streamers) ·
+[CreatorDB: the clip economy](https://creatordb.app/creator-news/the-rise-of-the-clip-economy/)
+
+## Setup
+
 Only ffmpeg must be installed (`winget install ffmpeg`, `brew install ffmpeg`
 or `sudo apt install ffmpeg`). If it's missing, the clipper fetches a portable
 ffmpeg through `imageio-ffmpeg`.

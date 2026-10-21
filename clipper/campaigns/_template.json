@@ -1,0 +1,32 @@
+{
+  "name": "Creator Name - Content Rewards",
+  "marketplace": "whop",
+  "url": "https://whop.com/... (the campaign page)",
+  "cpm": 1.30,
+  "fee_pct": 10,
+  "max_payout_per_clip": 1000,
+  "min_payout": 0,
+  "platforms": ["tiktok", "instagram", "youtube"],
+  "sources": ["https://www.youtube.com/@creatorchannel/videos"],
+  "language": "en",
+  "clip": {
+    "min": 15,
+    "max": 60,
+    "count": 8,
+    "latest": 2,
+    "layout": "auto",
+    "title": true,
+    "jumpcuts": true
+  },
+  "caption": {
+    "required_hashtags": ["#creatorname"],
+    "required_mentions": ["@creatorhandle"],
+    "required_text": ""
+  },
+  "on_screen": {
+    "watermark": "@creatorhandle",
+    "highlight": "#FFE600"
+  },
+  "banned_phrases": ["financial advice"],
+  "notes": "Paste the campaign's rules here so they're in front of you when you post (e.g. 'no reuploads of full episodes, must tag creator, English accounts only')."
+}

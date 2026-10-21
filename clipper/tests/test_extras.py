@@ -186,5 +186,37 @@ class CampaignSetTests(unittest.TestCase):
             shutil.rmtree(tmp, ignore_errors=True)
 
 
+class GuidedFillTests(unittest.TestCase):
+    def test_guided_fill_makes_alpha_futures_ready(self):
+        import builtins
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            d = tmp / "campaigns"
+            (d / "footage" / "alpha-futures").mkdir(parents=True)
+            (d / "logos").mkdir()
+            f = d / "alpha-futures.json"
+            shutil.copy(HERE / "campaigns" / "alpha-futures.json", f)
+            self.assertTrue(pl.campaign_problems(cmp.load(str(f))))
+            # the user drops files in with their own names
+            subprocess.run([cl.Tools.ffmpeg, "-y", "-v", "error", "-f", "lavfi", "-i", "color=c=blue:s=300x80",
+                            "-frames:v", "1", str(d / "logos" / "AF_logo_official.png")], check=True)
+            (d / "footage" / "alpha-futures" / "episode1.mp4").write_bytes(b"\0" * 10)
+            answers = iter(["Clip any official Alpha Futures video", "@alphafutures", "y", "", ""])
+            real = builtins.input
+            builtins.input = lambda *a: next(answers)
+            try:
+                with redirect_stdout(io.StringIO()):
+                    pl.guided_fill(f)
+            finally:
+                builtins.input = real
+            c = cmp.load(str(f))
+            self.assertEqual(pl.campaign_problems(c), [])
+            self.assertEqual(c["caption"]["required_mentions"], ["@alphafutures"])
+            self.assertEqual(c["permission"]["verified_on"], dt.date.today().isoformat())
+            self.assertTrue((d / "logos" / "alpha-futures.png").exists())
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

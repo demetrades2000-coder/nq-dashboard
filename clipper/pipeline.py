@@ -1927,6 +1927,90 @@ def ask(q: str, default: str = "y") -> bool:
     return (ans or default).startswith("y")
 
 
+def campaign_problems(c: dict) -> list[str]:
+    probs = cmp.permission_problems(c)
+    logo = cmp.cli_defaults(c).get("logo")
+    if logo and not Path(logo).exists():
+        probs.append(f"save the official logo as {logo}")
+    for d in footage_dirs(c):
+        if not any(x.suffix.lower() in cl.VIDEO_EXT for x in d.glob("*")):
+            probs.append(f"put the campaign's footage videos in {d}")
+    return probs
+
+
+def footage_dirs(c: dict) -> list[Path]:
+    out = []
+    for src in c.get("sources", []):
+        if re.match(r"https?://", src):
+            continue
+        p = Path(src).expanduser()
+        if not p.is_absolute():
+            p = Path(c["_path"]).parent / p
+        if not p.suffix:
+            out.append(p)
+    return out
+
+
+def open_folder(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+    try:
+        if os.name == "nt":
+            os.startfile(str(path))  # type: ignore[attr-defined]
+        else:
+            import subprocess
+            subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", str(path)],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+    print(f"    (folder: {path})")
+
+
+def _input(q: str) -> str:
+    try:
+        return input(q).strip()
+    except EOFError:
+        return ""
+
+
+def guided_fill(f: Path) -> None:
+    """Ask for each missing campaign detail in plain words; no JSON editing."""
+    c = cmp.load(str(f))
+    raw = json.loads(f.read_text(encoding="utf-8"))
+    perm, cap = raw.setdefault("permission", {}), raw.setdefault("caption", {})
+    page = perm.get("campaign_url", "")
+    if page and "TODO" not in page:
+        print(f"    Campaign page: {page}")
+    if "TODO" in str(perm.get("evidence", "")) or not perm.get("evidence"):
+        ev = _input("    Copy one sentence from the campaign rules about what you may clip, paste it here: ")
+        if ev:
+            perm["evidence"] = ev
+    if any("TODO" in str(m) for m in cap.get("required_mentions", [])):
+        h = _input("    The @handle the rules say to tag (e.g. @alphafutures): ")
+        if h:
+            cap["required_mentions"] = [x if x.startswith("@") else "@" + x for x in h.replace(",", " ").split()]
+    if not perm.get("verified_on") or "TODO" in str(perm.get("verified_on")):
+        if ask("    Is the campaign live with budget left right now?"):
+            perm["verified_on"] = dt.date.today().isoformat()
+        else:
+            print("    Then it can't run yet; pick another campaign or check back later.")
+    f.write_text(json.dumps(raw, indent=2) + "\n", encoding="utf-8")
+    c = cmp.load(str(f))
+    logo = cmp.cli_defaults(c).get("logo")
+    if logo and not Path(logo).exists():
+        lp = Path(logo)
+        print(f"    Download the brand's logo (PNG) from the campaign page and save it in the folder that just opened.")
+        open_folder(lp.parent)
+        _input("    Press Enter when it's saved... ")
+        pngs = [x for x in lp.parent.glob("*.png")]
+        if not lp.exists() and len(pngs) == 1:
+            shutil.copy(pngs[0], lp)  # whatever they named it
+    for d in footage_dirs(c):
+        if not any(x.suffix.lower() in cl.VIDEO_EXT for x in d.glob("*")):
+            print("    Download the brand's footage videos from the campaign page into the folder that just opened.")
+            open_folder(d)
+            _input("    Press Enter when the videos are in... ")
+
+
 def cmd_setup(ws: WS, a) -> int:
     global ASSUME_DEFAULTS
     ASSUME_DEFAULTS = bool(getattr(a, "yes", False))
@@ -1941,12 +2025,16 @@ def cmd_setup(ws: WS, a) -> int:
     print("  ok\n\nStep 2/5: campaigns")
     root = Path(__file__).resolve().parent / "campaigns"
     ready = []
-    for f in sorted(p for p in root.glob("*.json") if not p.name.startswith("_")):
+    files = sorted((p for p in root.glob("*.json") if not p.name.startswith("_")),
+                   key=lambda p: (p.name != "alpha-futures.json", p.name))  # our pick first
+    for f in files:
         c = cmp.load(str(f))
-        probs = cmp.permission_problems(c)
-        logo = cmp.cli_defaults(c).get("logo")
-        if logo and not Path(logo).exists():
-            probs.append(f"save the official logo as {logo}")
+        probs = campaign_problems(c)
+        if probs and not ASSUME_DEFAULTS and ask(f"  Set up '{c['name']}' now?",
+                                                 "y" if f.name == "alpha-futures.json" else "n"):
+            guided_fill(f)
+            c = cmp.load(str(f))
+            probs = campaign_problems(c)
         if probs:
             print(f"  TODO  {f.name}:\n" + "\n".join(f"          - {p}" for p in probs))
         else:

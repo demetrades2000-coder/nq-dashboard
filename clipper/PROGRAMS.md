@@ -169,9 +169,15 @@ TikTok is the obvious second platform once v1 works.
     TikTok requires.
   - Uploads use the documented
     [presign flow](https://docs.zernio.com/guides/media-uploads).
-  - A third-party review mentions 20 posts a month on the free tier
-    ([Hypertools](https://hypertools.so/tool/zernio)), so check the limit
-    on Zernio's pricing page.
+  - Zernio's own pages say the free tier is the first 2 accounts with
+    unlimited posts. More accounts are $6 each (1–10), then $3 and $1. An
+    older third-party review said 20 posts a month
+    ([Hypertools](https://hypertools.so/tool/zernio)); Zernio's current
+    pages supersede it.
+  - TikTok's own Direct Post cap is about 15 posts per day per creator
+    account, shared across all apps
+    ([content sharing guidelines](https://developers.tiktok.com/docs/en/content-sharing-guidelines)).
+    The autopilot never schedules beyond it.
   - YouTube uses Google's free Data API (`youtube.py`).
 - **Paid alternative: Upload-Post.**
   [Upload-Post](https://www.upload-post.com/platforms/tiktok/) is a hosted

@@ -9,8 +9,10 @@ YouTube, up to $500 per clip. File: `campaigns/alpha-futures.json`.
 
 **How posting is free:**
 - **TikTok and Instagram** go through **Zernio** (zernio.com). Its free plan
-  connects 2 social accounts with API posting, and TikTok already allows it
-  to post publicly.
+  is 2 connected accounts with **unlimited posts**, and TikTok already allows
+  it to post publicly. The only cap is TikTok's own, about 15 posts per day
+  per account, which no app can exceed. Raise your daily number with
+  `python pipeline.py autopilot enable --max-per-day 10`.
 - **YouTube Shorts** goes through Google's own YouTube API, which is free.
 
 ## One-time setup (you, about 30 minutes)
@@ -59,8 +61,8 @@ python pipeline.py zernio status # which accounts Zernio sees
 ```
 
 What the report can say:
-- **"posting limit reached":** TikTok caps posts made through apps per day,
-  so the rest go out next cycle. Keep the daily cap at 3, the default.
+- **"posting limit reached":** TikTok's own cap of about 15 posts per day per
+  account, which applies to every app. The rest go out the next day.
 - **"no tiktok account is connected in Zernio":** reconnect it in Zernio's
   dashboard.
 - **"engagement under 2%":** that post may not be paid under the campaign

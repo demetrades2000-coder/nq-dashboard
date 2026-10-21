@@ -1078,7 +1078,8 @@ HOLD_DEFAULT = ["unsure of", "may depend on earlier context", "ends mid-sentence
 
 
 PLATFORMS = ("youtube", "tiktok", "instagram")
-NATIVE = ("youtube", "tiktok")  # platforms with a built-in direct integration; Upload-Post covers all three
+NATIVE = ("youtube", "tiktok")
+PLATFORM_DAILY_CEILING = {"tiktok": 15, "instagram": 50, "youtube": 100}  # platform-side limits, per account per day  # platforms with a built-in direct integration; Upload-Post covers all three
 
 
 class ZernioUploader:
@@ -1349,9 +1350,11 @@ def autopilot_cycle(ws: WS, a, uploader=None, uploaders=None) -> int:
             up = pool.get(p, acct)
             if up is None:
                 continue
-            room = pol["max_uploads_per_day"] - uploads_today(ws, p, acct)
+            # TikTok caps posts made through any app at ~15/day per account (shared across apps): never exceed it
+            cap = min(pol["max_uploads_per_day"], PLATFORM_DAILY_CEILING.get(p, pol["max_uploads_per_day"]))
+            room = cap - uploads_today(ws, p, acct)
             if room <= 0:
-                rep["notes"].append(f"{p}/{acct}: daily upload cap ({pol['max_uploads_per_day']}) reached; "
+                rep["notes"].append(f"{p}/{acct}: daily upload cap ({cap}) reached; "
                                     f"{len(rows)} clip(s) wait")
                 continue
             for r in rows[:room]:
@@ -1524,7 +1527,9 @@ def cmd_autopilot(ws: WS, a) -> int:
         ws.set_setting("autopilot.enabled", True)
         ws.set_setting("autopilot.enabled_at", now())
         if a.max_per_day is not None:
-            ws.set_setting("autopilot.max_uploads_per_day", max(0, min(a.max_per_day, 50)))
+            ws.set_setting("autopilot.max_uploads_per_day", max(0, min(a.max_per_day, 100)))
+            if a.max_per_day > 15:
+                print("note: TikTok itself allows about 15 posts/day per account through apps; TikTok uploads stop there")
         if a.min_score is not None:
             ws.set_setting("autopilot.min_score", a.min_score)
         if a.privacy:

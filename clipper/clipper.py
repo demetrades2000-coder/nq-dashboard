@@ -271,6 +271,7 @@ class Word:
     w: str
     s: float
     e: float
+    p: float = 1.0  # recognizer confidence; low values get flagged for review
 
 
 def _spread(text: str, s: float, e: float) -> list[Word]:
@@ -393,7 +394,8 @@ def whisper_faster(audio: Path, args) -> list[Word]:
     for seg in segs:
         for w in seg.words or []:
             if w.word.strip():
-                words.append(Word(w.word.strip(), float(w.start), float(w.end)))
+                words.append(Word(w.word.strip(), float(w.start), float(w.end),
+                                  round(float(getattr(w, "probability", 1.0) or 1.0), 3)))
         if seg.end - last_print > 120:
             last_print = seg.end
             log(f"transcribing ... {100 * seg.end / total:4.0f}%")
@@ -726,30 +728,84 @@ def make_copy(c: Clip, meta: dict, camp: dict | None = None) -> None:
     c.posts = cmp.platform_posts(camp, c.title, c.caption, c.hashtags)  # type: ignore[attr-defined]
 
 
-def ai_rerank(cands: list[Clip], meta: dict, args) -> list[Clip]:
-    key = os.environ.get("ANTHROPIC_API_KEY")
-    if not key or args.no_ai or not cands:
+# USD per million tokens (input, output). Unknown models are refused so spend stays bounded.
+PRICES = {
+    "claude-opus-5-5": (4.00, 20.00),
+    "claude-sonnet-5-5": (2.00, 10.00),
+    "claude-haiku-5-5": (0.10, 0.50),
+}
+AI_MAX_TOKENS = 4000
+
+
+class SpendGuard:
+    """Per-run spending cap for the standalone CLI; the pipeline supplies a ledger-backed guard."""
+
+    def __init__(self, cap_usd: float):
+        self.cap, self.spent = cap_usd, 0.0
+
+    def allow(self, worst_usd: float) -> tuple[bool, str]:
+        if self.cap <= 0:
+            return False, "AI ranking is off (no budget approved; pass --ai-max-usd to allow spending)"
+        if self.spent + worst_usd > self.cap:
+            return False, f"AI call could cost up to ${worst_usd:.3f}; only ${self.cap - self.spent:.3f} of the budget left"
+        return True, ""
+
+    def record(self, model: str, usd: float, tokens_in: int, tokens_out: int, purpose: str) -> None:
+        self.spent += usd
+
+
+def call_cost(model: str, tokens_in: int, tokens_out: int) -> float:
+    pin, pout = PRICES[model]
+    return tokens_in / 1e6 * pin + tokens_out / 1e6 * pout
+
+
+def ai_rerank(cands: list[Clip], meta: dict, args, guard=None) -> list[Clip]:
+    guard = guard or SpendGuard(float(getattr(args, "ai_max_usd", 0) or 0))
+    if args.no_ai or not cands:
         return cands
-    anthropic = try_import("anthropic", "anthropic", not args.no_install)
-    if not anthropic:
+    if args.ai_model not in PRICES:
+        log(f"AI ranking skipped: no price on file for '{args.ai_model}', so spend can't be capped "
+            f"(known: {', '.join(PRICES)})", "warn")
         return cands
     pool = pick(cands, min(len(cands), max(args.clips * 3, 12)), gap=0)
     listing = "\n\n".join(f"[{i}] ({c.e - c.s:.0f}s) {c.text[:1500]}" for i, c in enumerate(pool))
     prompt = (
-        "You are a top short-form editor for money/business/finance creators (TikTok, Reels, Shorts). "
+        "You help a clipper choose moments from a long video for a creator's official clipping campaign "
+        "(vertical short-form clips). "
         f"Source: \"{meta.get('title', '')}\" by {meta.get('uploader') or 'unknown'}.\n"
-        "Rate each candidate clip 0-100 for viral potential as a standalone vertical clip: does the first "
-        "3 seconds hook a cold viewer, is there one clear money insight/claim/story, a payoff at the end, "
-        "and does it make sense without context? Penalize clips that start mid-thought or need context.\n"
-        "Return ONLY a JSON array: [{\"id\": int, \"score\": int, \"title\": \"<=8 word on-screen hook, "
-        "punchy, no emojis\", \"caption\": \"one-sentence post caption\", \"hashtags\": [\"#tag\", ...]}]\n\n"
-        + listing
+        "Rate each candidate 0-100 as a standalone clip: does the opening make sense to a new viewer, is there "
+        "one clear idea or story, does it end on a complete thought, and does it avoid needing missing context.\n"
+        "Titles and captions must describe only what the speaker actually says. Do not invent or exaggerate "
+        "claims, do not promise income or results, and attribute any earnings figures to the speaker.\n"
+        "Return ONLY a JSON array: [{\"id\": int, \"score\": int, \"title\": \"<=8 word on-screen title\", "
+        "\"caption\": \"one-sentence post caption\", \"hashtags\": [\"#tag\", ...]}]\n\n" + listing
     )
+    worst = call_cost(args.ai_model, len(prompt) // 3 + 50, AI_MAX_TOKENS)
+    ok, why = guard.allow(worst)
+    if not ok:
+        log(why, "info")
+        return cands
+    if not (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
+        log("AI ranking skipped: no Anthropic credentials (set ANTHROPIC_API_KEY or use `pipeline.py secrets set`)",
+            "warn")
+        return cands
+    anthropic = try_import("anthropic", "anthropic", not args.no_install)
+    if not anthropic:
+        return cands
     try:
-        client = anthropic.Anthropic()
-        msg = client.messages.create(model=args.ai_model, max_tokens=4000,
+        client = anthropic.Anthropic(max_retries=2)
+        msg = client.messages.create(model=args.ai_model, max_tokens=AI_MAX_TOKENS,
+                                     output_config={"effort": "low"},
                                      messages=[{"role": "user", "content": prompt}])
-        txt = "".join(getattr(b, "text", "") for b in msg.content)
+        u = msg.usage
+        tin = (u.input_tokens or 0) + int(1.25 * (getattr(u, "cache_creation_input_tokens", 0) or 0)) \
+            + int(0.1 * (getattr(u, "cache_read_input_tokens", 0) or 0))
+        usd = call_cost(args.ai_model, tin, u.output_tokens or 0)
+        guard.record(args.ai_model, usd, tin, u.output_tokens or 0, "rerank")
+        log(f"Claude ranking cost ${usd:.4f} ({tin} in / {u.output_tokens} out tokens)")
+        if msg.stop_reason == "refusal":
+            raise RuntimeError("model declined the request")
+        txt = "".join(getattr(b, "text", "") for b in msg.content if getattr(b, "type", "") == "text")
         data = json.loads(txt[txt.index("["): txt.rindex("]") + 1])
         for d in data:
             i = int(d.get("id", -1))
@@ -764,8 +820,16 @@ def ai_rerank(cands: list[Clip], meta: dict, args) -> list[Clip]:
         log(f"Claude re-ranked {len(pool)} candidates", "ok")
         return pool
     except Exception as e:  # noqa: BLE001
-        log(f"AI re-rank skipped ({type(e).__name__}: {str(e)[:120]}); using heuristic scores", "warn")
+        log(f"AI ranking skipped ({type(e).__name__}: {redact(str(e))[:160]}); using heuristic scores", "warn")
         return cands
+
+
+SECRET_RE = re.compile(r"(sk-ant-[A-Za-z0-9_\-]{6})[A-Za-z0-9_\-]+|((?:api[_-]?key|token|password|secret)[\"']?\s*[:=]\s*[\"']?)[^\s\"',}]+",
+                       re.I)
+
+
+def redact(text: str) -> str:
+    return SECRET_RE.sub(lambda m: (m.group(1) + "…REDACTED") if m.group(1) else (m.group(2) + "REDACTED"), text)
 
 
 # ---------------------------------------------------------------- reframing
@@ -883,6 +947,7 @@ ScaledBorderAndShadow: yes
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Cap,{font},{args.font_size},{white},{white},&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,7,3,2,60,60,{cap_y},1
 Style: Title,{font},62,&H00000000,&H00000000,&H00FFFFFF,&H00FFFFFF,-1,0,0,0,100,100,0,0,3,16,0,8,70,70,190,1
+Style: Disclose,{font},40,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,3,8,0,7,40,40,60,1
 Style: Tag,{font},46,&H30FFFFFF,&H30FFFFFF,&H90000000,&H00000000,-1,0,0,0,100,100,0,0,1,3,0,2,60,60,330,1
 
 [Events]
@@ -894,6 +959,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         return f"{int(t // 3600)}:{int(t % 3600 // 60):02d}:{t % 60:05.2f}"
 
     lines = []
+    if getattr(args, "disclosure", None):
+        lines.append(f"Dialogue: 2,{ts(0)},{ts(dur)},Disclose,,0,0,0,,{ass_escape(args.disclosure)}")
     if getattr(args, "watermark", None):
         lines.append(f"Dialogue: 2,{ts(0)},{ts(dur)},Tag,,0,0,0,,{ass_escape(args.watermark)}")
     if title and not args.no_title:
@@ -1045,7 +1112,7 @@ def render(video: Path, info: MediaInfo, c: Clip, idx: int, outdir: Path, font: 
         iv_rel = [(a - seek, b - seek) for a, b in iv]
         total = sum(b - a for a, b in iv)
         ass_arg = None
-        if captions and (c.words or getattr(args, "watermark", None)):
+        if captions and (c.words or getattr(args, "watermark", None) or getattr(args, "disclosure", None)):
             write_ass(outdir / ass_name, remap(c.words, iv), total, c.title if c.words else "", font, args)
             ass_arg = ass_name
         centers = centers_for(iv)[0] if lay == "crop" else None
@@ -1066,7 +1133,7 @@ def render(video: Path, info: MediaInfo, c: Clip, idx: int, outdir: Path, font: 
                    f"{'captions' if ass_arg else 'no captions'}"
             log(f"clip {idx:02d} rendered ({total:.0f}s, {desc}) -> {name}", "ok")
             c.render_info = desc  # type: ignore[attr-defined]
-            c.tagged = bool(ass_arg and getattr(args, "watermark", None))  # type: ignore[attr-defined]
+            c.tagged = bool(ass_arg)  # overlays (tag/disclosure) are in the caption file  # type: ignore[attr-defined]
             c.out_duration = total  # type: ignore[attr-defined]
             if not args.keep_ass:
                 (outdir / ass_name).unlink(missing_ok=True)
@@ -1094,7 +1161,7 @@ def write_report(outdir: Path, meta: dict, clips: list[Clip], paths: list[Path |
         md += [f"**Campaign:** {camp['name']} ({camp.get('marketplace') or 'direct'})  ",
                f"**Pays:** ${float(camp.get('cpm') or 0):.2f} per 1k views, {camp.get('fee_pct', 0):g}% fee"
                + (f", max ${camp['max_payout_per_clip']:,} per clip" if camp.get("max_payout_per_clip") else "")
-               + f"  \n**Net per clip:** {proj}  ",
+               + f"  \n**Payout math (illustration, not a forecast; most clips get far fewer views):** {proj}  ",
                f"**Post to:** {', '.join(camp.get('platforms', []))}", ""]
         if camp.get("notes"):
             md += [f"> Brief: {camp['notes']}", ""]
@@ -1288,8 +1355,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--lang", default=None, help="spoken language code (auto-detect if unset)")
     p.add_argument("--fast", action="store_true", help="prefer platform auto-captions over whisper")
     p.add_argument("--no-whisper", action="store_true", help="never run speech recognition")
-    p.add_argument("--no-ai", action="store_true", help="skip Claude re-rank even if ANTHROPIC_API_KEY is set")
-    p.add_argument("--ai-model", default=os.environ.get("CLIPPER_MODEL", "claude-sonnet-5-5"))
+    p.add_argument("--no-ai", action="store_true", help="never call Claude")
+    p.add_argument("--ai-max-usd", type=float, default=0.0,
+                   help="approve up to this much Claude API spend for this run (0 = AI ranking off)")
+    p.add_argument("--ai-model", default=os.environ.get("CLIPPER_MODEL", "claude-opus-5-5"),
+                   help=f"one of: {', '.join(PRICES)}")
+    p.add_argument("--disclosure", help="on-screen disclosure text, e.g. '#ad' or 'Paid partnership'")
     p.add_argument("--no-jumpcuts", action="store_true", help="keep pauses instead of cutting dead air")
     p.add_argument("--no-title", action="store_true", help="no hook title bar")
     p.add_argument("--font", help="caption font family")
@@ -1400,7 +1471,7 @@ def main(argv=None) -> int:
             raise
         except Exception as e:  # noqa: BLE001
             failures += 1
-            log(f"{src} failed: {e}", "err")
+            log(f"{src} failed: {redact(str(e))}", "err")
             if os.environ.get("CLIPPER_DEBUG"):
                 traceback.print_exc()
     if len(sources) > 1:

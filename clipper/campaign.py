@@ -66,6 +66,9 @@ def cli_defaults(c: dict) -> dict:
         d["font"] = on["font"]
     if on.get("watermark"):
         d["watermark"] = on["watermark"]
+    disc = c.get("disclosure") or {}
+    if disc.get("on_screen"):
+        d["disclosure"] = disc["on_screen"]
     if c.get("language"):
         d["lang"] = c["language"]
     return d
@@ -88,8 +91,10 @@ def _tags(items) -> list[str]:
 
 
 def platform_posts(c: dict | None, title: str, caption: str, hashtags: list[str]) -> dict:
-    """Ready-to-paste caption per platform, with the campaign's required text/tags first."""
+    """Ready-to-paste caption per platform. The disclosure leads (so it shows before "...more") and the
+    disclosure and required text/tags are never trimmed; only the free caption is cut to fit."""
     cap = (c or {}).get("caption", {})
+    disc = (((c or {}).get("disclosure") or {}).get("caption") or "").strip()
     req_tags = _tags(cap.get("required_hashtags"))
     mentions = _tags(cap.get("required_mentions"))
     req_text = (cap.get("required_text") or "").strip()
@@ -99,18 +104,20 @@ def platform_posts(c: dict | None, title: str, caption: str, hashtags: list[str]
         limit, max_tags = PLATFORM_LIMITS.get(p, (2200, 8))
         tags = list(dict.fromkeys(req_tags + [h for h in hashtags if h not in req_tags]))
         tags = tags[:max(max_tags, len(req_tags))]
+        tail = "\n\n".join(x for x in [req_text, " ".join(mentions), " ".join(tags)] if x)
         if p == "youtube":
-            head = title if "#shorts" in title.lower() else f"{title} #shorts"
-            body = " ".join(x for x in [caption, req_text, " ".join(mentions), " ".join(tags)] if x)
-            posts[p] = {"title": head[:100], "description": body[:5000]}
+            head = " ".join(x for x in [disc, title] if x)
+            if "#shorts" not in head.lower():
+                head += " #shorts"
+            if len(head) > 100:
+                head = head[:100 - 8].rstrip() + "… #shorts"
+            body = "\n\n".join(x for x in [disc, caption, tail] if x)
+            posts[p] = {"title": head, "description": body[:5000]}
             continue
-        parts = [caption, req_text, " ".join(mentions), " ".join(tags)]
-        text = "\n\n".join(x for x in parts if x)
-        if len(text) > limit:  # trim the free caption first; required pieces must survive
-            fixed = "\n\n".join(x for x in parts[1:] if x)
-            room = max(0, limit - len(fixed) - 3)
-            text = (caption[:room].rstrip() + "...\n\n" + fixed) if room else fixed[:limit]
-        posts[p] = {"caption": text}
+        lead = f"{disc} " if disc else ""
+        room = limit - len(lead) - (len(tail) + 2 if tail else 0)
+        free = caption if len(caption) <= room else caption[:max(0, room - 3)].rstrip() + "..."
+        posts[p] = {"caption": "\n\n".join(x for x in [(lead + free).strip(), tail] if x)[:limit]}
     return posts
 
 
@@ -133,7 +140,74 @@ def compliance(c: dict | None, duration: float, transcript: str, posts: dict, wa
         checks.append((ok, "caption includes required text"))
     if on.get("watermark"):
         checks.append((watermark_on, f"on-screen tag '{on['watermark']}'"))
+    disc = c.get("disclosure") or {}
+    if disc.get("caption"):
+        ok = all(disc["caption"].lower() in json.dumps(v).lower() for v in posts.values())
+        checks.append((ok, f"caption disclosure '{disc['caption']}'"))
+    if disc.get("on_screen"):
+        checks.append((watermark_on, f"on-screen disclosure '{disc['on_screen']}'"))
+    if not disc and c.get("permission"):
+        checks.append((False, "no disclosure configured: confirm the campaign's FTC wording "
+                              "(Whop's Content Rewards terms put disclosure on the clipper)"))
     return checks
+
+
+class PermissionError_(Exception):
+    """Raised when a source is not covered by the campaign's recorded permission."""
+
+
+def _norm_url(u: str) -> str:
+    u = re.sub(r"^https?://", "", u.strip().lower())
+    u = re.sub(r"^(www\.|m\.)", "", u)
+    return u.rstrip("/")
+
+
+def permission_problems(c: dict, max_age_days: int = 30) -> list[str]:
+    """What's missing before a campaign may be used. Empty list = OK."""
+    import datetime as dt
+    perm = c.get("permission")
+    if not perm:
+        return ["campaign has no 'permission' block: record where the creator/brand authorizes clipping "
+                "(program, campaign_url, verified_on, evidence, allowed_sources)"]
+    probs = []
+    for k in ("program", "campaign_url", "verified_on", "evidence", "allowed_sources"):
+        if not perm.get(k):
+            probs.append(f"permission.{k} is empty")
+    if perm.get("verified_on"):
+        try:
+            age = (dt.date.today() - dt.date.fromisoformat(perm["verified_on"])).days
+            if age > max_age_days:
+                probs.append(f"permission verified {age} days ago: re-check the campaign is still active and its "
+                             f"rules unchanged, then update verified_on")
+            if age < 0:
+                probs.append("permission.verified_on is in the future")
+        except ValueError:
+            probs.append("permission.verified_on must be YYYY-MM-DD")
+    return probs
+
+
+def source_allowed(c: dict, url_or_path: str, meta: dict | None = None) -> tuple[bool, str]:
+    """Is this source inside the campaign's allowed_sources? Checks the URL, then the video's channel."""
+    allowed = [a for a in (c.get("permission") or {}).get("allowed_sources", []) if a]
+    cands = [url_or_path]
+    if meta:
+        cands += [meta.get(k) or "" for k in ("channel_url", "uploader_url", "webpage_url")]
+    for a in allowed:
+        if a.startswith("file:"):
+            root = Path(a[5:]).expanduser().resolve()
+            p = Path(url_or_path).expanduser()
+            if p.exists() and (p.resolve() == root or root in p.resolve().parents):
+                return True, a
+            continue
+        na = _norm_url(a)
+        for x in cands:
+            if x and _norm_url(x).startswith(na):
+                return True, a
+        if meta:  # YouTube channel handles: allow "youtube.com/@name" to match uploader_id "@name"
+            handle = na.split("/")[-1]
+            if handle.startswith("@") and handle == str(meta.get("uploader_id") or "").lower():
+                return True, a
+    return False, ("not in this campaign's allowed_sources " + json.dumps(allowed))
 
 
 def payout(c: dict, views: int) -> tuple[float, float]:

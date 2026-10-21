@@ -1,5 +1,19 @@
 # Campaign briefs
 
+Every brief needs a `permission` block. The pipeline refuses to import without
+one, or when it is more than 30 days old:
+
+| Field | What to put |
+|---|---|
+| `program` | e.g. "Whop Content Rewards" |
+| `campaign_url` | The exact campaign page you joined |
+| `verified_on` | The date (YYYY-MM-DD) you last checked the campaign is active and its rules unchanged |
+| `evidence` | The campaign's own words about what you may clip |
+| `allowed_sources` | Channel/URL prefixes like `youtube.com/@creator`, or `file:<folder>` for files the campaign gave you |
+
+Also fill `disclosure` with the wording the campaign requires. It's added to
+the front of every caption and shown on screen.
+
 Make one JSON file per campaign you join. Start by copying `_template.json`,
 then fill it in from the campaign page:
 

@@ -79,17 +79,26 @@ TikTok is the obvious second platform once v1 works.
    `pipeline.py earnings refresh` and `pipeline.py earnings report` show your
    own estimate. Whop's numbers are the ones that count.
 
-## Why publishing isn't automated
+## What's automated and what isn't
 
-- **You approve everything.** You asked to approve every publish, so the
-  pipeline stops at "ready to post".
-- **Automating it would be hard anyway.** YouTube's API upload for a personal
-  channel needs a Google Cloud project with OAuth consent. Uploads from
-  unverified projects are, as far as I know, locked to private until Google
-  audits the project; I didn't re-check this today.
-- **TikTok has the same restriction**, per its documentation: unaudited
-  posting clients can post only as private (`SELF_ONLY`).
-- **Whop has no clipper submission API** that I could find.
+- **YouTube uploads are automated** in autopilot mode, through the official
+  Data API with your own OAuth client.
+  - The [videos.insert reference](https://developers.google.com/youtube/v3/docs/videos/insert)
+    says uploads from unverified projects are no longer restricted to
+    private. A [2020 revision-history entry](https://developers.google.com/youtube/data/revision_history)
+    says they are, and [YouTube Help](https://support.google.com/youtube/answer/7300965?hl=en)
+    describes the lock. The code reads back the privacy YouTube applied and
+    reports a lock. If you hit it, the fix is the
+    [API audit](https://developers.google.com/youtube/data/guides/quota_and_compliance_audits).
+  - Uploads have their own quota bucket, 100 per day by default. Autopilot
+    caps itself lower (3 per day by default).
+- **TikTok isn't automated.** Its documentation says unaudited posting
+  clients can post only as private (`SELF_ONLY`).
+- **Whop submission isn't automated.** There is no API for Content Rewards
+  submissions. The only submission API, a beta for
+  [bounty submissions](https://docs.whop.com/api-reference/beta/bounty-submissions/submit-bounty-submission),
+  rejects account API keys. The autopilot report lists the links to paste
+  instead.
 
 ## Your income, honestly
 

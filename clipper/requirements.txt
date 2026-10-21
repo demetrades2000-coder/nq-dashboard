@@ -5,3 +5,5 @@ numpy
 imageio-ffmpeg
 anthropic
 keyring
+google-api-python-client
+google-auth-oauthlib

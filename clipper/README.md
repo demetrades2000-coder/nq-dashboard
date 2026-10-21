@@ -3,8 +3,11 @@
 A local tool for clipping money-niche streams and podcasts for **paid clipping
 campaigns**, such as Whop Content Rewards. It imports only content a campaign
 permits, finds promising moments, renders 9:16 clips with word-accurate
-captions, and queues them for **your review**. Nothing is published, and no
-money is spent, without your explicit approval.
+captions and, on **autopilot**, approves and uploads them to YouTube Shorts on
+a schedule.
+
+Autopilot is opt-in. Until you enable it, clips wait for your review. Claude
+API spending stays off until you approve a monthly budget.
 
 - [PROGRAMS.md](PROGRAMS.md) covers which programs are real and active, their
   eligibility rules, payout terms, content licenses and sources, and the
@@ -12,7 +15,53 @@ money is spent, without your explicit approval.
 - [campaigns/README.md](campaigns/README.md) explains how to record a campaign
   brief.
 
-## Quick start
+## Autopilot (hands-off)
+
+One-time setup, about 15 minutes:
+
+```bash
+pip install -r requirements.txt                          # plus ffmpeg (winget / brew / apt install ffmpeg)
+cp campaigns/_template.json campaigns/acme.json          # fill it in from the campaign you joined
+python pipeline.py youtube auth --client-secret client_secret.json   # one browser consent (see youtube.py header)
+python pipeline.py autopilot add campaigns/acme.json
+python pipeline.py autopilot enable --max-per-day 3      # optional: --privacy unlisted, --hold-income-claims yes
+python pipeline.py budget --monthly 5                    # optional: Claude ranking, capped
+python pipeline.py schedule install --every-hours 6      # cron on macOS/Linux, Task Scheduler on Windows
+```
+
+Every cycle (every 6 hours by default) does the following:
+1. Re-checks each campaign's permission and skips any that are stale.
+2. Imports the newest permitted videos.
+3. Clips, captions and renders them.
+4. **Auto-approves** clips that pass every campaign rule and every review
+   check. Anything with a warning is held for you.
+5. **Uploads** approved clips to YouTube Shorts: the disclosure goes first in
+   the title and description, the paid-promotion flag is set, and uploads
+   stay under the daily cap.
+6. Refreshes view counts from the YouTube API.
+7. Writes `AUTOPILOT_REPORT.md`.
+
+Clips are **held for you** when:
+- a campaign rule fails
+- the score is below the autopilot minimum
+- the recognizer was unsure of words
+- the clip may depend on earlier context or ends mid-sentence
+- the transcript came from auto-captions
+- (optionally) the clip contains an earnings claim
+
+**The step that stays manual: submitting on Whop.** Whop publishes no API for
+Content Rewards submissions, and its only submission API (bounties, beta)
+rejects account API keys. A bot driving the submit form would run into Whop's
+bot screening and could cost you the account.
+
+The report lists each new Short next to its campaign page. Paste the links,
+then run `python pipeline.py submitted all`. It takes about 10 seconds per
+clip. Everything else runs on its own.
+
+`autopilot disable` turns it off immediately. `youtube disconnect` removes
+the upload token.
+
+## Manual mode
 
 ```bash
 pip install -r requirements.txt            # plus ffmpeg: winget / brew / apt install ffmpeg
@@ -80,6 +129,15 @@ python pipeline.py earnings refresh && python pipeline.py earnings report
   - The Anthropic key comes from the environment or the OS keychain
     (`pipeline.py secrets set anthropic`). It is never written to the
     workspace, the database or the logs, and messages are redacted.
+  - The YouTube OAuth token is kept only in the OS keychain.
+- **Autopilot limits:**
+  - Opt-in, with a daily upload cap (default 3, maximum 50).
+  - It only uploads clips with zero failing rules and no hold-worthy
+    warnings, and only to campaigns whose `platforms` include YouTube.
+  - A cycle never overlaps another (run lock).
+  - Quota or upload-limit errors stop uploads until the next cycle.
+  - After each upload it reads back the privacy YouTube actually applied and
+    reports a forced-private lock.
   - For sites that need login, use `--cookies-from-browser`. Cookies are read
     in place and never copied.
   - The review page listens on 127.0.0.1 only. It checks the Host header and
@@ -97,7 +155,14 @@ python -m unittest discover -s tests -v     # ~2 min; offline; synthetic video +
 python clipper.py --selftest                # renderer check across all layouts (~5 min)
 ```
 
-The 25 tests cover:
+The 36 tests cover:
+- **Autopilot:** off by default; a full cycle with a simulated uploader
+  (auto-approve, daily cap, paid-promotion flag, report, view refresh,
+  `submitted all`); the hold policy; stale campaigns skipped; the schedule
+  line.
+- **The YouTube upload code against a simulated API:** retry on 503 and
+  connection resets, private-lock detection, paid-flag fallback, quota
+  error, giving up after retries, missing token.
 - **The main workflow:** import, run, 1080x1920 clips in the review queue,
   captions that match the transcript, banned claims never selected,
   disclosure in every caption, and income claims flagged.
@@ -124,9 +189,24 @@ The 25 tests cover:
   run is the real test: start with one video and `--limit 1`.
 - **Face-tracked crop isn't verified on real faces.** The test video has no
   faces, so it always used the blurred-background layout.
-- **No automatic publishing or submission**, by design and because of the
-  platform API audits described in PROGRAMS.md. Posting and submitting on
-  Whop are manual.
+- **Not tested against live YouTube.** The YouTube upload uses the official
+  Data API and is tested only against a simulated API; this environment
+  can't reach Google.
+  - Google's docs conflict on whether uploads from unverified projects are
+    locked private. The code reads back the real privacy and tells you.
+  - With the OAuth app in "Testing" status, Google expires the token after 7
+    days. Set the app to "In production" (you'll see an "unverified app"
+    screen; that's fine for your own channel).
+- **Submitting on Whop is manual**, because there's no API for it (see
+  Autopilot above). TikTok and Instagram uploads aren't automated. TikTok's
+  API posts only privately until the app passes TikTok's audit.
+- **The scheduler needs a logged-in machine that's switched on.** On headless
+  Linux servers, the OS keychain may not be reachable from cron; use macOS or
+  Windows, or a desktop session.
+- **Auto-approval relies on automated checks.** A confident transcription
+  mistake, or a clip that's off-brand for the creator, can get through. Read
+  `AUTOPILOT_REPORT.md` and spot-check uploads; `autopilot disable` stops it
+  immediately.
 - **Program facts were checked on 2026-10-21 from search excerpts** of the
   official pages; direct fetches were blocked. Re-check the live terms and
   each campaign's rules before you start.
@@ -154,5 +234,6 @@ The 25 tests cover:
 | `clipper.py` | Engine: download, transcribe, score, render (also usable on its own; AI off unless `--ai-max-usd` is set) |
 | `campaign.py` | Campaign briefs: permission checks, caption builder, rule checks, payout math |
 | `tracker.py` | Post and earnings tracker |
+| `youtube.py` | YouTube Data API: OAuth (keychain), resumable upload with retries, view stats |
 | `campaigns/_template.json` | Campaign brief template |
 | `tests/test_pipeline.py` | Test suite |

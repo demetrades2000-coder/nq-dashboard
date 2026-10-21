@@ -1692,7 +1692,56 @@ def cmd_doctor(ws: WS, a) -> int:
     return 1 if bad else 0
 
 
+ASSUME_DEFAULTS = False
+
+
+def cmd_campaign_set(ws: WS, a) -> int:
+    """Edit a campaign brief from the command line (keeps every other field as it is)."""
+    path = Path(a.campaign)
+    try:
+        c = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as e:  # noqa: BLE001
+        print(f"can't read {path}: {e}")
+        return 1
+    perm = c.setdefault("permission", {})
+    changed = []
+    if a.verified_today:
+        perm["verified_on"] = dt.date.today().isoformat()
+        changed.append("verified_on")
+    if a.evidence:
+        perm["evidence"] = a.evidence.strip()
+        changed.append("evidence")
+    if a.campaign_url:
+        perm["campaign_url"] = a.campaign_url.strip()
+        changed.append("campaign_url")
+    if a.allow_source:
+        perm["allowed_sources"] = list(dict.fromkeys(perm.get("allowed_sources", []) + a.allow_source))
+        changed.append("allowed_sources")
+    if a.source:
+        c["sources"] = list(dict.fromkeys(c.get("sources", []) + a.source))
+        changed.append("sources")
+    cap = c.setdefault("caption", {})
+    if a.mention:
+        cap["required_mentions"] = [m if m.startswith("@") else "@" + m for m in a.mention]
+        changed.append("required_mentions")
+    if a.hashtag:
+        cap["required_hashtags"] = [h if h.startswith("#") else "#" + h for h in a.hashtag]
+        changed.append("required_hashtags")
+    if a.cpm is not None:
+        c["cpm"] = a.cpm
+        changed.append("cpm")
+    if a.max_payout is not None:
+        c["max_payout_per_clip"] = a.max_payout
+        changed.append("max_payout_per_clip")
+    path.write_text(json.dumps(c, indent=2) + "\n", encoding="utf-8")
+    print(f"updated {', '.join(changed) or 'nothing'} in {path.name}")
+    return cmd_campaign_check(ws, argparse.Namespace(campaign=str(path)))
+
+
 def ask(q: str, default: str = "y") -> bool:
+    if ASSUME_DEFAULTS:
+        print(f"{q} -> {'yes' if default == 'y' else 'no'} (--yes)")
+        return default == "y"
     try:
         ans = input(f"{q} [{'Y/n' if default == 'y' else 'y/N'}] ").strip().lower()
     except EOFError:
@@ -1701,6 +1750,8 @@ def ask(q: str, default: str = "y") -> bool:
 
 
 def cmd_setup(ws: WS, a) -> int:
+    global ASSUME_DEFAULTS
+    ASSUME_DEFAULTS = bool(getattr(a, "yes", False))
     print("== Money Clipper setup ==\n\nStep 1/5: checking this computer (installs what's missing)...")
     res = doctor_checks(ws, fix=True)
     blockers = [(n, f) for n, ok, f in res if not ok]
@@ -1742,11 +1793,14 @@ def cmd_setup(ws: WS, a) -> int:
                 continue
             try:
                 if p == "youtube":
-                    path = input("    Path to your Google OAuth client JSON (see youtube.py for the 2-minute setup): ").strip()
+                    path = os.environ.get("YOUTUBE_CLIENT_SECRET") or input(
+                        "    Path to your Google OAuth client JSON (see youtube.py for the 2-minute setup): ").strip()
                     print("   ", mod.authorize(path.strip('"'), acct))
                 else:
-                    key = input("    TikTok client key (developers.tiktok.com -> your app): ").strip()
-                    secret = getpass.getpass("    TikTok client secret (hidden): ").strip()
+                    key = os.environ.get("TIKTOK_CLIENT_KEY") or input(
+                        "    TikTok client key (developers.tiktok.com -> your app): ").strip()
+                    secret = os.environ.get("TIKTOK_CLIENT_SECRET") or getpass.getpass(
+                        "    TikTok client secret (hidden): ").strip()
                     print("   ", mod.authorize(key, secret, "inbox", "hex", False, account=acct))
             except Exception as e:  # noqa: BLE001
                 print(f"    couldn't connect: {classify(e)[1]}\n    (you can retry later with `pipeline.py {p} auth`)")
@@ -1883,7 +1937,19 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("which", help="clip id or 'all'")
     s = sub.add_parser("doctor", help="check this computer, campaigns and accounts; --fix installs what's missing")
     s.add_argument("--fix", action="store_true")
-    sub.add_parser("setup", help="guided one-time setup")
+    s = sub.add_parser("setup", help="guided one-time setup")
+    s.add_argument("--yes", action="store_true", help="accept the default answer to every question")
+    s = sub.add_parser("campaign-set", help="fill campaign fields without editing JSON")
+    s.add_argument("campaign")
+    s.add_argument("--verified-today", action="store_true", help="set permission.verified_on to today")
+    s.add_argument("--evidence", help="the campaign's own words about what may be clipped")
+    s.add_argument("--campaign-url")
+    s.add_argument("--mention", action="append", help="required @handle in captions (repeatable; replaces the list)")
+    s.add_argument("--hashtag", action="append", help="required #hashtag (repeatable; replaces the list)")
+    s.add_argument("--allow-source", action="append", help="add an allowed source (URL prefix or file:<folder>)")
+    s.add_argument("--source", action="append", help="add a source to import (URL or folder)")
+    s.add_argument("--cpm", type=float)
+    s.add_argument("--max-payout", type=float)
     s = sub.add_parser("notify", help="phone notifications via the ntfy app (opt-in)")
     s.add_argument("action", choices=["setup", "test", "off"])
     s.add_argument("--topic")
@@ -1897,7 +1963,7 @@ COMMANDS = {"campaign-check": cmd_campaign_check, "import": cmd_import, "run": c
             "posted": cmd_posted, "retry": cmd_retry, "budget": cmd_budget, "secrets": cmd_secrets,
             "cleanup": cmd_cleanup, "earnings": cmd_earnings, "autopilot": cmd_autopilot, "schedule": cmd_schedule,
             "youtube": cmd_youtube, "submitted": cmd_submitted, "tiktok": cmd_tiktok,
-            "doctor": cmd_doctor, "setup": cmd_setup, "notify": cmd_notify}
+            "doctor": cmd_doctor, "setup": cmd_setup, "notify": cmd_notify, "campaign-set": cmd_campaign_set}
 
 
 def main(argv=None) -> int:

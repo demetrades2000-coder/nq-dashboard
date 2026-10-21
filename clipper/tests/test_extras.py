@@ -150,5 +150,41 @@ class CampaignFolderLogoAccounts(unittest.TestCase):
         self.assertEqual(rc, 1)
 
 
+class CampaignSetTests(unittest.TestCase):
+    def test_campaign_set_fills_todos(self):
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            f = tmp / "c.json"
+            shutil.copy(HERE / "campaigns" / "higgsfield-20vc.json", f)
+            home = str(tmp / "ws")
+            rc, out = run_cli("--home", home, "campaign-set", str(f), "--verified-today",
+                              "--evidence", "Clip the 20VC episode", "--mention", "higgsfield_ai",
+                              "--allow-source", "youtube.com/@20VC", "--source", "https://www.youtube.com/watch?v=abc")
+            c = json.loads(f.read_text())
+            self.assertEqual(c["permission"]["verified_on"], dt.date.today().isoformat())
+            self.assertEqual(c["caption"]["required_mentions"], ["@higgsfield_ai"])
+            self.assertIn("youtube.com/@20VC", c["permission"]["allowed_sources"])
+            self.assertEqual(rc, 0, out)
+            self.assertIn("OK: permission recorded", out)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_setup_yes_needs_no_input(self):
+        import builtins
+        real_input = builtins.input
+        builtins.input = lambda *a: (_ for _ in ()).throw(AssertionError("setup --yes must not prompt"))
+        orig = pl.doctor_checks
+        pl.doctor_checks = lambda ws, fix=False: [("Python 3.10+", True, "")]
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            rc, out = run_cli("--home", str(tmp / "ws"), "setup", "--yes")
+            self.assertIn("Step 2/5", out)
+        finally:
+            builtins.input = real_input
+            pl.doctor_checks = orig
+            pl.ASSUME_DEFAULTS = False
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

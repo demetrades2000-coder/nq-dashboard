@@ -166,7 +166,7 @@ python -m unittest discover -s tests -v     # ~2 min; offline; synthetic video +
 python clipper.py --selftest                # renderer check across all layouts (~5 min)
 ```
 
-The 58 tests cover:
+The 60 tests cover:
 - **Campaign-file features:** TODO gate, missing logo blocks a campaign,
   campaign-relative footage folders, a logo actually rendered (pixel-checked)
   and rule-checked, per-campaign account routing, the engagement-floor

@@ -36,6 +36,43 @@ Other sources used:
 [Darebay: Vyro review](https://darebay.com/en/earnings/vyro-review) ·
 [TikTok Content Posting API: Direct Post](https://developers.tiktok.com/docs/en/content-posting-api-reference-direct-post)
 
+## TikTok pick: Alpha Futures (checked 2026-10-21)
+
+These are the money-niche campaigns paying on TikTok in the ClippingAlpha
+snapshot of 18 Oct 2026, where the median TikTok campaign pays $1 per 1,000
+views ([TikTok board](https://clippingalpha.com/platforms/tiktok)).
+
+| Campaign | Rate | Why it is or isn't the pick |
+|---|---|---|
+| **[Alpha Futures](https://contentrewards.com/c/campaigns/2c65001c-d6a8-4b14-9ba6-52400794b085)** (Click Culture, Content Rewards) | **$2 per 1K** on TikTok, Instagram and YouTube; max $500 per clip | **Pick.** Twice the median rate, the brand supplies the footage, and the rules are written down. About $3.8K of budget was left on 7 Oct ([ClippingAlpha brief](https://clippingalpha.com/campaigns/alpha-futures/clipping)). |
+| FundingPips | $15 per 1K (listed) | Highest rate on the board, but I found no brief, cap or rules anywhere. Worth checking yourself; not something to build on blind. |
+| Rick Roth | $3 per 1K | Political clips, not the money niche, and application-only ([ClipLaunch](https://whop.com/cliplaunch/)). |
+| Ivan Soto / MoonPay | $1.50 per 1K | Budget may be nearly used up (see below). |
+| Alfe (Reach) | $1.50 per 1K, $250 cap | Open at last count; needs dedicated fan pages. |
+| TradeAxis, Flowik | $1.50 per 1K | Budget exhausted. |
+
+**Alpha Futures rules** (from its ClippingAlpha brief and the
+[hub page](https://content.clipalphafutures.com/)):
+- **Footage:** official Alpha Futures footage only; English; at least 7
+  seconds.
+- **Logo:** visible on the black section for the whole clip. The brief
+  renders a letterboxed layout with the logo in the top bar.
+- **Caption:** tag the official account in every caption.
+- **Posts:** keep them live 30 days or more; at least 2% engagement with
+  likes visible. The tracker warns when a post falls under 2%.
+- **Account:** used only for this campaign, with "Alpha Futures" in its name
+  and the official logo as the profile picture. The brief routes uploads to
+  a separate `alphafutures` account.
+- **Payout:** minimum $2, 10% board fee, paid within 10 days.
+
+Two similar-looking domains exist (clipalphafutures.com and
+content.clipalphafutures.com). Use only the links on the Content Rewards
+campaign page.
+
+On compliance: Alpha Futures sells trading evaluations. The brief bans
+"guaranteed", "risk free", "can't lose", "financial advice" and "get rich",
+and every caption and clip carries `#ad`.
+
 ## Campaigns you found (checked 2026-10-21)
 
 All three are **Clip Farm** campaigns listed on Content Rewards (Whop's

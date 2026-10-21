@@ -2,3 +2,6 @@ clips/
 clipper-workspace/
 __pycache__/
 *.pyc
+campaigns/footage/**/*
+!campaigns/footage/README.txt
+campaigns/logos/*.png

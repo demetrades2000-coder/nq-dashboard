@@ -1032,7 +1032,8 @@ def remap(words: list[Word], iv: list[tuple[float, float]]) -> list[Word]:
     return out
 
 
-def build_graph(iv_rel, layout, info: MediaInfo, centers, captions: str | None, loudnorm: bool):
+def build_graph(iv_rel, layout, info: MediaInfo, centers, captions: str | None, loudnorm: bool,
+                logo: dict | None = None):
     parts, labels = [], []
     for i, (a, b) in enumerate(iv_rel):
         trim = f"trim=start={a:.3f}:end={b:.3f},setpts=PTS-STARTPTS"
@@ -1060,7 +1061,13 @@ def build_graph(iv_rel, layout, info: MediaInfo, centers, captions: str | None, 
         parts.append(f"{''.join(labels)}concat=n={n}:v=1:a=1[vc][ac]")
     else:
         parts.append(f"{''.join(labels)}concat=n={n}:v=1:a=0[vc]")
-    vf = f"[vc]fps={FPS},format=yuv420p"
+    if logo:  # brand logo on top of the video for the whole clip (input #1 is the image)
+        y = logo["y"]
+        parts.append(f"[1:v]scale={logo['w']}:-1,format=rgba[lg]")
+        parts.append(f"[vc]fps={FPS}[vf];[vf][lg]overlay=x=(W-w)/2:y={y}:eof_action=repeat,format=yuv420p[vl]")
+        vf = "[vl]null"
+    else:
+        vf = f"[vc]fps={FPS},format=yuv420p"
     if captions:
         vf += f",ass={captions}"
     parts.append(vf + "[vo]")
@@ -1116,9 +1123,17 @@ def render(video: Path, info: MediaInfo, c: Clip, idx: int, outdir: Path, font: 
             write_ass(outdir / ass_name, remap(c.words, iv), total, c.title if c.words else "", font, args)
             ass_arg = ass_name
         centers = centers_for(iv)[0] if lay == "crop" else None
-        graph = build_graph(iv_rel, lay, info, centers, ass_arg, loud)
+        logo = None
+        if getattr(args, "logo", None):
+            # top: in the upper black bar; bottom: in the lower bar, clear of the platform UI
+            logo = {"w": int(getattr(args, "logo_width", 300) or 300),
+                    "y": 40 if getattr(args, "logo_position", "top") == "top" else OUT_H - 420}
+        graph = build_graph(iv_rel, lay, info, centers, ass_arg, loud, logo)
         cmd = [Tools.ffmpeg, "-y", "-v", "error", "-ss", f"{seek:.3f}", "-t", f"{span:.3f}",
-               "-i", str(video.resolve()), "-filter_complex", graph, "-map", "[vo]"]
+               "-i", str(video.resolve())]
+        if logo:
+            cmd += ["-i", str(Path(args.logo).expanduser().resolve())]
+        cmd += ["-filter_complex", graph, "-map", "[vo]"]
         if info.has_audio:
             cmd += ["-map", "[ao]", "-c:a", "aac", "-b:a", "160k"]
         cmd += ["-c:v", "libx264", "-preset", args.preset, "-crf", str(args.crf), "-pix_fmt", "yuv420p",
@@ -1134,6 +1149,7 @@ def render(video: Path, info: MediaInfo, c: Clip, idx: int, outdir: Path, font: 
             log(f"clip {idx:02d} rendered ({total:.0f}s, {desc}) -> {name}", "ok")
             c.render_info = desc  # type: ignore[attr-defined]
             c.tagged = bool(ass_arg)  # overlays (tag/disclosure) are in the caption file  # type: ignore[attr-defined]
+            c.logo_on = bool(logo)  # type: ignore[attr-defined]
             c.out_duration = total  # type: ignore[attr-defined]
             if not args.keep_ass:
                 (outdir / ass_name).unlink(missing_ok=True)
@@ -1361,6 +1377,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--ai-model", default=os.environ.get("CLIPPER_MODEL", "claude-opus-5-5"),
                    help=f"one of: {', '.join(PRICES)}")
     p.add_argument("--disclosure", help="on-screen disclosure text, e.g. '#ad' or 'Paid partnership'")
+    p.add_argument("--logo", help="PNG logo burned in for the whole clip (campaigns that require the brand logo)")
+    p.add_argument("--logo-position", choices=["top", "bottom"], default="top")
+    p.add_argument("--logo-width", type=int, default=300)
     p.add_argument("--no-jumpcuts", action="store_true", help="keep pauses instead of cutting dead air")
     p.add_argument("--no-title", action="store_true", help="no hook title bar")
     p.add_argument("--font", help="caption font family")

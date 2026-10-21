@@ -85,6 +85,8 @@ class WS:
         self.db = sqlite3.connect(self.home / "jobs.db", timeout=30, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)
+        if "account" not in {r[1] for r in self.db.execute("PRAGMA table_info(uploads)")}:
+            self.db.execute("ALTER TABLE uploads ADD COLUMN account TEXT DEFAULT 'default'")
         have = {r[1] for r in self.db.execute("PRAGMA table_info(clips)")}
         for col in ("submitted_at TEXT", "upload_notes TEXT", "video_id TEXT", "held_reason TEXT"):
             if col.split()[0] not in have:
@@ -294,6 +296,9 @@ def jaccard(a: set, b: set) -> float:
 def load_campaign_checked(path: str) -> dict:
     c = cmp.load(path)
     probs = cmp.permission_problems(c)
+    logo = cmp.cli_defaults(c).get("logo")
+    if logo and not Path(logo).exists():
+        probs.append(f"on_screen.logo file not found: {logo} (download the official logo from the campaign)")
     if probs:
         raise Blocked("Campaign can't be used yet:\n  - " + "\n  - ".join(probs))
     return c
@@ -313,6 +318,9 @@ def cmd_campaign_check(ws: WS, a) -> int:
           f"cap ${c.get('max_payout_per_clip') or 'none'}")
     if not (c.get("disclosure") or {}):
         print("  ! no disclosure configured: add the campaign's required disclosure wording")
+    logo = cmp.cli_defaults(c).get("logo")
+    if logo and not Path(logo).exists():
+        probs = list(probs) + [f"on_screen.logo file not found: {logo} (download the official logo from the campaign)"]
     if probs:
         print("NOT READY:\n  - " + "\n  - ".join(probs))
         return 1
@@ -338,10 +346,29 @@ def cmd_import(ws: WS, a) -> int:
     except Blocked as e:
         print(e)
         return 1
+    from_campaign = not a.sources
     sources = list(a.sources) or list(c.get("sources") or [])
     if not sources:
         print("No sources given and the campaign lists none.")
         return 1
+    expanded = []
+    for src in sources:  # campaign-relative paths; a folder means "every video dropped in it"
+        if re.match(r"https?://", src):
+            expanded.append(src)
+            continue
+        p = Path(src).expanduser()
+        if from_campaign and not p.is_absolute():
+            p = Path(c["_path"]).parent / p
+        if p.is_dir():
+            vids = sorted((f for f in p.iterdir() if f.suffix.lower() in cl.VIDEO_EXT), key=lambda f: f.stat().st_mtime)
+            if not vids:
+                print(f"no videos in {p} yet")
+            expanded += [str(f) for f in vids]
+        else:
+            expanded.append(str(p))
+    sources = expanded
+    if not sources:
+        return 0
     if a.transcript and len(sources) != 1:
         print("--transcript can only be used with a single source")
         return 1
@@ -381,7 +408,8 @@ def cmd_import(ws: WS, a) -> int:
         dup = status == "queued" and ws.q("SELECT id, status FROM sources WHERE campaign=? AND canonical=? AND status NOT IN ('failed','blocked')",
                    (c["name"], canon))
         if dup and not a.force:
-            print(f"duplicate: {src} is already job #{dup[0]['id']} ({dup[0]['status']}); use --force to re-import")
+            if not from_campaign:
+                print(f"duplicate: {src} is already job #{dup[0]['id']} ({dup[0]['status']}); use --force to re-import")
             continue
         sid = ws.x("""INSERT INTO sources(campaign, campaign_file, input, canonical, transcript, title, uploader, status,
                       last_error, meta, created, updated) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
@@ -558,7 +586,8 @@ def process_source(ws: WS, row: sqlite3.Row, a) -> None:
             flags.append({"level": "warn", "msg": "contains an earnings or results claim. Keep it attributed to "
                                                   "the speaker; don't caption it as typical or guaranteed."})
         out_dur = getattr(k, "out_duration", k.e - k.s)
-        checks = cmp.compliance(c, out_dur, k.text, k.posts, getattr(k, "tagged", False)) if path else []
+        checks = cmp.compliance(c, out_dur, k.text, k.posts, getattr(k, "tagged", False),
+                                getattr(k, "logo_on", False)) if path else []
         ws.x("""INSERT INTO clips(source_id, campaign, rank, start, end_, title, caption, hashtags, posts, checks, flags,
                 words, context_before, context_after, text, score, file, status, created)
                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
@@ -1055,10 +1084,10 @@ class YouTubeUploader:
     """Adapter so the autopilot can be tested with fake uploaders. Returns a normalized result."""
     name = "youtube"
 
-    def __init__(self):
+    def __init__(self, account: str = "default"):
         import youtube
         self.yt_mod = youtube
-        self.yt = youtube.service()
+        self.yt = youtube.service(account)
 
     def upload(self, path, title, description, tags, privacy, paid):
         return self.yt_mod.upload(self.yt, Path(path), title, description, tags, privacy, paid)
@@ -1070,14 +1099,14 @@ class YouTubeUploader:
 class TikTokUploader:
     name = "tiktok"
 
-    def __init__(self):
+    def __init__(self, account: str = "default"):
         import tiktok
-        self.tt = tiktok
-        _, tok = tiktok.access_token()
+        self.tt, self.account = tiktok, account
+        _, tok = tiktok.access_token(account=account)
         self.mode = tok.get("mode", "inbox")
 
     def upload(self, path, title, description, tags, privacy, paid):
-        res = self.tt.upload(Path(path), description, self.mode, paid)
+        res = self.tt.upload(Path(path), description, self.mode, paid, account=self.account)
         state = {"SEND_TO_USER_INBOX": "draft", "PUBLISH_COMPLETE": "live"}.get(res["status"], "processing")
         if state == "live" and any("allowed only" in n for n in res["notes"]):
             state = "private"
@@ -1085,7 +1114,7 @@ class TikTokUploader:
                 "publish_id": res["publish_id"]}
 
     def recent(self):
-        return self.tt.recent_videos()
+        return self.tt.recent_videos(account=self.account)
 
 
 def normalize_result(res: dict, requested_privacy: str) -> dict:
@@ -1125,40 +1154,61 @@ def hold_reason(r, pol: dict) -> str | None:
     return None
 
 
-def uploads_today(ws: WS, platform: str | None = None) -> int:
+def uploads_today(ws: WS, platform: str | None = None, account: str | None = None) -> int:
     sql, args = "SELECT COUNT(*) n FROM uploads WHERE created >= ?", [dt.date.today().isoformat()]
     if platform:
         sql += " AND platform=?"
         args.append(platform)
+    if account:
+        sql += " AND COALESCE(account,'default')=?"
+        args.append(account)
     return ws.q(sql, args)[0]["n"]
 
 
-def connected_uploaders(rep: dict, wanted: list[str]) -> dict:
-    ups = {}
-    for p in wanted:
+class UploaderPool:
+    """One uploader per (platform, account), created on first use. Tests pass fakes keyed by platform."""
+
+    def __init__(self, rep: dict, fakes: dict | None = None):
+        self.rep, self.fakes, self.cache, self.failed = rep, fakes, {}, set()
+
+    def get(self, platform: str, account: str):
+        if self.fakes is not None:
+            return self.fakes.get(platform)
+        key = (platform, account)
+        if key in self.cache:
+            return self.cache[key]
+        if key in self.failed:
+            return None
         try:
-            if p == "youtube":
-                import youtube
-                if youtube.has_token():
-                    ups[p] = YouTubeUploader()
-                else:
-                    rep["notes"].append("YouTube not connected: run `pipeline.py youtube auth` once")
-            elif p == "tiktok":
-                import tiktok
-                if tiktok.has_token():
-                    ups[p] = TikTokUploader()
-                else:
-                    rep["notes"].append("TikTok not connected: run `pipeline.py tiktok auth --client-key ...` once")
+            mod = __import__(platform)
+            if not mod.has_token(account):
+                flag = "" if account == "default" else f" --account {account}"
+                how = "youtube auth --client-secret <file>" if platform == "youtube" else "tiktok auth --client-key <key>"
+                self.rep["notes"].append(f"{platform} account '{account}' not connected: run `pipeline.py {how}{flag}`")
+                self.failed.add(key)
+                return None
+            self.cache[key] = (YouTubeUploader if platform == "youtube" else TikTokUploader)(account)
+            return self.cache[key]
         except Exception as e:  # noqa: BLE001
-            rep["notes"].append(f"{p} unavailable: {classify(e)[1]}")
-    return ups
+            self.rep["notes"].append(f"{platform} account '{account}' unavailable: {classify(e)[1]}")
+            self.failed.add(key)
+            return None
+
+    def items(self):
+        if self.fakes is not None:
+            return [((p, None), u) for p, u in self.fakes.items()]
+        return list(self.cache.items())
 
 
-def record_upload(ws: WS, clip_row, platform: str, res: dict, caption: str) -> None:
-    ws.x("""INSERT OR REPLACE INTO uploads(clip_id, platform, remote_id, url, state, notes, caption, publish_id, created,
-            updated, views, likes) VALUES(?,?,?,?,?,?,?,?,?,?,0,0)""",
-         (clip_row["id"], platform, res["remote_id"], res["url"], res["state"], json.dumps(res["notes"]), caption,
-          res.get("publish_id"), now(), now()))
+def campaign_account(c: dict, platform: str) -> str:
+    return str((c.get("accounts") or {}).get(platform) or "default")
+
+
+def record_upload(ws: WS, clip_row, platform: str, res: dict, caption: str, account: str = "default") -> None:
+    ws.x("""INSERT OR REPLACE INTO uploads(clip_id, platform, account, remote_id, url, state, notes, caption, publish_id,
+            created, updated, views, likes) VALUES(?,?,?,?,?,?,?,?,?,?,?,0,0)""",
+         (clip_row["id"], platform, account, res["remote_id"], res["url"], res["state"], json.dumps(res["notes"]),
+          caption, res.get("publish_id"), now(), now()))
     first = clip_row["status"] != "posted"
     if first:
         ws.x("UPDATE clips SET status='posted', posted_at=? WHERE id=?", (now(), clip_row["id"]))
@@ -1215,98 +1265,126 @@ def autopilot_cycle(ws: WS, a, uploader=None, uploaders=None) -> int:
                 continue
             ok, msg = approve_clip(ws, r["id"], "auto-approved by autopilot policy")
             (rep["approved"] if ok else rep["held"]).append(f"#{r['id']} {r['title'][:60]}" + ("" if ok else f": {msg}"))
-        # 4. upload each approved clip to every platform its campaign pays on, within per-platform daily caps
+        # 4. upload each approved clip to every platform its campaign pays on, using the campaign's account
+        #    for that platform, within a daily cap per platform account
         todo = ws.q("SELECT c.*, s.campaign_file FROM clips c JOIN sources s ON s.id=c.source_id "
                     "WHERE c.status IN ('approved','posted') AND c.ready_file IS NOT NULL ORDER BY c.score DESC")
-        need: dict[str, list] = {p: [] for p in pol["platforms"]}
+        need: dict[tuple, list] = {}
+        camps: dict[str, dict] = {}
         for r in todo:
             try:
-                camp_platforms = [p.lower() for p in cmp.load(r["campaign_file"]).get("platforms", [])]
+                c = camps.setdefault(r["campaign_file"], cmp.load(r["campaign_file"]))
             except Exception:
                 continue
+            camp_platforms = [p.lower() for p in c.get("platforms", [])]
             done = {u["platform"] for u in ws.q("SELECT platform FROM uploads WHERE clip_id=?", (r["id"],))}
             for p in pol["platforms"]:
                 if p in camp_platforms and p not in done:
-                    need[p].append(r)
-        wanted = [p for p, rows in need.items() if rows]
-        if uploaders is None and wanted:
-            uploaders = connected_uploaders(rep, wanted)
-        uploaders = uploaders or {}
-        for p, rows in need.items():
-            if not rows or p not in uploaders:
+                    need.setdefault((p, campaign_account(c, p)), []).append(r)
+        pool = UploaderPool(rep, uploaders)
+        for (p, acct), rows in need.items():
+            up = pool.get(p, acct)
+            if up is None:
                 continue
-            room = pol["max_uploads_per_day"] - uploads_today(ws, p)
+            room = pol["max_uploads_per_day"] - uploads_today(ws, p, acct)
             if room <= 0:
-                rep["notes"].append(f"{p}: daily upload cap ({pol['max_uploads_per_day']}) reached; {len(rows)} clip(s) wait")
+                rep["notes"].append(f"{p}/{acct}: daily upload cap ({pol['max_uploads_per_day']}) reached; "
+                                    f"{len(rows)} clip(s) wait")
                 continue
             for r in rows[:room]:
-                c = cmp.load(r["campaign_file"])
+                c = camps[r["campaign_file"]]
                 post = json.loads(r["posts"] or "{}")
                 if p == "youtube":
                     yp = post.get("youtube") or {"title": r["title"], "description": r["caption"]}
                     title, desc = yp["title"], yp["description"]
                 else:
-                    tp = post.get(p) or cmp.platform_posts(c, r["title"], r["caption"], json.loads(r["hashtags"] or "[]")).get(p) \
-                        or {"caption": r["caption"]}
+                    tp = post.get(p) or cmp.platform_posts(c, r["title"], r["caption"],
+                                                           json.loads(r["hashtags"] or "[]")).get(p) or {"caption": r["caption"]}
                     title, desc = r["title"], tp["caption"]
                 paid = bool((c.get("disclosure") or {}).get("caption") or (c.get("disclosure") or {}).get("on_screen"))
                 try:
-                    res = normalize_result(uploaders[p].upload(r["ready_file"], title, desc,
-                                                               json.loads(r["hashtags"] or "[]"), pol["privacy"], paid),
-                                           pol["privacy"])
+                    res = normalize_result(up.upload(r["ready_file"], title, desc, json.loads(r["hashtags"] or "[]"),
+                                                     pol["privacy"], paid), pol["privacy"])
                 except Exception as e:  # noqa: BLE001
                     msg = classify(e)[1]
-                    rep["upload_errors"].append(f"{p} #{r['id']}: {msg}")
+                    rep["upload_errors"].append(f"{p}/{acct} #{r['id']}: {msg}")
                     if any(k in msg.lower() for k in ("quota", "limit", "too many", "expired", "login")):
                         break
                     continue
-                record_upload(ws, ws.q("SELECT * FROM clips WHERE id=?", (r["id"],))[0], p, res, desc)
-                rep["uploaded"].append(f"{p} #{r['id']} {res['url'] or res['state']}"
+                record_upload(ws, ws.q("SELECT * FROM clips WHERE id=?", (r["id"],))[0], p, res, desc, acct)
+                rep["uploaded"].append(f"{p}/{acct} #{r['id']} {res['url'] or res['state']}"
                                        + (" — " + "; ".join(res["notes"]) if res["notes"] else ""))
-                ws.event(f"clip #{r['id']} uploaded to {p}: {res['url'] or res['state']}", "ok", clip_id=r["id"])
+                ws.event(f"clip #{r['id']} uploaded to {p}/{acct}: {res['url'] or res['state']}", "ok", clip_id=r["id"])
+        # make sure stats are refreshed for every account that has uploads, not just ones used this cycle
+        if uploaders is None:
+            for row in ws.q("SELECT DISTINCT platform, COALESCE(account,'default') account FROM uploads"):
+                pool.get(row["platform"], row["account"])
         # 5. refresh views / pick up TikTok posts finished from the inbox
-        refresh_platform_stats(ws, uploaders, rep)
+        refresh_platform_stats(ws, pool, rep)
     write_autopilot_report(ws, rep)
+    drafts = ws.q("SELECT u.caption, u.clip_id FROM uploads u WHERE u.platform='tiktok' AND u.state='draft' "
+                  "AND u.url IS NULL AND u.created >= ?", (rep["started"],))
+    if drafts or rep["upload_errors"] or rep["held"]:
+        lines = [f"{len(drafts)} TikTok draft(s) ready to post." if drafts else "",
+                 f"{len(rep['held'])} clip(s) held for review." if rep["held"] else "",
+                 f"{len(rep['upload_errors'])} upload error(s)." if rep["upload_errors"] else ""]
+        for d in drafts[:3]:
+            lines.append(f"\nCaption for clip #{d['clip_id']}:\n{d['caption']}")
+        notify(ws, "Clips ready", "\n".join(x for x in lines if x))
     print(f"Autopilot cycle: {len(rep['approved'])} auto-approved, {len(rep['uploaded'])} uploaded, "
           f"{len(rep['held'])} held, {len(rep['upload_errors'])} upload error(s). Report: "
           f"{ws.home / 'AUTOPILOT_REPORT.md'}")
     return 0
 
 
-def refresh_platform_stats(ws: WS, uploaders: dict, rep: dict) -> None:
+def refresh_platform_stats(ws: WS, pool: "UploaderPool", rep: dict) -> None:
     db_path = ws.home / "earnings.json"
-    if "youtube" in uploaders:
-        rows = ws.q("SELECT * FROM uploads WHERE platform='youtube' AND remote_id IS NOT NULL")
-        if rows:
+    for (platform, acct), up in pool.items():
+        where = "platform=?" + ("" if acct is None else " AND COALESCE(account,'default')=?")
+        args = [platform] + ([] if acct is None else [acct])
+        if platform == "youtube":
+            rows = ws.q(f"SELECT * FROM uploads WHERE {where} AND remote_id IS NOT NULL", args)
+            if not rows:
+                continue
             try:
-                st = uploaders["youtube"].stats([r["remote_id"] for r in rows])
+                st = up.stats([r["remote_id"] for r in rows])
                 for r in rows:
                     if r["remote_id"] in st:
                         ws.x("UPDATE uploads SET views=?, likes=?, updated=? WHERE id=?",
                              (st[r["remote_id"]]["views"], st[r["remote_id"]]["likes"], now(), r["id"]))
             except Exception as e:  # noqa: BLE001
                 rep["notes"].append(f"YouTube view refresh failed: {classify(e)[1]}")
-    if "tiktok" in uploaders and hasattr(uploaders["tiktok"], "recent"):
+        elif platform == "tiktok" and hasattr(up, "recent"):
+            try:
+                import tiktok
+                videos = up.recent()
+                pending = ws.q(f"SELECT * FROM uploads WHERE {where} AND url IS NULL", args)
+                found = tiktok.match_posts([{"key": r["id"], "caption": r["caption"] or ""} for r in pending], videos)
+                for uid, v in found.items():
+                    ws.x("UPDATE uploads SET url=?, remote_id=?, state='live', updated=? WHERE id=?",
+                         (v.get("share_url"), str(v["id"]), now(), uid))
+                    row = ws.q("SELECT c.* FROM clips c JOIN uploads u ON u.clip_id=c.id WHERE u.id=?", (uid,))[0]
+                    if v.get("share_url"):
+                        track_url(ws, v["share_url"], row)
+                    rep["notes"].append(f"TikTok post found for clip #{row['id']}: {v.get('share_url')}")
+                by_id = {str(v["id"]): v for v in videos}
+                for r in ws.q(f"SELECT * FROM uploads WHERE {where} AND remote_id IS NOT NULL", args):
+                    v = by_id.get(r["remote_id"])
+                    if v:
+                        ws.x("UPDATE uploads SET views=?, likes=?, updated=? WHERE id=?",
+                             (int(v.get("view_count") or 0), int(v.get("like_count") or 0), now(), r["id"]))
+            except Exception as e:  # noqa: BLE001
+                rep["notes"].append(f"TikTok refresh failed: {classify(e)[1]}")
+    # engagement floor some campaigns require (e.g. likes/views >= 2%)
+    for r in ws.q("SELECT u.*, s.campaign_file FROM uploads u JOIN clips c ON c.id=u.clip_id "
+                  "JOIN sources s ON s.id=c.source_id WHERE u.views >= 300"):
         try:
-            import tiktok
-            videos = uploaders["tiktok"].recent()
-            pending = ws.q("SELECT * FROM uploads WHERE platform='tiktok' AND url IS NULL")
-            found = tiktok.match_posts([{"key": r["id"], "caption": r["caption"] or ""} for r in pending], videos)
-            for uid, v in found.items():
-                ws.x("UPDATE uploads SET url=?, remote_id=?, state='live', updated=? WHERE id=?",
-                     (v.get("share_url"), str(v["id"]), now(), uid))
-                row = ws.q("SELECT c.* FROM clips c JOIN uploads u ON u.clip_id=c.id WHERE u.id=?", (uid,))[0]
-                if v.get("share_url"):
-                    track_url(ws, v["share_url"], row)
-                rep["notes"].append(f"TikTok post found for clip #{row['id']}: {v.get('share_url')}")
-            by_id = {str(v["id"]): v for v in videos}
-            for r in ws.q("SELECT * FROM uploads WHERE platform='tiktok' AND remote_id IS NOT NULL"):
-                v = by_id.get(r["remote_id"])
-                if v:
-                    ws.x("UPDATE uploads SET views=?, likes=?, updated=? WHERE id=?",
-                         (int(v.get("view_count") or 0), int(v.get("like_count") or 0), now(), r["id"]))
-        except Exception as e:  # noqa: BLE001
-            rep["notes"].append(f"TikTok refresh failed: {classify(e)[1]}")
+            floor = float(cmp.load(r["campaign_file"]).get("min_engagement") or 0)
+        except Exception:
+            floor = 0
+        if floor and (r["likes"] or 0) / r["views"] < floor:
+            rep["notes"].append(f"{r['platform']} #{r['clip_id']}: engagement {100 * (r['likes'] or 0) / r['views']:.1f}% "
+                                f"is under the campaign's {100 * floor:.0f}% minimum; it may not be paid")
     db = tracker.load_db(db_path)
     by_url = {r["url"]: r for r in ws.q("SELECT url, views, likes FROM uploads WHERE url IS NOT NULL")}
     for p in db["posts"]:
@@ -1445,15 +1523,15 @@ def cmd_tiktok(ws: WS, a) -> int:
             print("--client-key is required (from developers.tiktok.com -> your app)")
             return 1
         secret = getpass.getpass("TikTok client secret (input hidden): ").strip()
-        print(tiktok.authorize(a.client_key, secret, a.mode, a.pkce, a.paste))
+        print(tiktok.authorize(a.client_key, secret, a.mode, a.pkce, a.paste, account=a.account))
     elif a.action == "status":
-        if not tiktok.has_token():
-            print("not connected")
+        if not tiktok.has_token(a.account):
+            print(f"account '{a.account}' not connected")
             return 1
-        _, tok = tiktok.access_token()
+        _, tok = tiktok.access_token(account=a.account)
         print(f"connected ({tok.get('mode')} mode; scopes: {tok.get('scope')})")
     elif a.action == "disconnect":
-        tiktok.revoke()
+        tiktok.revoke(a.account)
         print("TikTok token removed from the keychain (also remove the app at TikTok settings -> Security)")
     return 0
 
@@ -1464,14 +1542,14 @@ def cmd_youtube(ws: WS, a) -> int:
         if not a.client_secret:
             print("--client-secret <downloaded OAuth client JSON> is required (see youtube.py header for setup)")
             return 1
-        print(youtube.authorize(a.client_secret))
+        print(youtube.authorize(a.client_secret, a.account))
     elif a.action == "status":
-        if not youtube.has_token():
-            print("not connected")
+        if not youtube.has_token(a.account):
+            print(f"account '{a.account}' not connected")
             return 1
-        print(json.dumps(youtube.channel_info(youtube.service())))
+        print(json.dumps(youtube.channel_info(youtube.service(a.account))))
     elif a.action == "disconnect":
-        youtube.revoke()
+        youtube.revoke(a.account)
         print("token removed from the keychain (also revoke access at myaccount.google.com/permissions)")
     return 0
 
@@ -1522,6 +1600,207 @@ def cmd_schedule(ws: WS, a) -> int:
 
 def random_minute() -> int:
     return pysecrets.randbelow(50) + 5  # spread load; avoids :00
+
+
+# ---------------------------------------------------------------- doctor, setup, notifications
+
+def doctor_checks(ws: WS, fix: bool = False) -> list[tuple[str, bool, str]]:
+    """(name, ok, how-to-fix). Blocking problems make `doctor` exit non-zero."""
+    out = []
+    out.append(("Python 3.10+", sys.version_info >= (3, 10), "install Python 3.11 or newer from python.org"))
+    ff = shutil.which("ffmpeg")
+    if not ff and fix:
+        cl.try_import("imageio_ffmpeg", "imageio-ffmpeg", True)
+    try:
+        cl.Tools.setup(fix)
+        ff = cl.Tools.ffmpeg
+        filt = cl.run([ff, "-hide_banner", "-filters"], timeout=30).stdout
+        enc = cl.run([ff, "-hide_banner", "-encoders"], timeout=30).stdout
+        out.append(("ffmpeg", True, ""))
+        out.append(("ffmpeg can burn captions (libass)", " ass " in filt, "install a full ffmpeg build "
+                    "(winget install Gyan.FFmpeg / brew install ffmpeg / apt install ffmpeg)"))
+        out.append(("ffmpeg H.264 encoder (libx264)", "libx264" in enc, "install a full ffmpeg build"))
+    except SystemExit:
+        out.append(("ffmpeg", False, "winget install Gyan.FFmpeg  /  brew install ffmpeg  /  sudo apt install ffmpeg"))
+    pkgs = [("yt_dlp", "yt-dlp", True), ("faster_whisper", "faster-whisper", True), ("numpy", "numpy", True),
+            ("cv2", "opencv-python-headless<5", False), ("keyring", "keyring", True),
+            ("googleapiclient", "google-api-python-client", False), ("google_auth_oauthlib", "google-auth-oauthlib", False),
+            ("anthropic", "anthropic", False)]
+    for mod, pip_name, blocking in pkgs:
+        okm = cl.try_import(mod, pip_name, fix) is not None
+        out.append((f"python package {pip_name}" + ("" if blocking else " (optional)"), okm or not blocking,
+                    f"pip install \"{pip_name}\"" if not okm else ""))
+    kr = keyring_mod()
+    kr_ok = False
+    if kr:
+        try:
+            kr.set_password(KEYRING_SERVICE, "doctor-check", "1")
+            kr_ok = kr.get_password(KEYRING_SERVICE, "doctor-check") == "1"
+            kr.delete_password(KEYRING_SERVICE, "doctor-check")
+        except Exception:
+            kr_ok = False
+    out.append(("OS keychain usable (stores logins safely)", kr_ok,
+                "macOS/Windows: works out of the box. Linux: install gnome-keyring or KWallet and log into a desktop session"))
+    free = shutil.disk_usage(ws.home).free / 1e9
+    out.append((f"disk space ({free:.0f} GB free)", free > 5, "free up disk space (need ~5 GB for downloads and renders)"))
+    if fix:
+        try:
+            import faster_whisper
+            faster_whisper.WhisperModel("small", device="cpu", compute_type="int8")
+            out.append(("speech model downloaded", True, ""))
+        except Exception as e:  # noqa: BLE001
+            out.append(("speech model downloaded", False, f"needs internet on first run ({str(e)[:80]})"))
+    return out
+
+
+def cmd_doctor(ws: WS, a) -> int:
+    res = doctor_checks(ws, a.fix)
+    bad = 0
+    for name, ok, fix in res:
+        print(f"  {'OK ' if ok else 'FIX'}  {name}" + ("" if ok else f"\n        -> {fix}"))
+        bad += not ok
+    camps = sorted(p for p in (Path(__file__).resolve().parent / "campaigns").glob("*.json") if not p.name.startswith("_"))
+    print("\nCampaigns:")
+    for f in camps:
+        try:
+            c = cmp.load(str(f))
+            probs = cmp.permission_problems(c)
+            logo = cmp.cli_defaults(c).get("logo")
+            if logo and not Path(logo).exists():
+                probs.append("logo file missing")
+            print(f"  {'READY' if not probs else 'TODO '}  {f.name}" + ("" if not probs else f"  ({len(probs)} thing(s) to fill)"))
+        except Exception as e:  # noqa: BLE001
+            print(f"  ERROR  {f.name}: {e}")
+    print("\nAccounts:")
+    for platform in PLATFORMS:
+        accts = {"default"}
+        for f in camps:
+            try:
+                accts.add(campaign_account(cmp.load(str(f)), platform))
+            except Exception:
+                pass
+        for acct in sorted(accts):
+            try:
+                connected = __import__(platform).has_token(acct)
+            except Exception:
+                connected = False
+            print(f"  {'connected    ' if connected else 'not connected'}  {platform}/{acct}")
+    print(f"\nAutopilot: {'ON' if ws.setting('autopilot.enabled', False) else 'OFF'}; "
+          f"campaigns: {len(ws.setting('autopilot.campaigns', []))}")
+    print("\n" + ("Everything needed is in place." if not bad else
+                  f"{bad} thing(s) to fix above" + ("" if a.fix else " (try: python pipeline.py doctor --fix)")))
+    return 1 if bad else 0
+
+
+def ask(q: str, default: str = "y") -> bool:
+    try:
+        ans = input(f"{q} [{'Y/n' if default == 'y' else 'y/N'}] ").strip().lower()
+    except EOFError:
+        ans = ""
+    return (ans or default).startswith("y")
+
+
+def cmd_setup(ws: WS, a) -> int:
+    print("== Money Clipper setup ==\n\nStep 1/5: checking this computer (installs what's missing)...")
+    res = doctor_checks(ws, fix=True)
+    blockers = [(n, f) for n, ok, f in res if not ok]
+    for n, f in blockers:
+        print(f"  FIX  {n}\n       -> {f}")
+    if any(n.startswith(("Python", "ffmpeg")) for n, _ in blockers):
+        print("\nFix the items above, then run setup again.")
+        return 1
+    print("  ok\n\nStep 2/5: campaigns")
+    root = Path(__file__).resolve().parent / "campaigns"
+    ready = []
+    for f in sorted(p for p in root.glob("*.json") if not p.name.startswith("_")):
+        c = cmp.load(str(f))
+        probs = cmp.permission_problems(c)
+        logo = cmp.cli_defaults(c).get("logo")
+        if logo and not Path(logo).exists():
+            probs.append(f"save the official logo as {logo}")
+        if probs:
+            print(f"  TODO  {f.name}:\n" + "\n".join(f"          - {p}" for p in probs))
+        else:
+            print(f"  READY {f.name}")
+            ready.append((f, c))
+    if not ready:
+        print("\nNo campaign is ready yet. Open the file(s) above, fill in the TODOs from the campaign page "
+              "(it takes a few minutes), then run setup again.")
+        return 1
+    chosen = [(f, c) for f, c in ready if ask(f"  Run '{c['name']}' on autopilot?")]
+    for f, c in chosen:
+        cmd_autopilot(ws, argparse.Namespace(action="add", campaign=str(f)))
+    print("\nStep 3/5: connect accounts (one browser login each)")
+    platforms = sorted({p for _, c in chosen for p in c.get("platforms", []) if p in PLATFORMS})
+    for p in platforms:
+        for acct in sorted({campaign_account(c, p) for _, c in chosen if p in c.get("platforms", [])}):
+            mod = __import__(p)
+            if mod.has_token(acct):
+                print(f"  {p}/{acct}: connected")
+                continue
+            if not ask(f"  Connect {p} account '{acct}' now?"):
+                continue
+            try:
+                if p == "youtube":
+                    path = input("    Path to your Google OAuth client JSON (see youtube.py for the 2-minute setup): ").strip()
+                    print("   ", mod.authorize(path.strip('"'), acct))
+                else:
+                    key = input("    TikTok client key (developers.tiktok.com -> your app): ").strip()
+                    secret = getpass.getpass("    TikTok client secret (hidden): ").strip()
+                    print("   ", mod.authorize(key, secret, "inbox", "hex", False, account=acct))
+            except Exception as e:  # noqa: BLE001
+                print(f"    couldn't connect: {classify(e)[1]}\n    (you can retry later with `pipeline.py {p} auth`)")
+    print("\nStep 4/5: autopilot")
+    cmd_autopilot(ws, argparse.Namespace(action="enable", max_per_day=3, min_score=None, privacy=None,
+                                         hold_income_claims=None, platforms=",".join(platforms) or "youtube",
+                                         campaign=None))
+    if ask("  Get a phone notification when TikTok drafts are ready? (uses the free ntfy.sh app)", "n"):
+        cmd_notify(ws, argparse.Namespace(action="setup", topic=None))
+    print("\nStep 5/5: schedule")
+    if ask("  Run automatically every 6 hours?"):
+        cmd_schedule(ws, argparse.Namespace(action="install", every_hours=6))
+    if ask("  Run the first cycle now? (first run downloads videos and can take a while)"):
+        cl.Tools.setup(True)
+        autopilot_cycle(ws, argparse.Namespace(preset=None, limit=None, cookies_from_browser=None))
+    print(f"\nDone. Daily routine: open {ws.home / 'AUTOPILOT_REPORT.md'}, post TikTok drafts, paste links "
+          f"into the campaign page, run `python pipeline.py submitted all`.")
+    return 0
+
+
+def notify(ws: WS, title: str, body: str, http=None) -> bool:
+    """Push a short message via ntfy.sh if the user turned it on. Never raises."""
+    topic = ws.setting("notify.ntfy_topic")
+    if not topic:
+        return False
+    import urllib.request
+    try:
+        req = urllib.request.Request(f"https://ntfy.sh/{topic}", data=body.encode()[:3800], method="POST",
+                                     headers={"Title": title.encode("ascii", "ignore").decode(), "Tags": "movie_camera"})
+        (http or urllib.request.urlopen)(req, timeout=20)
+        return True
+    except Exception as e:  # noqa: BLE001
+        ws.event(f"notification failed: {e}", "warn")
+        return False
+
+
+def cmd_notify(ws: WS, a) -> int:
+    if a.action == "off":
+        ws.set_setting("notify.ntfy_topic", None)
+        print("notifications off")
+        return 0
+    if a.action == "setup":
+        topic = a.topic or ("money-clipper-" + pysecrets.token_urlsafe(12).replace("_", "").replace("-", "")[:16])
+        ws.set_setting("notify.ntfy_topic", topic)
+        print(f"Install the free 'ntfy' app on your phone and subscribe to topic:\n\n    {topic}\n\n"
+              "Anyone who knows this topic name can read the messages (captions and clip titles), so keep it private. "
+              "Turn off with: python pipeline.py notify off")
+        notify(ws, "Money Clipper connected", "You'll get a message when TikTok drafts are ready to post.")
+        return 0
+    if a.action == "test":
+        ok = notify(ws, "Money Clipper test", "Notifications work.")
+        print("sent" if ok else "not configured or failed (see `pipeline.py status` events)")
+        return 0 if ok else 1
+    return 0
 
 
 # ---------------------------------------------------------------- cli
@@ -1591,15 +1870,23 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("youtube", help="connect your YouTube channel for uploads")
     s.add_argument("action", choices=["auth", "status", "disconnect"])
     s.add_argument("--client-secret")
+    s.add_argument("--account", default="default", help="name for this channel (campaigns pick it via 'accounts')")
     s = sub.add_parser("tiktok", help="connect your TikTok account for uploads")
     s.add_argument("action", choices=["auth", "status", "disconnect"])
     s.add_argument("--client-key")
+    s.add_argument("--account", default="default", help="name for this TikTok account, e.g. a campaign's dedicated one")
     s.add_argument("--mode", choices=["inbox", "direct"], default="inbox",
                    help="inbox = drafts you finish in the app (works without TikTok's audit); direct = needs audit")
     s.add_argument("--pkce", choices=["hex", "b64"], default="hex")
     s.add_argument("--paste", action="store_true", help="paste the redirect URL instead of a local callback")
     s = sub.add_parser("submitted", help="mark posted clips as submitted on the campaign page")
     s.add_argument("which", help="clip id or 'all'")
+    s = sub.add_parser("doctor", help="check this computer, campaigns and accounts; --fix installs what's missing")
+    s.add_argument("--fix", action="store_true")
+    sub.add_parser("setup", help="guided one-time setup")
+    s = sub.add_parser("notify", help="phone notifications via the ntfy app (opt-in)")
+    s.add_argument("action", choices=["setup", "test", "off"])
+    s.add_argument("--topic")
     s = sub.add_parser("earnings", help="tracker commands on this workspace (default: report)")
     s.add_argument("rest", nargs=argparse.REMAINDER)
     return p
@@ -1609,7 +1896,8 @@ COMMANDS = {"campaign-check": cmd_campaign_check, "import": cmd_import, "run": c
             "clips": cmd_clips, "review": cmd_review, "approve": cmd_approve, "reject": cmd_reject, "fix": cmd_fix,
             "posted": cmd_posted, "retry": cmd_retry, "budget": cmd_budget, "secrets": cmd_secrets,
             "cleanup": cmd_cleanup, "earnings": cmd_earnings, "autopilot": cmd_autopilot, "schedule": cmd_schedule,
-            "youtube": cmd_youtube, "submitted": cmd_submitted, "tiktok": cmd_tiktok}
+            "youtube": cmd_youtube, "submitted": cmd_submitted, "tiktok": cmd_tiktok,
+            "doctor": cmd_doctor, "setup": cmd_setup, "notify": cmd_notify}
 
 
 def main(argv=None) -> int:

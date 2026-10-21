@@ -65,8 +65,8 @@ class TikTokUnitTests(unittest.TestCase):
                               "refresh_expires_at": time.time() + 10 ** 6, "client_key": "ck", "client_secret": "cs",
                               "mode": "inbox"}}
         self._load, self._save = tiktok._load, tiktok._save
-        tiktok._load = lambda: self.store.get("tok")
-        tiktok._save = lambda t: self.store.__setitem__("tok", dict(t))
+        tiktok._load = lambda account="default": self.store.get("tok")
+        tiktok._save = lambda t, account="default": self.store.__setitem__("tok", dict(t))
         self.tmp = Path(tempfile.mkdtemp())
 
     def tearDown(self):

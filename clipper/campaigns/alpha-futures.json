@@ -1,0 +1,67 @@
+{
+  "name": "Alpha Futures (Click Culture)",
+  "marketplace": "whop",
+  "permission": {
+    "program": "Content Rewards (Click Culture campaign)",
+    "campaign_url": "https://contentrewards.com/c/campaigns/2c65001c-d6a8-4b14-9ba6-52400794b085",
+    "verified_on": "",
+    "evidence": "TODO: paste the campaign's wording. Listing (ClippingAlpha, 7 Oct 2026) says clips must be built only from Alpha Futures' official footage.",
+    "allowed_sources": [
+      "file:footage/alpha-futures"
+    ]
+  },
+  "cpm": 2.0,
+  "fee_pct": 10,
+  "max_payout_per_clip": 500,
+  "min_payout": 2,
+  "platforms": [
+    "tiktok",
+    "instagram",
+    "youtube"
+  ],
+  "sources": [
+    "footage/alpha-futures"
+  ],
+  "language": "en",
+  "clip": {
+    "min": 8,
+    "max": 60,
+    "count": 6,
+    "latest": 3,
+    "layout": "fit",
+    "title": true,
+    "jumpcuts": true
+  },
+  "caption": {
+    "required_hashtags": [],
+    "required_mentions": [
+      "TODO: the official Alpha Futures handle for this platform"
+    ],
+    "required_text": ""
+  },
+  "on_screen": {
+    "watermark": "",
+    "highlight": "#FFE600",
+    "logo": "logos/alpha-futures.png",
+    "logo_position": "top",
+    "logo_width": 320
+  },
+  "disclosure": {
+    "caption": "#ad",
+    "on_screen": "#ad"
+  },
+  "banned_phrases": [
+    "guaranteed",
+    "risk free",
+    "risk-free",
+    "can't lose",
+    "financial advice",
+    "get rich"
+  ],
+  "notes": "Found 2026-10-21 (ClippingAlpha snapshot 7 Oct; Content Rewards listing): $2.00 per 1K views on TikTok, Instagram, YouTube; max $500 per clip; min payout $2; 10% board fee; paid within 10 days. Rules reported: official Alpha Futures footage only; English; at least 7 s; logo visible on the black section for the whole clip (handled: letterbox layout + logo overlay); tag the official account in every caption; keep posts live 30+ days; >= 2% engagement with likes visible. Hub (content.clipalphafutures.com) says the account must be DEDICATED to this campaign, have 'Alpha Futures' in its name and the official logo as profile picture. Two similar domains exist (clipalphafutures.com, content.clipalphafutures.com) - use the links from the Content Rewards campaign page. TODO for you: put the official footage in campaigns/footage/alpha-futures/, the logo PNG at campaigns/logos/alpha-futures.png, fill required_mentions and evidence, set verified_on.",
+  "min_engagement": 0.02,
+  "accounts": {
+    "tiktok": "alphafutures",
+    "youtube": "alphafutures"
+  }
+}

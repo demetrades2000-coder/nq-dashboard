@@ -20,6 +20,10 @@ from pathlib import Path
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly"]
 KEYRING_SERVICE = "money-clipper"
 TOKEN_KEY = "youtube-token"
+
+
+def _key(account: str = "default") -> str:
+    return TOKEN_KEY if account in ("", "default") else f"{TOKEN_KEY}:{account}"
 RETRY_STATUS = {500, 502, 503, 504}
 
 
@@ -58,7 +62,7 @@ def ensure_libs(allow_install: bool = True) -> None:
         raise YouTubeError("Google API libraries missing: pip install google-api-python-client google-auth-oauthlib")
 
 
-def authorize(client_secret: str) -> str:
+def authorize(client_secret: str, account: str = "default") -> str:
     """Interactive one-time consent in the browser; stores the token in the OS keychain."""
     ensure_libs()
     kr = _keyring()
@@ -67,37 +71,38 @@ def authorize(client_secret: str) -> str:
     from google_auth_oauthlib.flow import InstalledAppFlow
     flow = InstalledAppFlow.from_client_secrets_file(client_secret, SCOPES)
     creds = flow.run_local_server(port=0, open_browser=True)
-    kr.set_password(KEYRING_SERVICE, TOKEN_KEY, creds.to_json())
-    ch = channel_info(service())
-    return f"authorized for channel: {ch.get('title')} ({ch.get('id')})"
+    kr.set_password(KEYRING_SERVICE, _key(account), creds.to_json())
+    ch = channel_info(service(account))
+    return f"account '{account}' authorized for channel: {ch.get('title')} ({ch.get('id')})"
 
 
-def has_token() -> bool:
+def has_token(account: str = "default") -> bool:
     kr = _keyring()
     try:
-        return bool(kr and kr.get_password(KEYRING_SERVICE, TOKEN_KEY))
+        return bool(kr and kr.get_password(KEYRING_SERVICE, _key(account)))
     except Exception:
         return False
 
 
-def revoke() -> None:
+def revoke(account: str = "default") -> None:
     kr = _keyring()
     if kr:
         try:
-            kr.delete_password(KEYRING_SERVICE, TOKEN_KEY)
+            kr.delete_password(KEYRING_SERVICE, _key(account))
         except Exception:
             pass
 
 
-def service():
+def service(account: str = "default"):
     ensure_libs()
     from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
     kr = _keyring()
-    raw = kr.get_password(KEYRING_SERVICE, TOKEN_KEY) if kr else None
+    raw = kr.get_password(KEYRING_SERVICE, _key(account)) if kr else None
     if not raw:
-        raise YouTubeError("YouTube isn't connected. Run: python pipeline.py youtube auth --client-secret <file>")
+        raise YouTubeError(f"YouTube account '{account}' isn't connected. Run: python pipeline.py youtube auth "
+                           f"--client-secret <file>" + ("" if account == "default" else f" --account {account}"))
     creds = Credentials.from_authorized_user_info(json.loads(raw), SCOPES)
     if not creds.valid:
         if creds.expired and creds.refresh_token:
@@ -107,7 +112,7 @@ def service():
                 raise YouTubeError(f"YouTube authorization expired or was revoked ({e}); run `pipeline.py youtube auth` "
                                    "again. Note: Google expires tokens after 7 days while the OAuth app is in "
                                    "'Testing' status; publish the app (In production) to avoid that.")
-            kr.set_password(KEYRING_SERVICE, TOKEN_KEY, creds.to_json())
+            kr.set_password(KEYRING_SERVICE, _key(account), creds.to_json())
         else:
             raise YouTubeError("YouTube token invalid; run `pipeline.py youtube auth` again")
     return build("youtube", "v3", credentials=creds, cache_discovery=False)

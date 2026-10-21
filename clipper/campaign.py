@@ -69,6 +69,13 @@ def cli_defaults(c: dict) -> dict:
     disc = c.get("disclosure") or {}
     if disc.get("on_screen"):
         d["disclosure"] = disc["on_screen"]
+    if on.get("logo"):
+        logo = Path(on["logo"]).expanduser()
+        if not logo.is_absolute():  # relative to the campaign file
+            logo = Path(c.get("_path", ".")).parent / logo
+        d["logo"] = str(logo)
+        d["logo_position"] = on.get("logo_position", "top")
+        d["logo_width"] = int(on.get("logo_width", 300))
     if c.get("language"):
         d["lang"] = c["language"]
     return d
@@ -121,7 +128,8 @@ def platform_posts(c: dict | None, title: str, caption: str, hashtags: list[str]
     return posts
 
 
-def compliance(c: dict | None, duration: float, transcript: str, posts: dict, watermark_on: bool) -> list[tuple[bool, str]]:
+def compliance(c: dict | None, duration: float, transcript: str, posts: dict, watermark_on: bool,
+               logo_on: bool = False) -> list[tuple[bool, str]]:
     if not c:
         return []
     clip, cap, on = c["clip"], c["caption"], c["on_screen"]
@@ -140,6 +148,8 @@ def compliance(c: dict | None, duration: float, transcript: str, posts: dict, wa
         checks.append((ok, "caption includes required text"))
     if on.get("watermark"):
         checks.append((watermark_on, f"on-screen tag '{on['watermark']}'"))
+    if on.get("logo"):
+        checks.append((logo_on, "brand logo on screen for the whole clip"))
     disc = c.get("disclosure") or {}
     if disc.get("caption"):
         ok = all(disc["caption"].lower() in json.dumps(v).lower() for v in posts.values())
@@ -175,6 +185,9 @@ def permission_problems(c: dict, max_age_days: int = 30) -> list[str]:
             probs.append(f"permission.{k} is empty")
         elif "TODO" in json.dumps(perm.get(k)):
             probs.append(f"permission.{k} still has a TODO: fill it in from the live campaign page")
+    rest = {k: v for k, v in c.items() if k not in ("notes", "permission") and not k.startswith("_")}
+    for path in _todo_paths(rest):
+        probs.append(f"{path} still says TODO: fill it in from the campaign page")
     if perm.get("verified_on"):
         try:
             age = (dt.date.today() - dt.date.fromisoformat(perm["verified_on"])).days
@@ -188,6 +201,14 @@ def permission_problems(c: dict, max_age_days: int = 30) -> list[str]:
     return probs
 
 
+def _todo_paths(obj, prefix: str = "") -> list[str]:
+    if isinstance(obj, dict):
+        return [p for k, v in obj.items() for p in _todo_paths(v, f"{prefix}.{k}" if prefix else k)]
+    if isinstance(obj, list):
+        return [p for i, v in enumerate(obj) for p in _todo_paths(v, f"{prefix}[{i}]")]
+    return [prefix] if isinstance(obj, str) and "TODO" in obj else []
+
+
 def source_allowed(c: dict, url_or_path: str, meta: dict | None = None) -> tuple[bool, str]:
     """Is this source inside the campaign's allowed_sources? Checks the URL, then the video's channel."""
     allowed = [a for a in (c.get("permission") or {}).get("allowed_sources", []) if a]
@@ -196,7 +217,10 @@ def source_allowed(c: dict, url_or_path: str, meta: dict | None = None) -> tuple
         cands += [meta.get(k) or "" for k in ("channel_url", "uploader_url", "webpage_url")]
     for a in allowed:
         if a.startswith("file:"):
-            root = Path(a[5:]).expanduser().resolve()
+            root = Path(a[5:]).expanduser()
+            if not root.is_absolute() and c.get("_path"):  # relative to the campaign file
+                root = Path(c["_path"]).parent / root
+            root = root.resolve()
             p = Path(url_or_path).expanduser()
             if p.exists() and (p.resolve() == root or root in p.resolve().parents):
                 return True, a

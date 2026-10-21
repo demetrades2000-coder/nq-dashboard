@@ -36,6 +36,10 @@ API = "https://open.tiktokapis.com"
 AUTH_URL = "https://www.tiktok.com/v2/auth/authorize/"
 KEYRING_SERVICE = "money-clipper"
 TOKEN_KEY = "tiktok-token"
+
+
+def _key(account: str = "default") -> str:
+    return TOKEN_KEY if account in ("", "default") else f"{TOKEN_KEY}:{account}"
 REDIRECT_PORT = 3455
 MB = 1024 * 1024
 
@@ -68,31 +72,31 @@ def _keyring():
         return None
 
 
-def _load() -> dict | None:
+def _load(account: str = "default") -> dict | None:
     kr = _keyring()
     try:
-        raw = kr.get_password(KEYRING_SERVICE, TOKEN_KEY) if kr else None
+        raw = kr.get_password(KEYRING_SERVICE, _key(account)) if kr else None
     except Exception:
         raw = None
     return json.loads(raw) if raw else None
 
 
-def _save(tok: dict) -> None:
+def _save(tok: dict, account: str = "default") -> None:
     kr = _keyring()
     if not kr:
         raise TikTokError("No OS keychain available (pip install keyring); tokens are never stored in plain files.")
-    kr.set_password(KEYRING_SERVICE, TOKEN_KEY, json.dumps(tok))
+    kr.set_password(KEYRING_SERVICE, _key(account), json.dumps(tok))
 
 
-def has_token() -> bool:
-    return bool(_load())
+def has_token(account: str = "default") -> bool:
+    return bool(_load(account))
 
 
-def revoke() -> None:
+def revoke(account: str = "default") -> None:
     kr = _keyring()
     if kr:
         try:
-            kr.delete_password(KEYRING_SERVICE, TOKEN_KEY)
+            kr.delete_password(KEYRING_SERVICE, _key(account))
         except Exception:
             pass
 
@@ -172,7 +176,7 @@ def _token_request(form: dict, http=_http) -> dict:
 
 
 def authorize(client_key: str, client_secret: str, mode: str = "inbox", pkce: str = "hex", paste: bool = False,
-              port: int = REDIRECT_PORT) -> str:
+              port: int = REDIRECT_PORT, account: str = "default") -> str:
     scopes = ["user.info.basic", "video.upload", "video.list"] + (["video.publish"] if mode == "direct" else [])
     redirect = f"http://localhost:{port}/callback/"
     verifier, challenge = pkce_pair(pkce)
@@ -212,21 +216,22 @@ def authorize(client_key: str, client_secret: str, mode: str = "inbox", pkce: st
     tok = _token_request({"client_key": client_key, "client_secret": client_secret, "code": got.get("code", ""),
                           "grant_type": "authorization_code", "redirect_uri": redirect, "code_verifier": verifier})
     tok.update({"client_key": client_key, "client_secret": client_secret, "mode": mode})
-    _save(tok)
-    return f"TikTok connected ({mode} mode; scopes: {tok['scope']})"
+    _save(tok, account)
+    return f"TikTok account '{account}' connected ({mode} mode; scopes: {tok['scope']})"
 
 
-def access_token(http=_http) -> tuple[str, dict]:
-    tok = _load()
+def access_token(http=_http, account: str = "default") -> tuple[str, dict]:
+    tok = _load(account)
     if not tok:
-        raise TikTokError("TikTok isn't connected. Run: python pipeline.py tiktok auth --client-key <key>")
+        raise TikTokError(f"TikTok account '{account}' isn't connected. Run: python pipeline.py tiktok auth "
+                          f"--client-key <key>" + ("" if account == "default" else f" --account {account}"))
     if time.time() >= tok["expires_at"]:
         if not tok.get("refresh_token") or time.time() >= tok.get("refresh_expires_at", 0):
             raise TikTokError("TikTok login expired; run `pipeline.py tiktok auth` again")
         new = _token_request({"client_key": tok["client_key"], "client_secret": tok["client_secret"],
                               "grant_type": "refresh_token", "refresh_token": tok["refresh_token"]}, http)
         tok.update({k: v for k, v in new.items() if v})  # TikTok may rotate the refresh token: keep the newest
-        _save(tok)
+        _save(tok, account)
     return tok["access_token"], tok
 
 
@@ -257,9 +262,9 @@ def _put_chunks(upload_url: str, path: Path, size: int, chunk: int, count: int, 
 
 
 def upload(path: Path, caption: str, mode: str = "inbox", branded: bool = False, http=_http, sleep=time.sleep,
-           poll_seconds: int = 600) -> dict:
+           poll_seconds: int = 600, account: str = "default") -> dict:
     """Upload a clip. Returns {publish_id, status, mode, url, notes}."""
-    token, tok = access_token(http)
+    token, tok = access_token(http, account)
     auth = {"Authorization": f"Bearer {token}"}
     path = Path(path)
     size = path.stat().st_size
@@ -303,8 +308,8 @@ def upload(path: Path, caption: str, mode: str = "inbox", branded: bool = False,
             "remote_id": str(post_ids[0]) if post_ids else None, "notes": notes}
 
 
-def recent_videos(http=_http, max_count: int = 20) -> list[dict]:
-    token, _ = access_token(http)
+def recent_videos(http=_http, max_count: int = 20, account: str = "default") -> list[dict]:
+    token, _ = access_token(http, account)
     fields = "id,title,video_description,share_url,view_count,like_count,create_time"
     data = _check(*http("POST", f"{API}/v2/video/list/?fields={fields}", {"max_count": max_count},
                         {"Authorization": f"Bearer {token}"}))

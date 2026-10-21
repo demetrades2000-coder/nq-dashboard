@@ -166,7 +166,12 @@ python -m unittest discover -s tests -v     # ~2 min; offline; synthetic video +
 python clipper.py --selftest                # renderer check across all layouts (~5 min)
 ```
 
-The 52 tests cover:
+The 58 tests cover:
+- **Campaign-file features:** TODO gate, missing logo blocks a campaign,
+  campaign-relative footage folders, a logo actually rendered (pixel-checked)
+  and rule-checked, per-campaign account routing, the engagement-floor
+  warning, notifications that never crash a cycle, doctor, and setup when
+  nothing is ready.
 - **TikTok against a simulated API:** chunk rules and Content-Range
   headers, inbox and direct flows, private-only for unaudited apps,
   explained error codes, token refresh with rotated tokens, PKCE, matching
@@ -265,6 +270,8 @@ The 52 tests cover:
 | `campaign.py` | Campaign briefs: permission checks, caption builder, rule checks, payout math |
 | `tracker.py` | Post and earnings tracker |
 | `youtube.py` | YouTube Data API: OAuth (keychain), resumable upload with retries, view stats |
+| `START_HERE.md`, `START.bat`, `START.command` | The simple steps, plus double-click launchers that install everything and run the guided setup |
+| `campaigns/alpha-futures.json` | The TikTok pick: $2 per 1K views, logo overlay, dedicated account, engagement floor |
 | `tiktok.py` | TikTok Content Posting API: desktop OAuth with PKCE (keychain), chunked inbox/direct upload, status polling, video list for links and views |
 | `campaigns/higgsfield-20vc.json`, `moonpay-ivan-soto.json`, `pbinvesting.json` | Pre-filled briefs for the campaigns you found. Each has TODOs and won't run until you verify it. |
 | `campaigns/_template.json` | Campaign brief template |

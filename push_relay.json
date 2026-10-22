@@ -1,0 +1,5 @@
+{
+ "ntfy": "https://ntfy.sh",
+ "topic": "le-2XSn9pfybbphbBEPWX9yaygUfh1nexy7",
+ "note": "Notification relay (not secret): the app posts its push subscription here when notifications are allowed, the cloud monitor reads it on each run and keeps the subscriptions in its state; the cloud and the PC post 'sent' markers so a trade is notified once. A subscription cannot push without the VAPID private key, which never leaves GitHub (Actions cache or secret) and the owner's PC."
+}

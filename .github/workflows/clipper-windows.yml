@@ -69,3 +69,80 @@ jobs:
       - name: Dashboard build
         working-directory: clipper
         run: python pipeline.py --home "$env:RUNNER_TEMP\ws" dashboard --no-open
+
+  real-speech:
+    # Real end-to-end on Windows: Windows' own text-to-speech makes a spoken money-podcast track, then the
+    # pipeline transcribes it with Whisper (real model download), picks moments, burns captions and queues clips.
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ffmpeg and packages
+        run: |
+          choco install ffmpeg -y --no-progress
+          python -m pip install -r clipper/requirements.txt
+
+      - name: Make a spoken test episode with Windows text-to-speech
+        run: |
+          Add-Type -AssemblyName System.Speech
+          $s = New-Object System.Speech.Synthesis.SpeechSynthesizer
+          $s.Rate = 1
+          $dir = "$env:RUNNER_TEMP\camp\footage\demo"
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          $s.SetOutputToWaveFile("$env:RUNNER_TEMP\speech.wav")
+          $text = @"
+          Most people will never get rich because they trade their time for money. Here is the truth about building wealth.
+          I went from zero to forty thousand dollars a month in revenue in eight months, and it was not luck.
+          The biggest mistake broke people make is buying liabilities and calling them assets.
+          Nobody tells you that sales is the highest income skill in the world. If you can close clients, you will never be broke again.
+          Why do rich people keep buying assets in a recession? Because cash loses value to inflation every single year.
+          Let me tell you the secret to scaling an agency. You need one offer, one avatar, and one channel. That is it.
+          Discipline beats motivation when nobody is watching. Show up every day, track your numbers, and cut what does not work.
+          The fastest way to double your income is to double your value to the market. Learn a skill people will pay for.
+          Stop waiting for permission. Build the thing, sell the thing, and improve the thing. Repeat that for five years.
+          "@
+          $s.Speak($text)
+          $s.Dispose()
+          ffmpeg -v error -y -f lavfi -i "testsrc2=size=1280x720:rate=30" -i "$env:RUNNER_TEMP\speech.wav" -shortest -c:v libx264 -preset ultrafast -c:a aac "$dir\episode1.mp4"
+          ffprobe -v error -show_entries format=duration -of csv=p=0 "$dir\episode1.mp4"
+
+      - name: Run the pipeline on it (real Whisper transcription)
+        working-directory: clipper
+        run: |
+          $camp = Get-Content campaigns\_template.json -Raw | ConvertFrom-Json
+          $camp.name = "CI Demo"
+          $camp.automation_allowed = $true
+          $camp.permission.campaign_url = "https://example.com/campaign"
+          $camp.permission.verified_on = (Get-Date -Format "yyyy-MM-dd")
+          $camp.permission.evidence = "CI test"
+          $camp.permission.allowed_sources = @("file:footage/demo")
+          $camp.sources = @("footage/demo")
+          $camp.clip.min = 15; $camp.clip.max = 45; $camp.clip.count = 2
+          $camp.disclosure.caption = "#ad"; $camp.disclosure.on_screen = "#ad"
+          $camp | ConvertTo-Json -Depth 10 | Set-Content -Encoding utf8 "$env:RUNNER_TEMP\camp\demo.json"
+          python pipeline.py --home "$env:RUNNER_TEMP\ws" import "$env:RUNNER_TEMP\camp\demo.json"
+          python pipeline.py --home "$env:RUNNER_TEMP\ws" run --model tiny --preset ultrafast
+          python pipeline.py --home "$env:RUNNER_TEMP\ws" status
+          python pipeline.py --home "$env:RUNNER_TEMP\ws" clips
+          python -c "import sqlite3,sys,json,os; db=sqlite3.connect(os.path.join(os.environ['RUNNER_TEMP'],'ws','jobs.db')); rows=db.execute(\"select status, text from clips\").fetchall(); print(rows); ok=[r for r in rows if r[0]=='pending_review']; sys.exit(0 if ok and any('money' in (r[1] or '').lower() or 'rich' in (r[1] or '').lower() for r in ok) else 1)"
+          python -c "import json,os; d=json.load(open(os.path.join(os.environ['RUNNER_TEMP'],'ws','sources','1','transcript.json'),encoding='utf-8')); print(d['source'], len(d['words']), 'words:', ' '.join(w['w'] for w in d['words'][:40]))"
+
+      - name: Upload sample clips
+        uses: actions/upload-artifact@v4
+        with:
+          name: sample-clips
+          path: ${{ runner.temp }}/ws/clips/**/*.mp4
+          if-no-files-found: warn
+
+      - name: Real download check (yt-dlp, may be blocked on CI IPs)
+        continue-on-error: true
+        working-directory: clipper
+        run: python -m yt_dlp --no-playlist -f "worst[ext=mp4]/worst" -o "$env:RUNNER_TEMP\dl.%(ext)s" "https://www.youtube.com/watch?v=aqz-KE-bpKQ"

@@ -1,0 +1,66 @@
+{
+  "name": "PB Blake (trading creator)",
+  "marketplace": "whop",
+  "permission": {
+    "program": "Content Rewards",
+    "campaign_url": "TODO: campaign page link (hub: https://clippbblake.com/)",
+    "verified_on": "",
+    "evidence": "TODO",
+    "allowed_sources": [
+      "file:footage/pbblake"
+    ]
+  },
+  "cpm": 1.25,
+  "fee_pct": 10,
+  "max_payout_per_clip": 0,
+  "min_payout": 0,
+  "platforms": [
+    "tiktok",
+    "instagram",
+    "youtube"
+  ],
+  "sources": [
+    "footage/pbblake"
+  ],
+  "language": "en",
+  "clip": {
+    "min": 15,
+    "max": 60,
+    "count": 6,
+    "latest": 2,
+    "layout": "auto",
+    "title": true,
+    "jumpcuts": true
+  },
+  "caption": {
+    "required_hashtags": [],
+    "required_mentions": [
+      "TODO: the handle the hub says to tag"
+    ],
+    "required_text": ""
+  },
+  "on_screen": {
+    "watermark": "",
+    "highlight": "#FFE600"
+  },
+  "disclosure": {
+    "caption": "#ad",
+    "on_screen": "#ad"
+  },
+  "banned_phrases": [
+    "guaranteed",
+    "risk free",
+    "risk-free",
+    "can't lose",
+    "financial advice",
+    "get rich quick",
+    "100x"
+  ],
+  "notes": "Lead found 2026-10-22: $1.25 per 1K views (~$3.5K of $10K left, 18 Oct). Hub rules seen: dedicated page with 'PB Blake' in the name, bio links his YouTube, footage only from the hub library, account used only for PB Blake, match the example reels. The hub uses the same template as Alpha Futures/Alpha Capital, which ban AI/auto-repurposing tools: read its full Don't list before setting automation_allowed.",
+  "automation_allowed": null,
+  "accounts": {
+    "tiktok": "pbblake",
+    "instagram": "pbblake",
+    "youtube": "pbblake"
+  }
+}

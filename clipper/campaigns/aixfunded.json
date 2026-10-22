@@ -1,0 +1,64 @@
+{
+  "name": "AiXfunded (prop firm)",
+  "marketplace": "whop",
+  "permission": {
+    "program": "Content Rewards",
+    "campaign_url": "TODO: campaign page link (listed on clippingalpha.com/highest-paying-clipping-campaigns)",
+    "verified_on": "",
+    "evidence": "TODO",
+    "allowed_sources": [
+      "file:footage/aixfunded"
+    ]
+  },
+  "cpm": 6.0,
+  "fee_pct": 10,
+  "max_payout_per_clip": 0,
+  "min_payout": 0,
+  "platforms": [
+    "tiktok",
+    "instagram",
+    "youtube"
+  ],
+  "sources": [
+    "footage/aixfunded"
+  ],
+  "language": "en",
+  "clip": {
+    "min": 15,
+    "max": 60,
+    "count": 6,
+    "latest": 2,
+    "layout": "auto",
+    "title": true,
+    "jumpcuts": true
+  },
+  "caption": {
+    "required_hashtags": [],
+    "required_mentions": [],
+    "required_text": ""
+  },
+  "on_screen": {
+    "watermark": "",
+    "highlight": "#FFE600"
+  },
+  "disclosure": {
+    "caption": "#ad",
+    "on_screen": "#ad"
+  },
+  "banned_phrases": [
+    "guaranteed",
+    "risk free",
+    "risk-free",
+    "can't lose",
+    "financial advice",
+    "get rich quick",
+    "100x"
+  ],
+  "notes": "Lead found 2026-10-22: $6 per 1K views on TikTok/Instagram/YouTube, 18+, ~$1.8K of $2K left (ClippingAlpha snapshot 18 Oct). Rules are hidden until you join: read them, check for any AI/automation ban, then set automation_allowed. Small budget at a high rate usually runs out fast.",
+  "automation_allowed": null,
+  "accounts": {
+    "tiktok": "aixfunded",
+    "instagram": "aixfunded",
+    "youtube": "aixfunded"
+  }
+}

@@ -410,6 +410,16 @@ def load_transcript_file(path: Path) -> list[Word]:
     return parse_srt_vtt(text)
 
 
+def wav_samples(wav: Path):
+    """16 kHz mono float32 samples from the WAV we extracted with ffmpeg (what Whisper expects)."""
+    import numpy as np
+    with wave.open(str(wav), "rb") as wf:
+        if wf.getframerate() != 16000 or wf.getnchannels() != 1 or wf.getsampwidth() != 2:
+            raise RuntimeError("audio must be 16 kHz mono 16-bit (re-extract it)")
+        data = np.frombuffer(wf.readframes(wf.getnframes()), dtype=np.int16)
+    return data.astype(np.float32) / 32768.0
+
+
 def whisper_faster(audio: Path, args) -> list[Word]:
     fw = try_import("faster_whisper", "faster-whisper", not args.no_install)
     if not fw:
@@ -431,7 +441,9 @@ def whisper_faster(audio: Path, args) -> list[Word]:
 
 
 def _whisper_words(model, audio: Path, args) -> list[Word]:
-    segs, info = model.transcribe(str(audio), language=args.lang or None, word_timestamps=True,
+    # Pass samples, not a path: decoding a path goes through PyAV, and PyAV 15 removed an argument
+    # faster-whisper still passes (open(..., metadata_errors=...)), which breaks fresh installs on Windows.
+    segs, info = model.transcribe(wav_samples(audio), language=args.lang or None, word_timestamps=True,
                                   vad_filter=True, beam_size=5)
     words, last_print = [], 0.0
     total = getattr(info, "duration", 0) or 1

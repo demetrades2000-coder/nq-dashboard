@@ -132,8 +132,7 @@ jobs:
           python pipeline.py --home "$env:RUNNER_TEMP\ws" run --model tiny --preset ultrafast
           python pipeline.py --home "$env:RUNNER_TEMP\ws" status
           python pipeline.py --home "$env:RUNNER_TEMP\ws" clips
-          python -c "import sqlite3,sys,json,os; db=sqlite3.connect(os.path.join(os.environ['RUNNER_TEMP'],'ws','jobs.db')); rows=db.execute(\"select status, text from clips\").fetchall(); print(rows); ok=[r for r in rows if r[0]=='pending_review']; sys.exit(0 if ok and any('money' in (r[1] or '').lower() or 'rich' in (r[1] or '').lower() for r in ok) else 1)"
-          python -c "import json,os; d=json.load(open(os.path.join(os.environ['RUNNER_TEMP'],'ws','sources','1','transcript.json'),encoding='utf-8')); print(d['source'], len(d['words']), 'words:', ' '.join(w['w'] for w in d['words'][:40]))"
+          python tests/ci_check_clips.py
 
       - name: Upload sample clips
         uses: actions/upload-artifact@v4

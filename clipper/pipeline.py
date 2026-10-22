@@ -1105,6 +1105,80 @@ def cmd_review(ws: WS, a) -> int:
     return 0
 
 
+def publish_dashboard(ws: WS, http=None) -> dict:
+    import dashboard
+    import publish
+    data = dashboard.build_data(ws)
+    if ws.setting("publish.hide_money", False):
+        data = dashboard.hide_money(data)
+    return publish.publish(dashboard.site_files(data), ws.setting("publish.repo"), ws.setting("publish.branch", "main"),
+                           ws.setting("publish.folder", "clips"), http=http)
+
+
+def publish_url(ws: WS) -> str:
+    repo = ws.setting("publish.repo") or ""
+    if "/" not in repo:
+        return ""
+    owner, name = repo.split("/", 1)
+    return f"https://{owner.lower()}.github.io/{name}/{ws.setting('publish.folder', 'clips').strip('/')}/"
+
+
+TOKEN_HELP = ("Create a token at https://github.com/settings/personal-access-tokens/new : Repository access -> "
+              "Only select repositories -> pick the repo; Permissions -> Contents: Read and write; Generate.")
+
+
+def cmd_publish(ws: WS, a) -> int:
+    import publish
+    if a.action == "setup":
+        repo = a.repo or ws.setting("publish.repo") or _input("GitHub repo for the dashboard (owner/name), e.g. "
+                                                               "demetrades2000-coder/nq-dashboard: ")
+        if "/" not in (repo or ""):
+            print("give the repo as owner/name")
+            return 1
+        if not publish.token():
+            print(TOKEN_HELP)
+            t = os.environ.get("CLIPPER_GITHUB_TOKEN") or getpass.getpass("Paste the token (hidden): ").strip()
+            if not t:
+                print("no token entered")
+                return 1
+            publish.save_token(t)
+        try:
+            publish.check_access(repo)
+        except publish.PublishError as e:
+            print(e)
+            return 1
+        ws.set_setting("publish.repo", repo)
+        ws.set_setting("publish.branch", a.branch or "main")
+        ws.set_setting("publish.folder", a.folder or "clips")
+        ws.set_setting("publish.hide_money", bool(a.hide_money))
+        ws.set_setting("publish.enabled", True)
+        print("The repo is public, so the published page is too"
+              + (" (dollar figures hidden)." if a.hide_money else "; add --hide-money to keep earnings off it."))
+        a.action = "now"
+    if a.action == "now":
+        if not ws.setting("publish.repo"):
+            print("not set up: python pipeline.py publish setup")
+            return 1
+        try:
+            res = publish_dashboard(ws)
+        except Exception as e:  # noqa: BLE001
+            print(f"publish failed: {classify(e)[1]}")
+            return 1
+        print(f"published {len(res['uploaded'])} file(s), {len(res['unchanged'])} unchanged")
+        print(f"Open it on any device (first publish can take ~1 minute to appear): {publish_url(ws)}")
+        print("On your phone: open the link, then Share -> Add to Home Screen.")
+    elif a.action == "status":
+        print(f"publishing: {'on' if ws.setting('publish.enabled', False) else 'off'}  repo: {ws.setting('publish.repo')}  "
+              f"money: {'hidden' if ws.setting('publish.hide_money', False) else 'shown'}  token: "
+              f"{'stored' if publish.token() else 'missing'}\n{publish_url(ws)}")
+    elif a.action == "off":
+        ws.set_setting("publish.enabled", False)
+        if a.forget_token:
+            publish.delete_token()
+        print("publishing off (already published files stay until you delete the folder on GitHub)")
+    return 0
+
+
 def cmd_dashboard(ws: WS, a) -> int:
     import dashboard
     import webbrowser
@@ -1448,6 +1522,13 @@ def autopilot_cycle(ws: WS, a, uploader=None, uploaders=None) -> int:
         dashboard.write(ws)
     except Exception as e:  # noqa: BLE001  (the dashboard must never break a cycle)
         ws.event(f"dashboard not updated: {e}", "warn")
+    if ws.setting("publish.enabled", False):
+        try:
+            res = publish_dashboard(ws)
+            if res["uploaded"]:
+                ws.event(f"dashboard published ({len(res['uploaded'])} file(s))", "ok")
+        except Exception as e:  # noqa: BLE001
+            ws.event(f"dashboard not published: {classify(e)[1]}", "warn")
     drafts = ws.q("SELECT u.caption, u.clip_id FROM uploads u WHERE u.platform='tiktok' AND u.state='draft' "
                   "AND u.url IS NULL AND u.created >= ?", (rep["started"],))
     if drafts or rep["upload_errors"] or rep["held"]:
@@ -2377,6 +2458,10 @@ def cmd_setup(ws: WS, a) -> int:
                                          campaign=None, via=via))
     if ask("  Get a phone notification when TikTok drafts are ready? (uses the free ntfy.sh app)", "n"):
         cmd_notify(ws, argparse.Namespace(action="setup", topic=None))
+    if not ws.setting("publish.enabled", False) and ask(
+            "  Put your dashboard online like the NQ one (your GitHub Pages; needs a GitHub token)?", "n"):
+        cmd_publish(ws, argparse.Namespace(action="setup", repo=None, branch=None, folder=None, hide_money=False,
+                                           forget_token=False))
     print("\nStep 5/5: schedule")
     if ask("  Run automatically every 6 hours?"):
         cmd_schedule(ws, argparse.Namespace(action="install", every_hours=6))
@@ -2538,6 +2623,13 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("notify", help="phone notifications via the ntfy app (opt-in)")
     s.add_argument("action", choices=["setup", "test", "off"])
     s.add_argument("--topic")
+    s = sub.add_parser("publish", help="put the dashboard on your GitHub Pages site (like the NQ dashboard)")
+    s.add_argument("action", choices=["setup", "now", "status", "off"])
+    s.add_argument("--repo", help="owner/name of the GitHub Pages repo")
+    s.add_argument("--branch", help="branch Pages serves (default main)")
+    s.add_argument("--folder", help="folder in the repo (default clips)")
+    s.add_argument("--hide-money", action="store_true", help="keep dollar figures off the public copy")
+    s.add_argument("--forget-token", action="store_true")
     s = sub.add_parser("dashboard", help="build and open the Clip Engine dashboard")
     s.add_argument("--no-open", action="store_true")
     s = sub.add_parser("earnings", help="tracker commands on this workspace (default: report)")
@@ -2552,7 +2644,7 @@ COMMANDS = {"campaign-check": cmd_campaign_check, "import": cmd_import, "run": c
             "youtube": cmd_youtube, "submitted": cmd_submitted, "tiktok": cmd_tiktok,
             "doctor": cmd_doctor, "setup": cmd_setup, "notify": cmd_notify, "campaign-set": cmd_campaign_set,
             "uploadpost": cmd_uploadpost, "link": cmd_link, "zernio": cmd_zernio,
-            "dashboard": cmd_dashboard}
+            "dashboard": cmd_dashboard, "publish": cmd_publish}
 
 
 def ensure_ca_bundle() -> None:

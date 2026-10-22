@@ -149,6 +149,50 @@ def build_data(ws) -> dict:
     }
 
 
+def hide_money(data: dict) -> dict:
+    """Public copy without dollar figures (for a published page whose owner wants earnings private)."""
+    d = json.loads(json.dumps(data, default=str))
+    d["hide_money"] = True
+    d["stats"]["net"] = None
+    for c in d["clips"]:
+        c["net"] = None
+        for u in c["uploads"]:
+            u["net"] = None
+    for c in d["campaigns"]:
+        c["net"] = None
+    for v in d["earnings"]["by_platform"].values():
+        v["net"] = None
+    for r in d["earnings"]["daily"]:
+        r["net"] = None
+    for t in d["earnings"]["top"]:
+        t["net"] = None
+    d["spend"] = {"month": None, "cap": None}
+    return d
+
+
+ASSETS = Path(__file__).resolve().parent / "site_assets"
+MANIFEST = {
+    "name": "Clip Engine", "short_name": "Clips",
+    "description": "Clipping autopilot: clips, posts, views and estimated earnings.",
+    "id": "./", "start_url": "./#/today", "scope": "./", "display": "standalone", "orientation": "portrait",
+    "background_color": "#07080c", "theme_color": "#07080c",
+    "icons": [{"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+              {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+              {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}],
+    "shortcuts": [{"name": n, "url": f"./#/{n.lower()}"} for n in ("Today", "Clips", "Campaigns", "Earnings", "Jobs")],
+}
+
+
+def site_files(data: dict) -> dict[str, bytes]:
+    """Everything a hosted copy needs (GitHub Pages): page, data.json, manifest, icons."""
+    files = {"index.html": render_html(data).encode("utf-8"),
+             "data.json": json.dumps(data, default=str).encode("utf-8"),
+             "manifest.webmanifest": json.dumps(MANIFEST, indent=2).encode("utf-8")}
+    for f in ASSETS.glob("*.png"):
+        files[f.name] = f.read_bytes()
+    return files
+
+
 def render_html(data: dict) -> str:
     payload = json.dumps(data, default=str).replace("</", "<\\/")
     return PAGE.replace("/*__DATA__*/null", payload)
@@ -159,6 +203,10 @@ def write(ws) -> Path:
     tmp = out.with_suffix(".tmp")
     tmp.write_text(render_html(build_data(ws)), encoding="utf-8")
     tmp.replace(out)
+    for f in ASSETS.glob("*.png"):  # icons next to the local page, for the brand mark and favicon
+        dest = ws.home / f.name
+        if not dest.exists() or dest.stat().st_size != f.stat().st_size:
+            dest.write_bytes(f.read_bytes())
     return out
 
 
@@ -170,6 +218,14 @@ PAGE = r"""<!doctype html>
 <meta name="theme-color" content="#07080c">
 <meta name="color-scheme" content="dark">
 <title>Clip Engine</title>
+<meta name="description" content="Clipping autopilot: clips, posts, views and estimated earnings.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Clips">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -186,6 +242,9 @@ PAGE = r"""<!doctype html>
   --sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
   --ease: cubic-bezier(.2, .8, .2, 1);
 }
+:root[data-accent="teal"] { --accent: #2fd3c0; --accent-2: #6d7cff; }
+:root[data-accent="gold"] { --accent: #e9b44c; --accent-2: #ff8f5a; }
+:root[data-accent="rose"] { --accent: #ff6b9a; --accent-2: #b18cff; }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body { background: var(--page); color: var(--ink); font: 14px/1.45 var(--sans); font-feature-settings: "tnum", "cv11"; -webkit-font-smoothing: antialiased;
@@ -298,6 +357,24 @@ tr:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .toast { position: fixed; left: 50%; bottom: 24px; z-index: 1200; transform: translate(-50%, 30px); opacity: 0; transition: all .25s var(--ease); padding: 11px 16px; border-radius: 14px;
   background: rgba(30,35,48,.96); border: 1px solid var(--line); box-shadow: 0 18px 50px rgba(0,0,0,.5); font-weight: 600; font-size: 13px; pointer-events: none; }
 .toast.on { opacity: 1; transform: translate(-50%, 0); }
+.mark { overflow: hidden; padding: 0; } .mark img { width: 100%; height: 100%; display: block; border-radius: 12px; }
+#splash { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; background: radial-gradient(80% 60% at 50% 45%, #0f1a4d, #050713 60%, #020104); transition: opacity .55s var(--ease), transform .55s var(--ease); }
+#splash.out { opacity: 0; transform: scale(1.08); pointer-events: none; }
+#splash canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sp-in { position: relative; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+.sp-in img { width: 132px; height: 132px; border-radius: 22%; box-shadow: 0 0 80px rgba(109,124,255,.55), 0 0 0 1px rgba(255,255,255,.08); animation: sp-pop 1.1s var(--ease) both; }
+.sp-t { font: 800 20px var(--sans); letter-spacing: .32em; margin-right: -.32em; background: linear-gradient(90deg, #fff, #c9d0ff, #7fe9ff); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: sp-fade .9s .35s var(--ease) both; }
+.sp-s { font: 500 12px var(--sans); color: #9aa3c9; letter-spacing: .06em; animation: sp-fade .9s .5s var(--ease) both; }
+.sp-bar { width: 160px; height: 3px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; margin-top: 6px; animation: sp-fade .6s .6s both; }
+.sp-bar i { display: block; width: 40%; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); animation: sp-load 1.1s ease-in-out infinite; }
+@keyframes sp-pop { from { opacity: 0; transform: scale(.6) rotate(-8deg); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes sp-fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes sp-load { 0% { transform: translateX(-110%); } 100% { transform: translateX(260%); } }
+.iconbtn.spin .ico { animation: spin .8s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+.seg { display: inline-flex; gap: 3px; padding: 3px; border-radius: 12px; background: rgba(7,8,12,.55); border: 1px solid var(--line); box-shadow: inset 0 1px 2px rgba(0,0,0,.35); }
+.seg button { border: 0; background: transparent; color: var(--ink-2); height: 32px; padding: 0 12px; border-radius: 9px; font-weight: 600; font-size: 12.5px; }
+.seg button.on { color: var(--ink); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 26%, var(--surface-2)), color-mix(in srgb, var(--accent) 12%, var(--surface-2))); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
+.swatch { width: 14px; height: 14px; border-radius: 50%; display: inline-block; vertical-align: -2px; margin-right: 6px; }
 @media (max-width: 760px) {
   .app { display: block; } .side { display: none; }
   .top { padding: calc(10px + env(safe-area-inset-top)) var(--gutter) 10px; min-height: 0; }
@@ -326,9 +403,11 @@ tr:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 </style>
 </head>
 <body>
+<div id="splash" aria-hidden="true"><canvas id="spCv"></canvas><div class="sp-in"><img src="icon-512.png" alt="" onerror="this.style.display='none'">
+  <div class="sp-t">CLIP ENGINE</div><div class="sp-s">clipping campaigns · autopilot · free posting</div><div class="sp-bar"><i></i></div></div></div>
 <div class="app">
   <aside class="side">
-    <div class="brand"><div class="mark" id="mark"></div><div><b>Clip Engine</b><span id="sideSub">clipping campaigns · autopilot</span></div></div>
+    <div class="brand"><div class="mark" id="mark"><img src="icon-192.png" alt="" width="38" height="38" onerror="this.parentNode.innerHTML=window.LOGO_SVG||''"></div><div><b>Clip Engine</b><span id="sideSub">clipping campaigns · autopilot</span></div></div>
     <nav class="nav" id="nav" aria-label="Sections"></nav>
     <div class="side-foot"><div class="k">Autopilot</div><div class="v" id="sideRun">—</div><div class="small mut" id="sideWhen"></div></div>
   </aside>
@@ -345,7 +424,10 @@ tr:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 <div class="toast" id="toast"></div>
 <script>
 'use strict';
-const D = /*__DATA__*/null;
+let D = /*__DATA__*/null;
+const store = { get(k, d) { try { const v = localStorage.getItem('ce.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+                set(k, v) { try { localStorage.setItem('ce.' + k, JSON.stringify(v)); } catch (e) { } } };
+document.documentElement.dataset.accent = store.get('accent', 'indigo');
 const P = {
   today: '<path d="M3 12h3l3-8 4 16 3-8h5"/>',
   clips: '<rect x="3.5" y="5" width="17" height="14" rx="3"/><path d="M10 9.5v5l4.5-2.5z"/>',
@@ -362,7 +444,7 @@ const icon = (k, s = 18) => `<svg class="ico" width="${s}" height="${s}" viewBox
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num = n => (n == null ? '—' : Number(n).toLocaleString('en-US'));
 const kfmt = n => { n = Number(n || 0); return n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e4 ? 0 : 1) + 'K' : String(n); };
-const usd = n => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const usd = n => n == null ? (D && D.hide_money ? 'hidden' : '—') : '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const ago = iso => { if (!iso) return '—'; const s = (Date.now() - new Date(iso).getTime()) / 1000; if (s < 90) return 'just now'; if (s < 5400) return Math.round(s / 60) + ' min ago'; if (s < 129600) return Math.round(s / 3600) + ' h ago'; return Math.round(s / 86400) + ' d ago'; };
 const pchip = p => `<span class="chip ${esc(p)}">${esc(p)}</span>`;
 const STATUS = { posted: 'good', approved: 'good', pending_review: 'warn', rejected: 'bad', render_failed: 'bad', done: 'good', failed: 'bad', blocked: 'bad', retry_wait: 'warn', queued: '', fetching: 'warn', transcribing: 'warn', selecting: 'warn', rendering: 'warn' };
@@ -380,8 +462,10 @@ const ROUTES = [
   { id: 'clips', label: 'Clips', ic: 'clips' },
   { id: 'campaigns', label: 'Campaigns', ic: 'camp' },
   { id: 'earnings', label: 'Earnings', ic: 'money' },
-  { id: 'jobs', label: 'Jobs', ic: 'jobs' }
+  { id: 'jobs', label: 'Jobs', ic: 'jobs' },
+  { id: 'settings', label: 'Settings', ic: 'gear', side: true }
 ];
+P.gear = '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>';
 
 function stat(label, value, sub, cls = '') { return `<div class="stat"><span>${esc(label)}</span><b class="${cls}">${value}</b>${sub ? `<em>${sub}</em>` : ''}</div>`; }
 
@@ -478,30 +562,99 @@ function pageJobs() {
   return h;
 }
 
-const PAGES = { today: pageToday, clips: pageClips, campaigns: pageCampaigns, earnings: pageEarnings, jobs: pageJobs };
+function pageSettings() {
+  const hosted = /^https?:/.test(location.protocol);
+  const acc = store.get('accent', 'indigo'), auto = store.get('auto', true);
+  const sw = { indigo: '#6d7cff', teal: '#2fd3c0', gold: '#e9b44c', rose: '#ff6b9a' };
+  return `<section class="hero"><div><div class="eyebrow">Settings</div><h2>Make it yours</h2><p>Saved on this device only.</p></div></section>
+    <div class="grid g2"><div class="card"><div class="card-h"><h3>Accent</h3></div><div class="seg">${Object.keys(sw).map(k => `<button data-accent="${k}" class="${k === acc ? 'on' : ''}"><span class="swatch" style="background:${sw[k]}"></span>${k}</button>`).join('')}</div>
+      <div class="card-h" style="margin-top:18px"><h3>Auto-refresh</h3></div><div class="seg"><button data-auto="1" class="${auto ? 'on' : ''}">every minute</button><button data-auto="0" class="${auto ? '' : 'on'}">off</button></div>
+      <div class="note">${hosted ? 'This page reads data.json, which your PC uploads after every autopilot cycle.' : 'This is the copy on your PC; it rebuilds after every autopilot cycle.'}</div></div>
+    <div class="card"><div class="card-h"><h3>About this data</h3></div><div class="kv one">
+      <div><span>Built</span><b>${esc(ago(D.generated))}</b></div><div><span>Source</span><b>${hosted ? 'published copy' : 'this PC'}</b></div>
+      <div><span>Dollar figures</span><b>${D.hide_money ? 'hidden on this copy' : 'shown'}</b></div><div><span>Posting</span><b>${esc(D.autopilot.via)}</b></div></div>
+      <div class="note">Earnings are estimates from public view counts. Campaigns pay on the views they verify.</div></div></div>`;
+}
+const PAGES = { today: pageToday, clips: pageClips, campaigns: pageCampaigns, earnings: pageEarnings, jobs: pageJobs, settings: pageSettings };
 function route() {
-  const id = (location.hash.slice(1) || 'today'); const r = ROUTES.find(x => x.id === id) || ROUTES[0];
+  const id = (location.hash.replace(/^#\/?/, '') || 'today'); const r = ROUTES.find(x => x.id === id) || ROUTES[0];
   document.getElementById('title').textContent = r.label;
-  const nav = ROUTES.map(x => { const b = x.badge ? x.badge() : ''; return `<a href="#${x.id}" class="${x.id === r.id ? 'on' : ''}">${icon(x.ic, 20)}<span>${x.label}</span>${b ? `<i>${b}</i>` : ''}</a>`; }).join('');
-  document.getElementById('nav').innerHTML = `<div class="sec">Engine</div>` + nav;
-  document.getElementById('tabs').innerHTML = ROUTES.map(x => `<a href="#${x.id}" class="${x.id === r.id ? 'on' : ''}">${icon(x.ic, 21)}<span>${x.label}</span></a>`).join('');
-  const page = document.getElementById('page'); page.innerHTML = PAGES[r.id](); page.style.animation = 'none'; void page.offsetWidth; page.style.animation = '';
+  const link = x => `#/${x.id}`;
+  const nav = ROUTES.filter(x => !x.side).map(x => { const b = x.badge ? x.badge() : ''; return `<a href="${link(x)}" class="${x.id === r.id ? 'on' : ''}">${icon(x.ic, 20)}<span>${x.label}</span>${b ? `<i>${b}</i>` : ''}</a>`; }).join('');
+  const more = ROUTES.filter(x => x.side).map(x => `<a href="${link(x)}" class="${x.id === r.id ? 'on' : ''}">${icon(x.ic, 20)}<span>${x.label}</span></a>`).join('');
+  document.getElementById('nav').innerHTML = `<div class="sec">Engine</div>` + nav + `<div class="sec">App</div>` + more;
+  document.getElementById('tabs').innerHTML = ROUTES.filter(x => !x.side || x.id === r.id).slice(0, 5).map(x => `<a href="${link(x)}" class="${x.id === r.id ? 'on' : ''}">${icon(x.ic, 21)}<span>${x.label}</span></a>`).join('');
+  const page = document.getElementById('page'); page.innerHTML = (D.preview ? `<div class="card" style="padding:12px 16px"><span class="chip warn">Preview</span> <span class="mut small">Sample data so you can see the layout. Your real numbers appear once your PC runs the autopilot and publishes.</span></div>` : '') + PAGES[r.id](); page.style.animation = 'none'; void page.offsetWidth; page.style.animation = '';
   window.scrollTo(0, 0);
 }
-function boot() {
-  document.getElementById('mark').innerHTML = icon('logo', 22);
-  document.getElementById('refresh').innerHTML = icon('refresh', 18);
-  document.getElementById('refresh').onclick = () => location.reload();
+function status() {
   const a = D.autopilot, st = document.getElementById('status');
   const err = (a.last && a.last.upload_errors) || 0;
-  st.innerHTML = `<span class="dot ${!a.enabled ? 'off' : err ? 'warn' : ''}"></span><span class="lbl">${a.enabled ? (err ? 'autopilot · check errors' : 'autopilot on') : 'autopilot off'}</span>`;
+  st.innerHTML = `<span class="dot ${!a.enabled ? 'off' : err ? 'warn' : ''}"></span><span class="lbl">${a.enabled ? (err ? 'check errors' : 'autopilot on') : 'autopilot off'} · ${esc(ago(D.generated))}</span>`;
   document.getElementById('sideRun').textContent = a.enabled ? `On · ${a.via}` : 'Off';
   document.getElementById('sideWhen').textContent = 'Updated ' + ago(D.generated);
-  document.addEventListener('click', e => { const b = e.target.closest('[data-filter]'); if (b) { clipFilter = b.getAttribute('data-filter'); route(); } });
+}
+async function load(manual) {
+  if (!/^https?:/.test(location.protocol)) { if (manual) { location.reload(); } return; }  // local file: rebuilt by the PC
+  const b = document.getElementById('refresh'); b.classList.add('spin');
+  try {
+    const r = await fetch('data.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const nd = await r.json(), changed = !D || nd.generated !== D.generated;
+    D = nd; status();
+    if (changed) route();
+    if (manual) toast(changed ? 'Updated' : 'Already up to date');
+  } catch (e) { if (manual) toast('Offline: showing the last data'); }
+  finally { b.classList.remove('spin'); splashDone(); }
+}
+const SPLASH_T0 = performance.now();
+let splashGone = false;
+(function splash() {
+  const el = document.getElementById('splash');
+  let seen = false; try { seen = sessionStorage.getItem('ce.splash') === '1'; sessionStorage.setItem('ce.splash', '1'); } catch (e) { }
+  if (seen || matchMedia('(prefers-reduced-motion: reduce)').matches) { el.remove(); splashGone = true; return; }
+  const cv = document.getElementById('spCv'), g = cv.getContext('2d'), dpr = Math.min(2, devicePixelRatio || 1);
+  const W = innerWidth, H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; g.scale(dpr, dpr);
+  const cx = W / 2, cy = H / 2 - 40, cols = ['#6d7cff', '#3ee0c8', '#ff3d7f', '#b18cff', '#ffffff'];
+  const Pp = Array.from({ length: Math.min(260, Math.round(W * H / 2600)) }, (_, i) => { const a = Math.random() * Math.PI * 2, r = Math.max(W, H) * (0.55 + Math.random() * 0.5);
+    return { a, r, s: 0.8 + Math.random() * 2, c: cols[i % cols.length], d: Math.random() * 0.5 }; });
+  const t0 = performance.now();
+  (function frame(now) {
+    if (splashGone) return;
+    const t = (now - t0) / 1000; g.clearRect(0, 0, W, H); g.globalCompositeOperation = 'lighter';
+    for (const p of Pp) {
+      const k = Math.min(1, Math.max(0, (t - p.d) / 1.15)), e = 1 - Math.pow(1 - k, 3), rr = p.r * (1 - e) + 74 + Math.sin(t * 2 + p.a * 5) * 6, aa = p.a + e * 2.4 + t * 0.35;
+      const x = cx + Math.cos(aa) * rr, y = cy + Math.sin(aa) * rr * (0.55 + 0.45 * (1 - e));
+      g.globalAlpha = 0.35 + 0.65 * e; g.fillStyle = p.c; g.beginPath(); g.arc(x, y, p.s * (1 + e * 0.6), 0, 6.283); g.fill();
+      g.globalAlpha = 0.18 * e; g.beginPath(); g.arc(x, y, p.s * 4, 0, 6.283); g.fill();
+    }
+    g.globalAlpha = 1; requestAnimationFrame(frame);
+  })(t0);
+})();
+function splashDone() {
+  if (splashGone) return; splashGone = true;
+  const el = document.getElementById('splash'); if (!el) return;
+  const wait = Math.max(0, 1400 - (performance.now() - SPLASH_T0));
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 650); }, wait);
+}
+setTimeout(splashDone, 6000);
+function boot() {
+  window.LOGO_SVG = icon('logo', 22);
+  document.getElementById('refresh').innerHTML = icon('refresh', 18);
+  document.getElementById('refresh').onclick = () => load(true);
+  status();
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-filter]'); if (b) { clipFilter = b.getAttribute('data-filter'); route(); }
+    const ac = e.target.closest('[data-accent]'); if (ac) { store.set('accent', ac.dataset.accent); document.documentElement.dataset.accent = ac.dataset.accent; route(); }
+    const au = e.target.closest('[data-auto]'); if (au) { store.set('auto', au.dataset.auto === '1'); route(); }
+  });
   window.addEventListener('hashchange', route);
   window.addEventListener('scroll', () => document.body.classList.toggle('scrolled', window.scrollY > 4), { passive: true });
   route();
-  setTimeout(() => { if (document.visibilityState === 'visible') location.reload(); }, 5 * 60 * 1000);
+  load(false);
+  setInterval(() => { if (!document.hidden && store.get('auto', true)) load(false); }, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && store.get('auto', true)) load(false); });
+  if (!/^https?:/.test(location.protocol)) setTimeout(splashDone, 900);
 }
 boot();
 </script>

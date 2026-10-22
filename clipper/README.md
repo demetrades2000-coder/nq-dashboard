@@ -177,7 +177,7 @@ python -m unittest discover -s tests -v     # ~2 min; offline; synthetic video +
 python clipper.py --selftest                # renderer check across all layouts (~5 min)
 ```
 
-The 96 tests cover:
+The 101 tests cover:
 - **Zernio (free route) against a simulated API:** presign, PUT without
   auth, and publishNow with public TikTok settings, consent flags and the
   paid-partnership flag; TikTok refused without consent; Instagram link

@@ -88,7 +88,7 @@ class WS:
         if "account" not in {r[1] for r in self.db.execute("PRAGMA table_info(uploads)")}:
             self.db.execute("ALTER TABLE uploads ADD COLUMN account TEXT DEFAULT 'default'")
         have = {r[1] for r in self.db.execute("PRAGMA table_info(clips)")}
-        for col in ("submitted_at TEXT", "upload_notes TEXT", "video_id TEXT", "held_reason TEXT"):
+        for col in ("submitted_at TEXT", "upload_notes TEXT", "video_id TEXT", "held_reason TEXT", "reasons TEXT"):
             if col.split()[0] not in have:
                 self.db.execute(f"ALTER TABLE clips ADD COLUMN {col}")
         self.db.commit()
@@ -589,12 +589,13 @@ def process_source(ws: WS, row: sqlite3.Row, a) -> None:
         checks = cmp.compliance(c, out_dur, k.text, k.posts, getattr(k, "tagged", False),
                                 getattr(k, "logo_on", False)) if path else []
         ws.x("""INSERT INTO clips(source_id, campaign, rank, start, end_, title, caption, hashtags, posts, checks, flags,
-                words, context_before, context_after, text, score, file, status, created)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                words, context_before, context_after, text, score, file, status, created, reasons)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
              (sid, c["name"], i, k.s, k.e, k.title, k.caption, json.dumps(k.hashtags), json.dumps(k.posts),
               json.dumps([{"ok": ok, "check": t} for ok, t in checks]), json.dumps(flags),
               json.dumps([w.__dict__ for w in k.words]), before, after, k.text, k.score,
-              str(path) if path else None, "pending_review" if path else "render_failed", now()))
+              str(path) if path else None, "pending_review" if path else "render_failed", now(),
+              json.dumps(list(getattr(k, "reasons", []) or []))))
         made += bool(path)
     ws.event(f"job #{sid}: {made}/{len(chosen)} clips ready for review", "ok" if made else "warn", sid)
     ws.set_source(sid, status="done" if made else "failed",
@@ -1034,6 +1035,10 @@ def make_handler(ws: WS, token: str, port_ref: dict, a):
             if u.path == "/dashboard":
                 import dashboard
                 return self._send(200, dashboard.render_html(dashboard.build_data(ws)).encode())
+            m = re.fullmatch(r"/thumbs/(\d+)\.jpg", u.path)
+            if m:  # dashboard thumbnails (relative to /dashboard)
+                p = ws.home / "thumbs" / f"{int(m.group(1))}.jpg"
+                return self._send(200, p.read_bytes(), "image/jpeg") if p.is_file() else self._send(404, b"not found")
             if u.path == "/":
                 page = render_page(ws, token, qs.get("status", ["pending_review"])[0], qs.get("msg", [""])[0])
                 return self._send(200, page.encode())
@@ -1108,10 +1113,11 @@ def cmd_review(ws: WS, a) -> int:
 def publish_dashboard(ws: WS, http=None) -> dict:
     import dashboard
     import publish
+    dashboard.make_thumbs(ws)
     data = dashboard.build_data(ws)
     if ws.setting("publish.hide_money", False):
         data = dashboard.hide_money(data)
-    return publish.publish(dashboard.site_files(data), ws.setting("publish.repo"), ws.setting("publish.branch", "main"),
+    return publish.publish(dashboard.site_files(data, ws), ws.setting("publish.repo"), ws.setting("publish.branch", "main"),
                            ws.setting("publish.folder", "clips"), http=http)
 
 
@@ -2012,6 +2018,8 @@ def cmd_schedule(ws: WS, a) -> int:
     import subprocess
     cmd = schedule_command(ws)
     log = ws.home / "logs" / "autopilot.log"
+    if a.action == "install":  # the dashboard estimates the next run from this
+        ws.set_setting("autopilot.every_hours", max(1, min(a.every_hours, 24)))
     if os.name == "nt":
         return _schedule_windows(ws, a, max(1, min(a.every_hours, 24)))
     if sys.platform == "darwin":

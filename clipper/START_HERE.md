@@ -78,7 +78,9 @@ cycle updates it. Open the link on your phone, then Share → **Add to Home
 Screen**. Like the NQ page, it's public; use `publish setup --hide-money` if
 you don't want earnings visible.
 
-![dashboard](docs/dashboard-desktop.png)
+![dashboard: Today](docs/dashboard-v2-today-desktop.png)
+
+<img src="docs/dashboard-v2-today-mobile.png" alt="dashboard on a phone" width="260">
 
 ## If something looks wrong
 

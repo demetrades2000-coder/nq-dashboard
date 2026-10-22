@@ -7,7 +7,7 @@ Build a realistic demo workspace for the dashboard: no network, no real renderin
 It writes 3 campaign briefs, ~45 clips over the last `--days` days with uploads on TikTok, Instagram and
 YouTube (long-tail views, 2-6% likes), earnings.json with daily view snapshots, events, autopilot cycles,
 jobs (one failed, one waiting to retry), a held clip and two links to submit. Each clip gets a tiny 2 s
-placeholder video (ffmpeg testsrc2) so thumbnails work; without ffmpeg the clips simply have no thumbnail.
+placeholder video (an ffmpeg gradient) so thumbnails work; without ffmpeg the clips simply have no thumbnail.
 Then it builds dashboard.html. `--preview` also writes a hosted-style copy (index.html, data.json,
 thumbs/...) with the "sample data" banner on into <workspace>/site/.
 
@@ -32,6 +32,7 @@ import dashboard  # noqa: E402
 import pipeline as pl  # noqa: E402
 
 MARK = ".clipper-demo"
+PALETTE = ["0x6d7cff", "0x3ee0c8", "0xb18cff", "0xf2a25b", "0xff5f8a", "0x2fb3e3"]  # placeholder video tints
 
 CAMPAIGNS = [
     {"key": "aixfunded", "name": "AiXfunded (prop firm)", "cpm": 6.0, "platforms": ["tiktok", "instagram", "youtube"],
@@ -104,7 +105,7 @@ def iso(t: dt.datetime) -> str:
 
 
 def make_placeholders(out: Path, n: int) -> list[Path]:
-    """Tiny 1080x1920 2 s test videos (different hues) to copy as clip files. Empty list without ffmpeg."""
+    """Tiny 1080x1920 2 s placeholder videos (gradients in different tints) to copy as clip files. Empty list without ffmpeg."""
     ff = shutil.which("ffmpeg")
     if not ff:
         try:
@@ -118,13 +119,19 @@ def make_placeholders(out: Path, n: int) -> list[Path]:
     for i in range(n):
         p = out / f"base_{i}.mp4"
         if not p.exists():
-            try:
-                subprocess.run([ff, "-y", "-loglevel", "error", "-f", "lavfi", "-i",
-                                "testsrc2=size=1080x1920:rate=30:duration=2", "-vf", f"hue=h={i * 360 // n}",
-                                "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", str(p)],
-                               capture_output=True, timeout=60)
-            except Exception:
-                continue
+            # dark-to-accent gradient in the dashboard palette; old ffmpeg builds without `gradients` get testsrc2
+            c1 = PALETTE[i % len(PALETTE)]
+            for src, vf in ((f"gradients=s=1080x1920:d=2:r=30:nb_colors=2:c0=0x07080c:c1={c1}:x0=540:y0=0:x1=540:y1=1920"
+                             f":speed=0.0001:seed={i}", "vignette=PI/5"),
+                            ("testsrc2=size=1080x1920:rate=30:duration=2", f"hue=h={i * 360 // n}")):
+                try:
+                    subprocess.run([ff, "-y", "-loglevel", "error", "-f", "lavfi", "-i", src, "-vf", vf,
+                                    "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", str(p)],
+                                   capture_output=True, timeout=60)
+                except Exception:
+                    pass
+                if p.exists() and p.stat().st_size:
+                    break
         if p.exists() and p.stat().st_size:
             made.append(p)
     return made

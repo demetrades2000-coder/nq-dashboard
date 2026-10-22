@@ -495,9 +495,40 @@ html[data-fx="max"] .card :is(.stat, .item), html.bg2on .card :is(.stat, .item) 
 .hero3d { position: relative; height: 270px; margin: -18px -20px 14px; background: radial-gradient(90% 80% at 50% 40%, #2c0a52, #0e0420 55%, #030107); overflow: hidden; touch-action: pan-y; }
 .hero3d .fx-canvas { display: block; position: absolute; inset: 0; width: 100% !important; height: 100% !important; }
 .fx3d .fx-canvas { width: 100% !important; height: 100% !important; }
-.hero3d .orbfb { position: absolute; inset: 0; display: grid; place-items: center; }
-.hero3d .orbfb svg { width: min(100%, 520px); height: 100%; overflow: visible; }
-.hero3d.fx-live .orbfb { display: none; }
+/* the reel ring: the latest clips as 9:16 cards orbiting a holographic play core; drag to spin, tap to open */
+.reel { position: absolute; inset: 0; perspective: 900px; perspective-origin: 50% 38%; cursor: grab; user-select: none; -webkit-user-select: none; --R: 250px; --cw: 70px; }
+.reel.drag { cursor: grabbing; }
+.reel-stage { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform-style: preserve-3d; transform: translateY(-6px) rotateX(-9deg) rotateY(var(--drag, 0deg)); transition: transform .5s var(--ease); }
+.reel.drag .reel-stage { transition: none; }
+.reel-ring { position: absolute; transform-style: preserve-3d; animation: reelspin 46s linear infinite; }
+.reel:hover .reel-ring, .reel.drag .reel-ring { animation-play-state: paused; }
+@keyframes reelspin { to { transform: rotateY(-360deg); } }
+.rc { position: absolute; left: calc(var(--cw) / -2); top: calc(var(--cw) * -.89); width: var(--cw); aspect-ratio: 9 / 16; border-radius: 10px; overflow: hidden; padding: 0; border: 0;
+  transform: rotateY(var(--a)) translateZ(var(--R)); background: linear-gradient(160deg, #241552, #0b0620); box-shadow: 0 0 0 1px color-mix(in srgb, var(--c) 70%, transparent), 0 0 18px color-mix(in srgb, var(--c) 45%, transparent); cursor: pointer; }
+.rc img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+.rc::after { content: ""; position: absolute; inset: 0; background: linear-gradient(115deg, rgba(255,255,255,.22), transparent 38%), linear-gradient(0deg, rgba(5,2,15,.85), transparent 45%); pointer-events: none; }
+.rc b svg { vertical-align: -1px; margin-right: 3px; }
+.rc b { position: absolute; left: 6px; right: 6px; bottom: 5px; z-index: 1; font: 700 10.5px var(--sans); color: #fff; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 4px #000; }
+.rc i { position: absolute; top: 5px; left: 5px; z-index: 1; width: 7px; height: 7px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); }
+.rc.empty { background: repeating-linear-gradient(0deg, rgba(255,255,255,.03) 0 6px, transparent 6px 12px), linear-gradient(160deg, #1a1040, #08041a); }
+.rc.empty b { color: var(--muted); font-weight: 600; }
+.rc .scan { position: absolute; left: 0; right: 0; height: 2px; top: 0; z-index: 1; background: linear-gradient(90deg, transparent, var(--c), transparent); opacity: .8; animation: rcscan 3.2s linear infinite; animation-delay: var(--d, 0s); }
+@keyframes rcscan { from { transform: translateY(0); } to { transform: translateY(calc(var(--cw) * 1.78)); } }
+.reel-core { position: absolute; left: -46px; top: -56px; width: 92px; height: 92px; transform: translateZ(0); display: grid; place-items: center; pointer-events: none; }
+.reel-core::before { content: ""; position: absolute; inset: -14px; border-radius: 50%; background: conic-gradient(from 0deg, #ff4fd8, #7c6cff, #3ee0c8, #ff4fd8); filter: blur(1px); opacity: .9; animation: corespin 6s linear infinite;
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px)); }
+.reel-core::after { content: ""; position: absolute; inset: -40px; border-radius: 50%; background: radial-gradient(closest-side, rgba(124,108,255,.45), transparent); animation: corepulse 2.6s ease-in-out infinite; }
+@keyframes corespin { to { transform: rotate(360deg); } }
+@keyframes corepulse { 50% { transform: scale(1.18); opacity: .55; } }
+.reel-core span { position: relative; z-index: 1; width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.35), rgba(124,108,255,.25) 45%, rgba(10,4,30,.85)); box-shadow: inset 0 0 18px rgba(255,255,255,.18), 0 0 30px rgba(124,108,255,.6); }
+.reel-core svg { width: 26px; height: 26px; margin-left: 4px; filter: drop-shadow(0 0 8px #9ffff0); }
+.reel-floor { position: absolute; left: 50%; top: 50%; width: calc(var(--R) * 2.3); height: calc(var(--R) * .42); transform: translate(-50%, 58%); border-radius: 50%; pointer-events: none;
+  border: 1.5px solid rgba(62,224,200,.55); box-shadow: 0 0 22px rgba(62,224,200,.35), inset 0 0 26px rgba(255,79,216,.25); }
+.reel-floor::after { content: ""; position: absolute; inset: 18%; border-radius: 50%; border: 1px dashed rgba(255,79,216,.45); animation: corespin 30s linear infinite; }
+.reel-pop { position: absolute; left: var(--x); bottom: 26%; z-index: 2; pointer-events: none; font: 700 12px var(--mono, monospace); color: #9ffff0; padding: 3px 8px; border-radius: 99px; background: rgba(8,20,30,.6); border: 1px solid rgba(62,224,200,.45);
+  box-shadow: 0 0 14px rgba(62,224,200,.35); opacity: 0; animation: reelpop 7s ease-out infinite; animation-delay: var(--d); white-space: nowrap; }
+.reel-pop em { font-style: normal; color: var(--muted); font-weight: 600; margin-left: 4px; }
+@keyframes reelpop { 0% { opacity: 0; transform: translateY(20px) scale(.9); } 10% { opacity: 1; transform: translateY(0) scale(1); } 45% { opacity: 1; } 60%, 100% { opacity: 0; transform: translateY(-120px) scale(.96); } }
 .orb-spin { transform-origin: 260px 135px; animation: orbspin 14s linear infinite; } .orb-spin2 { transform-origin: 260px 135px; animation: orbspin 22s linear infinite reverse; }
 @keyframes orbspin { to { transform: rotate(360deg); } }
 .orb-float { animation: floaty2 6s ease-in-out infinite; } @keyframes floaty2 { 0%, 100% { transform: translateY(-4px); } 50% { transform: translateY(4px); } }
@@ -561,6 +592,7 @@ html:not([data-fx="off"]) .page.entering > .card, html:not([data-fx="off"]) .pag
   .page { padding: 14px var(--gutter) calc(100px + env(safe-area-inset-bottom)); }
   .card, .tile, .stat { backdrop-filter: none; -webkit-backdrop-filter: none; }
   .hero3d { height: 230px; margin: -14px -15px 12px; } .hero-tag.r { top: auto; bottom: 12px; }
+  .reel { --R: 150px; --cw: 54px; } .reel-core { transform: translateZ(0) scale(.78); } .reel-pop:nth-of-type(n+4) { display: none; }
   .card { padding: 14px 15px; border-radius: 16px; }
   .g2, .g3, .g21, .g12 { grid-template-columns: 1fr; } .span2 { grid-column: auto; }
   .grid { gap: 12px; margin-bottom: 12px; }
@@ -1155,29 +1187,29 @@ function bgFrame(now) {
 addEventListener('resize', () => { if (document.documentElement.classList.contains('bg2on')) { bgSize(); if (!BG.raf) BG.raf = requestAnimationFrame(bgFrame); } });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && document.documentElement.classList.contains('bg2on') && !BG.raf) BG.raf = requestAnimationFrame(bgFrame); });
 
-// the hero orb's 2D stand-in: daily view gains as glowing columns inside a glass sphere with two rings
-function orbFb(gains) {
-  const g = gains.slice(-12), mx = Math.max(1, ...g.map(x => x.v)), n = g.length, cx = 260, cy = 135, R = 96, id = uid('o');
-  const bw = n ? 120 / n : 10;
-  return `<svg viewBox="0 0 520 270" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><defs>
-      <radialGradient id="${id}g" cx="40%" cy="32%" r="75%"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".35" stop-color="var(--accent)" stop-opacity=".22"/><stop offset="1" stop-color="#0a0418" stop-opacity=".2"/></radialGradient>
-      <linearGradient id="${id}b" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#9ffff0"/><stop offset="1" stop-color="var(--accent)" stop-opacity=".35"/></linearGradient>
-      <filter id="${id}f" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
-      <clipPath id="${id}c"><circle cx="${cx}" cy="${cy}" r="${R - 4}"/></clipPath></defs>
-    <circle cx="${cx}" cy="${cy}" r="${R + 30}" fill="var(--accent)" opacity=".10" filter="url(#${id}f)"/>
-    <g class="orb-float">
-      <circle cx="${cx}" cy="${cy}" r="${R}" fill="url(#${id}g)" stroke="rgba(200,190,255,.35)" stroke-width="1.2"/>
-      <g clip-path="url(#${id}c)">${g.map((d, i) => { const h = 12 + 110 * d.v / mx, x = cx - 60 + i * bw + bw * .18; return `<rect x="${x.toFixed(1)}" y="${(cy + 50 - h).toFixed(1)}" width="${(bw * .64).toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="url(#${id}b)" opacity="${(.55 + .45 * (i + 1) / n).toFixed(2)}"/>`; }).join('')}
-        <line x1="${cx - 90}" x2="${cx + 90}" y1="${cy + 50}" y2="${cy + 50}" stroke="rgba(255,255,255,.35)"/></g>
-      <g class="orb-spin"><ellipse cx="${cx}" cy="${cy}" rx="${R + 34}" ry="22" fill="none" stroke="var(--accent-2)" stroke-opacity=".55" stroke-width="1.4" transform="rotate(-14 ${cx} ${cy})"/><circle cx="${cx + R + 34}" cy="${cy}" r="3.5" fill="#9ffff0" transform="rotate(-14 ${cx} ${cy})"/></g>
-      <g class="orb-spin2"><ellipse cx="${cx}" cy="${cy}" rx="${R + 58}" ry="34" fill="none" stroke="var(--accent)" stroke-opacity=".35" stroke-width="1" stroke-dasharray="2 6" transform="rotate(10 ${cx} ${cy})"/></g>
-      <ellipse cx="${cx - 30}" cy="${cy - 52}" rx="34" ry="14" fill="#fff" opacity=".10" transform="rotate(-24 ${cx - 30} ${cy - 52})"/>
-    </g></svg>`;
+// the hero: the latest clips as 9:16 cards on a slowly turning 3D ring around a play core, with recent view gains rising off it
+function reelHTML() {
+  const all = [...CLIPS()].sort((x, y) => (!!y.thumb - !!x.thumb) || (tms(y.created) || 0) - (tms(x.created) || 0));
+  const n = Math.max(10, Math.min(14, all.length)), cards = [];
+  for (let i = 0; i < n; i++) {
+    const c = all[i], a = (360 / n) * i, p = c && (c.uploads || [])[0]?.platform, col = p ? pcol(p) : 'var(--accent)', d = `--a:${a.toFixed(1)}deg;--c:${col};--d:${(i * .37).toFixed(2)}s`;
+    cards.push(c ? `<button type="button" class="rc" data-clip="${esc(c.id)}" style="${d}" aria-label="${esc(c.title)}">${c.thumb ? `<img src="${esc(c.thumb)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}<i></i><span class="scan"></span><b>${(c.uploads || []).some(u => u.state === 'live') ? icon('eye', 11) + kfmt(c.views || 0) : esc((STATUS[c.status] || [c.status || ''])[0])}</b></button>`
+      : `<span class="rc empty" style="${d}"><span class="scan"></span><b>next clip</b></span>`);
+  }
+  const pops = all.filter(c => c.views).sort((x, y) => y.views - x.views).slice(0, 6)
+    .map((c, i) => `<span class="reel-pop" style="--x:${[8, 74, 18, 64, 38, 84][i]}%;--d:${(i * 1.17).toFixed(2)}s">+${kfmt(c.views)}<em>${esc(pname((c.uploads || [])[0]?.platform || ''))}</em></span>`).join('');
+  return `<div class="reel" id="reel"><div class="reel-floor"></div><div class="reel-stage"><div class="reel-ring">${cards.join('')}</div>
+    <div class="reel-core"><span><svg viewBox="0 0 24 24" fill="#fff"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.6-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5Z"/></svg></span></div></div>${pops}</div>`;
 }
-// 12 daily "candles" of total views for the 3D orb: open = total at the start of the day, close = total at its end
-function viewCandles() {
-  const h = (AN().views_history || []).slice(-13);
-  return h.slice(1).map((r, i) => { const o = h[i].views || 0, c = r.views || 0, t = Math.round(tms(r.date) / 1000); return [t, o, Math.max(o, c), Math.min(o, c), c]; });
+// drag the ring to spin it; a drag never counts as a tap on a card
+function reelDrag() {
+  const r = $('#reel'); if (!r) return;
+  const st = r.querySelector('.reel-stage'); let x0 = null, base = 0, cur = 0, moved = false;
+  r.addEventListener('pointerdown', (e) => { x0 = e.clientX; moved = false; });
+  r.addEventListener('pointermove', (e) => { if (x0 === null) return; const dx = e.clientX - x0; if (!moved && Math.abs(dx) > 6) { moved = true; r.classList.add('drag'); try { r.setPointerCapture(e.pointerId); } catch (_) {} } if (moved) { cur = base + dx * .45; st.style.setProperty('--drag', cur + 'deg'); } });
+  const end = () => { if (x0 === null) return; x0 = null; base = cur; r.classList.remove('drag'); };
+  r.addEventListener('pointerup', end); r.addEventListener('pointercancel', end);
+  r.addEventListener('click', (e) => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
 }
 
 // ===================================================================== TODAY
@@ -1203,8 +1235,8 @@ function pageToday(el) {
   const plat = (a.platforms || []).map(pname).join(', ') || '—';
   const byp = E().by_platform || {}, plist = Object.keys(byp).sort((x, y) => (byp[y].views || 0) - (byp[x].views || 0));
   el.innerHTML = banners() + `
-    <div class="card hero-card"><div class="hero3d" id="tdOrb"><div class="orbfb">${orbFb(gains)}</div>
-        <span class="hero-tag">${icon('bolt')}VIEWS ENGINE · last ${Math.min(12, gains.length)} days</span>${s.views_24h ? `<span class="hero-tag r">${icon('long')}+${kfmt(s.views_24h)} today</span>` : ''}</div>
+    <div class="card hero-card"><div class="hero3d" id="tdOrb">${reelHTML()}
+        <span class="hero-tag">${icon('bolt')}CLIP REEL · latest ${Math.min(14, CLIPS().length)} clips</span>${s.views_24h ? `<span class="hero-tag r">${icon('long')}+${kfmt(s.views_24h)} today</span>` : ''}</div>
       <div class="state">
         <div><div class="eyebrow">${a.enabled ? 'Autopilot on' : 'Autopilot off'} · ${esc(a.via || '—')} posting · every ${num(a.every_hours || 6)} h</div>
           <h2>${esc(h2)}</h2><p>${hp}</p><p class="small mut" style="margin-top:6px">Posts to ${esc(plat)} · up to ${num(a.cap)} a day per account · min score ${num(a.min_score)} · ${esc(a.privacy || '')}</p></div>
@@ -1255,7 +1287,7 @@ function pageToday(el) {
     else lineChart($('#tdChart'), hist.map(r => ({ x: fDate(r.date), y: r.views || 0, tip: `<b>${esc(fDate(r.date))}</b><span>${num(r.views || 0)} views in total</span>` })), { h: 220, color: 'var(--accent-2)', empty: 'No view history yet.' }); };
   drawV(store.get('tdV', 'total')); onSeg('tdV', drawV);
   onSeg('todoSeg', (k) => { store.set('todoTab', k); $('#todoBody').innerHTML = todoBody(k); });
-  fx3d('today-orb', $('#tdOrb'), 'orb', { bars: viewCandles(), pools: [], price: s.views || 0, mood: moodNow() });
+  reelDrag();
 }
 const daysLeft = () => { const d = new Date(), e = new Date(d.getFullYear(), d.getMonth() + 1, 0); return e.getDate() - d.getDate() + 1; };
 function pipeHTML() {

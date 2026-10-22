@@ -1088,7 +1088,7 @@ function openClip(id) {
 }
 
 // ===================================================================== 3D layer (fx.js: three.js views, particle field, card auras, tap sparks) — the same module as the NQ dashboard
-// Hosted on GitHub Pages this page is /<repo>/clips/ and fx.js sits one folder up (../fx.js). From disk (file://) modules cannot load: the 2D canvas field below stands in.
+// Hosted on GitHub Pages fx.js is published next to this page (./fx.js; ../fx.js when the page sits in a clips/ folder of a site that has it). From disk (file://) modules cannot load: the 2D canvas field below stands in.
 let FX = null, FXP = null, FXFAIL = false;
 const FXV = 'b8f02cba';
 const fxPref = () => store.get('fx', 'max');

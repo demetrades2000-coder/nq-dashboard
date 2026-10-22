@@ -1118,7 +1118,7 @@ def publish_dashboard(ws: WS, http=None) -> dict:
     if ws.setting("publish.hide_money", False):
         data = dashboard.hide_money(data)
     return publish.publish(dashboard.site_files(data, ws), ws.setting("publish.repo"), ws.setting("publish.branch", "main"),
-                           ws.setting("publish.folder", "clips"), http=http)
+                           ws.setting("publish.folder", ""), http=http)
 
 
 def publish_url(ws: WS) -> str:
@@ -1126,8 +1126,15 @@ def publish_url(ws: WS) -> str:
     if "/" not in repo:
         return ""
     owner, name = repo.split("/", 1)
-    return f"https://{owner.lower()}.github.io/{name}/{ws.setting('publish.folder', 'clips').strip('/')}/"
+    folder = (ws.setting("publish.folder", "") or "").strip("/")
+    base = f"https://{owner.lower()}.github.io/" + ("" if name.lower() == f"{owner.lower()}.github.io" else f"{name}/")
+    return base + (f"{folder}/" if folder else "")
 
+
+# Repos another publisher force-pushes as a whole: anything we upload there is wiped on its next push.
+FORCE_PUSHED_REPOS = {"demetrades2000-coder/nq-dashboard"}
+NEW_REPO_HELP = ("Make an empty public repo for it first (1 minute): https://github.com/new -> name clip-engine, Public, "
+                 "tick 'Add a README file', Create. Then its Settings -> Pages -> Branch: main, / (root) -> Save.")
 
 TOKEN_HELP = ("Create a token at https://github.com/settings/personal-access-tokens/new : Repository access -> "
               "Only select repositories -> pick the repo; Permissions -> Contents: Read and write; Generate.")
@@ -1136,10 +1143,17 @@ TOKEN_HELP = ("Create a token at https://github.com/settings/personal-access-tok
 def cmd_publish(ws: WS, a) -> int:
     import publish
     if a.action == "setup":
+        if not (a.repo or ws.setting("publish.repo")):
+            print(NEW_REPO_HELP)
         repo = a.repo or ws.setting("publish.repo") or _input("GitHub repo for the dashboard (owner/name), e.g. "
-                                                               "demetrades2000-coder/nq-dashboard: ")
-        if "/" not in (repo or ""):
+                                                               "demetrades2000-coder/clip-engine: ")
+        repo = (repo or "").strip().removeprefix("https://github.com/").strip("/")
+        if "/" not in repo:
             print("give the repo as owner/name")
+            return 1
+        if repo.lower() in FORCE_PUSHED_REPOS:
+            print(f"{repo} is the NQ dashboard's site: its bot replaces the whole repo on every push, which would wipe "
+                  "this dashboard. Use its own repo instead.\n" + NEW_REPO_HELP)
             return 1
         if not publish.token():
             print(TOKEN_HELP)
@@ -1155,7 +1169,7 @@ def cmd_publish(ws: WS, a) -> int:
             return 1
         ws.set_setting("publish.repo", repo)
         ws.set_setting("publish.branch", a.branch or "main")
-        ws.set_setting("publish.folder", a.folder or "clips")
+        ws.set_setting("publish.folder", a.folder or "")
         ws.set_setting("publish.hide_money", bool(a.hide_money))
         ws.set_setting("publish.enabled", True)
         print("The repo is public, so the published page is too"
@@ -2467,7 +2481,7 @@ def cmd_setup(ws: WS, a) -> int:
     if ask("  Get a phone notification when TikTok drafts are ready? (uses the free ntfy.sh app)", "n"):
         cmd_notify(ws, argparse.Namespace(action="setup", topic=None))
     if not ws.setting("publish.enabled", False) and ask(
-            "  Put your dashboard online like the NQ one (your GitHub Pages; needs a GitHub token)?", "n"):
+            "  Put your dashboard online as its own phone app (a separate GitHub Pages repo; needs a GitHub token)?", "n"):
         cmd_publish(ws, argparse.Namespace(action="setup", repo=None, branch=None, folder=None, hide_money=False,
                                            forget_token=False))
     print("\nStep 5/5: schedule")
@@ -2635,7 +2649,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("action", choices=["setup", "now", "status", "off"])
     s.add_argument("--repo", help="owner/name of the GitHub Pages repo")
     s.add_argument("--branch", help="branch Pages serves (default main)")
-    s.add_argument("--folder", help="folder in the repo (default clips)")
+    s.add_argument("--folder", help="folder in the repo (default: the repo root)")
     s.add_argument("--hide-money", action="store_true", help="keep dollar figures off the public copy")
     s.add_argument("--forget-token", action="store_true")
     s = sub.add_parser("dashboard", help="build and open the Clip Engine dashboard")

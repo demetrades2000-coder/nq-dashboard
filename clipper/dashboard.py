@@ -594,6 +594,9 @@ self.addEventListener('fetch', (e) => {
 """
 
 
+FX_FILE = Path(__file__).resolve().parent.parent / "fx.js"
+
+
 def site_files(data: dict, ws=None) -> dict[str, bytes]:
     """Everything a hosted copy needs (GitHub Pages): page, data.json, manifest, icons and clip thumbnails.
     Thumbnails come from `ws.home/thumbs` (or the workspace named in the data when no ws is given)."""
@@ -603,6 +606,8 @@ def site_files(data: dict, ws=None) -> dict[str, bytes]:
              "sw.js": SERVICE_WORKER.encode("utf-8")}
     for f in ASSETS.glob("*.png"):
         files[f.name] = f.read_bytes()
+    if FX_FILE.is_file():   # the 3D layer, shared with the NQ dashboard; the page uses a 2D fallback without it
+        files["fx.js"] = FX_FILE.read_bytes()
     home = ws.home if ws is not None else (Path(data["workspace"]) if data.get("workspace") else None)
     for c in data.get("clips") or []:
         rel = c.get("thumb")

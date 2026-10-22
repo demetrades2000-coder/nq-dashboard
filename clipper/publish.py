@@ -1,7 +1,8 @@
 """
 Publish the Clip Engine dashboard to GitHub Pages, the same way the NQ dashboard is served: the page,
-data.json, manifest and icons go into a folder of your Pages repo (default: clips/ in nq-dashboard), so it
-opens at https://<you>.github.io/<repo>/clips/ on any device and refreshes itself every minute.
+data.json, manifest and icons go into their own Pages repo (default: the root of <you>/clip-engine), so it opens at
+https://<you>.github.io/clip-engine/ on any device, installs as its own Home Screen app and refreshes itself every minute.
+Never point it at a repo another bot force-pushes (the NQ dashboard's nq-dashboard): each push there wipes it.
 
 Uses the GitHub contents API with a fine-grained token (Contents: read and write on that one repo only),
 kept in the OS keychain. Only files that changed are uploaded. The repo is public, so the page is public:
@@ -120,18 +121,26 @@ def check_access(repo: str, http=None) -> str:
     return pages
 
 
-def publish(files: dict[str, bytes], repo: str, branch: str = "main", folder: str = "clips", http=None,
-            sleep=time.sleep) -> dict:
-    """Upload changed files. Returns {'uploaded': [...], 'unchanged': [...]}."""
-    folder = folder.strip("/")
-    uploaded, unchanged = [], []
-    st, listing = _call("GET", f"{API}/repos/{repo}/contents/{urllib.parse.quote(folder)}?ref={urllib.parse.quote(branch)}",
-                        http=http, sleep=sleep)
+def _listing(repo, branch, folder, http, sleep) -> dict:
+    """{path relative to folder: blob sha} for the files in folder and its subfolders that we publish (thumbs/)."""
     current = {}
-    if st == 200 and isinstance(listing, list):
-        current = {x["name"]: x["sha"] for x in listing if x.get("type") == "file"}
-    elif st not in (200, 404):
-        raise PublishError(f"GitHub error {st} listing {folder}/: {str(listing)[:160]}")
+    for sub in ("", "thumbs"):
+        path = "/".join(x for x in (folder, sub) if x)
+        st, listing = _call("GET", f"{API}/repos/{repo}/contents/{urllib.parse.quote(path)}?ref={urllib.parse.quote(branch)}",
+                            http=http, sleep=sleep)
+        if st == 200 and isinstance(listing, list):
+            current.update({(f"{sub}/" if sub else "") + x["name"]: x["sha"] for x in listing if x.get("type") == "file"})
+        elif st not in (200, 404):
+            raise PublishError(f"GitHub error {st} listing {path or 'the repo'}/: {str(listing)[:160]}")
+    return current
+
+
+def publish(files: dict[str, bytes], repo: str, branch: str = "main", folder: str = "", http=None,
+            sleep=time.sleep) -> dict:
+    """Upload changed files into folder ("" = the repo root). Returns {'uploaded': [...], 'unchanged': [...]}."""
+    folder = (folder or "").strip("/")
+    uploaded, unchanged = [], []
+    current = _listing(repo, branch, folder, http, sleep)
     # data and assets first, the page last, so a visitor never gets a page newer than its data
     order = sorted(files, key=lambda n: (n == "index.html", n != "data.json", n))
     for name in order:
@@ -143,7 +152,7 @@ def publish(files: dict[str, bytes], repo: str, branch: str = "main", folder: st
         body = {"message": f"clips dashboard: {name}", "content": base64.b64encode(content).decode(), "branch": branch}
         if sha:
             body["sha"] = sha
-        path = f"{folder}/{name}"
+        path = f"{folder}/{name}" if folder else name
         st, out = _call("PUT", f"{API}/repos/{repo}/contents/{urllib.parse.quote(path)}", body, http=http, sleep=sleep)
         if st == 409 or (st == 422 and "sha" in json.dumps(out)):
             # someone else changed it meanwhile: refetch its sha and retry once

@@ -70,13 +70,19 @@ It's the same style as the NQ dashboard:
 
 It refreshes itself after every autopilot cycle.
 
-**On your phone, like the NQ dashboard:** setup offers to put it on your
-GitHub Pages site at `https://demetrades2000-coder.github.io/nq-dashboard/clips/`.
-You only need a GitHub token, and setup gives you the exact link to create
-one (access to this repo only, Contents: Read and write). After that, every
-cycle updates it. Open the link on your phone, then Share → **Add to Home
-Screen**. Like the NQ page, it's public; use `publish setup --hide-money` if
-you don't want earnings visible.
+**On your phone, as its own app** (separate from the NQ dashboard, which
+stays untouched):
+1. Make an empty repo: [github.com/new](https://github.com/new) → name
+   **clip-engine**, **Public**, tick **Add a README file** → Create.
+2. In that repo: **Settings → Pages → Branch: main, / (root) → Save**.
+3. Setup asks "Put your dashboard online?" → yes → repo
+   `demetrades2000-coder/clip-engine`. It gives you the exact link to create
+   a token (access to that repo only, Contents: Read and write).
+
+After that, every cycle updates
+`https://demetrades2000-coder.github.io/clip-engine/`. Open it on your
+iPhone in Safari → Share → **Add to Home Screen**. It's public; use
+`publish setup --hide-money` if you don't want earnings visible.
 
 ![dashboard: Today](docs/dashboard-v2-today-desktop.png)
 

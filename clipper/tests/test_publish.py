@@ -26,10 +26,11 @@ class FakeGitHub:
         path = url.split("/contents/", 1)[-1].split("?")[0] if "/contents/" in url else None
         if method == "GET" and url.endswith("/repos/me/site"):
             return 200, {"permissions": {"push": True}, "has_pages": True}
-        if method == "GET" and path == "clips":
-            if not self.files:
+        if method == "GET" and path is not None and path not in self.files:   # a folder: list its direct files
+            kids = [(k.rsplit("/", 1)[-1], v) for k, v in self.files.items() if (k.rsplit("/", 1)[0] if "/" in k else "") == path]
+            if not kids:
                 return 404, {"message": "Not Found"}
-            return 200, [{"type": "file", "name": k.split("/", 1)[1], "sha": publish.blob_sha(v)} for k, v in self.files.items()]
+            return 200, [{"type": "file", "name": n, "sha": publish.blob_sha(v)} for n, v in kids]
         if method == "GET" and path in self.files:
             return 200, {"sha": publish.blob_sha(self.files[path])}
         if method == "PUT":
@@ -63,8 +64,8 @@ class PublishTests(unittest.TestCase):
         self.assertIn("manifest.webmanifest", res["uploaded"])
         self.assertIn("icon-512.png", res["uploaded"])
         puts = [u for m, u in gh.calls if m == "PUT"]
-        self.assertTrue(puts[0].endswith("clips/data.json"))   # data before the page
-        self.assertTrue(puts[-1].endswith("clips/index.html"))
+        self.assertTrue(puts[0].endswith("/contents/data.json"))   # data before the page, at the repo root
+        self.assertTrue(puts[-1].endswith("/contents/index.html"))
         gh.calls.clear()
         res = pl.publish_dashboard(self.ws, http=gh)          # same data: nothing to upload
         self.assertEqual(res["uploaded"], [])
@@ -76,7 +77,7 @@ class PublishTests(unittest.TestCase):
     def test_conflict_is_retried(self):
         gh = FakeGitHub()
         pl.publish_dashboard(self.ws, http=gh)
-        gh.conflict_once.add("clips/data.json")
+        gh.conflict_once.add("data.json")
         self.ws.event("changed")
         res = pl.publish_dashboard(self.ws, http=gh)
         self.assertIn("data.json", res["uploaded"])
@@ -101,7 +102,26 @@ class PublishTests(unittest.TestCase):
         self.assertEqual(man["start_url"], "./#/today")
 
     def test_publish_url(self):
+        self.assertEqual(pl.publish_url(self.ws), "https://me.github.io/site/")
+        self.ws.set_setting("publish.folder", "clips")
         self.assertEqual(pl.publish_url(self.ws), "https://me.github.io/site/clips/")
+        self.ws.set_setting("publish.repo", "Me/me.github.io")
+        self.assertEqual(pl.publish_url(self.ws), "https://me.github.io/clips/")
+
+    def test_subfolder_and_thumbs_skip_unchanged(self):
+        self.ws.set_setting("publish.folder", "clips")
+        gh = FakeGitHub()
+        files = {"index.html": b"<p>1</p>", "data.json": b"{}", "thumbs/1.jpg": b"jpg"}
+        publish.publish(files, "me/site", folder="clips", http=gh)
+        self.assertEqual(set(gh.files), {"clips/index.html", "clips/data.json", "clips/thumbs/1.jpg"})
+        res = publish.publish(files, "me/site", folder="clips", http=gh)
+        self.assertEqual(res["uploaded"], [])                  # thumbnails in thumbs/ are recognised too
+
+    def test_refuses_force_pushed_nq_repo(self):
+        a = type("A", (), dict(action="setup", repo="demetrades2000-coder/nq-dashboard", branch=None, folder=None,
+                              hide_money=False, forget_token=False))()
+        self.assertEqual(pl.cmd_publish(self.ws, a), 1)
+        self.assertNotEqual(self.ws.setting("publish.repo"), "demetrades2000-coder/nq-dashboard")
 
 
 if __name__ == "__main__":

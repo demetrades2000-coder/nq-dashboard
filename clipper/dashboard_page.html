@@ -660,6 +660,8 @@ html:not([data-fx="off"]) .page.entering > .card, html:not([data-fx="off"]) .pag
 'use strict';
 let D = /*__DATA__*/null;
 const HOSTED = /^https?:$/.test(location.protocol);
+// own service worker for this folder, so a root one from another app on the same site (NQ) never handles these pages
+if (HOSTED && 'serviceWorker' in navigator && !/^(localhost|127\.)/.test(location.hostname)) addEventListener('load', () => navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => null));
 // ===================================================================== storage (this device only)
 const store = { get(k, d) { try { const v = localStorage.getItem('ce.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
                 set(k, v) { try { localStorage.setItem('ce.' + k, JSON.stringify(v)); } catch (e) { } } };

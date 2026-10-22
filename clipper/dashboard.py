@@ -576,12 +576,31 @@ MANIFEST = {
 }
 
 
+# The hosted copy's own service worker, scoped to its folder. On a Pages site that also serves another app with a root
+# service worker (the NQ dashboard), this one takes over clips/ so the two apps never share or overwrite each other's cache.
+SERVICE_WORKER = """// Clip Engine: network first, the last copy when offline. Scope: this folder only.
+const CACHE = 'clip-engine-v1';
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => {
+  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('clip-engine-') && k !== CACHE).map((k) => caches.delete(k)))));
+  self.clients.claim();
+});
+self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
+  e.respondWith(fetch(req).then((r) => { if (r.ok) { const c = r.clone(); caches.open(CACHE).then((x) => x.put(req, c)); } return r; })
+    .catch(() => caches.match(req, { ignoreSearch: true })));
+});
+"""
+
+
 def site_files(data: dict, ws=None) -> dict[str, bytes]:
     """Everything a hosted copy needs (GitHub Pages): page, data.json, manifest, icons and clip thumbnails.
     Thumbnails come from `ws.home/thumbs` (or the workspace named in the data when no ws is given)."""
     files = {"index.html": render_html(data).encode("utf-8"),
              "data.json": json.dumps(data, default=str).encode("utf-8"),
-             "manifest.webmanifest": json.dumps(MANIFEST, indent=2).encode("utf-8")}
+             "manifest.webmanifest": json.dumps(MANIFEST, indent=2).encode("utf-8"),
+             "sw.js": SERVICE_WORKER.encode("utf-8")}
     for f in ASSETS.glob("*.png"):
         files[f.name] = f.read_bytes()
     home = ws.home if ws is not None else (Path(data["workspace"]) if data.get("workspace") else None)

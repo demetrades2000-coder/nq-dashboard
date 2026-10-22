@@ -32,6 +32,8 @@ import urllib.request
 import webbrowser
 from pathlib import Path
 
+import secretstore
+
 API = "https://open.tiktokapis.com"
 AUTH_URL = "https://www.tiktok.com/v2/auth/authorize/"
 KEYRING_SERVICE = "money-clipper"
@@ -75,7 +77,7 @@ def _keyring():
 def _load(account: str = "default") -> dict | None:
     kr = _keyring()
     try:
-        raw = kr.get_password(KEYRING_SERVICE, _key(account)) if kr else None
+        raw = secretstore.get(kr, KEYRING_SERVICE, _key(account)) if kr else None
     except Exception:
         raw = None
     return json.loads(raw) if raw else None
@@ -85,7 +87,7 @@ def _save(tok: dict, account: str = "default") -> None:
     kr = _keyring()
     if not kr:
         raise TikTokError("No OS keychain available (pip install keyring); tokens are never stored in plain files.")
-    kr.set_password(KEYRING_SERVICE, _key(account), json.dumps(tok))
+    secretstore.save(kr, KEYRING_SERVICE, _key(account), json.dumps(tok))
 
 
 def has_token(account: str = "default") -> bool:
@@ -96,7 +98,7 @@ def revoke(account: str = "default") -> None:
     kr = _keyring()
     if kr:
         try:
-            kr.delete_password(KEYRING_SERVICE, _key(account))
+            secretstore.delete(kr, KEYRING_SERVICE, _key(account))
         except Exception:
             pass
 

@@ -5,7 +5,7 @@
     "program": "Content Rewards (Click Culture campaign)",
     "campaign_url": "https://contentrewards.com/c/campaigns/2c65001c-d6a8-4b14-9ba6-52400794b085",
     "verified_on": "",
-    "evidence": "TODO: paste the campaign's wording. Listing (ClippingAlpha, 7 Oct 2026) says clips must be built only from Alpha Futures' official footage.",
+    "evidence": "TODO: paste from the hub. Snippets say: post clips only from the official Alpha Futures videos in the hub's content section; outside footage, AI-generated clips, automated repurposing tools and reposts are prohibited.",
     "allowed_sources": [
       "file:footage/alpha-futures"
     ]
@@ -34,9 +34,17 @@
   },
   "caption": {
     "required_hashtags": [],
-    "required_mentions": [
-      "TODO: the official Alpha Futures handle for this platform"
-    ],
+    "required_mentions": {
+      "tiktok": [
+        "@alphafutures"
+      ],
+      "instagram": [
+        "@alpha_futures"
+      ],
+      "youtube": [
+        "@Alpha_Futures"
+      ]
+    },
     "required_text": ""
   },
   "on_screen": {
@@ -58,10 +66,11 @@
     "financial advice",
     "get rich"
   ],
-  "notes": "Found 2026-10-21 (ClippingAlpha snapshot 7 Oct; Content Rewards listing): $2.00 per 1K views on TikTok, Instagram, YouTube; max $500 per clip; min payout $2; 10% board fee; paid within 10 days. Rules reported: official Alpha Futures footage only; English; at least 7 s; logo visible on the black section for the whole clip (handled: letterbox layout + logo overlay); tag the official account in every caption; keep posts live 30+ days; >= 2% engagement with likes visible. Hub (content.clipalphafutures.com) says the account must be DEDICATED to this campaign, have 'Alpha Futures' in its name and the official logo as profile picture. Two similar domains exist (clipalphafutures.com, content.clipalphafutures.com) - use the links from the Content Rewards campaign page. TODO for you: put the official footage in campaigns/footage/alpha-futures/, the logo PNG at campaigns/logos/alpha-futures.png, fill required_mentions and evidence, set verified_on.",
+  "notes": "NOT FOR AUTOPILOT: the official hub (content.clipalphafutures.com, run by Click Culture) lists AI-generated clips and automated repurposing tools as prohibited, and clips missing any requirement aren't paid. Budget was ~$3.8K of $13K on 7 Oct 2026, projected to run out ~26 Oct. Handles per hub: TikTok @alphafutures, Instagram @alpha_futures, YouTube @Alpha_Futures. Other rules: official hub footage and official PNG logo on the black section the whole clip, dedicated account named 'Alpha Futures' with the logo as profile picture, >=7 s, English, >=2% engagement with likes visible, posts live 30+ days, Tier 1-2 audience (30%+ Tier 3 can get the account removed), no reposts or the same video on several accounts, no paid ads or story boosting. Lookalikes to avoid: clipalphacapital.com (different firm), @alphatraderfirm / alphatraderfutures.com (different firm).",
   "min_engagement": 0.02,
   "accounts": {
     "tiktok": "alphafutures",
     "youtube": "alphafutures"
-  }
+  },
+  "automation_allowed": false
 }

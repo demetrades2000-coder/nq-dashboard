@@ -53,6 +53,7 @@ class AutopilotTests(unittest.TestCase):
         cls.srt = cls.footage / "ep.srt"
         make_srt(cls.srt, 75)
         c = json.loads((HERE / "campaigns" / "_template.json").read_text())
+        c["automation_allowed"] = True
         c["name"] = "Auto Campaign"
         c["permission"].update(campaign_url="https://whop.com/example-campaign", verified_on=dt.date.today().isoformat(),
                                evidence="test", allowed_sources=[f"file:{cls.footage}"])
@@ -145,7 +146,7 @@ class AutopilotTests(unittest.TestCase):
         rc, out = run_cli("--home", self.home, "schedule", "print", "--every-hours", "4")
         self.assertEqual(rc, 0)
         self.assertIn("autopilot run", out)
-        if sys.platform != "win32":
+        if sys.platform not in ("win32", "darwin"):
             self.assertIn("*/4 * * *", out)
             self.assertIn(pl.SCHED_MARK, out)
 

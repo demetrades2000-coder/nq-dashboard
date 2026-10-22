@@ -23,6 +23,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+import secretstore
+
 API = "https://zernio.com/api/v1"
 KEYRING_SERVICE = "money-clipper"
 KEY_NAME = "zernio-key"
@@ -45,7 +47,7 @@ def api_key() -> str | None:
         return os.environ["ZERNIO_API_KEY"]
     kr = _keyring()
     try:
-        return kr.get_password(KEYRING_SERVICE, KEY_NAME) if kr else None
+        return secretstore.get(kr, KEYRING_SERVICE, KEY_NAME) if kr else None
     except Exception:
         return None
 
@@ -58,14 +60,14 @@ def save_key(key: str) -> None:
     kr = _keyring()
     if not kr:
         raise ZernioError("No OS keychain available; set ZERNIO_API_KEY in your environment instead.")
-    kr.set_password(KEYRING_SERVICE, KEY_NAME, key.strip())
+    secretstore.save(kr, KEYRING_SERVICE, KEY_NAME, key.strip())
 
 
 def delete_key() -> None:
     kr = _keyring()
     if kr:
         try:
-            kr.delete_password(KEYRING_SERVICE, KEY_NAME)
+            secretstore.delete(kr, KEYRING_SERVICE, KEY_NAME)
         except Exception:
             pass
 

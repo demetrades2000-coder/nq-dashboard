@@ -146,6 +146,7 @@ class AutopilotFreeRoute(unittest.TestCase):
                         "-c:a", "aac", "-shortest", str(v)], check=True)
         make_srt(cls.tmp / "ep.srt", 45)
         c = json.loads((HERE / "campaigns" / "_template.json").read_text())
+        c["automation_allowed"] = True
         c.update(name="Free", platforms=["tiktok", "instagram"], sources=[], accounts={"tiktok": "alphafutures",
                                                                                       "instagram": "alphafutures"})
         c["permission"].update(campaign_url="https://contentrewards.com/f", verified_on=dt.date.today().isoformat(),

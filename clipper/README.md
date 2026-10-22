@@ -27,7 +27,7 @@ python pipeline.py tiktok auth --client-key YOUR_KEY     # one TikTok login (see
 python pipeline.py autopilot add campaigns/acme.json
 python pipeline.py autopilot enable --platforms youtube,tiktok --max-per-day 3   # cap is per platform
 python pipeline.py budget --monthly 5                    # optional: Claude ranking, capped
-python pipeline.py schedule install --every-hours 6      # cron on macOS/Linux, Task Scheduler on Windows
+python pipeline.py schedule install --every-hours 6      # Task Scheduler on Windows, launchd on macOS, cron on Linux
 ```
 
 Every cycle (every 6 hours by default) does the following:
@@ -177,7 +177,7 @@ python -m unittest discover -s tests -v     # ~2 min; offline; synthetic video +
 python clipper.py --selftest                # renderer check across all layouts (~5 min)
 ```
 
-The 77 tests cover:
+The 96 tests cover:
 - **Zernio (free route) against a simulated API:** presign, PUT without
   auth, and publishNow with public TikTok settings, consent flags and the
   paid-partnership flag; TikTok refused without consent; Instagram link

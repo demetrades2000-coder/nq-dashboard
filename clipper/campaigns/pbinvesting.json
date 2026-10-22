@@ -44,5 +44,6 @@
   "banned_phrases": [],
   "notes": "Found via search 2026-10-21: $1.25/1K views on TikTok, Instagram, YouTube (a $5K dedicated-account campaign). The 10,000-view minimum and the no-AI-content rule come from your ChatGPT summary and were NOT confirmed. Because of the AI rule, Claude ranking is disabled for this campaign; captions are still made by speech recognition and the clips are automatically cut/cropped - ask the campaign whether that counts as 'AI-generated' before posting.",
   "min_views": 10000,
-  "ai_text_allowed": false
+  "ai_text_allowed": false,
+  "automation_allowed": null
 }

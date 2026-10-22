@@ -210,6 +210,7 @@ class MultiPlatformAutopilot(unittest.TestCase):
         cls.camps = {}
         for name, plats in (("Both", ["tiktok", "instagram", "youtube"]), ("IG and YT only", ["instagram", "youtube"])):
             c = json.loads((HERE / "campaigns" / "_template.json").read_text())
+            c["automation_allowed"] = True
             c["name"], c["platforms"] = name, plats
             c["permission"].update(campaign_url=f"https://contentrewards.com/{name}", verified_on=dt.date.today().isoformat(),
                                    evidence="test", allowed_sources=[f"file:{cls.footage}"])

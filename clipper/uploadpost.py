@@ -26,6 +26,8 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+import secretstore
+
 API = "https://api.upload-post.com/api"
 KEYRING_SERVICE = "money-clipper"
 KEY_NAME = "upload-post-key"
@@ -49,7 +51,7 @@ def api_key() -> str | None:
         return os.environ["UPLOAD_POST_API_KEY"]
     kr = _keyring()
     try:
-        return kr.get_password(KEYRING_SERVICE, KEY_NAME) if kr else None
+        return secretstore.get(kr, KEYRING_SERVICE, KEY_NAME) if kr else None
     except Exception:
         return None
 
@@ -62,14 +64,14 @@ def save_key(key: str) -> None:
     kr = _keyring()
     if not kr:
         raise UploadPostError("No OS keychain available; set UPLOAD_POST_API_KEY in your environment instead.")
-    kr.set_password(KEYRING_SERVICE, KEY_NAME, key.strip())
+    secretstore.save(kr, KEYRING_SERVICE, KEY_NAME, key.strip())
 
 
 def delete_key() -> None:
     kr = _keyring()
     if kr:
         try:
-            kr.delete_password(KEYRING_SERVICE, KEY_NAME)
+            secretstore.delete(kr, KEYRING_SERVICE, KEY_NAME)
         except Exception:
             pass
 

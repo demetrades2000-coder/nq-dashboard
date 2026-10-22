@@ -6,19 +6,44 @@
     "campaign_url": "https://whop.com/... (the exact campaign page you joined)",
     "verified_on": "YYYY-MM-DD",
     "evidence": "Paste the campaign's own words saying what you may clip, e.g. 'Clip any video from the @creator YouTube channel'",
-    "allowed_sources": ["youtube.com/@creatorchannel"]
+    "allowed_sources": [
+      "youtube.com/@creatorchannel"
+    ]
   },
   "cpm": 1.25,
   "fee_pct": 10,
   "max_payout_per_clip": 0,
   "min_payout": 0,
-  "platforms": ["youtube"],
-  "sources": ["https://www.youtube.com/@creatorchannel/videos"],
+  "platforms": [
+    "youtube"
+  ],
+  "sources": [
+    "https://www.youtube.com/@creatorchannel/videos"
+  ],
   "language": "en",
-  "clip": {"min": 15, "max": 60, "count": 6, "latest": 2, "layout": "auto", "title": true, "jumpcuts": true},
-  "caption": {"required_hashtags": [], "required_mentions": [], "required_text": ""},
-  "on_screen": {"watermark": "", "highlight": "#FFE600"},
-  "disclosure": {"caption": "", "on_screen": ""},
+  "clip": {
+    "min": 15,
+    "max": 60,
+    "count": 6,
+    "latest": 2,
+    "layout": "auto",
+    "title": true,
+    "jumpcuts": true
+  },
+  "caption": {
+    "required_hashtags": [],
+    "required_mentions": [],
+    "required_text": ""
+  },
+  "on_screen": {
+    "watermark": "",
+    "highlight": "#FFE600"
+  },
+  "disclosure": {
+    "caption": "",
+    "on_screen": ""
+  },
   "banned_phrases": [],
-  "notes": "Paste the campaign rules here. Fill 'disclosure' with the wording the campaign or FTC guidance requires (e.g. '#ad'); if the campaign specifies none, decide with the campaign owner before posting."
+  "notes": "Paste the campaign rules here. Fill 'disclosure' with the wording the campaign or FTC guidance requires (e.g. '#ad'); if the campaign specifies none, decide with the campaign owner before posting. Set automation_allowed to true only if the campaign's rules allow automated/AI clipping tools (search the rules for AI, automat, tool, repurpos); the autopilot refuses otherwise.",
+  "automation_allowed": null
 }

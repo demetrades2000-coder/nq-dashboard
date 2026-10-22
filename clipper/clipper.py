@@ -49,6 +49,16 @@ OUT_W, OUT_H, FPS = 1080, 1920, 30
 _T0 = time.time()
 
 
+def robust_stdio() -> None:
+    """Windows consoles and redirected logs default to cp1252, which can't encode emoji or arrows in captions:
+    print a replacement character instead of crashing the run."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")  # type: ignore[union-attr]
+        except Exception:  # noqa: BLE001  (not a TextIOWrapper, e.g. a test's StringIO)
+            pass
+
+
 def log(msg: str, level: str = "info") -> None:
     tag = {"info": "  ", "ok": "OK", "warn": "!!", "step": "=>", "err": "XX"}.get(level, "  ")
     print(f"[{time.time() - _T0:6.1f}s] {tag} {msg}", flush=True)
@@ -72,7 +82,8 @@ def pip_install(*pkgs: str, upgrade: bool = False) -> bool:
         base.append("-U")
     for extra in ([], ["--user"], ["--break-system-packages"]):
         try:
-            r = subprocess.run(base + extra + list(pkgs), capture_output=True, text=True, timeout=900)
+            r = subprocess.run(base + extra + list(pkgs), capture_output=True, text=True, errors="replace",
+                               timeout=900)
             if r.returncode == 0:
                 return True
         except Exception:
@@ -104,7 +115,7 @@ class Tools:
 
     @classmethod
     def setup(cls, allow_install: bool) -> None:
-        ff = shutil.which("ffmpeg")
+        ff = shutil.which("ffmpeg") or installed_ffmpeg()
         if not ff:
             mod = try_import("imageio_ffmpeg", "imageio-ffmpeg", allow_install)
             if mod:
@@ -116,7 +127,31 @@ class Tools:
                 "Linux: sudo apt install ffmpeg"
             )
         cls.ffmpeg = ff
-        cls.ffprobe = shutil.which("ffprobe")
+        sibling = Path(ff).with_name("ffprobe" + Path(ff).suffix)
+        cls.ffprobe = str(sibling) if sibling.is_file() else shutil.which("ffprobe")
+
+
+def installed_ffmpeg() -> str | None:
+    """ffmpeg installed but not on this process's PATH: winget only updates PATH for new windows, and
+    Homebrew's bin folder isn't on PATH for scheduled jobs (launchd/cron)."""
+    cands: list[Path] = []
+    if os.name == "nt":
+        roots = [Path(os.environ[v]) / sub for v, sub in (("LOCALAPPDATA", "Microsoft/WinGet"), ("ProgramFiles", "WinGet"))
+                 if os.environ.get(v)]  # winget user scope, machine scope
+        for root in roots:
+            cands.append(root / "Links" / "ffmpeg.exe")
+            cands += sorted((root / "Packages").glob("Gyan.FFmpeg*/*/bin/ffmpeg.exe"), reverse=True)
+        cands += [Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "ffmpeg" / "bin" / "ffmpeg.exe",
+                  Path(r"C:\ffmpeg\bin\ffmpeg.exe")]
+    else:
+        cands += [Path("/opt/homebrew/bin/ffmpeg"), Path("/usr/local/bin/ffmpeg")]
+    for c in cands:
+        try:
+            if c.is_file():
+                return str(c)
+        except OSError:
+            pass
+    return None
 
 
 def run(cmd: list[str], cwd: Path | None = None, timeout: float | None = None) -> subprocess.CompletedProcess:
@@ -180,7 +215,7 @@ def fetch(source: str, work: Path, args) -> tuple[Path, dict]:
     meta_file = work / "meta.json"
     if existing and meta_file.exists():
         log("using cached download", "ok")
-        return existing[0], json.loads(meta_file.read_text())
+        return existing[0], json.loads(meta_file.read_text(encoding="utf-8"))
 
     yt_dlp = try_import("yt_dlp", "yt-dlp", not args.no_install)
     if not yt_dlp:
@@ -199,6 +234,8 @@ def fetch(source: str, work: Path, args) -> tuple[Path, dict]:
         "no_warnings": True,
         "noprogress": True,
     }
+    if os.path.isabs(Tools.ffmpeg):  # the ffmpeg we found may not be on PATH (fresh winget install, imageio-ffmpeg)
+        base["ffmpeg_location"] = Tools.ffmpeg
     if args.cookies:
         base["cookiefile"] = args.cookies
     if args.cookies_from_browser:
@@ -242,7 +279,7 @@ def fetch(source: str, work: Path, args) -> tuple[Path, dict]:
         raise RuntimeError("download finished but no video file was produced")
     meta = {k: info.get(k, "") for k in ("title", "uploader", "webpage_url", "duration", "id", "extractor")}
     meta["section_offset"] = parse_time(args.section.split("-", 1)[0]) if args.section else 0.0
-    meta_file.write_text(json.dumps(meta, indent=2))
+    meta_file.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
     # Subtitles are a separate, optional request: a 429 on captions must not cost the video.
     if not args.section:
@@ -259,7 +296,7 @@ def fetch(source: str, work: Path, args) -> tuple[Path, dict]:
         for f in work.glob("subs.*"):
             lang = f.suffixes[0].strip(".") if len(f.suffixes) > 1 else ""
             kind = "manual" if lang in manual else "auto"
-            f.rename(work / f"subs_{kind}{''.join(f.suffixes[-1:])}")
+            f.replace(work / f"subs_{kind}{''.join(f.suffixes[-1:])}")  # replace: rename fails on Windows if it exists
     log(f"downloaded: {meta['title']}", "ok")
     return files[0], meta
 
@@ -377,16 +414,23 @@ def whisper_faster(audio: Path, args) -> list[Word]:
     fw = try_import("faster_whisper", "faster-whisper", not args.no_install)
     if not fw:
         raise RuntimeError("faster-whisper unavailable")
-    model = None
-    for device, ctype in (("cuda", "float16"), ("cpu", "int8")):
+    last: Exception | None = None
+    devices = [("cuda", "float16"), ("cpu", "int8")]
+    if os.name == "nt" and os.environ.get("CLIPPER_WHISPER_DEVICE", "").lower() != "cuda":
+        # Windows PCs with an NVIDIA card but without the cuBLAS/cuDNN DLLs load the model on cuda and then fail
+        # (or abort the whole process) once transcription starts; CPU is reliable. Opt in: CLIPPER_WHISPER_DEVICE=cuda
+        devices = devices[1:]
+    for device, ctype in devices:
         try:
             model = fw.WhisperModel(args.model, device=device, compute_type=ctype)
             log(f"whisper '{args.model}' on {device}")
-            break
-        except Exception as e:  # noqa: BLE001
+            return _whisper_words(model, audio, args)
+        except Exception as e:  # noqa: BLE001  (cuda failures retry on cpu)
             last = e
-    if model is None:
-        raise RuntimeError(f"could not load whisper model: {last}")
+    raise RuntimeError(f"could not run whisper model: {last}")
+
+
+def _whisper_words(model, audio: Path, args) -> list[Word]:
     segs, info = model.transcribe(str(audio), language=args.lang or None, word_timestamps=True,
                                   vad_filter=True, beam_size=5)
     words, last_print = [], 0.0
@@ -418,7 +462,7 @@ def transcribe(video: Path, audio: Path | None, work: Path, args) -> tuple[list[
     cache = work / "transcript.json"
     if cache.exists() and not args.transcript:
         try:
-            d = json.loads(cache.read_text())
+            d = json.loads(cache.read_text(encoding="utf-8"))
             log(f"using cached transcript ({d['source']})", "ok")
             return [Word(**w) for w in d["words"]], d["source"]
         except Exception:
@@ -444,7 +488,7 @@ def transcribe(video: Path, audio: Path | None, work: Path, args) -> tuple[list[
             words = [w for w in fn() if w.w and w.e >= w.s]
             words.sort(key=lambda w: w.s)
             if len(words) >= 10:
-                cache.write_text(json.dumps({"source": name, "words": [w.__dict__ for w in words]}))
+                cache.write_text(json.dumps({"source": name, "words": [w.__dict__ for w in words]}), encoding="utf-8")
                 log(f"transcript: {len(words)} words via {name}", "ok")
                 return words, name
             log(f"{name} returned too little text", "warn")
@@ -1212,8 +1256,8 @@ def write_report(outdir: Path, meta: dict, clips: list[Clip], paths: list[Path |
         if c.text:
             md += [f"> {c.text[:600]}{'...' if len(c.text) > 600 else ''}", ""]
     (outdir / "clips.json").write_text(json.dumps({"source": meta, "campaign": (camp or {}).get("name"),
-                                                   "clips": rows}, indent=2))
-    (outdir / "CLIPS.md").write_text("\n".join(md))
+                                                   "clips": rows}, indent=2), encoding="utf-8")
+    (outdir / "CLIPS.md").write_text("\n".join(md), encoding="utf-8")
 
 
 # ---------------------------------------------------------------- main flow
@@ -1325,7 +1369,7 @@ def selftest(args) -> int:
             srt.append(f"{n}\n{hms(t)},{int(t % 1 * 1000):03d} --> {hms(t + d)},{int((t + d) % 1 * 1000):03d}\n{ln}\n")
             n += 1
             t += d + (1.4 if n % 4 == 0 else 0.25)
-    (tdir / "selftest.srt").write_text("\n".join(srt))
+    (tdir / "selftest.srt").write_text("\n".join(srt), encoding="utf-8")
     ns = argparse.Namespace(**vars(args))
     ns.out, ns.clips, ns.min, ns.max, ns.no_ai = str(tdir / "out"), 3, 15.0, 40.0, True
     ns.transcript, ns.keep_source = str(tdir / "selftest.srt"), True
@@ -1436,6 +1480,7 @@ def expand_sources(sources: list[str], latest: int, args) -> list[str]:
 
 
 def main(argv=None) -> int:
+    robust_stdio()
     pre, _ = build_parser().parse_known_args(argv)
     camp = None
     if pre.campaign:
@@ -1457,7 +1502,7 @@ def main(argv=None) -> int:
         return selftest(args)
     sources = list(args.sources)
     if args.from_file:
-        sources += [ln.strip() for ln in Path(args.from_file).read_text().splitlines()
+        sources += [ln.strip() for ln in Path(args.from_file).read_text(encoding="utf-8-sig").splitlines()
                     if ln.strip() and not ln.strip().startswith("#")]
     if camp and not sources:
         sources = list(camp.get("sources") or [])
@@ -1467,7 +1512,7 @@ def main(argv=None) -> int:
     sources = expand_sources(sources, max(1, args.latest), args)
     done_file = Path(args.out).expanduser().resolve() / ".done.json"
     try:
-        done = set(json.loads(done_file.read_text())) if done_file.exists() else set()
+        done = set(json.loads(done_file.read_text(encoding="utf-8"))) if done_file.exists() else set()
     except Exception:
         done = set()
     failures = 0
@@ -1482,7 +1527,7 @@ def main(argv=None) -> int:
             if rc == 0 and camp and not args.dry_run:
                 done.add(src)
                 done_file.parent.mkdir(parents=True, exist_ok=True)
-                done_file.write_text(json.dumps(sorted(done), indent=1))
+                done_file.write_text(json.dumps(sorted(done), indent=1), encoding="utf-8")
         except KeyboardInterrupt:
             log("interrupted", "err")
             return 130

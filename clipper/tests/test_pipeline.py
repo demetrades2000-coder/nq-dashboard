@@ -99,6 +99,7 @@ class PipelineTests(unittest.TestCase):
     @classmethod
     def write_campaign(cls, path: Path, **over):
         c = json.loads((HERE / "campaigns" / "_template.json").read_text())
+        c["automation_allowed"] = True
         c["name"] = "Test Campaign"
         c["permission"].update(campaign_url="https://example.com/c", verified_on=dt.date.today().isoformat(),
                                evidence="test", allowed_sources=[f"file:{cls.footage}"])

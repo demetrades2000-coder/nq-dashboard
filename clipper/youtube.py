@@ -17,6 +17,8 @@ import random
 import time
 from pathlib import Path
 
+import secretstore
+
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly"]
 KEYRING_SERVICE = "money-clipper"
 TOKEN_KEY = "youtube-token"
@@ -71,7 +73,7 @@ def authorize(client_secret: str, account: str = "default") -> str:
     from google_auth_oauthlib.flow import InstalledAppFlow
     flow = InstalledAppFlow.from_client_secrets_file(client_secret, SCOPES)
     creds = flow.run_local_server(port=0, open_browser=True)
-    kr.set_password(KEYRING_SERVICE, _key(account), creds.to_json())
+    secretstore.save(kr, KEYRING_SERVICE, _key(account), creds.to_json())
     ch = channel_info(service(account))
     return f"account '{account}' authorized for channel: {ch.get('title')} ({ch.get('id')})"
 
@@ -79,7 +81,7 @@ def authorize(client_secret: str, account: str = "default") -> str:
 def has_token(account: str = "default") -> bool:
     kr = _keyring()
     try:
-        return bool(kr and kr.get_password(KEYRING_SERVICE, _key(account)))
+        return bool(kr and secretstore.get(kr, KEYRING_SERVICE, _key(account)))
     except Exception:
         return False
 
@@ -88,7 +90,7 @@ def revoke(account: str = "default") -> None:
     kr = _keyring()
     if kr:
         try:
-            kr.delete_password(KEYRING_SERVICE, _key(account))
+            secretstore.delete(kr, KEYRING_SERVICE, _key(account))
         except Exception:
             pass
 
@@ -99,7 +101,7 @@ def service(account: str = "default"):
     from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
     kr = _keyring()
-    raw = kr.get_password(KEYRING_SERVICE, _key(account)) if kr else None
+    raw = secretstore.get(kr, KEYRING_SERVICE, _key(account)) if kr else None
     if not raw:
         raise YouTubeError(f"YouTube account '{account}' isn't connected. Run: python pipeline.py youtube auth "
                            f"--client-secret <file>" + ("" if account == "default" else f" --account {account}"))
@@ -112,7 +114,7 @@ def service(account: str = "default"):
                 raise YouTubeError(f"YouTube authorization expired or was revoked ({e}); run `pipeline.py youtube auth` "
                                    "again. Note: Google expires tokens after 7 days while the OAuth app is in "
                                    "'Testing' status; publish the app (In production) to avoid that.")
-            kr.set_password(KEYRING_SERVICE, _key(account), creds.to_json())
+            secretstore.save(kr, KEYRING_SERVICE, _key(account), creds.to_json())
         else:
             raise YouTubeError("YouTube token invalid; run `pipeline.py youtube auth` again")
     return build("youtube", "v3", credentials=creds, cache_discovery=False)

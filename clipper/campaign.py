@@ -97,13 +97,26 @@ def _tags(items) -> list[str]:
     return out
 
 
+def mentions_for(c: dict | None, platform: str) -> list[str]:
+    """required_mentions is a list (same tag everywhere) or a {platform: [tags]} map (handles differ per app)."""
+    m = ((c or {}).get("caption") or {}).get("required_mentions")
+    if isinstance(m, dict):
+        return _tags(m.get(platform) or m.get("default") or [])
+    return _tags(m)
+
+
+def automation_allowed(c: dict) -> bool | None:
+    """True only when the brief records that the campaign's rules allow automated/AI clipping tools."""
+    v = c.get("automation_allowed")
+    return v if isinstance(v, bool) else None
+
+
 def platform_posts(c: dict | None, title: str, caption: str, hashtags: list[str]) -> dict:
     """Ready-to-paste caption per platform. The disclosure leads (so it shows before "...more") and the
     disclosure and required text/tags are never trimmed; only the free caption is cut to fit."""
     cap = (c or {}).get("caption", {})
     disc = (((c or {}).get("disclosure") or {}).get("caption") or "").strip()
     req_tags = _tags(cap.get("required_hashtags"))
-    mentions = _tags(cap.get("required_mentions"))
     req_text = (cap.get("required_text") or "").strip()
     platforms = (c or {}).get("platforms") or ["tiktok", "instagram", "youtube", "x"]
     posts = {}
@@ -111,6 +124,7 @@ def platform_posts(c: dict | None, title: str, caption: str, hashtags: list[str]
         limit, max_tags = PLATFORM_LIMITS.get(p, (2200, 8))
         tags = list(dict.fromkeys(req_tags + [h for h in hashtags if h not in req_tags]))
         tags = tags[:max(max_tags, len(req_tags))]
+        mentions = mentions_for(c, p)
         tail = "\n\n".join(x for x in [req_text, " ".join(mentions), " ".join(tags)] if x)
         if p == "youtube":
             head = " ".join(x for x in [disc, title] if x)
@@ -140,9 +154,12 @@ def compliance(c: dict | None, duration: float, transcript: str, posts: dict, wa
         checks.append((ok, f"length {duration:.0f}s within {lo or 0}-{hi or 'any'}s"))
     hit = banned_hit(c, transcript)
     checks.append((hit is None, "no banned claims" if hit is None else f"contains banned phrase '{hit}'"))
-    for need in _tags(cap.get("required_hashtags")) + _tags(cap.get("required_mentions")):
+    for need in _tags(cap.get("required_hashtags")):
         ok = all(need.lower() in json.dumps(v).lower() for v in posts.values())
         checks.append((ok, f"caption includes {need}"))
+    for plat, post in posts.items():
+        for need in mentions_for(c, plat):
+            checks.append((need.lower() in json.dumps(post).lower(), f"{plat} caption tags {need}"))
     if cap.get("required_text"):
         ok = all(cap["required_text"].lower() in json.dumps(v).lower() for v in posts.values())
         checks.append((ok, "caption includes required text"))

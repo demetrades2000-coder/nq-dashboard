@@ -41,5 +41,6 @@
     "on_screen": ""
   },
   "banned_phrases": [],
-  "notes": "Found via search 2026-10-21: $1.00/1K views on Instagram and YouTube, $1 min / $350 max payout, budget about $3.4K-$5K depending on snapshot. NOT paid on TikTok. TODO: add the exact 20VC episode URL to permission.allowed_sources and sources, paste the rules, set verified_on."
+  "notes": "Found via search 2026-10-21: $1.00/1K views on Instagram and YouTube, $1 min / $350 max payout, budget about $3.4K-$5K depending on snapshot. NOT paid on TikTok. TODO: add the exact 20VC episode URL to permission.allowed_sources and sources, paste the rules, set verified_on.",
+  "automation_allowed": null
 }

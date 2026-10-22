@@ -605,9 +605,7 @@ def pid_alive(pid: int) -> bool:
     if pid <= 0:
         return False
     if os.name == "nt":  # os.kill(pid, 0) would terminate the process on Windows
-        import subprocess
-        out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, text=True).stdout
-        return str(pid) in out
+        return _pid_alive_nt(pid)
     try:
         os.kill(pid, 0)
         return True
@@ -615,6 +613,42 @@ def pid_alive(pid: int) -> bool:
         return False
     except PermissionError:
         return True
+
+
+def _pid_alive_nt(pid: int) -> bool:
+    """Windows: is `pid` a running Python process? Windows reuses PIDs quickly, and a run whose console window
+    was closed leaves its lock behind, so a live process that isn't Python doesn't count."""
+    try:
+        import ctypes
+        from ctypes import wintypes
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.OpenProcess.restype = wintypes.HANDLE
+        k32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        k32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+        k32.QueryFullProcessImageNameW.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR,
+                                                   ctypes.POINTER(wintypes.DWORD)]
+        k32.CloseHandle.argtypes = [wintypes.HANDLE]
+        h = k32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return ctypes.get_last_error() == 5  # access denied: exists but belongs to another user
+        try:
+            code = wintypes.DWORD()
+            if k32.GetExitCodeProcess(h, ctypes.byref(code)) and code.value != 259:  # 259 = STILL_ACTIVE
+                return False
+            buf, size = ctypes.create_unicode_buffer(32768), wintypes.DWORD(32768)
+            if k32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(size)):
+                return "python" in Path(buf.value).name.lower()
+            return True
+        finally:
+            k32.CloseHandle(h)
+    except Exception:  # noqa: BLE001  (fall back to tasklist)
+        import subprocess
+        try:
+            out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"], capture_output=True,
+                                 text=True, errors="replace", timeout=30).stdout
+        except Exception:  # noqa: BLE001
+            return False
+        return f'"{pid}"' in out
 
 
 class RunLock:
@@ -630,12 +664,12 @@ class RunLock:
             return self
         if self.path.exists():
             try:
-                pid = int(self.path.read_text().strip() or 0)
+                pid = int(self.path.read_text(encoding="utf-8").strip() or 0)
             except ValueError:
                 pid = 0
             if pid_alive(pid) and pid != os.getpid():
                 raise SystemExit(f"Another run is in progress (pid {pid}). If that's wrong, delete {self.path}")
-        self.path.write_text(str(os.getpid()))
+        self.path.write_text(str(os.getpid()), encoding="utf-8")
         RunLock._depth[key] = 1
         return self
 
@@ -1087,6 +1121,10 @@ def cmd_earnings(ws: WS, a) -> int:
 
 # ---------------------------------------------------------------- autopilot
 
+AUTOMATION_MSG = ("'{name}' {state} automated/AI clipping tools, so the autopilot won't run it: clips that break a "
+                  "campaign rule aren't paid. Check the rules (search the page for 'AI', 'automat', 'tool', "
+                  "'repurpos'); if nothing forbids tools, run: python pipeline.py campaign-set <file> "
+                  "--automation-allowed yes")
 HOLD_DEFAULT = ["unsure of", "may depend on earlier context", "ends mid-sentence", "transcript from"]
 
 
@@ -1319,9 +1357,13 @@ def autopilot_cycle(ws: WS, a, uploader=None, uploaders=None) -> int:
         # 1. import newest permitted sources for every autopilot campaign
         for f in ws.setting("autopilot.campaigns", []):
             try:
-                load_campaign_checked(f)
+                cc = load_campaign_checked(f)
             except Exception as e:  # noqa: BLE001
                 rep["skipped_campaigns"].append(f"{f}: {e}")
+                continue
+            if cmp.automation_allowed(cc) is not True:
+                rep["skipped_campaigns"].append(f"{cc['name']}: rules don't allow automated clipping tools "
+                                                "(or it isn't confirmed)")
                 continue
             ns = argparse.Namespace(campaign=f, sources=[], transcript=None, latest=None,
                                     cookies_from_browser=getattr(a, "cookies_from_browser", None), force=False)
@@ -1581,6 +1623,10 @@ def cmd_autopilot(ws: WS, a) -> int:
         except Blocked as e:
             print(e)
             return 1
+        if cmp.automation_allowed(c) is not True:
+            print(AUTOMATION_MSG.format(name=c["name"], state="bans" if cmp.automation_allowed(c) is False else
+                                        "hasn't been confirmed to allow"))
+            return 1
         lst = ws.setting("autopilot.campaigns", [])
         if c["_path"] not in lst:
             lst.append(c["_path"])
@@ -1751,22 +1797,144 @@ def schedule_command(ws: WS) -> list[str]:
     return [sys.executable, str(Path(__file__).resolve()), "--home", str(ws.home), "autopilot", "run"]
 
 
+TASK_NAME = "MoneyClipperAutopilot"
+LAUNCHD_LABEL = "com.money-clipper.autopilot"
+
+
+def windows_wrapper(ws: WS) -> Path:
+    """A small .cmd the Windows task runs: same python.exe as now, UTF-8 output, appended to the autopilot log.
+    Keeps the task's own command short and free of nested quoting whatever the folder names are."""
+    cmd = schedule_command(ws)
+    log = ws.home / "logs" / "autopilot.log"
+
+    def q(x) -> str:
+        return '"' + str(x).replace("%", "%%") + '"'
+    lines = ["@echo off",
+             "chcp 65001 >nul",  # the lines below may hold non-ASCII folder names; this file is UTF-8
+             "set PYTHONUTF8=1",
+             "set PYTHONIOENCODING=utf-8",
+             f"cd /d {q(Path(__file__).resolve().parent)}",
+             " ".join(q(c) for c in cmd) + f" >> {q(log)} 2>&1"]
+    path = ws.home / "run-autopilot.cmd"
+    path.write_bytes(("\r\n".join(lines) + "\r\n").encode("utf-8"))
+    return path
+
+
+def windows_task_xml(wrapper: Path, hours: int, start: dt.datetime) -> str:
+    """Task Scheduler definition. Unlike a plain `schtasks /SC HOURLY` task it also runs on battery power, catches
+    up after sleep, never starts a second copy, and opens its console window minimized."""
+    e = html.escape
+    user = "\\".join(x for x in (os.environ.get("USERDOMAIN"), os.environ.get("USERNAME")) if x)
+    return f"""<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo><Description>Money Clipper autopilot: python pipeline.py autopilot run</Description></RegistrationInfo>
+  <Triggers>
+    <TimeTrigger>
+      <Repetition><Interval>PT{hours}H</Interval><StopAtDurationEnd>false</StopAtDurationEnd></Repetition>
+      <StartBoundary>{start.strftime("%Y-%m-%dT%H:%M:%S")}</StartBoundary>
+      <Enabled>true</Enabled>
+    </TimeTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">{f"<UserId>{e(user)}</UserId>" if user else ""}<LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <IdleSettings><StopOnIdleEnd>false</StopOnIdleEnd><RestartOnIdle>false</RestartOnIdle></IdleSettings>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <ExecutionTimeLimit>PT12H</ExecutionTimeLimit>
+  </Settings>
+  <Actions Context="Author">
+    <Exec><Command>cmd.exe</Command><Arguments>{e(f'/c start "" /min "{wrapper}"')}</Arguments></Exec>
+  </Actions>
+</Task>
+"""
+
+
+def _schedule_windows(ws: WS, a, hours: int) -> int:
+    import subprocess
+    wrapper = windows_wrapper(ws)
+    first = (dt.datetime.now() + dt.timedelta(hours=1)).replace(minute=random_minute(), second=0, microsecond=0)
+    xml = ws.home / "autopilot-task.xml"
+    xml.write_text(windows_task_xml(wrapper, hours, first), encoding="utf-16")
+    install = ["schtasks", "/Create", "/F", "/TN", TASK_NAME, "/XML", str(xml)]
+    # fallback if the XML is refused: a plain task (doesn't run on battery power); /TR stays far under 261 chars
+    simple = ["schtasks", "/Create", "/F", "/TN", TASK_NAME, "/TR", f'"{wrapper}"'] + \
+        (["/SC", "DAILY"] if hours >= 24 else ["/SC", "HOURLY", "/MO", str(hours)])
+    remove = ["schtasks", "/Delete", "/F", "/TN", TASK_NAME]
+    if a.action == "print":
+        print(f"{subprocess.list2cmdline(install)}\n  task runs: {wrapper}\n  which runs: "
+              + subprocess.list2cmdline(schedule_command(ws)) + f"\n  log: {ws.home / 'logs' / 'autopilot.log'}")
+        return 0
+
+    def sch(cmd):
+        return subprocess.run(cmd, capture_output=True, text=True, errors="replace")
+    if a.action == "remove":
+        r = sch(remove)
+        print((r.stdout or r.stderr).strip() or "schedule removed")
+        return r.returncode
+    r = sch(install)
+    if r.returncode:
+        r = sch(simple)
+    print((r.stdout or r.stderr).strip())
+    if not r.returncode:
+        print(f"installed: every {hours}h (first run around {first:%H:%M}) -> {ws.home / 'logs' / 'autopilot.log'}\n"
+              "The computer must be on and you must be signed in to Windows for it to run.")
+    return r.returncode
+
+
+def _schedule_macos(ws: WS, a, hours: int) -> int:
+    """launchd agent rather than cron: it runs in your login session, so it can read the login keychain, and
+    Homebrew's ffmpeg is put on its PATH."""
+    import plistlib
+    import subprocess
+    plist = Path.home() / "Library" / "LaunchAgents" / f"{LAUNCHD_LABEL}.plist"
+    log = ws.home / "logs" / "autopilot.log"
+    path = os.pathsep.join(dict.fromkeys(["/opt/homebrew/bin", "/usr/local/bin"]
+                                         + os.environ.get("PATH", "/usr/bin:/bin").split(os.pathsep)))
+    spec = {"Label": LAUNCHD_LABEL, "ProgramArguments": schedule_command(ws), "StartInterval": hours * 3600,
+            "WorkingDirectory": str(Path(__file__).resolve().parent), "StandardOutPath": str(log),
+            "StandardErrorPath": str(log), "EnvironmentVariables": {"PATH": path, "PYTHONIOENCODING": "utf-8"}}
+    if a.action == "print":
+        print(f"{plist}:\n" + plistlib.dumps(spec).decode() + "runs: " + " ".join(schedule_command(ws)))
+        return 0
+    if plist.exists():
+        subprocess.run(["launchctl", "unload", str(plist)], capture_output=True)
+    if a.action == "remove":
+        plist.unlink(missing_ok=True)
+        print("schedule removed")
+        return 0
+    plist.parent.mkdir(parents=True, exist_ok=True)
+    plist.write_bytes(plistlib.dumps(spec))
+    r = subprocess.run(["launchctl", "load", "-w", str(plist)], capture_output=True, text=True, errors="replace")
+    if r.returncode:
+        print(r.stderr.strip())
+        return r.returncode
+    print(f"installed: every {hours}h → {log}")
+    protected = [d for d in ("Desktop", "Documents", "Downloads") if (Path.home() / d) in ws.home.parents
+                 or (Path.home() / d) in Path(__file__).resolve().parents]
+    if protected:
+        print(f"Note: macOS limits background jobs inside your {protected[0]} folder. If the log shows "
+              "'Operation not permitted', move this folder into your home folder and run `schedule install` again "
+              "(or allow it under System Settings → Privacy & Security → Files and Folders).")
+    return 0
+
+
 def cmd_schedule(ws: WS, a) -> int:
     import shlex
     import subprocess
     cmd = schedule_command(ws)
     log = ws.home / "logs" / "autopilot.log"
     if os.name == "nt":
-        tr = " ".join(f'"{c}"' for c in cmd)
-        install = ["schtasks", "/Create", "/F", "/SC", "HOURLY", "/MO", str(a.every_hours), "/TN", "MoneyClipperAutopilot",
-                   "/TR", tr]
-        remove = ["schtasks", "/Delete", "/F", "/TN", "MoneyClipperAutopilot"]
-        if a.action == "print":
-            print(subprocess.list2cmdline(install))
-            return 0
-        r = subprocess.run(install if a.action == "install" else remove, capture_output=True, text=True)
-        print((r.stdout or r.stderr).strip())
-        return r.returncode
+        return _schedule_windows(ws, a, max(1, min(a.every_hours, 24)))
+    if sys.platform == "darwin":
+        return _schedule_macos(ws, a, max(1, min(a.every_hours, 24)))
     hours = max(1, min(a.every_hours, 24))
     line = (f"{random_minute()} */{hours} * * * " + " ".join(shlex.quote(c) for c in cmd)
             + f" >> {shlex.quote(str(log))} 2>&1 {SCHED_MARK}")
@@ -1923,6 +2091,16 @@ def cmd_campaign_set(ws: WS, a) -> int:
     if a.hashtag:
         cap["required_hashtags"] = [h if h.startswith("#") else "#" + h for h in a.hashtag]
         changed.append("required_hashtags")
+    if getattr(a, "mention_for", None):
+        m = cap.get("required_mentions") if isinstance(cap.get("required_mentions"), dict) else {}
+        for plat, h in a.mention_for:
+            m.setdefault(plat.lower(), [])
+            m[plat.lower()] = [h if h.startswith("@") else "@" + h]
+        cap["required_mentions"] = m
+        changed.append("required_mentions")
+    if getattr(a, "automation_allowed", None):
+        c["automation_allowed"] = a.automation_allowed == "yes"
+        changed.append("automation_allowed")
     if a.cpm is not None:
         c["cpm"] = a.cpm
         changed.append("cpm")
@@ -1947,6 +2125,10 @@ def ask(q: str, default: str = "y") -> bool:
 
 def campaign_problems(c: dict) -> list[str]:
     probs = cmp.permission_problems(c)
+    if cmp.automation_allowed(c) is False:
+        probs.append("its rules ban automated/AI clipping tools: the autopilot can't run it")
+    elif cmp.automation_allowed(c) is None:
+        probs.append("confirm its rules allow automated/AI clipping tools (search the rules for AI, automat, tool)")
     logo = cmp.cli_defaults(c).get("logo")
     if logo and not Path(logo).exists():
         probs.append(f"save the official logo as {logo}")
@@ -1983,11 +2165,67 @@ def open_folder(path: Path) -> None:
     print(f"    (folder: {path})")
 
 
+def clean_path(s: str) -> str:
+    """A path pasted or dragged into the terminal: Windows wraps it in quotes ("Copy as path"), macOS escapes
+    spaces with backslashes."""
+    s = s.strip().strip('"').strip("'").strip()
+    if os.name != "nt" and not Path(s).exists() and "\\" in s:
+        s = re.sub(r"\\(.)", r"\1", s)
+    return s
+
+
 def _input(q: str) -> str:
     try:
         return input(q).strip()
     except EOFError:
         return ""
+
+
+def new_campaign_wizard(root: Path) -> Path | None:
+    """Create a campaign file from plain-language answers (no JSON editing)."""
+    name = _input("    Campaign name (e.g. 'PB Blake'): ")
+    if not name:
+        return None
+    url = _input("    Campaign page link (from Whop / Content Rewards): ")
+    try:
+        cpm = float(_input("    Pay per 1,000 views in $ (e.g. 1.25): ").replace("$", "") or 0)
+    except ValueError:
+        cpm = 0.0
+    try:
+        cap_usd = float(_input("    Max payout per clip in $ (blank if none): ").replace("$", "") or 0)
+    except ValueError:
+        cap_usd = 0.0
+    plats = [x.strip().lower() for x in (_input("    Platforms it pays on [tiktok,instagram,youtube]: ")
+                                         or "tiktok,instagram,youtube").split(",") if x.strip()]
+    slug = cmp.slug({"name": name})
+    c = json.loads((root / "_template.json").read_text(encoding="utf-8"))
+    c.update(name=name, cpm=cpm, max_payout_per_clip=cap_usd, platforms=plats, automation_allowed=None,
+             notes=f"Created by setup on {dt.date.today().isoformat()}.")
+    c["permission"].update(program="Content Rewards", campaign_url=url or "TODO: campaign page link",
+                           verified_on="", evidence="TODO")
+    print("    Where does the footage come from?\n      1) videos the campaign gives you (download links)\n"
+          "      2) a YouTube / Twitch channel the rules let you clip")
+    if _input("    1 or 2: ") == "2":
+        ch = _input("    Channel link (e.g. https://www.youtube.com/@creator/videos): ")
+        c["sources"] = [ch] if ch else []
+        c["permission"]["allowed_sources"] = [re.sub(r"/(videos|streams|shorts)/?$", "", ch)] if ch else []
+    else:
+        c["sources"] = [f"footage/{slug}"]
+        c["permission"]["allowed_sources"] = [f"file:footage/{slug}"]
+        (root / "footage" / slug).mkdir(parents=True, exist_ok=True)
+    handle = _input("    @handle the rules say to tag in captions (blank if none): ")
+    c["caption"]["required_mentions"] = [handle if handle.startswith("@") else "@" + handle] if handle else []
+    if ask("    Do the rules require their logo on screen?", "n"):
+        c["on_screen"]["logo"] = f"logos/{slug}.png"
+        c["clip"]["layout"] = "fit"
+    acct = _input("    Name of the dedicated account you made for it, as shown in Zernio (blank = your only account): ")
+    if acct:
+        c["accounts"] = {p: acct for p in plats}
+    c["permission"]["verified_on"] = ""
+    f = root / f"{slug}.json"
+    f.write_text(json.dumps(c, indent=2) + "\n", encoding="utf-8")
+    print(f"    saved {f.name}")
+    return f
 
 
 def guided_fill(f: Path) -> None:
@@ -2002,10 +2240,15 @@ def guided_fill(f: Path) -> None:
         ev = _input("    Copy one sentence from the campaign rules about what you may clip, paste it here: ")
         if ev:
             perm["evidence"] = ev
-    if any("TODO" in str(m) for m in cap.get("required_mentions", [])):
+    if "TODO" in json.dumps(cap.get("required_mentions", [])):
         h = _input("    The @handle the rules say to tag (e.g. @alphafutures): ")
         if h:
             cap["required_mentions"] = [x if x.startswith("@") else "@" + x for x in h.replace(",", " ").split()]
+    if not isinstance(raw.get("automation_allowed"), bool):
+        print("    Open the campaign rules and search the page (Ctrl+F / Cmd+F) for: AI, automat, tool, repurpos")
+        raw["automation_allowed"] = ask("    Do the rules allow automated / AI clipping tools (nothing forbids them)?", "n")
+        if not raw["automation_allowed"]:
+            print("    Then the autopilot can't run this campaign (unpaid clips). Pick one whose rules allow tools.")
     if not perm.get("verified_on") or "TODO" in str(perm.get("verified_on")):
         if ask("    Is the campaign live with budget left right now?"):
             perm["verified_on"] = dt.date.today().isoformat()
@@ -2043,13 +2286,19 @@ def cmd_setup(ws: WS, a) -> int:
     print("  ok\n\nStep 2/5: campaigns")
     root = Path(__file__).resolve().parent / "campaigns"
     ready = []
+    if not ASSUME_DEFAULTS and ask("  Add a new campaign you joined? (answer a few questions, no file editing)", "n"):
+        made = new_campaign_wizard(root)
+        if made:
+            guided_fill(made)
     files = sorted((p for p in root.glob("*.json") if not p.name.startswith("_")),
-                   key=lambda p: (p.name != "alpha-futures.json", p.name))  # our pick first
+                   key=lambda p: (-p.stat().st_mtime, p.name))  # newest first
     for f in files:
         c = cmp.load(str(f))
         probs = campaign_problems(c)
-        if probs and not ASSUME_DEFAULTS and ask(f"  Set up '{c['name']}' now?",
-                                                 "y" if f.name == "alpha-futures.json" else "n"):
+        if probs and cmp.automation_allowed(c) is False:
+            print(f"  SKIP  {f.name}: its rules ban automated clipping tools")
+            continue
+        if probs and not ASSUME_DEFAULTS and ask(f"  Finish setting up '{c['name']}' now?", "n"):
             guided_fill(f)
             c = cmp.load(str(f))
             probs = campaign_problems(c)
@@ -2113,7 +2362,7 @@ def cmd_setup(ws: WS, a) -> int:
                 if p == "youtube":
                     path = os.environ.get("YOUTUBE_CLIENT_SECRET") or input(
                         "    Path to your Google OAuth client JSON (see youtube.py for the 2-minute setup): ").strip()
-                    print("   ", mod.authorize(path.strip('"'), acct))
+                    print("   ", mod.authorize(clean_path(path), acct))
                 else:
                     key = os.environ.get("TIKTOK_CLIENT_KEY") or input(
                         "    TikTok client key (developers.tiktok.com -> your app): ").strip()
@@ -2282,6 +2531,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--source", action="append", help="add a source to import (URL or folder)")
     s.add_argument("--cpm", type=float)
     s.add_argument("--max-payout", type=float)
+    s.add_argument("--automation-allowed", choices=["yes", "no"],
+                   help="do the campaign's rules allow automated/AI clipping tools? (autopilot needs yes)")
+    s.add_argument("--mention-for", nargs=2, action="append", metavar=("PLATFORM", "HANDLE"),
+                   help="per-platform tag, e.g. --mention-for tiktok @brand --mention-for instagram @brand_ig")
     s = sub.add_parser("notify", help="phone notifications via the ntfy app (opt-in)")
     s.add_argument("action", choices=["setup", "test", "off"])
     s.add_argument("--topic")
@@ -2302,7 +2555,25 @@ COMMANDS = {"campaign-check": cmd_campaign_check, "import": cmd_import, "run": c
             "dashboard": cmd_dashboard}
 
 
+def ensure_ca_bundle() -> None:
+    """python.org's macOS Python ships without CA certificates until "Install Certificates.command" is run, so
+    every HTTPS call fails with CERTIFICATE_VERIFY_FAILED. Point OpenSSL at certifi's bundle in that case."""
+    if sys.platform != "darwin" or os.environ.get("SSL_CERT_FILE"):
+        return
+    try:
+        import ssl
+        paths = ssl.get_default_verify_paths()
+        if (paths.cafile and Path(paths.cafile).exists()) or (paths.capath and any(Path(paths.capath).glob("*.0"))):
+            return
+        import certifi
+        os.environ["SSL_CERT_FILE"] = certifi.where()
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def main(argv=None) -> int:
+    cl.robust_stdio()
+    ensure_ca_bundle()
     a = build_parser().parse_args(argv)
     ws = WS(a.home)
     try:

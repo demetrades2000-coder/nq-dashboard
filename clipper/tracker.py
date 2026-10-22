@@ -36,10 +36,10 @@ def platform_of(url: str) -> str:
 def load_db(path: Path) -> dict:
     if path.exists():
         try:
-            return json.loads(path.read_text())
+            return json.loads(path.read_text(encoding="utf-8"))
         except Exception:
             backup = path.with_suffix(".corrupt.json")
-            path.rename(backup)
+            path.replace(backup)  # rename fails on Windows when an older backup exists
             print(f"!! earnings file was unreadable; moved to {backup}")
     return {"posts": []}
 
@@ -47,7 +47,7 @@ def load_db(path: Path) -> dict:
 def save_db(path: Path, db: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(db, indent=2))
+    tmp.write_text(json.dumps(db, indent=2), encoding="utf-8")
     tmp.replace(path)
 
 
@@ -161,7 +161,7 @@ def cmd_report(a, db, db_path: Path):
               "for that campaign. Drop campaigns that stay under ~$1 per post after a week."]
     text = "\n".join(lines)
     print(text)
-    (db_path.parent / "EARNINGS.md").write_text(text + "\n")
+    (db_path.parent / "EARNINGS.md").write_text(text + "\n", encoding="utf-8")
 
 
 def main(argv=None) -> int:

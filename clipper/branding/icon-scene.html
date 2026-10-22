@@ -1,0 +1,294 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Clip Engine icon scene</title>
+<style>html,body{margin:0;background:transparent;overflow:hidden}canvas{display:block}</style>
+<script type="importmap">
+{ "imports": {
+  "three": "./node_modules/three/build/three.module.js",
+  "three/addons/": "./node_modules/three/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<script type="module">
+/*
+ * Clip Engine app icon - 3D mark.
+ * Renders ONLY the mark on a transparent background (alpha). Background squircle,
+ * neon bloom and final compositing are done by compose.py (Pillow).
+ * URL params: ?size=2048
+ */
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const P = new URLSearchParams(location.search);
+const SIZE = +(P.get('size') || 2048);
+
+const C = {
+  indigo: new THREE.Color('#6d7cff'),
+  teal:   new THREE.Color('#3ee0c8'),
+  pink:   new THREE.Color('#ff3d7f'),
+  violet: new THREE.Color('#b18cff'),
+};
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(SIZE, SIZE);
+renderer.setClearColor(0x000000, 0);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+scene.environmentIntensity = 0.9;
+
+const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+camera.position.set(0, 0.6, 15.0);
+camera.lookAt(0, -0.25, 0);
+
+// ---------- helpers ----------
+function roundedRectShape(w, h, r) {
+  const s = new THREE.Shape();
+  const x = -w / 2, y = -h / 2;
+  s.moveTo(x + r, y);
+  s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r);
+  s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r);
+  s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y);
+  return s;
+}
+function roundedRectPath3(w, h, r, z, n = 400) {
+  // closed curve sampled along a rounded rect (for neon tube)
+  const pts = [];
+  const shape = roundedRectShape(w, h, r);
+  shape.getSpacedPoints(n).forEach(p => pts.push(new THREE.Vector3(p.x, p.y, z)));
+  pts.pop();
+  return new THREE.CatmullRomCurve3(pts, true, 'centripetal');
+}
+function roundedTriangle(R, r) {
+  // equilateral triangle pointing +x, circumradius R, corner radius r
+  const v = [0, 1, 2].map(i => {
+    const a = i * 2 * Math.PI / 3;
+    return new THREE.Vector2(Math.cos(a) * R, Math.sin(a) * R);
+  });
+  const s = new THREE.Shape();
+  for (let i = 0; i < 3; i++) {
+    const p = v[i], prev = v[(i + 2) % 3], next = v[(i + 1) % 3];
+    const a = p.clone().add(prev.clone().sub(p).setLength(r));
+    const b = p.clone().add(next.clone().sub(p).setLength(r));
+    if (i === 0) s.moveTo(a.x, a.y); else s.lineTo(a.x, a.y);
+    s.quadraticCurveTo(p.x, p.y, b.x, b.y);
+  }
+  s.closePath();
+  return s;
+}
+function gradientTexture(stops, w = 4, h = 512, vertical = true) {
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const g = cv.getContext('2d');
+  const gr = vertical ? g.createLinearGradient(0, 0, 0, h) : g.createLinearGradient(0, 0, w, 0);
+  stops.forEach(([o, c]) => gr.addColorStop(o, c));
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+// ---------- the mark ----------
+const mark = new THREE.Group();
+scene.add(mark);
+
+const W = 3.05, H = 5.15, R = 0.62, D = 0.42;
+
+// 1) Glass/metal slab body (the vertical clip)
+const bodyGeo = new THREE.ExtrudeGeometry(roundedRectShape(W, H, R), {
+  depth: D, bevelEnabled: true, bevelThickness: 0.12, bevelSize: 0.12, bevelSegments: 10, curveSegments: 48,
+});
+bodyGeo.translate(0, 0, -D / 2);
+const bodyMat = new THREE.MeshPhysicalMaterial({
+  color: new THREE.Color('#151933'), metalness: 0.85, roughness: 0.22,
+  clearcoat: 1, clearcoatRoughness: 0.04,
+  iridescence: 0.6, iridescenceIOR: 1.6, iridescenceThicknessRange: [200, 700],
+  envMapIntensity: 1.4,
+});
+const body = new THREE.Mesh(bodyGeo, bodyMat);
+mark.add(body);
+
+// 2) Screen: inset glossy panel with emissive indigo->violet->teal gradient
+const sW = W - 0.42, sH = H - 0.42, sR = R - 0.2;
+const screenGeo = new THREE.ShapeGeometry(roundedRectShape(sW, sH, sR), 48);
+// map UVs 0..1
+{
+  const pos = screenGeo.attributes.position, uv = screenGeo.attributes.uv;
+  for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / sW + 0.5, pos.getY(i) / sH + 0.5);
+}
+const screenTex = gradientTexture([
+  [0.0, '#2a1a5e'], [0.35, '#3a2c9a'], [0.62, '#2b3fb8'], [1.0, '#0f5a6e'],
+]);
+screenTex.flipY = true;
+const screenMat = new THREE.MeshPhysicalMaterial({
+  color: 0x05060c, emissive: 0xffffff, emissiveMap: screenTex, emissiveIntensity: 0.9,
+  roughness: 0.08, metalness: 0.0, clearcoat: 1, clearcoatRoughness: 0.02,
+});
+const screen = new THREE.Mesh(screenGeo, screenMat);
+screen.position.z = D / 2 + 0.121;
+mark.add(screen);
+
+// 2b) Glass cover over the screen (transmission + specular)
+const coverGeo = new THREE.ExtrudeGeometry(roundedRectShape(sW, sH, sR), {
+  depth: 0.05, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.04, bevelSegments: 6, curveSegments: 48,
+});
+const coverMat = new THREE.MeshPhysicalMaterial({
+  color: 0xffffff, transmission: 0, roughness: 0.03, metalness: 0,
+  clearcoat: 1, clearcoatRoughness: 0.0, transparent: true, opacity: 0.12,
+  specularIntensity: 1, envMapIntensity: 2.5, depthWrite: false,
+});
+const cover = new THREE.Mesh(coverGeo, coverMat);
+cover.position.z = D / 2 + 0.13;
+mark.add(cover);
+
+// 3) Neon rim tube around the slab: pink (left) -> violet (top) -> teal (right) -> indigo (bottom)
+{
+  const curve = roundedRectPath3(W + 0.05, H + 0.05, R + 0.02, D / 2 + 0.13);
+  const tube = new THREE.TubeGeometry(curve, 600, 0.06, 12, true);
+  const cols = [];
+  const pos = tube.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i);
+    // blend by x (pink->teal) with violet lift at the top
+    const tx = THREE.MathUtils.clamp((x / (W / 2 + 0.2)) * 0.5 + 0.5, 0, 1);
+    const c = C.pink.clone().lerp(C.teal, THREE.MathUtils.smoothstep(tx, 0.18, 0.82));
+    const ty = THREE.MathUtils.clamp(y / (H / 2), -1, 1);
+    if (ty > 0.55) c.lerp(C.violet, (ty - 0.55) * 1.2 * (1 - Math.abs(tx - 0.5) * 1.6));
+    cols.push(c.r, c.g, c.b);
+  }
+  tube.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  const tubeMat = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
+  tubeMat.color.setScalar(2.2);
+  const neon = new THREE.Mesh(tube, tubeMat);
+  mark.add(neon);
+  // hot white core on the front edge
+  const core = new THREE.Mesh(new THREE.TubeGeometry(curve, 600, 0.018, 8, true),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false, transparent: true, opacity: 0.85 }));
+  core.position.z = 0.05;
+  mark.add(core);
+}
+
+// 4) Play triangle: pearl/chrome, extruded with deep bevel, floating above the glass
+const triGeo = new THREE.ExtrudeGeometry(roundedTriangle(1.02, 0.26), {
+  depth: 0.22, bevelEnabled: true, bevelThickness: 0.16, bevelSize: 0.13, bevelSegments: 14, curveSegments: 24,
+});
+triGeo.translate(0.14, 0, 0);
+const triMat = new THREE.MeshPhysicalMaterial({
+  color: new THREE.Color('#e9ecff'), metalness: 0.45, roughness: 0.1,
+  clearcoat: 1, clearcoatRoughness: 0.02, sheen: 0.4, sheenColor: C.teal,
+  iridescence: 0.55, iridescenceIOR: 1.8, iridescenceThicknessRange: [250, 600],
+  emissive: new THREE.Color('#8fa0ff'), emissiveIntensity: 0.1, envMapIntensity: 1.9,
+});
+const tri = new THREE.Mesh(triGeo, triMat);
+tri.position.set(0, 0.25, D / 2 + 0.32);
+mark.add(tri);
+
+// 5) Holographic "cut" line: a thin laser slicing horizontally through the clip, past its edges
+{
+  // glass specular sheen: diagonal soft streak across the screen glass
+  const sheenTex = gradientTexture([
+    [0, 'rgba(255,255,255,0)'], [0.42, 'rgba(255,255,255,0.0)'], [0.47, 'rgba(255,255,255,0.22)'],
+    [0.5, 'rgba(255,255,255,0.05)'], [0.56, 'rgba(255,255,255,0.12)'], [0.6, 'rgba(255,255,255,0)'], [1, 'rgba(255,255,255,0)'],
+  ], 512, 4, false);
+  const sheen = new THREE.Mesh(new THREE.ShapeGeometry(roundedRectShape(sW, sH, sR), 48),
+    new THREE.MeshBasicMaterial({ map: sheenTex, transparent: true, depthWrite: false }));
+  {
+    const pos = sheen.geometry.attributes.position, uv = sheen.geometry.attributes.uv;
+    for (let i = 0; i < pos.count; i++) {
+      const u = pos.getX(i) / sW + 0.5, v = pos.getY(i) / sH + 0.5;
+      uv.setXY(i, u * 0.75 - v * 0.55 + 0.45, 0.5);
+    }
+  }
+  sheen.position.z = D / 2 + 0.235;
+  mark.add(sheen);
+  // clip timeline: teal progress + dim remainder + bright playhead
+  const zT = D / 2 + 0.2;
+  const barMat = new THREE.MeshBasicMaterial({ color: C.teal.clone().multiplyScalar(1.7), toneMapped: false });
+  const bar = new THREE.Mesh(new THREE.ShapeGeometry(roundedRectShape(1.42, 0.13, 0.065), 12), barMat);
+  bar.position.set(-0.43, -1.92, zT);
+  mark.add(bar);
+  const bar2 = new THREE.Mesh(new THREE.ShapeGeometry(roundedRectShape(0.86, 0.13, 0.065), 12),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2 }));
+  bar2.position.set(0.82, -1.92, zT);
+  mark.add(bar2);
+  const ph = new THREE.Mesh(new THREE.CircleGeometry(0.15, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 2.4, 2.4), toneMapped: false }));
+  ph.position.set(0.3, -1.92, zT + 0.01);
+  mark.add(ph);
+}
+
+mark.rotation.set(-0.06, -0.26, 0.0);
+mark.position.set(0.05, 0.42, 0);
+
+// 6) Orbit light trail around the clip (tilted ellipse, fading arc)
+{
+  const N = 512, pts = [], cols = [];
+  for (let i = 0; i <= N; i++) {
+    const t = i / N;
+    const a = Math.PI * 0.1 + t * Math.PI * 0.93;
+    pts.push(new THREE.Vector3(Math.cos(a) * 2.75, -Math.sin(a) * 0.55, Math.sin(a) * 1.4 + 0.2));
+  }
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const g = new THREE.TubeGeometry(curve, 512, 0.038, 8, false);
+  const pos = g.attributes.position;
+  // color by parameter: approximate t via angle
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i);
+    let a = Math.atan2(-y / 0.55, x / 2.75);
+    let t = (a - Math.PI * 0.1) / (Math.PI * 0.93); t = ((t % 2) + 2) % 2; if (t > 1) t = 1;
+    const c = C.teal.clone().lerp(C.indigo, t).lerp(C.pink, Math.max(0, t - 0.6) * 1.5);
+    const f = Math.pow(1 - t, 1.1);              // bright head, fading tail (alpha)
+    const k = 1 + 1.4 * f;
+    cols.push(c.r * k, c.g * k, c.b * k, Math.min(1, Math.pow(f, 0.8) * 1.4));
+  }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 4));
+  const m = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false, transparent: true, depthWrite: false });
+  const orbit = new THREE.Mesh(g, m);
+  orbit.rotation.set(0.0, 0, 0.16);
+  orbit.position.set(0.05, -0.3, 0);
+  orbit.renderOrder = 5;
+  scene.add(orbit);
+  // spark head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.075, 24, 16), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
+  head.position.copy(curve.getPoint(0)).applyEuler(orbit.rotation).add(orbit.position);
+  scene.add(head);
+}
+
+// 7) Glowing ring pedestal (family trait with Liquidity Engine)
+{
+  const ringMat = (col, k) => { const m = new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(k), toneMapped: false }); return m; };
+  const r1 = new THREE.Mesh(new THREE.TorusGeometry(2.25, 0.035, 12, 256), ringMat(C.teal, 1.8));
+  const r2 = new THREE.Mesh(new THREE.TorusGeometry(2.62, 0.022, 12, 256), ringMat(C.indigo, 1.6));
+  const r3 = new THREE.Mesh(new THREE.TorusGeometry(1.85, 0.016, 12, 256), ringMat(C.violet, 1.1));
+  [r1, r2, r3].forEach(r => { r.rotation.x = Math.PI / 2; r.position.y = -3.0; scene.add(r); });
+  // disc glow
+  const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+  const g = cv.getContext('2d');
+  const gr = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+  gr.addColorStop(0, 'rgba(150,170,255,0.45)'); gr.addColorStop(0.5, 'rgba(90,200,230,0.2)'); gr.addColorStop(1, 'rgba(62,224,200,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+  const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
+  const disc = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 5.6), new THREE.MeshBasicMaterial({ map: tx, transparent: true, depthWrite: false, toneMapped: false }));
+  disc.rotation.x = -Math.PI / 2; disc.position.y = -3.01; scene.add(disc);
+}
+
+// ---------- lights: colored rim lights for the neon look ----------
+scene.add(new THREE.AmbientLight(0x404060, 0.4));
+const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(-3, 5, 6); scene.add(key);
+const pinkL = new THREE.PointLight(C.pink, 60, 20); pinkL.position.set(-4.5, 1.5, 1.5); scene.add(pinkL);
+const tealL = new THREE.PointLight(C.teal, 60, 20); tealL.position.set(4.5, -0.5, 1.5); scene.add(tealL);
+const topL = new THREE.PointLight(C.violet, 30, 20); topL.position.set(0, 5, 2); scene.add(topL);
+const bottomL = new THREE.PointLight(C.teal, 25, 10); bottomL.position.set(0, -3.3, 2.2); scene.add(bottomL);
+
+renderer.render(scene, camera);
+window.__done = true;
+</script>
+</body>
+</html>

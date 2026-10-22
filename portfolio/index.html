@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Demetrades — Builder. Trader. Operator.</title>
+<meta name="description" content="Algo trading systems, AI assistants and content automation. See everything I build.">
+<meta name="theme-color" content="#000000">
+<meta property="og:title" content="Demetrades — Builder. Trader. Operator.">
+<meta property="og:description" content="Algo trading systems, AI assistants and content automation. See everything I build.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#000; --panel:#0a0907; --line:rgba(212,175,55,.22);
+  --gold:#d4af37; --gold2:#f5d77a; --gold3:#8a6d1a; --text:#e9e2cf; --mute:#8d8672;
+  --display:'Orbitron',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace; --body:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font:400 16px/1.6 var(--body);overflow-x:hidden;-webkit-font-smoothing:antialiased}
+canvas#bg{position:fixed;inset:0;z-index:0;width:100%;height:100%}
+body::after{content:"";position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px);mix-blend-mode:overlay}
+#glow{position:fixed;width:520px;height:520px;border-radius:50%;pointer-events:none;z-index:1;left:0;top:0;
+  background:radial-gradient(circle,rgba(212,175,55,.13),transparent 65%);transform:translate(-50%,-50%);transition:opacity .3s}
+main,header,footer{position:relative;z-index:2}
+.wrap{max-width:1100px;margin:0 auto;padding:0 20px}
+.gold{background:linear-gradient(100deg,var(--gold3),var(--gold2) 40%,var(--gold) 60%,var(--gold2));-webkit-background-clip:text;background-clip:text;color:transparent;background-size:200% 100%;animation:shine 6s linear infinite}
+@keyframes shine{to{background-position:200% 0}}
+
+/* nav */
+nav{position:fixed;top:0;left:0;right:0;z-index:10;backdrop-filter:blur(14px);background:rgba(0,0,0,.55);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:56px}
+.logo{font:700 15px var(--display);letter-spacing:.25em;color:var(--gold);text-decoration:none}
+nav ul{display:flex;gap:22px;list-style:none}
+nav a.l{font:500 11px var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--mute);text-decoration:none;transition:.2s}
+nav a.l:hover{color:var(--gold2)}
+@media(max-width:620px){nav ul{gap:14px}nav a.l{font-size:9.5px;letter-spacing:.1em}}
+
+/* hero */
+.hero{min-height:100svh;display:flex;align-items:center;padding:96px 0 60px}
+.tag{display:inline-flex;gap:10px;align-items:center;font:500 11px var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--gold);border:1px solid var(--line);padding:7px 14px;background:rgba(212,175,55,.05);clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 10px var(--gold);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.25}}
+h1{font:900 clamp(40px,9vw,104px)/1 var(--display);letter-spacing:.02em;margin:22px 0 10px;text-transform:uppercase}
+.glitch{position:relative;display:inline-block}
+.glitch::before,.glitch::after{content:attr(data-t);position:absolute;inset:0;opacity:.0}
+.glitch.on::before{opacity:.7;color:#fff;transform:translate(-3px,0);clip-path:inset(20% 0 55% 0)}
+.glitch.on::after{opacity:.7;color:var(--gold3);transform:translate(3px,0);clip-path:inset(60% 0 8% 0)}
+.type{font:400 clamp(15px,2.4vw,22px) var(--mono);color:var(--mute);min-height:1.6em}
+.type b{color:var(--gold2);font-weight:600}
+.cursor{display:inline-block;width:.6ch;background:var(--gold);animation:pulse 1s infinite;margin-left:2px}
+.lede{max-width:620px;margin:22px 0 34px;color:#cfc8b3}
+.cta{display:flex;gap:14px;flex-wrap:wrap}
+.btn{position:relative;font:600 12px var(--mono);letter-spacing:.2em;text-transform:uppercase;text-decoration:none;padding:15px 28px;color:var(--gold2);border:1px solid var(--gold);background:rgba(212,175,55,.06);transition:.25s;clip-path:polygon(12px 0,100% 0,calc(100% - 12px) 100%,0 100%)}
+.btn:hover{background:var(--gold);color:#000;box-shadow:0 0 30px rgba(212,175,55,.5)}
+.btn.solid{background:linear-gradient(100deg,var(--gold3),var(--gold2));color:#000;border-color:transparent}
+.btn.solid:hover{filter:brightness(1.15)}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-top:70px}
+.stat{background:rgba(5,4,2,.85);padding:22px 20px}
+.stat b{display:block;font:700 30px var(--display);color:var(--gold2)}
+.stat span{font:500 10.5px var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--mute)}
+
+/* sections */
+section{padding:90px 0}
+.eyebrow{font:500 11px var(--mono);letter-spacing:.3em;color:var(--gold);text-transform:uppercase;margin-bottom:12px}
+h2{font:700 clamp(28px,5vw,48px)/1.1 var(--display);text-transform:uppercase;margin-bottom:14px}
+.sub{color:var(--mute);max-width:560px;margin-bottom:44px}
+.rv{opacity:0;transform:translateY(26px);transition:opacity .8s,transform .8s}
+.rv.in{opacity:1;transform:none}
+
+/* cards */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px}
+.card{position:relative;background:linear-gradient(160deg,rgba(18,15,8,.9),rgba(6,5,3,.92));border:1px solid var(--line);padding:30px 26px 26px;transition:border-color .3s,transform .15s;transform-style:preserve-3d;overflow:hidden;display:flex;flex-direction:column}
+.card::before,.card::after{content:"";position:absolute;width:16px;height:16px;border:2px solid var(--gold);transition:.3s}
+.card::before{top:-1px;left:-1px;border-right:0;border-bottom:0}
+.card::after{bottom:-1px;right:-1px;border-left:0;border-top:0}
+.card:hover{border-color:var(--gold)}
+.card:hover::before,.card:hover::after{width:34px;height:34px}
+.card .sheen{position:absolute;inset:0;pointer-events:none;background:radial-gradient(260px circle at var(--mx,50%) var(--my,0%),rgba(245,215,122,.13),transparent 60%);opacity:0;transition:opacity .3s}
+.card:hover .sheen{opacity:1}
+.num{font:500 11px var(--mono);color:var(--gold3);letter-spacing:.2em}
+.card h3{font:700 22px var(--display);margin:8px 0 4px;color:var(--gold2);letter-spacing:.04em}
+.role{font:500 11px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--mute);margin-bottom:14px}
+.card p{color:#cfc8b3;font-size:15px;margin-bottom:16px}
+.card ul{list-style:none;margin-bottom:20px}
+.card li{font-size:14px;color:#b9b29c;padding:5px 0 5px 20px;position:relative}
+.card li::before{content:"▸";position:absolute;left:0;color:var(--gold)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto;margin-bottom:18px}
+.chip{font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--line);color:var(--gold);padding:4px 9px}
+.go{font:600 12px var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--gold2);text-decoration:none;border-top:1px solid var(--line);padding-top:16px;display:flex;justify-content:space-between}
+.go:hover{color:#fff}
+.go.off{color:var(--mute);pointer-events:none}
+
+/* about */
+.about{display:grid;grid-template-columns:1.2fr 1fr;gap:40px;align-items:start}
+@media(max-width:800px){.about{grid-template-columns:1fr}}
+.about p{color:#cfc8b3;margin-bottom:16px}
+.term{border:1px solid var(--line);background:rgba(8,7,4,.9);font:400 13px/1.9 var(--mono);padding:18px 20px;color:var(--mute)}
+.term i{font-style:normal;color:var(--gold)}
+.term .bar{display:flex;gap:6px;margin-bottom:12px}
+.term .bar span{width:9px;height:9px;border-radius:50%;background:var(--gold3)}
+
+/* contact */
+.contact{text-align:center;border:1px solid var(--line);padding:70px 20px;background:radial-gradient(ellipse at center,rgba(212,175,55,.09),transparent 70%)}
+.links{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:30px}
+footer{padding:36px 0 50px;text-align:center;font:400 11px var(--mono);letter-spacing:.15em;color:var(--mute)}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rv{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div id="glow"></div>
+
+<nav><div class="wrap">
+  <a class="logo" href="#top" id="logo">DEMETRADES</a>
+  <ul>
+    <li><a class="l" href="#work">Work</a></li>
+    <li><a class="l" href="#about">About</a></li>
+    <li><a class="l" href="#contact">Contact</a></li>
+  </ul>
+</div></nav>
+
+<header id="top" class="hero"><div class="wrap">
+  <span class="tag"><i class="dot"></i> Systems online</span>
+  <h1><span class="glitch" id="gl" data-t="I BUILD">I BUILD</span><br><span class="gold">MONEY MACHINES</span></h1>
+  <div class="type"><span id="typed"></span><span class="cursor">&nbsp;</span></div>
+  <p class="lede">Algorithmic trading, AI assistants and content automation — built from scratch, run for real, and all of it right here. Scroll to see what I do.</p>
+  <div class="cta">
+    <a class="btn solid" href="#work">See the work</a>
+    <a class="btn" href="#contact">Get in touch</a>
+  </div>
+  <div class="stats rv">
+    <div class="stat"><b data-n="4">0</b><span>Core systems</span></div>
+    <div class="stat"><b data-n="24" data-s="/7">0</b><span>Always running</span></div>
+    <div class="stat"><b data-n="1800" data-s="+">0</b><span>Trades replayed &amp; studied</span></div>
+    <div class="stat"><b data-n="100" data-s="%">0</b><span>Built by me</span></div>
+  </div>
+</div></header>
+
+<main>
+<section id="work"><div class="wrap">
+  <div class="eyebrow rv">// 01 — The arsenal</div>
+  <h2 class="rv">Everything I <span class="gold">run</span></h2>
+  <p class="sub rv">Four systems. Each one built to make money, save time, or both.</p>
+  <div class="grid" id="grid"></div>
+</div></section>
+
+<section id="about"><div class="wrap about">
+  <div class="rv">
+    <div class="eyebrow">// 02 — Operator</div>
+    <h2>Obsessed with <span class="gold">edge</span></h2>
+    <p>I don't do ideas, I ship systems. Every project here started as a problem — where's the edge, what's slowing me down, what can run without me — and ended as software that works while I sleep.</p>
+    <p>I test everything. Replays, backtests, paper trading, post-trade studies. If it can't prove itself with data, it doesn't go live.</p>
+    <p>The goal is simple: build compounding assets — code, audiences and capital — and keep stacking.</p>
+  </div>
+  <div class="term rv">
+    <div class="bar"><span></span><span></span><span></span></div>
+    <div><i>$</i> whoami</div><div>demetrades</div>
+    <div><i>$</i> status</div><div>building · testing · shipping</div>
+    <div><i>$</i> focus</div><div>NQ futures · AI · prediction markets · content</div>
+    <div><i>$</i> mindset</div><div>data over feelings. always.</div>
+    <div><i>$</i> next</div><div>more.<span class="cursor">&nbsp;</span></div>
+  </div>
+</div></section>
+
+<section id="contact"><div class="wrap">
+  <div class="contact rv">
+    <div class="eyebrow">// 03 — Link up</div>
+    <h2>Let's <span class="gold">build</span></h2>
+    <p class="sub" style="margin:0 auto">Want in on what I'm building, or want something like it built? Reach out.</p>
+    <div class="links" id="links"></div>
+  </div>
+</div></section>
+</main>
+<footer>© <span id="yr"></span> DEMETRADES · ALL SYSTEMS NOMINAL</footer>
+
+<script>
+/* ============ EDIT ME ============
+   Everything on the page comes from here. Fill in your real links. */
+const CONFIG = {
+  roles: ["trading algorithms","AI assistants","content engines","prediction-market bots"],
+  projects: [
+    { name:"NQ Dashboard", role:"Algo trading · NQ futures",
+      desc:"A live control room for my NQ futures bot running the LIT liquidity strategy — paper trading in the cloud, prop-firm eval tracking, news blackouts, and a full research lab.",
+      bullets:["Live trades, replays and backtest results","Prop-firm eval progress tracker","Monte Carlo + calendar-effects research lab","Installable app that works with the PC off"],
+      tags:["Python","JavaScript","PWA","Backtesting"], link:"../", cta:"Open the live dashboard" },
+    { name:"Jarvis", role:"AI assistant",
+      desc:"Talk to my trading bot in plain English. Jarvis answers from the bot's real data — briefings, performance, what happened and why — on phone or desktop.",
+      bullets:["Natural-language questions over live bot data","Spoken briefings","Runs on the phone site and the PC dashboard"],
+      tags:["AI","NLP","Voice"], link:"../", cta:"See Jarvis in the dashboard" },
+    { name:"Clip Farm", role:"Content automation",
+      desc:"An automated pipeline that turns long-form content into a steady stream of short clips for audience growth — set up once, posts on repeat.",
+      bullets:["Automated clipping and posting","Built to scale across multiple accounts","Audience growth on autopilot"],
+      tags:["Automation","Video","Growth"], link:"", cta:"Details coming soon" },
+    { name:"Kalshi Snipe", role:"Prediction markets",
+      desc:"A bot that hunts mispriced contracts on Kalshi and acts on them faster than a human can click.",
+      bullets:["Scans markets for edge in real time","Automated, rules-based execution","Risk-managed position sizing"],
+      tags:["Kalshi","Python","Execution"], link:"", cta:"Details coming soon" }
+  ],
+  links: [
+    { label:"Instagram", href:"" },
+    { label:"TikTok",    href:"" },
+    { label:"X / Twitter", href:"" },
+    { label:"Email", href:"mailto:demetrades2000@gmail.com" },
+    { label:"GitHub", href:"https://github.com/demetrades2000-coder" }
+  ]
+};
+/* ================================= */
+
+// projects
+const grid=document.getElementById('grid');
+CONFIG.projects.forEach((p,i)=>{
+  const c=document.createElement('article');c.className='card rv';
+  c.innerHTML=`<div class="sheen"></div><div class="num">0${i+1} / 0${CONFIG.projects.length}</div>
+  <h3>${p.name}</h3><div class="role">${p.role}</div><p>${p.desc}</p>
+  <ul>${p.bullets.map(b=>`<li>${b}</li>`).join('')}</ul>
+  <div class="chips">${p.tags.map(t=>`<span class="chip">${t}</span>`).join('')}</div>
+  <a class="go ${p.link?'':'off'}" ${p.link?`href="${p.link}"`:''}><span>${p.cta}</span><span>${p.link?'→':'···'}</span></a>`;
+  grid.appendChild(c);
+  c.addEventListener('mousemove',e=>{
+    const r=c.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+    c.style.setProperty('--mx',x+'px');c.style.setProperty('--my',y+'px');
+    c.style.transform=`perspective(900px) rotateY(${(x/r.width-.5)*7}deg) rotateX(${-(y/r.height-.5)*7}deg)`;
+  });
+  c.addEventListener('mouseleave',()=>c.style.transform='');
+});
+// links (skip empty ones)
+document.getElementById('links').innerHTML=CONFIG.links.filter(l=>l.href)
+  .map((l,i)=>`<a class="btn ${i?'':'solid'}" href="${l.href}" target="_blank" rel="noopener">${l.label}</a>`).join('');
+document.getElementById('yr').textContent=new Date().getFullYear();
+
+// typewriter
+(function(){const el=document.getElementById('typed');let r=0,c=0,del=false;
+  (function tick(){const w=CONFIG.roles[r];
+    el.innerHTML='&gt; <b>'+w.slice(0,c)+'</b>';
+    if(!del&&c===w.length){del=true;return setTimeout(tick,1500)}
+    if(del&&c===0){del=false;r=(r+1)%CONFIG.roles.length}
+    c+=del?-1:1;setTimeout(tick,del?35:70)})();})();
+
+// glitch
+const gl=document.getElementById('gl');
+setInterval(()=>{gl.classList.add('on');setTimeout(()=>gl.classList.remove('on'),140)},3200);
+
+// reveal + counters
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)return;
+  e.target.classList.add('in');
+  e.target.querySelectorAll('[data-n]').forEach(n=>{const t=+n.dataset.n,s=n.dataset.s||'';let v=0;
+    const st=Math.max(1,Math.ceil(t/50));const id=setInterval(()=>{v=Math.min(t,v+st);n.textContent=v+s;if(v>=t)clearInterval(id)},28)});
+  io.unobserve(e.target)}),{threshold:.15});
+document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+
+// cursor glow
+const glow=document.getElementById('glow');
+addEventListener('pointermove',e=>{glow.style.left=e.clientX+'px';glow.style.top=e.clientY+'px'});
+
+// background: gold particle network
+(function(){const cv=document.getElementById('bg'),x=cv.getContext('2d');let W,H,P=[],m={x:-999,y:-999};
+  function size(){W=cv.width=innerWidth;H=cv.height=innerHeight;
+    P=Array.from({length:Math.min(110,Math.floor(W*H/14000))},()=>({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.35,vy:(Math.random()-.5)*.35}))}
+  addEventListener('resize',size);addEventListener('pointermove',e=>{m.x=e.clientX;m.y=e.clientY});size();
+  (function draw(){x.clearRect(0,0,W,H);
+    for(const p of P){p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1;
+      x.fillStyle='rgba(212,175,55,.8)';x.fillRect(p.x,p.y,1.6,1.6)}
+    for(let i=0;i<P.length;i++){for(let j=i+1;j<P.length;j++){const a=P[i],b=P[j],d=Math.hypot(a.x-b.x,a.y-b.y);
+      if(d<130){x.strokeStyle=`rgba(212,175,55,${.16*(1-d/130)})`;x.beginPath();x.moveTo(a.x,a.y);x.lineTo(b.x,b.y);x.stroke()}}
+      const d=Math.hypot(P[i].x-m.x,P[i].y-m.y);
+      if(d<170){x.strokeStyle=`rgba(245,215,122,${.4*(1-d/170)})`;x.beginPath();x.moveTo(P[i].x,P[i].y);x.lineTo(m.x,m.y);x.stroke()}}
+    requestAnimationFrame(draw)})();})();
+</script>
+</body>
+</html>

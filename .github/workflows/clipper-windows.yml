@@ -1,0 +1,71 @@
+name: clipper-windows
+
+# Runs the clipping tool on a real Windows machine: tests, video selftest, the START.bat launcher,
+# the scheduled task and the Credential Manager secret store. Only clipper/ changes trigger it.
+on:
+  push:
+    paths: ["clipper/**", ".github/workflows/clipper-windows.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ffmpeg
+        run: choco install ffmpeg -y --no-progress
+
+      - name: Install Python packages
+        working-directory: clipper
+        run: python -m pip install -r requirements.txt
+
+      - name: Doctor
+        working-directory: clipper
+        run: python pipeline.py --home "$env:RUNNER_TEMP\ws" doctor --fix; exit 0
+
+      - name: Unit and integration tests
+        run: python -m unittest discover -s clipper/tests -v
+
+      - name: Video selftest (all layouts, captions, fallbacks)
+        working-directory: clipper
+        run: python clipper.py --selftest -o "$env:RUNNER_TEMP\selftest" --preset ultrafast
+
+      - name: Launcher (START.bat, non-interactive)
+        working-directory: clipper
+        shell: cmd
+        run: |
+          call START.bat < NUL > "%RUNNER_TEMP%\start.log" 2>&1
+          type "%RUNNER_TEMP%\start.log"
+          findstr /C:"Step 2/5" "%RUNNER_TEMP%\start.log" || (echo START.bat did not reach setup & exit /b 1)
+
+      - name: Scheduled task install and remove
+        working-directory: clipper
+        run: |
+          python pipeline.py --home "$env:RUNNER_TEMP\ws" schedule install --every-hours 6
+          schtasks /Query /TN MoneyClipperAutopilot /V /FO LIST
+          if ($LASTEXITCODE -ne 0) { throw "scheduled task not found" }
+          python pipeline.py --home "$env:RUNNER_TEMP\ws" schedule remove
+          exit 0
+
+      - name: Credential Manager long secret round trip
+        working-directory: clipper
+        run: |
+          python -c "import keyring, secretstore; v='x'*3000; secretstore.save(keyring,'money-clipper-ci','tok',v); assert secretstore.get(keyring,'money-clipper-ci','tok')==v; secretstore.delete(keyring,'money-clipper-ci','tok'); print('credential manager chunking OK')"
+
+      - name: Dashboard build
+        working-directory: clipper
+        run: python pipeline.py --home "$env:RUNNER_TEMP\ws" dashboard --no-open

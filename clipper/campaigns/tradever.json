@@ -1,19 +1,19 @@
 {
-  "name": "Tradever (prop firm)",
+  "name": "Tradever Prop Firm (Motion Clipping)",
   "marketplace": "whop",
   "permission": {
     "program": "Content Rewards",
-    "campaign_url": "TODO: campaign page link (listed on clippingalpha.com/platforms/tiktok)",
-    "verified_on": "",
-    "evidence": "TODO",
+    "campaign_url": "https://contentrewards.com/c/campaigns/1cc66d1c-d7bb-4cd6-addb-68093cb50908",
+    "verified_on": "2026-10-22",
+    "evidence": "Content Rewards campaign page (public data, 2026-10-22): content types Clipping + Slideshows, category Finance, no pre-approval or application, 0 content rules and 0 creator requirements listed; 4 reference files after joining.",
     "allowed_sources": [
       "file:footage/tradever"
     ]
   },
-  "cpm": 3.0,
+  "cpm": 5.0,
   "fee_pct": 10,
-  "max_payout_per_clip": 0,
-  "min_payout": 0,
+  "max_payout_per_clip": 500,
+  "min_payout": 7,
   "platforms": [
     "tiktok",
     "instagram",
@@ -54,8 +54,8 @@
     "get rich quick",
     "100x"
   ],
-  "notes": "Lead found 2026-10-22: Tradever Prop Firm Clipping, $3 per 1K views on TikTok, ~$1.9K of $2K left (ClippingAlpha, 18 Oct). Rules hidden until you join: read them, check for any AI/automation ban, then set automation_allowed.",
-  "automation_allowed": null,
+  "notes": "Live 2026-10-22: $5 per 1K views on TikTok, Instagram and YouTube, min payout $7 a clip (~1,400 views), max $500 a clip, $1,937 of $2,000 left, 28 clippers, 179 approved posts, ~101K views so far (~570 per post on average). Brief: content that makes traders at other prop firms switch to Tradever, and new traders choose it first (futures prop firm, weekly payouts). No content rules listed; check the 4 reference files after joining (footage and any rules) and drop the videos into footage/tradever.",
+  "automation_allowed": true,
   "accounts": {
     "tiktok": "tradever",
     "instagram": "tradever",

@@ -71,18 +71,16 @@ It's the same style as the NQ dashboard:
 It refreshes itself after every autopilot cycle.
 
 **On your phone, as its own app** (separate from the NQ dashboard, which
-stays untouched):
-1. Make an empty repo: [github.com/new](https://github.com/new) → name
-   **clip-engine**, **Public**, tick **Add a README file** → Create.
-2. In that repo: **Settings → Pages → Branch: main, / (root) → Save**.
-3. Setup asks "Put your dashboard online?" → yes → repo
-   `demetrades2000-coder/clip-engine`. It gives you the exact link to create
-   a token (access to that repo only, Contents: Read and write).
+stays untouched): setup asks "Put your dashboard on your phone as its own
+app?" → type **y**. GitHub's token page opens: set Expiration to **No
+expiration**, click **Generate token**, copy it and paste it into the
+window. The clipper then makes its own site (the `clip-engine` repo with
+GitHub Pages) and publishes to it after every cycle.
 
-After that, every cycle updates
-`https://demetrades2000-coder.github.io/clip-engine/`. Open it on your
-iPhone in Safari → Share → **Add to Home Screen**. It's public; use
-`publish setup --hide-money` if you don't want earnings visible.
+Open `https://demetrades2000-coder.github.io/clip-engine/` on your iPhone in
+Safari → Share → **Add to Home Screen**. It's public; use
+`python pipeline.py publish setup --hide-money` if you don't want earnings
+visible. The token is kept in your PC's password store.
 
 ![dashboard: Today](docs/dashboard-v2-today-desktop.png)
 

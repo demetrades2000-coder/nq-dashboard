@@ -135,6 +135,54 @@ def _listing(repo, branch, folder, http, sleep) -> dict:
     return current
 
 
+TOKEN_URL = ("https://github.com/settings/tokens/new?scopes=repo&description=Clip%20Engine%20dashboard")
+SITE_REPO = "clip-engine"
+
+
+def login(http=None) -> str:
+    """The GitHub username the token belongs to."""
+    st, out = _call("GET", f"{API}/user", http=http)
+    if st == 401:
+        raise PublishError("GitHub rejected the token; create a new one: " + TOKEN_URL)
+    if st != 200 or not out.get("login"):
+        raise PublishError(f"GitHub error {st} reading your account")
+    return out["login"]
+
+
+def ensure_site(repo: str, branch: str = "main", http=None, sleep=time.sleep) -> str:
+    """Make the dashboard's own repo and its GitHub Pages site if they don't exist yet. Returns the site URL.
+    Needs a token that may create repos and change Pages (classic token, scope `repo`); an existing, already
+    published repo only needs Contents: Read and write."""
+    owner, name = repo.split("/", 1)
+    st, out = _call("GET", f"{API}/repos/{repo}", http=http, sleep=sleep)
+    if st == 404:
+        me = login(http)
+        if me.lower() != owner.lower():
+            raise PublishError(f"{repo} doesn't exist and the token belongs to {me}, not {owner}")
+        st, out = _call("POST", f"{API}/user/repos", {"name": name, "private": False, "auto_init": True,
+                                                     "description": "Clip Engine dashboard (built by the clipper)"},
+                        http=http, sleep=sleep)
+        if st not in (200, 201):
+            raise PublishError(f"couldn't create {repo} ({st} {(out or {}).get('message', '')}); the token needs "
+                               f"the 'repo' scope: {TOKEN_URL}")
+        for _ in range(5):   # a new repo takes a moment before its contents and Pages endpoints answer
+            if _call("GET", f"{API}/repos/{repo}/contents/README.md", http=http, sleep=sleep)[0] == 200:
+                break
+            sleep(2)
+    elif st == 401:
+        raise PublishError("GitHub rejected the token; create a new one: " + TOKEN_URL)
+    elif st != 200:
+        raise PublishError(f"GitHub error {st} reading {repo}")
+    st, out = _call("GET", f"{API}/repos/{repo}/pages", http=http, sleep=sleep)
+    if st == 404:
+        st, out = _call("POST", f"{API}/repos/{repo}/pages", {"source": {"branch": branch, "path": "/"}},
+                        http=http, sleep=sleep)
+        if st not in (200, 201, 409):   # 409: Pages is already on
+            raise PublishError(f"couldn't turn on GitHub Pages for {repo} ({st} {(out or {}).get('message', '')}). "
+                               f"Turn it on by hand: https://github.com/{repo}/settings/pages -> Branch: {branch}, / (root) -> Save")
+    return (out or {}).get("html_url") or f"https://{owner.lower()}.github.io/{name}/"
+
+
 def publish(files: dict[str, bytes], repo: str, branch: str = "main", folder: str = "", http=None,
             sleep=time.sleep) -> dict:
     """Upload changed files into folder ("" = the repo root). Returns {'uploaded': [...], 'unchanged': [...]}."""

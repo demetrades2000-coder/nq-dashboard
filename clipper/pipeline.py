@@ -1133,36 +1133,45 @@ def publish_url(ws: WS) -> str:
 
 # Repos another publisher force-pushes as a whole: anything we upload there is wiped on its next push.
 FORCE_PUSHED_REPOS = {"demetrades2000-coder/nq-dashboard"}
-NEW_REPO_HELP = ("Make an empty public repo for it first (1 minute): https://github.com/new -> name clip-engine, Public, "
-                 "tick 'Add a README file', Create. Then its Settings -> Pages -> Branch: main, / (root) -> Save.")
 
-TOKEN_HELP = ("Create a token at https://github.com/settings/personal-access-tokens/new : Repository access -> "
-              "Only select repositories -> pick the repo; Permissions -> Contents: Read and write; Generate.")
+
+def token_help() -> str:
+    import publish
+    return ("Opening GitHub's token page. Set Expiration to 'No expiration', leave the 'repo' box ticked, click "
+            f"'Generate token' and copy it.\n  ({publish.TOKEN_URL})\n  It lets the clipper make its own site "
+            "(the clip-engine repo + its GitHub Pages) and update it; it's kept in your PC's password store.")
 
 
 def cmd_publish(ws: WS, a) -> int:
     import publish
     if a.action == "setup":
-        if not (a.repo or ws.setting("publish.repo")):
-            print(NEW_REPO_HELP)
-        repo = a.repo or ws.setting("publish.repo") or _input("GitHub repo for the dashboard (owner/name), e.g. "
-                                                               "demetrades2000-coder/clip-engine: ")
-        repo = (repo or "").strip().removeprefix("https://github.com/").strip("/")
-        if "/" not in repo:
+        repo = (a.repo or ws.setting("publish.repo") or "").strip().removeprefix("https://github.com/").strip("/")
+        if repo and "/" not in repo:
             print("give the repo as owner/name")
             return 1
         if repo.lower() in FORCE_PUSHED_REPOS:
             print(f"{repo} is the NQ dashboard's site: its bot replaces the whole repo on every push, which would wipe "
-                  "this dashboard. Use its own repo instead.\n" + NEW_REPO_HELP)
+                  "this dashboard. Leave the repo out and the clipper makes its own (clip-engine).")
             return 1
         if not publish.token():
-            print(TOKEN_HELP)
+            print(token_help())
+            if not os.environ.get("CLIPPER_GITHUB_TOKEN"):
+                try:
+                    import webbrowser
+                    webbrowser.open(publish.TOKEN_URL)
+                except Exception:  # noqa: BLE001
+                    pass
             t = os.environ.get("CLIPPER_GITHUB_TOKEN") or getpass.getpass("Paste the token (hidden): ").strip()
             if not t:
                 print("no token entered")
                 return 1
             publish.save_token(t)
         try:
+            repo = repo or f"{publish.login()}/{publish.SITE_REPO}"
+            if repo.lower() in FORCE_PUSHED_REPOS:
+                raise publish.PublishError(f"{repo} is the NQ dashboard's site; use another repo")
+            print(f"Setting up the dashboard's own site: {repo} ...")
+            publish.ensure_site(repo, a.branch or "main")
             publish.check_access(repo)
         except publish.PublishError as e:
             print(e)
@@ -2481,7 +2490,7 @@ def cmd_setup(ws: WS, a) -> int:
     if ask("  Get a phone notification when TikTok drafts are ready? (uses the free ntfy.sh app)", "n"):
         cmd_notify(ws, argparse.Namespace(action="setup", topic=None))
     if not ws.setting("publish.enabled", False) and ask(
-            "  Put your dashboard online as its own phone app (a separate GitHub Pages repo; needs a GitHub token)?", "n"):
+            "  Put your dashboard on your phone as its own app? (the clipper makes its own GitHub site; one token)", "n"):
         cmd_publish(ws, argparse.Namespace(action="setup", repo=None, branch=None, folder=None, hide_money=False,
                                            forget_token=False))
     print("\nStep 5/5: schedule")

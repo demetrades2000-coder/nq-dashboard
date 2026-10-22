@@ -124,5 +124,63 @@ class PublishTests(unittest.TestCase):
         self.assertNotEqual(self.ws.setting("publish.repo"), "demetrades2000-coder/nq-dashboard")
 
 
+class SiteSetupTests(unittest.TestCase):
+    """The clipper makes its own site: repo (public, with a README) + GitHub Pages from main, root."""
+    def setUp(self):
+        os.environ["CLIPPER_GITHUB_TOKEN"] = "ghp_test"
+
+    def tearDown(self):
+        os.environ.pop("CLIPPER_GITHUB_TOKEN", None)
+
+    def fake(self, repo_exists=False, pages_on=False, login="me", pages_fail=False):
+        st = {"repo": repo_exists, "pages": pages_on, "calls": []}
+
+        def gh(method, url, body, headers):
+            st["calls"].append((method, url.split("api.github.com")[-1], body))
+            u = url.split("api.github.com")[-1].split("?")[0]
+            if u == "/user":
+                return 200, {"login": login}
+            if method == "POST" and u == "/user/repos":
+                st["repo"] = True
+                return 201, {"full_name": f"{login}/{body['name']}"}
+            if u == "/repos/me/clip-engine":
+                return (200, {"permissions": {"push": True}, "has_pages": st["pages"]}) if st["repo"] else (404, {})
+            if u.endswith("/contents/README.md"):
+                return (200, {"sha": "x"}) if st["repo"] else (404, {})
+            if u.endswith("/pages"):
+                if method == "POST":
+                    if pages_fail:
+                        return 403, {"message": "Resource not accessible"}
+                    st["pages"] = True
+                    return 201, {"html_url": "https://me.github.io/clip-engine/"}
+                return (200, {"html_url": "https://me.github.io/clip-engine/"}) if st["pages"] else (404, {})
+            return 404, {}
+        return gh, st
+
+    def test_creates_repo_and_pages(self):
+        gh, st = self.fake()
+        url = publish.ensure_site("me/clip-engine", http=gh, sleep=lambda s: None)
+        self.assertEqual(url, "https://me.github.io/clip-engine/")
+        posts = [(u, b) for m, u, b in st["calls"] if m == "POST"]
+        self.assertEqual(posts[0], ("/user/repos", {"name": "clip-engine", "private": False, "auto_init": True,
+                                                    "description": "Clip Engine dashboard (built by the clipper)"}))
+        self.assertEqual(posts[1], ("/repos/me/clip-engine/pages", {"source": {"branch": "main", "path": "/"}}))
+
+    def test_existing_site_is_left_alone(self):
+        gh, st = self.fake(repo_exists=True, pages_on=True)
+        publish.ensure_site("me/clip-engine", http=gh, sleep=lambda s: None)
+        self.assertFalse([c for c in st["calls"] if c[0] == "POST"])
+
+    def test_wrong_owner_and_pages_errors_explain(self):
+        gh, _ = self.fake(login="someoneelse")
+        with self.assertRaises(publish.PublishError) as cm:
+            publish.ensure_site("me/clip-engine", http=gh, sleep=lambda s: None)
+        self.assertIn("belongs to someoneelse", str(cm.exception))
+        gh, _ = self.fake(repo_exists=True, pages_fail=True)
+        with self.assertRaises(publish.PublishError) as cm:
+            publish.ensure_site("me/clip-engine", http=gh, sleep=lambda s: None)
+        self.assertIn("settings/pages", str(cm.exception))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

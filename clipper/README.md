@@ -177,7 +177,7 @@ python -m unittest discover -s tests -v     # ~2 min; offline; synthetic video +
 python clipper.py --selftest                # renderer check across all layouts (~5 min)
 ```
 
-The 75 tests cover:
+The 77 tests cover:
 - **Zernio (free route) against a simulated API:** presign, PUT without
   auth, and publishNow with public TikTok settings, consent flags and the
   paid-partnership flag; TikTok refused without consent; Instagram link
@@ -293,6 +293,7 @@ The 75 tests cover:
 | `youtube.py` | YouTube Data API: OAuth (keychain), resumable upload with retries, view stats |
 | `START_HERE.md`, `START.bat`, `START.command` | The simple steps, plus double-click launchers that install everything and run the guided setup |
 | `campaigns/alpha-futures.json` | The TikTok pick: $2 per 1K views, logo overlay, dedicated account, engagement floor |
+| `dashboard.py`, `DASHBOARD.bat`, `DASHBOARD.command` | Clip Engine dashboard, in the NQ dashboard's design system. Rebuilt every cycle; `python pipeline.py dashboard` opens it. |
 | `zernio.py` | Free automatic public posting to TikTok and Instagram through Zernio's free plan (presigned upload, publishNow, link lookup) |
 | `uploadpost.py` | Fully automatic public posting to TikTok, Instagram and YouTube through Upload-Post's API (key in the keychain) |
 | `tiktok.py` | TikTok Content Posting API: desktop OAuth with PKCE (keychain), chunked inbox/direct upload, status polling, video list for links and views |

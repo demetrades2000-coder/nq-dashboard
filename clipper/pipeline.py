@@ -997,6 +997,9 @@ def make_handler(ws: WS, token: str, port_ref: dict, a):
                 return self._send(403, b"forbidden")
             u = urllib.parse.urlparse(self.path)
             qs = urllib.parse.parse_qs(u.query)
+            if u.path == "/dashboard":
+                import dashboard
+                return self._send(200, dashboard.render_html(dashboard.build_data(ws)).encode())
             if u.path == "/":
                 page = render_page(ws, token, qs.get("status", ["pending_review"])[0], qs.get("msg", [""])[0])
                 return self._send(200, page.encode())
@@ -1065,6 +1068,16 @@ def serve_review(ws: WS, a, port: int = 8765, block: bool = True):
 def cmd_review(ws: WS, a) -> int:
     cl.Tools.setup(True)
     serve_review(ws, a, a.port)
+    return 0
+
+
+def cmd_dashboard(ws: WS, a) -> int:
+    import dashboard
+    import webbrowser
+    out = dashboard.write(ws)
+    print(f"Dashboard: {out}")
+    if not a.no_open:
+        webbrowser.open(out.as_uri())
     return 0
 
 
@@ -1388,6 +1401,11 @@ def autopilot_cycle(ws: WS, a, uploader=None, uploaders=None) -> int:
         # 5. refresh views / pick up TikTok posts finished from the inbox
         refresh_platform_stats(ws, pool, rep)
     write_autopilot_report(ws, rep)
+    try:
+        import dashboard
+        dashboard.write(ws)
+    except Exception as e:  # noqa: BLE001  (the dashboard must never break a cycle)
+        ws.event(f"dashboard not updated: {e}", "warn")
     drafts = ws.q("SELECT u.caption, u.clip_id FROM uploads u WHERE u.platform='tiktok' AND u.state='draft' "
                   "AND u.url IS NULL AND u.created >= ?", (rep["started"],))
     if drafts or rep["upload_errors"] or rep["held"]:
@@ -2267,6 +2285,8 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("notify", help="phone notifications via the ntfy app (opt-in)")
     s.add_argument("action", choices=["setup", "test", "off"])
     s.add_argument("--topic")
+    s = sub.add_parser("dashboard", help="build and open the Clip Engine dashboard")
+    s.add_argument("--no-open", action="store_true")
     s = sub.add_parser("earnings", help="tracker commands on this workspace (default: report)")
     s.add_argument("rest", nargs=argparse.REMAINDER)
     return p
@@ -2278,7 +2298,8 @@ COMMANDS = {"campaign-check": cmd_campaign_check, "import": cmd_import, "run": c
             "cleanup": cmd_cleanup, "earnings": cmd_earnings, "autopilot": cmd_autopilot, "schedule": cmd_schedule,
             "youtube": cmd_youtube, "submitted": cmd_submitted, "tiktok": cmd_tiktok,
             "doctor": cmd_doctor, "setup": cmd_setup, "notify": cmd_notify, "campaign-set": cmd_campaign_set,
-            "uploadpost": cmd_uploadpost, "link": cmd_link, "zernio": cmd_zernio}
+            "uploadpost": cmd_uploadpost, "link": cmd_link, "zernio": cmd_zernio,
+            "dashboard": cmd_dashboard}
 
 
 def main(argv=None) -> int:

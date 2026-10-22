@@ -40,10 +40,26 @@ Done. It now posts by itself.
 
 1. Open `AUTOPILOT_REPORT.md` (in the `clipper-workspace` folder).
 2. Paste the new links into the campaign's submit form on Whop.
-3. Double-click `START.bat` again, or run `python pipeline.py submitted all`,
-   to mark them done.
+3. Run `python pipeline.py submitted all` to mark them done.
+
+The dashboard below shows the same links, each with a copy button.
 
 When the brand posts new footage, drop it into the same footage folder.
+
+## Your dashboard
+
+Double-click **`DASHBOARD.bat`** (Windows) or **`DASHBOARD.command`** (Mac).
+It's the same style as the NQ dashboard:
+- **Today:** earnings, views, links to submit (one-click copy) and anything
+  held.
+- **Clips:** every clip and where it's posted.
+- **Campaigns:** rates, rule status, results.
+- **Earnings:** by platform, campaign and top posts.
+- **Jobs:** what the engine did.
+
+It refreshes itself after every autopilot cycle.
+
+![dashboard](docs/dashboard-desktop.png)
 
 ## If something looks wrong
 

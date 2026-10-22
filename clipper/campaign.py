@@ -125,7 +125,9 @@ def platform_posts(c: dict | None, title: str, caption: str, hashtags: list[str]
         tags = list(dict.fromkeys(req_tags + [h for h in hashtags if h not in req_tags]))
         tags = tags[:max(max_tags, len(req_tags))]
         mentions = mentions_for(c, p)
-        tail = "\n\n".join(x for x in [req_text, " ".join(mentions), " ".join(tags)] if x)
+        order = [req_text, " ".join(tags), " ".join(mentions)] if cap.get("mentions_last") else \
+            [req_text, " ".join(mentions), " ".join(tags)]   # mentions_last: briefs that say "end every caption with the tags"
+        tail = "\n\n".join(x for x in order if x)
         if p == "youtube":
             head = " ".join(x for x in [disc, title] if x)
             if "#shorts" not in head.lower():

@@ -5,7 +5,7 @@
     "program": "Content Rewards",
     "campaign_url": "https://contentrewards.com/c/campaigns/1cc66d1c-d7bb-4cd6-addb-68093cb50908",
     "verified_on": "2026-10-22",
-    "evidence": "Content Rewards campaign page (public data, 2026-10-22): content types Clipping + Slideshows, category Finance, no pre-approval or application, 0 content rules and 0 creator requirements listed; 4 reference files after joining.",
+    "evidence": "Content Rewards campaign page (public data, 2026-10-22): content types Clipping + Slideshows, category Finance, no pre-approval or application, 0 content rules and 0 creator requirements listed; 4 reference files after joining. Brief (Google Doc \"Tradever Clipper Brief\", Motion Management, Sept 2026) read 2026-10-22: no ban on AI or editing tools; bans bots, fake engagement, bought views, paid boosting and ads. Requires: page name includes Tradever, official logo visible throughout every video, captions end with @tradeverfunding @laythbanks, 9:16, English, 7 s minimum, 5+ posts a week, posts live 30 days, likes visible, 2%+ engagement, mostly Tier 1 audience, no competing prop firms, no platform watermarks / skull edits / phonk, no same clip twice or across several accounts. Slideshows (5-7 slides) are its priority format.",
     "allowed_sources": [
       "file:footage/tradever"
     ]
@@ -24,7 +24,7 @@
   ],
   "language": "en",
   "clip": {
-    "min": 15,
+    "min": 8,
     "max": 60,
     "count": 6,
     "latest": 2,
@@ -34,12 +34,19 @@
   },
   "caption": {
     "required_hashtags": [],
-    "required_mentions": [],
+    "required_mentions": [
+      "@tradeverfunding",
+      "@laythbanks"
+    ],
+    "mentions_last": true,
     "required_text": ""
   },
   "on_screen": {
     "watermark": "",
-    "highlight": "#FFE600"
+    "highlight": "#FFE600",
+    "logo": "logos/tradever.png",
+    "logo_position": "top",
+    "logo_width": 1000
   },
   "disclosure": {
     "caption": "#ad",
@@ -52,9 +59,31 @@
     "can't lose",
     "financial advice",
     "get rich quick",
-    "100x"
+    "100x",
+    "apex trader",
+    "apex funding",
+    "topstep",
+    "ftmo",
+    "myfundedfutures",
+    "my funded futures",
+    "mffu",
+    "alpha futures",
+    "alpha capital",
+    "lucid trading",
+    "take profit trader",
+    "fundednext",
+    "funded next",
+    "bulenox",
+    "earn2trade",
+    "tradeday",
+    "tradeify",
+    "the5ers",
+    "funding pips",
+    "e8 markets",
+    "fundingticks",
+    "phonk"
   ],
-  "notes": "Live 2026-10-22: $5 per 1K views on TikTok, Instagram and YouTube, min payout $7 a clip (~1,400 views), max $500 a clip, $1,937 of $2,000 left, 28 clippers, 179 approved posts, ~101K views so far (~570 per post on average). Brief: content that makes traders at other prop firms switch to Tradever, and new traders choose it first (futures prop firm, weekly payouts). No content rules listed; check the 4 reference files after joining (footage and any rules) and drop the videos into footage/tradever.",
+  "notes": "Live 2026-10-22: $5 per 1K views on TikTok, Instagram and YouTube, min payout $7 a clip (~1,400 views), max $500 a clip, $1,937 of $2,000 left, 28 clippers, 179 approved posts, ~101K views so far (~570 per post on average). Brief: content that makes traders at other prop firms switch to Tradever, and new traders choose it first (futures prop firm, weekly payouts). No content rules listed; check the 4 reference files after joining (footage and any rules) and drop the videos into footage/tradever. Brief says $1 per 1K (dated September) while the live campaign page pays $5 per 1K: the page payout model is what Content Rewards pays out. Official logo + approved CEO/podcast clips come from the other reference files.",
   "automation_allowed": true,
   "accounts": {
     "tiktok": "tradever",

@@ -1,0 +1,7 @@
+# raw downloads and intermediate files stay out of the state branch
+ws/sources/*/source.*
+ws/sources/*/*.wav
+ws/clips/
+ws/logs/
+footage/
+*.lock

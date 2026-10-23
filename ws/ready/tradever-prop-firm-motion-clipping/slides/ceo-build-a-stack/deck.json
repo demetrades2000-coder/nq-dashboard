@@ -1,0 +1,39 @@
+{
+  "id": "ceo-build-a-stack",
+  "angle": "ceo_quote",
+  "title": "Pros don't trade one prop firm, they build a stack",
+  "caption": "Why Tradever's CEO trades several firms, and where Tradever fits in. #tradever #propfirm #daytrading #futurestrading #ad @tradeverfunding @laythbanks",
+  "slides": [
+    {
+      "kind": "hook",
+      "text": "Pros don't trade one prop firm. They build a *stack*.",
+      "tag": "CEO QUOTE"
+    },
+    {
+      "kind": "quote",
+      "text": "I trade on multiple prop firms and I utilize that in my stack."
+    },
+    {
+      "kind": "quote",
+      "text": "You want to be able to have multiple firms that pay out on different days."
+    },
+    {
+      "kind": "quote",
+      "text": "What it adds to the marketplace is another firm that you can trust.",
+      "sub": "On Tradever"
+    },
+    {
+      "kind": "cta",
+      "text": "Get funded with *Tradever*",
+      "sub": "Use code *LAYTH* for 40% off",
+      "button": "LINK IN BIO"
+    }
+  ],
+  "images": [
+    "slide_01.jpg",
+    "slide_02.jpg",
+    "slide_03.jpg",
+    "slide_04.jpg",
+    "slide_05.jpg"
+  ]
+}

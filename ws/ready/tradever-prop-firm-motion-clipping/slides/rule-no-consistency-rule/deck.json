@@ -1,0 +1,45 @@
+{
+  "id": "rule-no-consistency-rule",
+  "angle": "rule_breakdown",
+  "title": "The consistency rule, explained",
+  "caption": "Rule breakdown: what a consistency rule is and how Tradever handles it. Check your account's rules. #tradever #propfirm #fundedtrader #futurestrading #ad @tradeverfunding @laythbanks",
+  "slides": [
+    {
+      "kind": "hook",
+      "text": "The rule that quietly *delays payouts*.",
+      "sub": "It's called the consistency rule.",
+      "tag": "RULE BREAKDOWN"
+    },
+    {
+      "kind": "point",
+      "text": "A consistency rule caps how much of your profit can come from *one day*.",
+      "sub": "One big day can push your payout back.",
+      "tag": "RULE BREAKDOWN"
+    },
+    {
+      "kind": "point",
+      "text": "Tradever: *no consistency rule* once funded.",
+      "sub": "On select accounts. Check the rules of yours.",
+      "tag": "RULE BREAKDOWN"
+    },
+    {
+      "kind": "point",
+      "text": "Trade your plan, not a *daily quota*.",
+      "sub": "Take the good days when the market gives them.",
+      "tag": "RULE BREAKDOWN"
+    },
+    {
+      "kind": "cta",
+      "text": "Get funded with *Tradever*",
+      "sub": "Use code *LAYTH* for 40% off",
+      "button": "LINK IN BIO"
+    }
+  ],
+  "images": [
+    "slide_01.jpg",
+    "slide_02.jpg",
+    "slide_03.jpg",
+    "slide_04.jpg",
+    "slide_05.jpg"
+  ]
+}

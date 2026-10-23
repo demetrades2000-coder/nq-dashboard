@@ -1,0 +1,45 @@
+{
+  "id": "rule-eod-drawdown",
+  "angle": "rule_breakdown",
+  "title": "Intraday vs end-of-day drawdown",
+  "caption": "Rule breakdown: intraday trailing vs end-of-day (EOD) drawdown, and what Tradever uses. #tradever #propfirm #fundedtrader #futurestrading #ad @tradeverfunding @laythbanks",
+  "slides": [
+    {
+      "kind": "hook",
+      "text": "*Intraday* or *end-of-day* drawdown?",
+      "sub": "Know which one your account uses.",
+      "tag": "RULE BREAKDOWN"
+    },
+    {
+      "kind": "point",
+      "text": "Intraday trailing drawdown follows your *open profit*, tick by tick.",
+      "sub": "A winner that pulls back can still tighten your limit.",
+      "tag": "RULE BREAKDOWN"
+    },
+    {
+      "kind": "point",
+      "text": "End-of-day drawdown updates once, at the *close*.",
+      "sub": "Swings during the session don't move it.",
+      "tag": "RULE BREAKDOWN"
+    },
+    {
+      "kind": "point",
+      "text": "Tradever uses *EOD drawdown*.",
+      "sub": "Always read the full rules for your account.",
+      "tag": "RULE BREAKDOWN"
+    },
+    {
+      "kind": "cta",
+      "text": "Get funded with *Tradever*",
+      "sub": "Use code *LAYTH* for 40% off",
+      "button": "LINK IN BIO"
+    }
+  ],
+  "images": [
+    "slide_01.jpg",
+    "slide_02.jpg",
+    "slide_03.jpg",
+    "slide_04.jpg",
+    "slide_05.jpg"
+  ]
+}

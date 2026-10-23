@@ -1,0 +1,38 @@
+{
+  "id": "ceo-marathon-not-sprint",
+  "angle": "ceo_quote",
+  "title": "Trading is a marathon, not a sprint",
+  "caption": "Layth on chasing money vs learning the process. #tradever #propfirm #daytrading #futurestrading #ad @tradeverfunding @laythbanks",
+  "slides": [
+    {
+      "kind": "hook",
+      "text": "Chasing *big payouts*? Read this first.",
+      "tag": "CEO QUOTE"
+    },
+    {
+      "kind": "quote",
+      "text": "This is a marathon and not a sprint."
+    },
+    {
+      "kind": "quote",
+      "text": "If you focus too much on the money, you tend to forget the process."
+    },
+    {
+      "kind": "quote",
+      "text": "This is a game of probability."
+    },
+    {
+      "kind": "cta",
+      "text": "Get funded with *Tradever*",
+      "sub": "Use code *LAYTH* for 40% off",
+      "button": "LINK IN BIO"
+    }
+  ],
+  "images": [
+    "slide_01.jpg",
+    "slide_02.jpg",
+    "slide_03.jpg",
+    "slide_04.jpg",
+    "slide_05.jpg"
+  ]
+}

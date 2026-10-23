@@ -1,0 +1,45 @@
+{
+  "id": "rule-weekly-payouts",
+  "angle": "rule_breakdown",
+  "title": "Weekly payouts: why the payout cycle matters",
+  "caption": "Rule breakdown: Tradever pays out weekly. Always read your account's full payout rules. #tradever #propfirm #fundedtrader #futurestrading #ad @tradeverfunding @laythbanks",
+  "slides": [
+    {
+      "kind": "hook",
+      "text": "Still waiting *weeks* for a payout?",
+      "sub": "Read this before you pick a prop firm.",
+      "tag": "RULE BREAKDOWN"
+    },
+    {
+      "kind": "point",
+      "text": "Tradever runs *weekly payouts*.",
+      "sub": "A futures prop firm built around a weekly payout cycle.",
+      "tag": "RULE BREAKDOWN"
+    },
+    {
+      "kind": "point",
+      "text": "Plan your week around *payday*.",
+      "sub": "Trade your plan, qualify, request. Then go again next week.",
+      "tag": "RULE BREAKDOWN"
+    },
+    {
+      "kind": "point",
+      "text": "Smaller, *regular* withdrawals add up.",
+      "sub": "No sitting on profits waiting for a month-end window.",
+      "tag": "RULE BREAKDOWN"
+    },
+    {
+      "kind": "cta",
+      "text": "Get funded with *Tradever*",
+      "sub": "Use code *LAYTH* for 40% off",
+      "button": "LINK IN BIO"
+    }
+  ],
+  "images": [
+    "slide_01.jpg",
+    "slide_02.jpg",
+    "slide_03.jpg",
+    "slide_04.jpg",
+    "slide_05.jpg"
+  ]
+}

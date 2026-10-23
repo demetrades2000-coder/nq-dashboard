@@ -1,0 +1,45 @@
+{
+  "id": "myth-three-rules-to-check",
+  "angle": "myth_buster",
+  "title": "3 rules to check before you buy a prop account",
+  "caption": "Most traders skip the rules page. Check these three first. #tradever #propfirm #tradingtips #futurestrading #ad @tradeverfunding @laythbanks",
+  "slides": [
+    {
+      "kind": "hook",
+      "text": "*Three rules* to check before you buy a prop account.",
+      "sub": "Most traders skip this page.",
+      "tag": "MYTH BUSTER"
+    },
+    {
+      "kind": "point",
+      "text": "How often does it *pay out*?",
+      "sub": "Tradever: weekly payouts.",
+      "tag": "MYTH BUSTER"
+    },
+    {
+      "kind": "point",
+      "text": "Is there a *consistency rule*?",
+      "sub": "Tradever: none once funded, on select accounts.",
+      "tag": "MYTH BUSTER"
+    },
+    {
+      "kind": "point",
+      "text": "Is drawdown *intraday* or *end-of-day*?",
+      "sub": "Tradever: EOD drawdown.",
+      "tag": "MYTH BUSTER"
+    },
+    {
+      "kind": "cta",
+      "text": "Get funded with *Tradever*",
+      "sub": "Use code *LAYTH* for 40% off",
+      "button": "LINK IN BIO"
+    }
+  ],
+  "images": [
+    "slide_01.jpg",
+    "slide_02.jpg",
+    "slide_03.jpg",
+    "slide_04.jpg",
+    "slide_05.jpg"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "id": "ceo-not-scared-to-lose",
+  "angle": "ceo_quote",
+  "title": "What his best trading students have in common",
+  "caption": "Tradever's CEO on the one trait he sees in his most successful students. #tradever #propfirm #daytrading #futurestrading #ad @tradeverfunding @laythbanks",
+  "slides": [
+    {
+      "kind": "hook",
+      "text": "His best students have *one thing* in common.",
+      "tag": "CEO QUOTE"
+    },
+    {
+      "kind": "quote",
+      "text": "They are not scared to lose.",
+      "sub": "On what he sees in his students"
+    },
+    {
+      "kind": "quote",
+      "text": "If you're coming in and you're already scared to lose and you got a scarcity mindset … you start to go downward in a downward spiral."
+    },
+    {
+      "kind": "quote",
+      "text": "Onto the next, it's okay, no problem. We'll make it back on the next one."
+    },
+    {
+      "kind": "cta",
+      "text": "Get funded with *Tradever*",
+      "sub": "Use code *LAYTH* for 40% off",
+      "button": "LINK IN BIO"
+    }
+  ],
+  "images": [
+    "slide_01.jpg",
+    "slide_02.jpg",
+    "slide_03.jpg",
+    "slide_04.jpg",
+    "slide_05.jpg"
+  ]
+}

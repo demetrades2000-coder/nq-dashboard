@@ -1,10 +1,10 @@
 # Autopilot report
 
-Cycle started 2026-10-23T00:34:03, finished 2026-10-23T00:34:39.
+Cycle started 2026-10-23T00:56:44, finished 2026-10-23T00:57:10.
 
 ## Auto-approved
 
-- 6 new slideshow(s) for Tradever Prop Firm (Motion Clipping)
+- 4 new slideshow(s) for Tradever Prop Firm (Motion Clipping)
 
 ## Held for you (open `pipeline.py review` to decide)
 
@@ -17,7 +17,7 @@ Cycle started 2026-10-23T00:34:03, finished 2026-10-23T00:34:39.
 ## Notes
 
 - Tradever Prop Firm (Motion Clipping): no tiktok account connected with 'tradever' in its name; 19 post(s) wait (connect one in Zernio)
-- Tradever Prop Firm (Motion Clipping): no tiktok account connected with 'tradever' in its name; 12 post(s) wait (connect one in Zernio)
+- Tradever Prop Firm (Motion Clipping): no tiktok account connected with 'tradever' in its name; 16 post(s) wait (connect one in Zernio)
 
 AI spend this month: $0.0000 of $0.00.
 View counts are the platforms' public numbers; the campaign pays on the views it verifies.

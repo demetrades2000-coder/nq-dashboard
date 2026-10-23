@@ -1,0 +1,39 @@
+{
+  "id": "ceo-five-to-nine",
+  "angle": "ceo_quote",
+  "title": "It's what you do from five to nine that matters",
+  "caption": "Tradever's CEO on 9-to-5s, side hustles and learning a skill. #tradever #propfirm #daytrading #futurestrading #ad @tradeverfunding @laythbanks",
+  "slides": [
+    {
+      "kind": "hook",
+      "text": "Your *nine to five* isn't the problem.",
+      "sub": "It's what comes after.",
+      "tag": "CEO QUOTE"
+    },
+    {
+      "kind": "quote",
+      "text": "It's what you do from your five to nine that matters."
+    },
+    {
+      "kind": "quote",
+      "text": "You can make a lot more money by learning a skill set and giving yourself that time."
+    },
+    {
+      "kind": "quote",
+      "text": "There is not a skill set in the world that I think is better than learning how to day trade."
+    },
+    {
+      "kind": "cta",
+      "text": "Get funded with *Tradever*",
+      "sub": "Use code *LAYTH* for 40% off",
+      "button": "LINK IN BIO"
+    }
+  ],
+  "images": [
+    "slide_01.jpg",
+    "slide_02.jpg",
+    "slide_03.jpg",
+    "slide_04.jpg",
+    "slide_05.jpg"
+  ]
+}

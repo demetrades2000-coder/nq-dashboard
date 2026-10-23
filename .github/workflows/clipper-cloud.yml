@@ -7,6 +7,8 @@ name: clipper-cloud
 # Start or restart the chain: Actions -> clipper-cloud -> Run workflow (branch claude/determined-shannon-94kfrp).
 # Stop it: disable the workflow (Actions -> clipper-cloud -> ... -> Disable workflow).
 on:
+  push:   # editing this file (re)starts the chain
+    paths: [".github/workflows/clipper-cloud.yml"]
   workflow_dispatch:
     inputs:
       wait_minutes:

@@ -1,0 +1,39 @@
+{
+  "id": "ceo-red-flags",
+  "angle": "myth_buster",
+  "title": "How to spot a prop firm red flag",
+  "caption": "Three checks Tradever's CEO runs before trusting any prop firm. #tradever #propfirm #tradingtips #futurestrading #ad @tradeverfunding @laythbanks",
+  "slides": [
+    {
+      "kind": "hook",
+      "text": "How to spot a prop firm *red flag*.",
+      "sub": "Three checks from Tradever's CEO.",
+      "tag": "MYTH BUSTER"
+    },
+    {
+      "kind": "quote",
+      "text": "They like to change the rules as they go and that's something I would watch out for as a red flag."
+    },
+    {
+      "kind": "quote",
+      "text": "Look at the Trustpilot reviews … see if people are getting paid out."
+    },
+    {
+      "kind": "quote",
+      "text": "Make sure that you know who you're trading with, you wanna know the company, you wanna know the owner."
+    },
+    {
+      "kind": "cta",
+      "text": "Get funded with *Tradever*",
+      "sub": "Use code *LAYTH* for 40% off",
+      "button": "LINK IN BIO"
+    }
+  ],
+  "images": [
+    "slide_01.jpg",
+    "slide_02.jpg",
+    "slide_03.jpg",
+    "slide_04.jpg",
+    "slide_05.jpg"
+  ]
+}

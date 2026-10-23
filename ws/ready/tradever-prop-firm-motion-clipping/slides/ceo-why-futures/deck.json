@@ -1,0 +1,39 @@
+{
+  "id": "ceo-why-futures",
+  "angle": "ceo_quote",
+  "title": "Why Tradever's CEO went all in on futures",
+  "caption": "Penny stocks, forex, CFDs, equities... and why Layth ended up trading futures. #tradever #propfirm #daytrading #futurestrading #ad @tradeverfunding @laythbanks",
+  "slides": [
+    {
+      "kind": "hook",
+      "text": "Why Tradever's CEO went all in on *futures*.",
+      "sub": "After penny stocks, forex, CFDs and equities.",
+      "tag": "CEO QUOTE"
+    },
+    {
+      "kind": "quote",
+      "text": "Futures, in my opinion, is a lot better."
+    },
+    {
+      "kind": "quote",
+      "text": "There's no spreads and the commissions are very, very low."
+    },
+    {
+      "kind": "quote",
+      "text": "It's more regulated, which I do like."
+    },
+    {
+      "kind": "cta",
+      "text": "Get funded with *Tradever*",
+      "sub": "Use code *LAYTH* for 40% off",
+      "button": "LINK IN BIO"
+    }
+  ],
+  "images": [
+    "slide_01.jpg",
+    "slide_02.jpg",
+    "slide_03.jpg",
+    "slide_04.jpg",
+    "slide_05.jpg"
+  ]
+}

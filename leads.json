@@ -1,0 +1,913 @@
+[
+  {
+    "id": "2f4f74ef-7a5f-4e37-894b-94c56bc0ddc4",
+    "name": "Post Clips for Sinparty",
+    "org": "Clipr Agency",
+    "url": "https://contentrewards.com/c/campaigns/2f4f74ef-7a5f-4e37-894b-94c56bc0ddc4",
+    "rates": {
+      "tiktok": {
+        "cpm": 5.0,
+        "min": 5.0,
+        "max": 175.0
+      },
+      "instagram": {
+        "cpm": 5.0,
+        "min": 5.0,
+        "max": 175.0
+      }
+    },
+    "left": 2130.58,
+    "budget": 3160.0,
+    "creators": 299,
+    "views": 762486,
+    "categories": [
+      "Entertainment"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": 0,
+    "requirements": 1,
+    "requires_application": false,
+    "score": 3.634
+  },
+  {
+    "id": "18496202-6029-4a29-a44c-9fc33678fcb9",
+    "name": "Call of Duty MW4 (en Fran\u00e7ais)",
+    "org": "French Clipping",
+    "url": "https://contentrewards.com/c/campaigns/18496202-6029-4a29-a44c-9fc33678fcb9",
+    "rates": {
+      "tiktok": {
+        "cpm": 2.0,
+        "min": 4.0,
+        "max": 350.0
+      },
+      "instagram": {
+        "cpm": 2.0,
+        "min": 4.0,
+        "max": 350.0
+      }
+    },
+    "left": 15569.39,
+    "budget": 23000.0,
+    "creators": 36,
+    "views": 5382783,
+    "categories": [
+      "Entertainment"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": 0,
+    "requirements": 0,
+    "requires_application": false,
+    "score": 3.621
+  },
+  {
+    "id": "86842687-ba2b-4638-a024-995dcf3d25a3",
+    "name": "Michael Sartain's Clipping Army",
+    "org": "Michael Sartain's Clipper Army",
+    "url": "https://contentrewards.com/c/campaigns/86842687-ba2b-4638-a024-995dcf3d25a3",
+    "rates": {
+      "tiktok": {
+        "cpm": 1.0,
+        "min": 10.0,
+        "max": 100.0
+      },
+      "x": {
+        "cpm": 1.0,
+        "min": 10.0,
+        "max": 100.0
+      },
+      "instagram": {
+        "cpm": 2.0,
+        "min": 19.0,
+        "max": 200.0
+      },
+      "youtube": {
+        "cpm": 1.5,
+        "min": 15.0,
+        "max": 100.0
+      },
+      "facebook": {
+        "cpm": 2.0,
+        "min": 19.0,
+        "max": 200.0
+      }
+    },
+    "left": 4362.16,
+    "budget": 15000.0,
+    "creators": 28,
+    "views": 7353754,
+    "categories": [
+      "Personal Brand"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": 1,
+    "requirements": 3,
+    "requires_application": false,
+    "score": 3.317
+  },
+  {
+    "id": "bd77f416-274c-4aa1-9912-024f907f1bca",
+    "name": "Modern Warfare 4 - Campaign Moments Clipping",
+    "org": "Clipping Culture",
+    "url": "https://contentrewards.com/c/campaigns/bd77f416-274c-4aa1-9912-024f907f1bca",
+    "rates": {
+      "tiktok": {
+        "cpm": 1.75,
+        "min": 5.25,
+        "max": 1000.0
+      },
+      "instagram": {
+        "cpm": 1.25,
+        "min": 3.75,
+        "max": 1000.0
+      }
+    },
+    "left": 6545.01,
+    "budget": 40000.0,
+    "creators": 89,
+    "views": 26223352,
+    "categories": [
+      "Entertainment"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": 0,
+    "requirements": 0,
+    "requires_application": false,
+    "score": 2.892
+  },
+  {
+    "id": "6f0d4fb3-4ed1-42be-8644-e2e569681a42",
+    "name": "Flip.gg Clipping",
+    "org": "ClipLaunch",
+    "url": "https://contentrewards.com/c/campaigns/6f0d4fb3-4ed1-42be-8644-e2e569681a42",
+    "rates": {
+      "tiktok": {
+        "cpm": 1.5,
+        "min": 3.5,
+        "max": 500.0
+      },
+      "instagram": {
+        "cpm": 1.5,
+        "min": 3.5,
+        "max": 500.0
+      },
+      "youtube": {
+        "cpm": 1.5,
+        "min": 3.5,
+        "max": 500.0
+      }
+    },
+    "left": 8917.75,
+    "budget": 10000.0,
+    "creators": 28,
+    "views": 682591,
+    "categories": [
+      "Entertainment"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": 0,
+    "requirements": 0,
+    "requires_application": false,
+    "score": 2.759
+  },
+  {
+    "id": "088c2279-ab1d-4434-9ba0-6637ab9311fa",
+    "name": "BILF Podcast | Clip the Show",
+    "org": "Runback.TV",
+    "url": "https://contentrewards.com/c/campaigns/088c2279-ab1d-4434-9ba0-6637ab9311fa",
+    "rates": {
+      "tiktok": {
+        "cpm": 2.0,
+        "min": 4.0,
+        "max": 200.0
+      },
+      "instagram": {
+        "cpm": 2.0,
+        "min": 4.0,
+        "max": 200.0
+      },
+      "youtube": {
+        "cpm": 2.0,
+        "min": 4.0,
+        "max": 200.0
+      }
+    },
+    "left": 3139.81,
+    "budget": 5000.0,
+    "creators": 45,
+    "views": 1412222,
+    "categories": [
+      "Entertainment"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": 1,
+    "requirements": 1,
+    "requires_application": false,
+    "score": 2.542
+  },
+  {
+    "id": "0afd04db-e183-4411-9957-0b890ef272b5",
+    "name": "Call of Duty MW4 \u0639\u0631\u0628\u064a V2",
+    "org": "Arabic Clipping",
+    "url": "https://contentrewards.com/c/campaigns/0afd04db-e183-4411-9957-0b890ef272b5",
+    "rates": {
+      "tiktok": {
+        "cpm": 1.0,
+        "min": 2.0,
+        "max": 300.0
+      },
+      "instagram": {
+        "cpm": 1.0,
+        "min": 3.0,
+        "max": 150.0
+      }
+    },
+    "left": 22208.12,
+    "budget": 26300.0,
+    "creators": 25,
+    "views": 3825259,
+    "categories": [
+      "Entertainment"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": 0,
+    "requirements": 0,
+    "requires_application": false,
+    "score": 1.85
+  },
+  {
+    "id": "5991571d-8c83-41e8-941c-34d96476c06b",
+    "name": "Jackelyne Campaign",
+    "org": "Jackelyne Clips",
+    "url": "https://contentrewards.com/c/campaigns/5991571d-8c83-41e8-941c-34d96476c06b",
+    "rates": {
+      "tiktok": {
+        "cpm": 1.5,
+        "min": 2.0,
+        "max": 150.0
+      },
+      "instagram": {
+        "cpm": 1.5,
+        "min": 2.0,
+        "max": 150.0
+      },
+      "youtube": {
+        "cpm": 1.5,
+        "min": 2.0,
+        "max": 150.0
+      },
+      "x": {
+        "cpm": 1.5,
+        "min": 2.0,
+        "max": 150.0
+      }
+    },
+    "left": 2900.55,
+    "budget": 5670.0,
+    "creators": 43,
+    "views": 1824574,
+    "categories": [
+      "Entertainment"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": 0,
+    "requirements": 3,
+    "requires_application": false,
+    "score": 1.815
+  },
+  {
+    "id": "295e9879-4464-4a31-975d-1c7b3a80d359",
+    "name": "2 Bears 1 Cave Clipping October",
+    "org": "YMH Studios",
+    "url": "https://contentrewards.com/c/campaigns/295e9879-4464-4a31-975d-1c7b3a80d359",
+    "rates": {
+      "tiktok": {
+        "cpm": 1.0,
+        "min": 2.0,
+        "max": 200.0
+      },
+      "youtube": {
+        "cpm": 1.0,
+        "min": 2.0,
+        "max": 200.0
+      }
+    },
+    "left": 2923.21,
+    "budget": 5000.0,
+    "creators": 78,
+    "views": 2394528,
+    "categories": [
+      "Comedy Podcast"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": 1,
+    "requirements": 0,
+    "requires_application": false,
+    "score": 1.717
+  },
+  {
+    "id": "a917d855-61f3-4c17-a75d-927dca325134",
+    "name": "Demi Lovato Podcast Clipping Campaign",
+    "org": "Evangelist",
+    "url": "https://contentrewards.com/c/campaigns/a917d855-61f3-4c17-a75d-927dca325134",
+    "rates": {
+      "tiktok": {
+        "cpm": 2.5,
+        "min": 10.0,
+        "max": 450.0
+      },
+      "instagram": {
+        "cpm": 2.5,
+        "min": 10.0,
+        "max": 450.0
+      },
+      "youtube": {
+        "cpm": 2.5,
+        "min": 10.0,
+        "max": 450.0
+      }
+    },
+    "left": 837.81,
+    "budget": 3200.0,
+    "creators": 27,
+    "views": 1120774,
+    "categories": [
+      "Entertainment"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": 0,
+    "requirements": 0,
+    "requires_application": false,
+    "score": 1.657
+  },
+  {
+    "id": "e509f6d0-13bf-42bc-8450-09e12c216c33",
+    "name": "Backyard Breaks [Clipping Campaign]",
+    "org": "ClipHouse",
+    "url": "https://contentrewards.com/c/campaigns/e509f6d0-13bf-42bc-8450-09e12c216c33",
+    "rates": {
+      "youtube": {
+        "cpm": 2.0,
+        "min": 2.0,
+        "max": 250.0
+      },
+      "instagram": {
+        "cpm": 2.0,
+        "min": 2.0,
+        "max": 250.0
+      },
+      "tiktok": {
+        "cpm": 2.0,
+        "min": 2.0,
+        "max": 250.0
+      }
+    },
+    "left": 6064.41,
+    "budget": 70153.25,
+    "creators": 293,
+    "views": 29828843,
+    "categories": [
+      "Sports"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": 2,
+    "requirements": 0,
+    "requires_application": false,
+    "score": 1.308
+  },
+  {
+    "id": "816b45a1-dc3f-42b5-b41e-81a1ebf8360e",
+    "name": "WKWK \u0645\u0637\u0639\u0645 \u0648\u0643 \u0627\u0644\u0643\u0648\u064a\u062a\u064a",
+    "org": "ClipHaus",
+    "url": "https://contentrewards.com/c/campaigns/816b45a1-dc3f-42b5-b41e-81a1ebf8360e",
+    "rates": {
+      "instagram": {
+        "cpm": 1.0,
+        "min": 2.0,
+        "max": 50.0
+      },
+      "tiktok": {
+        "cpm": 1.0,
+        "min": 2.0,
+        "max": 50.0
+      }
+    },
+    "left": 798.05,
+    "budget": 9353.3,
+    "creators": 55,
+    "views": 9074960,
+    "categories": [
+      "Personal Brand"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": 1,
+    "requirements": 0,
+    "requires_application": false,
+    "score": 1.236
+  },
+  {
+    "id": "188c3e39-7850-4896-94df-e7a5be0cfec3",
+    "name": "Boxabl Official Clipping",
+    "org": "Clip Farm",
+    "url": "https://contentrewards.com/c/campaigns/188c3e39-7850-4896-94df-e7a5be0cfec3",
+    "rates": {
+      "youtube": {
+        "cpm": 0.5,
+        "min": 1.0,
+        "max": 500.0
+      },
+      "tiktok": {
+        "cpm": 0.5,
+        "min": 1.0,
+        "max": 500.0
+      },
+      "instagram": {
+        "cpm": 0.5,
+        "min": 1.0,
+        "max": 500.0
+      },
+      "x": {
+        "cpm": 0.5,
+        "min": 1.0,
+        "max": 500.0
+      }
+    },
+    "left": 63655.87,
+    "budget": 85000.0,
+    "creators": 857,
+    "views": 35213742,
+    "categories": [
+      "Business"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": 1,
+    "requirements": 0,
+    "requires_application": false,
+    "score": 1.234
+  },
+  {
+    "id": "ac498f72-60d3-4753-a703-44895b8b9678",
+    "name": "SEGA - Metaphor: ReFantazio Switch 2 Demo Clipping",
+    "org": "Clipping Culture",
+    "url": "https://contentrewards.com/c/campaigns/ac498f72-60d3-4753-a703-44895b8b9678",
+    "rates": {
+      "tiktok": {
+        "cpm": 2.0,
+        "min": 6.0,
+        "max": 1500.0
+      },
+      "instagram": {
+        "cpm": 1.5,
+        "min": 4.5,
+        "max": 1500.0
+      },
+      "youtube": {
+        "cpm": 2.0,
+        "min": 2.0,
+        "max": 1500.0
+      }
+    },
+    "left": 1366.57,
+    "budget": 17870.41,
+    "creators": 342,
+    "views": 9745249,
+    "categories": [
+      "Entertainment"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": 0,
+    "requirements": 0,
+    "requires_application": false,
+    "score": 1.109
+  },
+  {
+    "id": "b9b58693-b70d-419c-b660-e6c38903c8f3",
+    "name": "Mario Vincere 1 USD = 1K de vistas",
+    "org": "Afiliados Mario Vincere",
+    "url": "https://contentrewards.com/c/campaigns/b9b58693-b70d-419c-b660-e6c38903c8f3",
+    "rates": {
+      "tiktok": {
+        "cpm": 1.0,
+        "min": 20.0,
+        "max": 200.0
+      },
+      "youtube": {
+        "cpm": 1.0,
+        "min": 20.0,
+        "max": 200.0
+      },
+      "instagram": {
+        "cpm": 1.0,
+        "min": 20.0,
+        "max": 200.0
+      }
+    },
+    "left": 614.73,
+    "budget": 6076.25,
+    "creators": 80,
+    "views": 13178195,
+    "categories": [
+      "Personal Brand"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": 1,
+    "requirements": 0,
+    "requires_application": false,
+    "score": 1.091
+  },
+  {
+    "id": "1ac16fd4-1149-4f53-8960-3c4d693e3221",
+    "name": "SAMSUNG - SEA (PH/TH/VN/ID/SG/MY)",
+    "org": "Artist Influence",
+    "url": "https://contentrewards.com/c/campaigns/1ac16fd4-1149-4f53-8960-3c4d693e3221",
+    "rates": {
+      "youtube": {
+        "cpm": 1.0,
+        "min": 1.0,
+        "max": 150.0
+      },
+      "tiktok": {
+        "cpm": 1.0,
+        "min": 1.0,
+        "max": 150.0
+      }
+    },
+    "left": 2000.0,
+    "budget": 2000.0,
+    "creators": 0,
+    "views": 0,
+    "categories": [
+      "Technology"
+    ],
+    "types": [
+      "Clipping",
+      "UGC (With Face)",
+      "UGC (Faceless)",
+      "Reposting",
+      "Sound"
+    ],
+    "content_rules": 0,
+    "requirements": 1,
+    "requires_application": false,
+    "score": 1.05
+  },
+  {
+    "id": "5e4fe241-c51e-488c-8ba7-3575be36bbfe",
+    "name": "Jacob Nach (Educational/Motivational/Lifestyle)",
+    "org": "Clip Track",
+    "url": "https://contentrewards.com/c/campaigns/5e4fe241-c51e-488c-8ba7-3575be36bbfe",
+    "rates": {
+      "tiktok": {
+        "cpm": 1.0,
+        "min": 1.0,
+        "max": 200.0
+      },
+      "youtube": {
+        "cpm": 1.0,
+        "min": 1.25,
+        "max": 200.0
+      },
+      "instagram": {
+        "cpm": 1.0,
+        "min": 1.0,
+        "max": 200.0
+      }
+    },
+    "left": 2618.72,
+    "budget": 6000.0,
+    "creators": 109,
+    "views": 3665697,
+    "categories": [
+      "Lifestyle"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": 1,
+    "requirements": 1,
+    "requires_application": false,
+    "score": 1.016
+  },
+  {
+    "id": "23022f84-5715-4ba5-a647-abc4baf4f0f8",
+    "name": "Open Road Clipping | $5.25K Budget | $1.25 CPM",
+    "org": "Clipix",
+    "url": "https://contentrewards.com/c/campaigns/23022f84-5715-4ba5-a647-abc4baf4f0f8",
+    "rates": {
+      "tiktok": {
+        "cpm": 1.25,
+        "min": 1.25,
+        "max": 300.0
+      }
+    },
+    "left": 3808.37,
+    "budget": 5250.0,
+    "creators": 37,
+    "views": 884092,
+    "categories": [
+      "Apps"
+    ],
+    "types": [
+      "Slideshows"
+    ],
+    "content_rules": 0,
+    "requirements": 0,
+    "requires_application": false,
+    "score": 0.922
+  },
+  {
+    "id": "6e8cb2c6-7724-44a4-83da-66697acb20af",
+    "name": "Split-Screen UGC [English]",
+    "org": "Content Rewards",
+    "url": "https://contentrewards.com/c/campaigns/6e8cb2c6-7724-44a4-83da-66697acb20af",
+    "rates": {
+      "youtube": {
+        "cpm": 1.5,
+        "min": 1.5,
+        "max": 500.0
+      },
+      "instagram": {
+        "cpm": 3.0,
+        "min": 3.0,
+        "max": 500.0
+      },
+      "tiktok": {
+        "cpm": 3.0,
+        "min": 3.0,
+        "max": 500.0
+      },
+      "x": {
+        "cpm": 3.0,
+        "min": 3.0,
+        "max": 500.0
+      }
+    },
+    "left": 4072.37,
+    "budget": 18000.0,
+    "creators": 71,
+    "views": 2967967,
+    "categories": [],
+    "types": [],
+    "content_rules": 1,
+    "requirements": 0,
+    "requires_application": false,
+    "score": 0.919
+  },
+  {
+    "id": "bd4a3ba0-9dc6-4cde-a89f-0ac902f84643",
+    "name": "Tony Hawk Part 2 | Clipping",
+    "org": "The Clip Ship",
+    "url": "https://contentrewards.com/c/campaigns/bd4a3ba0-9dc6-4cde-a89f-0ac902f84643",
+    "rates": {
+      "tiktok": {
+        "cpm": 1.25,
+        "min": 2.5,
+        "max": 250.0
+      },
+      "instagram": {
+        "cpm": 1.25,
+        "min": 2.5,
+        "max": 250.0
+      },
+      "youtube": {
+        "cpm": 1.25,
+        "min": 2.5,
+        "max": 250.0
+      }
+    },
+    "left": 902.78,
+    "budget": 2916.0,
+    "creators": 32,
+    "views": 1478776,
+    "categories": [
+      "Entertainment"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": 0,
+    "requirements": 0,
+    "requires_application": false,
+    "score": 0.843
+  },
+  {
+    "id": "1db63081-715e-4e04-9b11-fbc1d4e8e700",
+    "name": "ForgeGUI Clipping [Roblox]",
+    "org": "BloxClips",
+    "url": "https://contentrewards.com/c/campaigns/1db63081-715e-4e04-9b11-fbc1d4e8e700",
+    "rates": {
+      "tiktok": {
+        "cpm": 1.0,
+        "min": 1.0,
+        "max": 1000.0
+      },
+      "instagram": {
+        "cpm": 1.0,
+        "min": 1.0,
+        "max": 1000.0
+      },
+      "youtube": {
+        "cpm": 0.5,
+        "min": 1.0,
+        "max": 1000.0
+      }
+    },
+    "left": 5927.92,
+    "budget": 189653.0,
+    "creators": 3624,
+    "views": 250303607,
+    "categories": [
+      "Technology"
+    ],
+    "types": [
+      "Clipping",
+      "UGC (Faceless)"
+    ],
+    "content_rules": 1,
+    "requirements": 4,
+    "requires_application": false,
+    "score": 0.749
+  },
+  {
+    "id": "14f743b2-c5ca-4f3e-8c0d-3010c485005d",
+    "name": "FR Yomi Denzel Campagne Principale",
+    "org": "Yomi Denzel Clipping",
+    "url": "https://contentrewards.com/c/campaigns/14f743b2-c5ca-4f3e-8c0d-3010c485005d",
+    "rates": {
+      "instagram": {
+        "cpm": 0.7,
+        "min": 20.0,
+        "max": 100.0
+      },
+      "tiktok": {
+        "cpm": 0.7,
+        "min": 20.0,
+        "max": 100.0
+      },
+      "youtube": {
+        "cpm": 0.7,
+        "min": 20.0,
+        "max": 100.0
+      },
+      "facebook": {
+        "cpm": 0.7,
+        "min": 20.0,
+        "max": 100.0
+      }
+    },
+    "left": 2949.75,
+    "budget": 314173.85,
+    "creators": 338,
+    "views": 619686649,
+    "categories": [
+      "Personal Brand"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": null,
+    "requirements": null,
+    "requires_application": true,
+    "score": 0.725
+  },
+  {
+    "id": "311c447c-b44b-483e-b172-f5fceabd20ce",
+    "name": "Clips Hablando - 1$ por cada 1000 visitas",
+    "org": "Carlos Esparraga Clipping",
+    "url": "https://contentrewards.com/c/campaigns/311c447c-b44b-483e-b172-f5fceabd20ce",
+    "rates": {
+      "tiktok": {
+        "cpm": 0.3,
+        "min": 7.5,
+        "max": 50.0
+      },
+      "instagram": {
+        "cpm": 1.0,
+        "min": 10.0,
+        "max": 100.0
+      },
+      "youtube": {
+        "cpm": 0.2,
+        "min": 5.0,
+        "max": 30.0
+      }
+    },
+    "left": 6138.5,
+    "budget": 10000.0,
+    "creators": 35,
+    "views": 15149335,
+    "categories": [
+      "Personal Brand"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": null,
+    "requirements": null,
+    "requires_application": true,
+    "score": 0.653
+  },
+  {
+    "id": "b9f3aca2-7dbd-4309-ad07-6838ab7fef38",
+    "name": "Pablo P\u00e9rez - Sobreviviendo en Bali con 100\u20ac",
+    "org": "Pablo Perez Clipping",
+    "url": "https://contentrewards.com/c/campaigns/b9f3aca2-7dbd-4309-ad07-6838ab7fef38",
+    "rates": {
+      "tiktok": {
+        "cpm": 1.0,
+        "min": 10.0,
+        "max": 100.0
+      },
+      "instagram": {
+        "cpm": 1.5,
+        "min": 5.0,
+        "max": 150.0
+      },
+      "youtube": {
+        "cpm": 0.5,
+        "min": 5.0,
+        "max": 50.0
+      }
+    },
+    "left": 2194.9,
+    "budget": 5000.0,
+    "creators": 40,
+    "views": 3876512,
+    "categories": [
+      "Lifestyle"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": null,
+    "requirements": null,
+    "requires_application": true,
+    "score": 0.613
+  },
+  {
+    "id": "210e40be-92ca-4b3a-912f-231944511254",
+    "name": "Clip for Team Minogue!",
+    "org": "Minogue For MA",
+    "url": "https://contentrewards.com/c/campaigns/210e40be-92ca-4b3a-912f-231944511254",
+    "rates": {
+      "tiktok": {
+        "cpm": 1.5,
+        "min": 1.5,
+        "max": 150.0
+      },
+      "instagram": {
+        "cpm": 1.5,
+        "min": 1.5,
+        "max": 150.0
+      },
+      "youtube": {
+        "cpm": 1.5,
+        "min": 1.5,
+        "max": 150.0
+      }
+    },
+    "left": 1590.61,
+    "budget": 4000.0,
+    "creators": 74,
+    "views": 1656050,
+    "categories": [
+      "News & Politics"
+    ],
+    "types": [
+      "Clipping"
+    ],
+    "content_rules": 0,
+    "requirements": 2,
+    "requires_application": false,
+    "score": 0.604
+  }
+]

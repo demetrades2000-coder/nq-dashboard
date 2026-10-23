@@ -361,7 +361,9 @@ def cmd_import(ws: WS, a) -> int:
         if from_campaign and not p.is_absolute():
             p = Path(c["_path"]).parent / p
         if p.is_dir():
-            vids = sorted((f for f in p.iterdir() if f.suffix.lower() in cl.VIDEO_EXT), key=lambda f: f.stat().st_mtime)
+            skip = {x.lower() for x in c.get("footage_skip") or []}   # files in the folder not worth clipping
+            vids = sorted((f for f in p.iterdir() if f.suffix.lower() in cl.VIDEO_EXT and f.stem.lower() not in skip),
+                          key=lambda f: f.stat().st_mtime)
             if not vids:
                 print(f"no videos in {p} yet")
             expanded += [str(f) for f in vids]
@@ -581,7 +583,7 @@ def process_source(ws: WS, row: sqlite3.Row, a) -> None:
         flags += [{"level": "warn", "msg": n} for n in notes if "extended" not in n]
         # only names and numbers matter: a misheard "and" is harmless, a misheard "$500" or brand name is not
         low = [w.w for i_, w in enumerate(k.words) if getattr(w, "p", 1.0) < LOW_CONF and
-               (re.search(r"[\d$%]", w.w) or (w.w[:1].isupper() and i_ > 0 and
+               ((re.search(r"[\d$%]", w.w) and getattr(w, "p", 1.0) < 0.3) or (w.w[:1].isupper() and i_ > 0 and
                                               not re.search(r"[.!?]$", k.words[i_ - 1].w) and cl.norm(w.w) != "i"))]
         if low:
             flags.append({"level": "warn", "msg": f"{len(low)} word(s) the recognizer was unsure of: "

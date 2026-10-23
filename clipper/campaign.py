@@ -85,7 +85,9 @@ def banned_hit(c: dict | None, text: str) -> str | None:
     if not c:
         return None
     low = text.lower()
-    return next((b for b in c["banned_phrases"] if b and b in low), None)
+    # whole words only: "ass" must not block "class" or "pass", "hoe" must not block "shoe"
+    return next((b for b in c.get("banned_phrases") or []
+                 if b and re.search(r"(?<![a-z0-9])" + re.escape(b.lower()) + r"(?![a-z0-9])", low)), None)
 
 
 def _tags(items) -> list[str]:

@@ -164,7 +164,7 @@ class TextTests(unittest.TestCase):
         self.assertEqual(cl._headline("So if you're trading with 1 to 500 leverage or"),
                          "If you're trading with 1 to 500 leverage")
         self.assertEqual(cl._headline("And I ended up taking that 500K and then I put it into the market, and I "
-                                      "lost it all in two weeks."), "I ended up taking that 500K")
+                                      "lost it all in two weeks."), "I ended up taking that 500K and then I put it into the market")
         self.assertTrue(cl._headline("I literally only trade for 90 minutes a day every single day.")
                         .endswith("every single day."))
 

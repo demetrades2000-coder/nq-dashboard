@@ -459,6 +459,18 @@ def _whisper_words(model, audio: Path, args) -> list[Word]:
     return words
 
 
+def merge_number_parts(words: list[Word]) -> list[Word]:
+    """Whisper sometimes splits "$30,000" into "$30" + ",000" (or "3" ",000."): join them back into one word."""
+    out: list[Word] = []
+    for w in words:
+        if out and re.match(r"^[,.]\d{3}\b", w.w) and re.search(r"\d$", out[-1].w):
+            p = out[-1]
+            out[-1] = Word(p.w + w.w, p.s, w.e, min(p.p, w.p))
+        else:
+            out.append(w)
+    return out
+
+
 def whisper_openai(audio: Path, args) -> list[Word]:
     import importlib
     whisper = importlib.import_module("whisper")  # only if the user already has it (torch is heavy)
@@ -477,7 +489,7 @@ def transcribe(video: Path, audio: Path | None, work: Path, args) -> tuple[list[
         try:
             d = json.loads(cache.read_text(encoding="utf-8"))
             log(f"using cached transcript ({d['source']})", "ok")
-            return [Word(**w) for w in d["words"]], d["source"]
+            return merge_number_parts([Word(**w) for w in d["words"]]), d["source"]
         except Exception:
             pass
 
@@ -498,7 +510,7 @@ def transcribe(video: Path, audio: Path | None, work: Path, args) -> tuple[list[
     for name, fn in attempts:
         try:
             log(f"transcript via {name} ...")
-            words = [w for w in fn() if w.w and w.e >= w.s]
+            words = merge_number_parts([w for w in fn() if w.w and w.e >= w.s])
             words.sort(key=lambda w: w.s)
             if len(words) >= 10:
                 cache.write_text(json.dumps({"source": name, "words": [w.__dict__ for w in words]}), encoding="utf-8")
@@ -775,7 +787,7 @@ def _headline(text: str, max_words: int = 11) -> str:
         if acc:
             words = " ".join(acc).split()
         else:  # no clause fits: cut before the last joining word inside the limit ("... and then I put")
-            joins = [i for i, w in enumerate(words[:max_words + 1]) if i >= 4 and
+            joins = [i for i, w in enumerate(words[:max_words + 5]) if i >= 4 and
                      re.sub(r"[^a-z]", "", w.lower()) in ("and", "but", "so", "then", "because", "or", "which", "where")]
             words = words[:joins[-1]] if joins else words[:max_words]
     while len(words) > 3 and re.sub(r"[^a-z']", "", words[-1].lower()) in DANGLE_END:
@@ -793,8 +805,12 @@ def best_line(c: Clip) -> str:
         return (sum(t in MONEY for t in toks) * 2 + sum(t in EMOTION for t in toks) * 1.5
                 + len(NUM_RE.findall(s.text)) * 2 + sum(bool(re.search(p, s.text.lower())) for p in HOOKS)
                 + (2 if s.s < c.s + 5 else 0) - abs(len(toks) - 9) * 0.15)
-    top = max(sents[:8], key=line_score)
-    return _headline(top.text)
+    ranked = sorted(sents[:8], key=line_score, reverse=True)
+    for s_ in ranked:   # a headline needs substance: skip "For example" / "Honestly" fragments
+        h = _headline(s_.text)
+        if len(h.split()) >= 5:
+            return h
+    return _headline(ranked[0].text)
 
 
 def make_copy(c: Clip, meta: dict, camp: dict | None = None) -> None:

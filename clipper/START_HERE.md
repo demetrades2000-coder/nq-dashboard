@@ -4,6 +4,29 @@ Everything is built: clipping, captions, logo overlay, `#ad`, rule checks,
 free automatic posting to TikTok (and Instagram/YouTube), view tracking, a
 dashboard and a schedule every 6 hours.
 
+## Running now: Tradever, in the cloud, PC off
+
+The Tradever campaign (Content Rewards, $5 per 1,000 views) runs **without your
+PC**: a cloud session runs `cloud_runner.py` every 4 hours. Each run:
+- pulls new footage from Tradever's shared Drive folder and clips it
+- auto-approves clips that pass the brief, plus TikTok photo **slideshows**
+  (their priority format)
+- posts them through Zernio to **every TikTok account you connected there**,
+  each clip to one account only (the brief forbids reposting across
+  accounts), up to 3 videos and 2 slideshows per account per day
+- updates the dashboard
+
+What it needs from you, once:
+1. TikTok accounts with **Tradever** in the name (the brief requires it).
+2. Zernio (free): connect those accounts and create an API key.
+3. Put the key in the cloud environment settings as **`ZERNIO_API_KEY`**
+   (session title bar → environment → Edit). Never paste it in chat.
+4. Join the campaign and paste your posted links on its page (the
+   dashboard's Today tab has copy buttons).
+
+The PC setup below is the same clipper on your own computer, for other
+campaigns or if you prefer it.
+
 ## The one rule that decides where we clip
 
 Many campaigns ban **automated or AI clipping tools**, and this tool is one.

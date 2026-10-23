@@ -1,6 +1,6 @@
 # Autopilot report
 
-Cycle started 2026-10-23T08:53:56, finished 2026-10-23T08:53:56.
+Cycle started 2026-10-23T12:52:49, finished 2026-10-23T12:52:49.
 
 ## Held for you (open `pipeline.py review` to decide)
 
@@ -12,7 +12,8 @@ Cycle started 2026-10-23T08:53:56, finished 2026-10-23T08:53:56.
 
 ## Notes
 
-- outside posting hours 8:00-23:00 (America/New_York): 35 post(s) wait for the next run
+- Tradever Prop Firm (Motion Clipping): no tiktok account connected with 'tradever' in its name; 19 post(s) wait (connect one in Zernio)
+- Tradever Prop Firm (Motion Clipping): no tiktok account connected with 'tradever' in its name; 16 post(s) wait (connect one in Zernio)
 
 AI spend this month: $0.0000 of $0.00.
 View counts are the platforms' public numbers; the campaign pays on the views it verifies.

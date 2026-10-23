@@ -4,25 +4,24 @@ Everything is built: clipping, captions, logo overlay, `#ad`, rule checks,
 free automatic posting to TikTok (and Instagram/YouTube), view tracking, a
 dashboard and a schedule every 6 hours.
 
-## Running now: Tradever, in the cloud, PC off
+## Running now: in the cloud, PC off, free
 
-The Tradever campaign (Content Rewards, $5 per 1,000 views) runs **without your
-PC**: a cloud session runs `cloud_runner.py` every 4 hours. Each run:
-- pulls new footage from Tradever's shared Drive folder and clips it
-- auto-approves clips that pass the brief, plus TikTok photo **slideshows**
-  (their priority format)
-- posts them through Zernio to **every TikTok account you connected there**,
-  each clip to one account only (the brief forbids reposting across
-  accounts), up to 3 videos and 2 slideshows per account per day
-- updates the dashboard
+The autopilot runs on **GitHub Actions** (workflow `clipper-cloud`) every ~4 hours:
+free on this public repo, no PC, no Claude usage. Each run checks every
+campaign's live budget (pausing ones that run dry), pulls new footage, clips
+it, posts to TikTok through Zernio (each clip to one account named for the
+brand), tracks views and rebuilds the dashboard:
+**https://raw.githack.com/demetrades2000-coder/nq-dashboard/clipper-cloud/site/index.html**
 
 What it needs from you, once:
-1. TikTok accounts with **Tradever** in the name (the brief requires it).
-2. Zernio (free): connect those accounts and create an API key.
-3. Put the key in the cloud environment settings as **`ZERNIO_API_KEY`**
-   (session title bar → environment → Edit). Never paste it in chat.
-4. Join the campaign and paste your posted links on its page (the
-   dashboard's Today tab has copy buttons).
+1. TikTok accounts with the brand in the name (e.g. `tradever.clips`).
+2. Zernio (free for 2 accounts): connect them and create an API key.
+3. Add the key as a GitHub secret named **`ZERNIO_API_KEY`**:
+   https://github.com/demetrades2000-coder/nq-dashboard/settings/secrets/actions/new
+4. Join each campaign and paste your posted links on its page.
+
+Stop: Actions → clipper-cloud → Disable workflow. Restart: Run workflow on
+branch `claude/determined-shannon-94kfrp`.
 
 The PC setup below is the same clipper on your own computer, for other
 campaigns or if you prefer it.

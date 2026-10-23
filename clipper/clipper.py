@@ -768,14 +768,23 @@ def pick(cands: list[Clip], k: int, gap: float = 3.0) -> list[Clip]:
 # ---------------------------------------------------------------- packaging copy
 
 DANGLE_END = {"or", "and", "but", "so", "the", "a", "an", "to", "with", "of", "for", "in", "on", "at", "that",
-              "because", "if", "like", "my", "your", "is", "was", "are", "you", "i", "we", "it", "this", "then"}
+              "because", "if", "like", "my", "your", "is", "was", "are", "you", "i", "we", "it", "this", "then",
+              "probably", "come", "can", "could", "would", "should", "will", "just", "really", "actually", "about",
+              "from", "as", "when", "which", "who", "what", "how", "why", "where", "also", "even", "still", "very",
+              "been", "being", "get", "got", "go", "going", "gonna", "wanna", "have", "had", "has", "do", "did", "does",
+              "be", "were", "their", "our", "his", "her", "its", "there", "into", "onto", "than", "not", "whenever",
+              "while", "until", "unless", "since", "whether", "would"}
 
 
-def _headline(text: str, max_words: int = 11) -> str:
-    """A complete-looking headline: the clause that fits, never ending on a dangling word."""
-    t = re.sub(r"^(so|and|but|okay|ok|yeah|um|uh|like|well)[, ]+", "", text.strip(), flags=re.I).strip()
+def _headline(text: str, max_words: int = 11, strict: bool = False) -> str:
+    """A complete-looking headline: the clause that fits, never ending on a dangling word.
+    strict: return "" for a headline that is only a setup ("If you are coming in as a newbie")."""
+    t = text.strip()
+    for _ in range(3):   # "So, then, honestly..." openers add nothing to a headline
+        t = re.sub(r"^(so|and|but|okay|ok|yeah|um|uh|like|well|then|now|also|honestly|basically|anyway|right)\b[, ]*",
+                   "", t, flags=re.I).strip()
     words = t.split()
-    if re.match(r"(if|when|once)\b", t, re.I) and len(words) <= max_words + 8:
+    if re.match(r"(if|when|once)\b", t, re.I) and len(words) <= max_words + 10:
         max_words += 8   # "If you..., you will..." needs both halves to land
     if len(words) > max_words + 3:   # a sentence a few words over the limit stays whole
         parts = re.split(r"(?<=[,;:])\s+", t)
@@ -789,10 +798,12 @@ def _headline(text: str, max_words: int = 11) -> str:
         else:  # no clause fits: cut before the last joining word inside the limit ("... and then I put")
             joins = [i for i, w in enumerate(words[:max_words + 5]) if i >= 4 and
                      re.sub(r"[^a-z]", "", w.lower()) in ("and", "but", "so", "then", "because", "or", "which", "where")]
-            words = words[:joins[-1]] if joins else words[:max_words]
+            words = words[:joins[-1]] if joins else (words if len(words) <= 18 else words[:max_words])
     while len(words) > 3 and re.sub(r"[^a-z']", "", words[-1].lower()) in DANGLE_END:
         words.pop()
     out = " ".join(words).rstrip(",;:-")
+    if strict and re.match(r"(if|when|once|whenever)\b", out, re.I) and "," not in out:
+        return ""   # a condition without its payoff is not a hook
     return out[:1].upper() + out[1:]
 
 
@@ -807,7 +818,7 @@ def best_line(c: Clip) -> str:
                 + (2 if s.s < c.s + 5 else 0) - abs(len(toks) - 9) * 0.15)
     ranked = sorted(sents[:8], key=line_score, reverse=True)
     for s_ in ranked:   # a headline needs substance: skip "For example" / "Honestly" fragments
-        h = _headline(s_.text)
+        h = _headline(s_.text, strict=True)
         if len(h.split()) >= 5:
             return h
     return _headline(ranked[0].text)

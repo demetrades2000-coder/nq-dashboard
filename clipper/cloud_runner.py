@@ -287,11 +287,13 @@ def main(argv=None) -> int:
     ap.add_argument("--no-push", action="store_true", help="don't save the state branch (testing)")
     ap.add_argument("--no-drive", action="store_true")
     ap.add_argument("--no-discover", action="store_true")
+    ap.add_argument("--no-pull", action="store_true", help="use the local state as is (re-render jobs)")
     ap.add_argument("--onboard", nargs="+", metavar="LINK",
                     help="add a campaign you joined: its Content Rewards link, then its brief / Drive links")
     a = ap.parse_args(argv)
 
-    load_state()
+    if not a.no_pull:
+        load_state()
     if a.onboard:
         global CAMPAIGNS
         import onboard

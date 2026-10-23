@@ -4,9 +4,12 @@ Build a realistic demo workspace for the dashboard: no network, no real renderin
 
   python demo.py <workspace_dir> [--days 30] [--seed 7] [--preview]
 
-It writes 3 campaign briefs, ~45 clips over the last `--days` days with uploads on TikTok, Instagram and
+It writes 3 campaign briefs, ~50 clips over the last `--days` days with uploads on TikTok, Instagram and
 YouTube (long-tail views, 2-6% likes), earnings.json with daily view snapshots, events, autopilot cycles,
-jobs (one failed, one waiting to retry), a held clip and two links to submit. Each clip gets a tiny 2 s
+jobs (one failed, one waiting to retry), a held clip and two links to submit. The Tradever brief is TikTok only
+with its rules (tags at the caption end, logo, 5 posts a week, 2% engagement, $7 minimum payout) and posts to two
+rotating TikTok accounts (tradever.clips at today's cap, tradever.daily with room), with photo slideshows among its
+posts and three approved clips waiting for a slot. Each clip gets a tiny 2 s
 placeholder video (an ffmpeg gradient) so thumbnails work; without ffmpeg the clips simply have no thumbnail.
 Then it builds dashboard.html. `--preview` also writes a hosted-style copy (index.html, data.json,
 thumbs/...) with the "sample data" banner on into <workspace>/site/.
@@ -42,9 +45,19 @@ CAMPAIGNS = [
      "videos": ["How I passed a $100K challenge in 9 days | AiXfunded live", "Funded trader Q&A: drawdown rules explained",
                 "Why 90% of challenge traders fail (live breakdown)", "Payout day: $14,820 withdrawal walkthrough",
                 "Risk management masterclass with the AiXfunded desk"]},
-    {"key": "tradever", "name": "Tradever (prop firm)", "cpm": 3.0, "platforms": ["tiktok"],
+    {"key": "tradever", "name": "Tradever (prop firm)", "cpm": 5.0, "platforms": ["tiktok"],
      "automation_allowed": True, "auto": True, "verified_ago": 2, "handle": "tradever",
-     "notes": "Demo brief: Tradever Prop Firm Clipping, $3 per 1K views on TikTok only. Automated clipping allowed.",
+     "accounts": ["tradever.clips", "tradever.daily"], "slideshows": 0.35,
+     "brief": {"min_payout": 7, "max_payout_per_clip": 500, "posts_per_week": 5, "min_engagement": 0.02,
+               "caption": {"required_hashtags": [], "required_mentions": ["@tradeverfunding", "@laythbanks"],
+                           "mentions_last": True, "required_text": ""},
+               "on_screen": {"watermark": "", "highlight": "#FFE600", "logo": "logos/tradever.png",
+                             "logo_position": "top", "logo_width": 1000},
+               "clip_min": 7},
+     "notes": "Demo brief: Tradever Prop Firm Clipping, $5 per 1K views on TikTok only, min payout $7 a clip (~1,400 "
+              "views), max $500 a clip. Two TikTok pages with Tradever in the name, one clip per page (never the same "
+              "clip twice), logo visible throughout, captions end with @tradeverfunding @laythbanks, 5+ posts a week, "
+              "2%+ engagement. Automated clipping allowed; photo slideshows are a priority format.",
      "videos": ["Tradever trading floor stream: NQ open", "The one setup I trade every morning",
                 "Scaling plan: from $25K to $400K funded", "Psychology after a losing week"]},
     {"key": "pbblake", "name": "PB Blake (trading creator)", "cpm": 1.25, "platforms": ["tiktok", "instagram", "youtube"],
@@ -151,6 +164,26 @@ def curve(final: int, age_now: float, age: float, tau: float) -> int:
     return int(final * (1 - math.exp(-age / tau)) / (1 - math.exp(-age_now / tau)))
 
 
+def make_slides(out: Path, bases: list[Path], n: int = 6) -> list[Path]:
+    """A handful of 1080x1920 JPEG 'slides' (frames of the placeholder videos in other tints) for demo slideshows."""
+    ff = shutil.which("ffmpeg")
+    if not ff or not bases:
+        return []
+    out.mkdir(parents=True, exist_ok=True)
+    made = []
+    for i in range(n):
+        p = out / f"slide_{i}.jpg"
+        if not p.exists():
+            try:
+                subprocess.run([ff, "-y", "-loglevel", "error", "-i", str(bases[i % len(bases)]), "-frames:v", "1",
+                                "-vf", f"hue=h={i * 47}:s=1.4", "-q:v", "5", "-update", "1", str(p)], capture_output=True, timeout=60)
+            except Exception:
+                pass
+        if p.exists() and p.stat().st_size:
+            made.append(p)
+    return made
+
+
 def build(home: Path, days: int = 30, seed: int = 7) -> pl.WS:
     home = Path(home).expanduser().resolve()
     if home.exists() and any(home.iterdir()) and not (home / MARK).exists():
@@ -162,33 +195,47 @@ def build(home: Path, days: int = 30, seed: int = 7) -> pl.WS:
     rng = random.Random(seed)
     now = dt.datetime.now().replace(microsecond=0)
     today = now.date()
+    midnight = dt.datetime.combine(today, dt.time())
     days = max(3, int(days))
     ws = pl.WS(str(home))
+    if "kind" not in {r[1] for r in ws.q("PRAGMA table_info(clips)")}:  # 'video' or 'slideshow' (TikTok photo carousel)
+        ws.x("ALTER TABLE clips ADD COLUMN kind TEXT DEFAULT 'video'")
 
-    # campaign briefs
+    # campaign briefs (Tradever: TikTok only, two accounts, the brief's rules, its logo file)
     cdir = home / "campaigns"
     cdir.mkdir(exist_ok=True)
     camps = []
     for spec in CAMPAIGNS:
+        extra = spec.get("brief") or {}
         brief = {
-            "name": spec["name"], "marketplace": "whop", "cpm": spec["cpm"], "fee_pct": 10, "max_payout_per_clip": 0,
-            "min_payout": 0, "platforms": spec["platforms"], "sources": [f"https://www.youtube.com/@{spec['handle']}"],
+            "name": spec["name"], "marketplace": "whop", "cpm": spec["cpm"], "fee_pct": 10,
+            "max_payout_per_clip": extra.get("max_payout_per_clip", 0), "min_payout": extra.get("min_payout", 0),
+            "platforms": spec["platforms"], "sources": [f"https://www.youtube.com/@{spec['handle']}"],
             "language": "en",
             "permission": {"program": "Content Rewards",
                            "campaign_url": f"https://whop.com/{spec['handle']}/content-rewards/demo/",
                            "verified_on": (today - dt.timedelta(days=spec["verified_ago"])).isoformat(),
                            "evidence": "Demo: campaign page lists this channel as approved footage.",
                            "allowed_sources": [f"https://www.youtube.com/@{spec['handle']}"]},
-            "clip": {"min": 15, "max": 60, "count": 5, "latest": 2, "layout": "auto", "title": True, "jumpcuts": True},
-            "caption": {"required_hashtags": [], "required_mentions": [], "required_text": ""},
-            "on_screen": {"watermark": "", "highlight": "#FFE600"},
+            "clip": {"min": extra.get("clip_min", 15), "max": 60, "count": 5, "latest": 2, "layout": "auto", "title": True,
+                     "jumpcuts": True},
+            "caption": extra.get("caption") or {"required_hashtags": [], "required_mentions": [], "required_text": ""},
+            "on_screen": extra.get("on_screen") or {"watermark": "", "highlight": "#FFE600"},
             "disclosure": {"caption": "#ad", "on_screen": "#ad"},
             "notes": spec["notes"], "automation_allowed": spec["automation_allowed"],
-            "accounts": {p: spec["handle"] for p in spec["platforms"]},
+            "accounts": {p: (spec.get("accounts") or spec["handle"]) for p in spec["platforms"]},
         }
+        for k in ("posts_per_week", "min_engagement"):
+            if k in extra:
+                brief[k] = extra[k]
+        logo = (brief["on_screen"] or {}).get("logo")
+        if logo:
+            (cdir / logo).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(Path(__file__).resolve().parent / "site_assets" / "icon-192.png", cdir / logo)
         f = cdir / f"{spec['key']}.json"
         f.write_text(json.dumps(brief, indent=2), encoding="utf-8")
         camps.append({**spec, "file": str(f.resolve()), "c": cmp.load(str(f))})
+    trad = next(c for c in camps if c["key"] == "tradever")
 
     # sources (jobs)
     src_by_camp: dict[str, list] = {}
@@ -203,11 +250,11 @@ def build(home: Path, days: int = 30, seed: int = 7) -> pl.WS:
                        (spec["name"], spec["file"], f"https://www.youtube.com/watch?v={vid}", f"yt:{vid}", title,
                         spec["handle"], "done", 1, iso(t), iso(t + dt.timedelta(minutes=rng.randint(6, 25)))))
             src_by_camp.setdefault(spec["name"], []).append((sid, t, title))
-    extra = [(camps[0], "failed", 4, "yt-dlp: HTTP Error 403: Forbidden (video is members-only)", None),
-             (camps[1], "retry_wait", 2, "temporary: connection reset while downloading",
-              iso(now + dt.timedelta(minutes=25))),
-             (camps[0], "queued", 0, None, None)]
-    for k, (spec, status, attempts, err, nxt) in enumerate(extra):
+    extra_jobs = [(camps[0], "failed", 4, "yt-dlp: HTTP Error 403: Forbidden (video is members-only)", None),
+                  (camps[1], "retry_wait", 2, "temporary: connection reset while downloading",
+                   iso(now + dt.timedelta(minutes=25))),
+                  (camps[0], "queued", 0, None, None)]
+    for k, (spec, status, attempts, err, nxt) in enumerate(extra_jobs):
         vid = f"x{rng.randrange(10**7, 10**8)}"
         t = now - dt.timedelta(hours=30 - k * 12)
         ws.x("INSERT INTO sources(campaign, campaign_file, input, canonical, title, uploader, status, attempts, "
@@ -216,13 +263,67 @@ def build(home: Path, days: int = 30, seed: int = 7) -> pl.WS:
               ["Live: trading the CPI print", "Funded trader roundtable", "Weekly market recap"][k], spec["handle"],
               status, attempts, nxt, err, iso(t), iso(t + dt.timedelta(minutes=9))))
 
-    # clips
     bases = make_placeholders(home / ".demo_media", 8)
+    slides = make_slides(home / ".demo_media" / "slides", bases)
+    hooks = HOOKS[:]
+    rng.shuffle(hooks)
+    clip_rows = []
+
+    def add_clip(t, spec, status, kind="video", held=None, flags=None, n_files=True):
+        i = len(clip_rows)
+        srcs = [s for s in src_by_camp[spec["name"]] if s[1] <= t] or src_by_camp[spec["name"]][:1]
+        sid, _, _ = srcs[-1]
+        title, hook = hooks[i % len(hooks)]
+        if i >= len(hooks):
+            title += [" (part 2)", " | full breakdown", " (live)", " (recap)"][(i // len(hooks) + i) % 4]
+        cmin = float(spec["c"]["clip"].get("min") or 0)
+        if kind == "slideshow":
+            dur = float(rng.choice([5, 6, 7]) * 3)   # 5-7 slides, ~3 s each
+        else:
+            dur = max(cmin, rng.choice([rng.uniform(12, 20), rng.uniform(20, 30), rng.uniform(30, 45), rng.uniform(30, 45),
+                                        rng.uniform(45, 60), rng.uniform(60, 75)]))
+        s0 = round(rng.uniform(30, 3200), 1)
+        score = round(rng.uniform(56, 92), 1) if status != "pending_review" else round(rng.uniform(44, 62), 1)
+        flags = list(flags or [])
+        if rng.random() < 0.2:
+            flags.append({"level": "warn", "msg": "contains an earnings or results claim. Keep it attributed to the "
+                                                  "speaker; don't caption it as typical or guaranteed."})
+        text = hook + " " + rng.choice(["Here's exactly what I mean.", "Let me show you on the chart.",
+                                        "And it took me years to learn that.", "Most people never hear this."])
+        mentions = cmp.mentions_for(spec["c"], spec["platforms"][0])
+        caption = f"{hook} #ad #trading #propfirm" + (" " + " ".join(mentions) if mentions else f" #{spec['handle']}")
+        rank = rng.randint(1, 5)
+        f = None
+        if status != "render_failed" and bases and i >= 3 and n_files:
+            folder = home / "clips" / cmp.slug(spec["c"]) / str(sid)
+            folder.mkdir(parents=True, exist_ok=True)
+            if kind == "slideshow" and slides:
+                f = folder / f"slideshow_{rank:02d}_{i}"
+                f.mkdir(exist_ok=True)
+                for k in range(int(dur // 3)):
+                    shutil.copyfile(slides[(i + k) % len(slides)], f / f"{k + 1:02d}.jpg")
+            else:
+                f = folder / f"clip_{rank:02d}_{i}.mp4"
+                shutil.copyfile(bases[i % len(bases)], f)
+        reasons = rng.sample(REASONS[:5], rng.randint(1, 3)) + (["AI pick"] if rng.random() < 0.15 else [])
+        checks = [{"ok": True, "check": f"length {dur:.0f}s within {cmin:.0f}-60s"}, {"ok": True, "check": "no banned claims"},
+                  {"ok": True, "check": "caption disclosure '#ad'"}]
+        cid = ws.x("INSERT INTO clips(source_id, campaign, rank, start, end_, title, caption, hashtags, posts, checks, flags,"
+                   " words, text, score, file, status, created, held_reason, reasons, reviewed_at, kind) "
+                   "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                   (sid, spec["name"], rank, s0, round(s0 + dur, 1), title, caption,
+                    json.dumps(["#trading", "#propfirm"]), "{}", json.dumps(checks), json.dumps(flags), "[]", text, score,
+                    str(f) if f else None, status, iso(t), held, json.dumps(reasons),
+                    iso(t + dt.timedelta(minutes=40)) if status in ("approved", "posted", "rejected") else None, kind))
+        row = {"id": cid, "t": t, "spec": spec, "status": status, "title": title, "caption": caption, "file": f,
+               "kind": kind}
+        clip_rows.append(row)
+        return row
+
+    # clips
     n_clips = 45
     times = sorted(start + dt.timedelta(seconds=span * (0.03 + 0.96 * rng.random())) for _ in range(n_clips))
     times[-1] = now - dt.timedelta(hours=3)  # something fresh
-    hooks = HOOKS[:]
-    rng.shuffle(hooks)
     statuses = ["posted"] * n_clips
     statuses[-1], statuses[-2], statuses[-3] = "approved", "pending_review", "posted"
     statuses[-4] = "approved"  # approved, waiting for the next cycle's upload slot
@@ -231,54 +332,62 @@ def build(home: Path, days: int = 30, seed: int = 7) -> pl.WS:
     statuses[-12] = "rejected"
     statuses[-9] = "render_failed"
     held_i = 0
-    clip_rows = []
     for i, t in enumerate(times):
         spec = rng.choices(camps, SOURCES_WEIGHTS)[0]
-        srcs = [s for s in src_by_camp[spec["name"]] if s[1] <= t] or src_by_camp[spec["name"]][:1]
-        sid, _, stitle = srcs[-1]
-        title, hook = hooks[i % len(hooks)]
-        if i >= len(hooks):
-            title += rng.choice([" (part 2)", " | full breakdown", " (live)"])
-        dur = rng.choice([rng.uniform(12, 20), rng.uniform(20, 30), rng.uniform(30, 45), rng.uniform(30, 45),
-                          rng.uniform(45, 60), rng.uniform(60, 75)])
-        s0 = round(rng.uniform(30, 3200), 1)
         status = statuses[i]
-        score = round(rng.uniform(56, 92), 1) if status != "pending_review" else round(rng.uniform(44, 62), 1)
-        held = None
-        flags = []
+        held, flags = None, []
         if status == "pending_review":
             held = HELD_REASONS[held_i % len(HELD_REASONS)]
             held_i += 1
             if "context" in held:
                 flags.append({"level": "warn", "msg": "may depend on earlier context: starts with 'so'"})
-        if rng.random() < 0.2:
-            flags.append({"level": "warn", "msg": "contains an earnings or results claim. Keep it attributed to the "
-                                                  "speaker; don't caption it as typical or guaranteed."})
-        text = hook + " " + rng.choice(["Here's exactly what I mean.", "Let me show you on the chart.",
-                                        "And it took me years to learn that.", "Most people never hear this."])
-        caption = f"{hook} #ad #trading #propfirm #{spec['handle']}"
-        rank = rng.randint(1, 5)
-        f = None
-        if status != "render_failed" and bases and i >= 3:
-            f = home / "clips" / cmp.slug(spec["c"]) / str(sid) / f"clip_{rank:02d}_{i}.mp4"
-            f.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(bases[i % len(bases)], f)
-        reasons = rng.sample(REASONS[:5], rng.randint(1, 3)) + (["AI pick"] if rng.random() < 0.15 else [])
-        checks = [{"ok": True, "check": f"length {dur:.0f}s within 15-60s"}, {"ok": True, "check": "no banned claims"},
-                  {"ok": True, "check": "caption disclosure '#ad'"}]
-        cid = ws.x("INSERT INTO clips(source_id, campaign, rank, start, end_, title, caption, hashtags, posts, checks, flags,"
-                   " words, text, score, file, status, created, held_reason, reasons, reviewed_at) "
-                   "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                   (sid, spec["name"], rank, s0, round(s0 + dur, 1), title, caption,
-                    json.dumps(["#trading", "#propfirm"]), "{}", json.dumps(checks), json.dumps(flags), "[]", text, score,
-                    str(f) if f else None, status, iso(t), held, json.dumps(reasons),
-                    iso(t + dt.timedelta(minutes=40)) if status in ("approved", "posted", "rejected") else None))
-        clip_rows.append({"id": cid, "t": t, "spec": spec, "status": status, "title": title, "caption": caption,
-                          "file": f})
+        kind = "slideshow" if status in ("posted", "approved") and rng.random() < spec.get("slideshows", 0) else "video"
+        add_clip(t, spec, status, kind, held, flags)
 
-    # uploads + earnings.json
-    posts = []
-    live = []
+    # uploads + earnings.json. A campaign with several accounts on a platform rotates: each clip goes to exactly one,
+    # the one with the most room under the day's cap, then the fewest posts (the autopilot's rule).
+    cap = 3
+    day_n: dict[tuple, int] = {}
+    tot_n: dict[tuple, int] = {}
+    posts, live = [], []
+
+    def pick_account(spec, p, ut):
+        names = spec.get("accounts") or [spec["handle"]]
+        a = sorted(names, key=lambda n: (-(cap - day_n.get((p, n, ut.date()), 0)), tot_n.get((p, n), 0), n))[0]
+        day_n[(p, a, ut.date())] = day_n.get((p, a, ut.date()), 0) + 1
+        tot_n[(p, a)] = tot_n.get((p, a), 0) + 1
+        return a
+
+    def add_upload(c, p, ut, account=None):
+        spec = c["spec"]
+        acct = account or pick_account(spec, p, ut)
+        if account:
+            day_n[(p, acct, ut.date())] = day_n.get((p, acct, ut.date()), 0) + 1
+            tot_n[(p, acct)] = tot_n.get((p, acct), 0) + 1
+        age_now = max((now - ut).total_seconds() / 86400, 0.01)
+        final = views_for(rng, p) * (1.15 if c["kind"] == "slideshow" else 1.0)
+        final = int(final * min(1.0, 0.25 + age_now / 3))  # brand-new posts haven't caught up yet
+        likes = int(final * rng.uniform(0.02, 0.06))
+        rid = str(rng.randrange(10**17, 10**18))
+        url = {"tiktok": f"https://www.tiktok.com/@{acct}/{'photo' if c['kind'] == 'slideshow' else 'video'}/{rid}",
+               "instagram": f"https://www.instagram.com/reel/{rid[:11]}/",
+               "youtube": f"https://youtube.com/shorts/{rid[:11]}"}[p]
+        uid = ws.x("INSERT INTO uploads(clip_id, platform, account, remote_id, url, state, notes, caption, views, "
+                   "likes, submitted_at, created, updated) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                   (c["id"], p, acct, rid, url, "live", "[]", c["caption"], final, likes,
+                    iso(ut + dt.timedelta(hours=rng.randint(1, 10))), iso(ut), iso(now - dt.timedelta(minutes=30))))
+        live.append((ut, uid, c, p, acct))
+        tau = rng.uniform(0.8, 3.0)
+        hist = []
+        k = 0.25
+        while k < age_now - 0.05:
+            hist.append([iso(ut + dt.timedelta(days=k)), curve(final, age_now, k, tau)])
+            k = k + 1 if k >= 1 else 1.0
+        posts.append({"url": url, "platform": p, "campaign": spec["name"], "campaign_file": spec["file"],
+                      "cpm": spec["cpm"], "fee_pct": 10, "max_payout_per_clip": spec["c"].get("max_payout_per_clip", 0),
+                      "clip": Path(c["file"]).name if c["file"] else "", "posted": iso(ut), "views": final,
+                      "likes": likes, "updated": iso(now - dt.timedelta(minutes=30)), "history": hist})
+
     for c in clip_rows:
         if c["status"] != "posted":
             continue
@@ -293,48 +402,45 @@ def build(home: Path, days: int = 30, seed: int = 7) -> pl.WS:
                 ut = c["t"] + dt.timedelta(minutes=rng.randint(15, 90))
             if ut > now:
                 ut = now - dt.timedelta(minutes=5)
-            age_now = max((now - ut).total_seconds() / 86400, 0.01)
-            final = views_for(rng, p)
-            final = int(final * min(1.0, 0.25 + age_now / 3))  # brand-new posts haven't caught up yet
-            likes = int(final * rng.uniform(0.02, 0.06))
-            rid = str(rng.randrange(10**17, 10**18))
-            url = {"tiktok": f"https://www.tiktok.com/@{spec['handle']}/video/{rid}",
-                   "instagram": f"https://www.instagram.com/reel/{rid[:11]}/",
-                   "youtube": f"https://youtube.com/shorts/{rid[:11]}"}[p]
-            uid = ws.x("INSERT INTO uploads(clip_id, platform, account, remote_id, url, state, notes, caption, views, "
-                       "likes, submitted_at, created, updated) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                       (c["id"], p, spec["handle"], rid, url, "live", "[]", c["caption"], final, likes,
-                        iso(ut + dt.timedelta(hours=rng.randint(1, 10))), iso(ut), iso(now - dt.timedelta(minutes=30))))
-            live.append((ut, uid, c))
-            tau = rng.uniform(0.8, 3.0)
-            hist = []
-            k = 0.25
-            while k < age_now - 0.05:
-                hist.append([iso(ut + dt.timedelta(days=k)), curve(final, age_now, k, tau)])
-                k = k + 1 if k >= 1 else 1.0
-            posts.append({"url": url, "platform": p, "campaign": spec["name"], "campaign_file": spec["file"],
-                          "cpm": spec["cpm"], "fee_pct": 10, "max_payout_per_clip": 0,
-                          "clip": Path(c["file"]).name if c["file"] else "", "posted": iso(ut), "views": final,
-                          "likes": likes, "updated": iso(now - dt.timedelta(minutes=30)), "history": hist})
+            add_upload(c, p, ut)
+
+    # Tradever today: one page at its daily cap, the other with room left; three approved clips wait for a slot
+    def today_at(k):   # earlier today, never in the future and never yesterday (also just after midnight)
+        t = now - dt.timedelta(minutes=25 + 50 * k)
+        return t if t >= midnight else midnight + (now - midnight) * max(0.05, 0.9 - 0.15 * k)
+    k = 0
+    for acct, want in (("tradever.clips", cap), ("tradever.daily", 1)):
+        while day_n.get(("tiktok", acct, today), 0) < want:
+            t = today_at(k)
+            c = add_clip(t - dt.timedelta(minutes=30), trad, "posted", "slideshow" if k % 2 else "video")
+            add_upload(c, "tiktok", t, account=acct)
+            k += 1
+    for j, kind in enumerate(("video", "slideshow", "video")):
+        add_clip(now - dt.timedelta(minutes=40 + 25 * j), trad, "approved", kind)
+
     live.sort(key=lambda x: x[0])
-    for ut, uid, c in live[-2:]:  # two fresh links still to submit
+    for ut, uid, c, p, acct in live[-2:]:  # two fresh links still to submit
         ws.x("UPDATE uploads SET submitted_at=NULL WHERE id=?", (uid,))
     ws.x("UPDATE clips SET submitted_at=(SELECT MAX(submitted_at) FROM uploads u WHERE u.clip_id=clips.id), "
          "posted_at=(SELECT MIN(created) FROM uploads u WHERE u.clip_id=clips.id) WHERE status='posted' AND NOT EXISTS("
          "SELECT 1 FROM uploads u WHERE u.clip_id=clips.id AND u.submitted_at IS NULL)")
     ws.x("UPDATE clips SET posted_at=(SELECT MIN(created) FROM uploads u WHERE u.clip_id=clips.id) WHERE status='posted'")
-    # the newest clip: a TikTok draft waiting in the inbox and a failed Instagram upload (the cycle marks it posted)
-    newest = clip_rows[-1] if clip_rows[-1]["status"] == "approved" else None
+    # the newest regular clip: a TikTok draft waiting in the inbox and, when its campaign posts there, a failed Instagram
+    # upload (the cycle marks it posted)
+    newest = next((c for c in reversed(clip_rows[:n_clips]) if c["status"] == "approved"), None)
+    newest = newest if newest is clip_rows[n_clips - 1] else None
     if newest:
+        nacct = (newest["spec"].get("accounts") or [newest["spec"]["handle"]])[-1]
         ws.x("UPDATE clips SET status='posted', posted_at=? WHERE id=?", (iso(now - dt.timedelta(hours=2)), newest["id"]))
         ws.x("INSERT INTO uploads(clip_id, platform, account, state, notes, caption, publish_id, created, updated) "
-             "VALUES(?,?,?,?,?,?,?,?,?)", (newest["id"], "tiktok", newest["spec"]["handle"], "draft", "[]",
+             "VALUES(?,?,?,?,?,?,?,?,?)", (newest["id"], "tiktok", nacct, "draft", "[]",
                                            newest["caption"], "pub_demo_1", iso(now - dt.timedelta(hours=2)),
                                            iso(now - dt.timedelta(hours=2))))
-        ws.x("INSERT INTO uploads(clip_id, platform, account, state, notes, caption, created, updated) "
-             "VALUES(?,?,?,?,?,?,?,?)", (newest["id"], "instagram", newest["spec"]["handle"], "failed",
-                                         json.dumps(["Instagram: media processing timed out"]), newest["caption"],
-                                         iso(now - dt.timedelta(hours=2)), iso(now - dt.timedelta(hours=2))))
+        if "instagram" in newest["spec"]["platforms"]:
+            ws.x("INSERT INTO uploads(clip_id, platform, account, state, notes, caption, created, updated) "
+                 "VALUES(?,?,?,?,?,?,?,?)", (newest["id"], "instagram", newest["spec"]["handle"], "failed",
+                                             json.dumps(["Instagram: media processing timed out"]), newest["caption"],
+                                             iso(now - dt.timedelta(hours=2)), iso(now - dt.timedelta(hours=2))))
     tracker_db = {"posts": posts}
     (home / "earnings.json").write_text(json.dumps(tracker_db, indent=2), encoding="utf-8")
 
@@ -344,39 +450,47 @@ def build(home: Path, days: int = 30, seed: int = 7) -> pl.WS:
         for sid, t, title in src_by_camp[spec["name"]]:
             ev.append((t + dt.timedelta(minutes=2), "info", sid, None, f"job #{sid}: imported '{title[:50]}'"))
             ev.append((t + dt.timedelta(minutes=20), "ok", sid, None, f"job #{sid}: {rng.randint(3, 5)}/5 clips ready for review"))
-    for ut, uid, c in live:
-        ev.append((ut, "ok", None, c["id"], f"clip #{c['id']} uploaded to {ws.q('SELECT platform FROM uploads WHERE id=?', (uid,))[0]['platform']}"))
+    for ut, uid, c, p, acct in live:
+        what = "slideshow" if c["kind"] == "slideshow" else "clip"
+        ev.append((ut, "ok", None, c["id"], f"{what} #{c['id']} uploaded to {p} ({acct})"))
     ev.append((now - dt.timedelta(hours=18), "error", None, None, "job: yt-dlp: HTTP Error 403: Forbidden (video is members-only)"))
     ev.append((now - dt.timedelta(hours=6), "warn", None, None, "job: temporary: connection reset while downloading; retrying in 30 min"))
-    ev.append((now - dt.timedelta(hours=2), "warn", None, newest["id"] if newest else None,
-               "instagram upload failed: media processing timed out"))
+    if newest and "instagram" in newest["spec"]["platforms"]:
+        ev.append((now - dt.timedelta(hours=2), "warn", None, newest["id"],
+                   "instagram upload failed: media processing timed out"))
+    ev.append((now - dt.timedelta(minutes=90), "info", None, None,
+               f"tiktok/tradever.clips: daily upload cap ({cap}) reached; next clips go to tradever.daily"))
     for t, level, sid, cid, msg in sorted(ev, key=lambda e: e[0]):
         ws.x("INSERT INTO events(ts, level, source_id, clip_id, message) VALUES(?,?,?,?,?)", (iso(t), level, sid, cid, msg))
 
-    # autopilot cycles: every 6 h over the last 3 days, the last one ~2 h ago
+    # autopilot cycles: every 6 h over the last 3 days, the last one ~2 h ago, run by the cloud autopilot
     every = 6
     log = home / "logs" / "autopilot.jsonl"
     with log.open("w", encoding="utf-8") as fh:
         for k in range(11, -1, -1):
             st = now - dt.timedelta(hours=2 + every * k, minutes=rng.randint(5, 14))
             fin = st + dt.timedelta(minutes=rng.randint(6, 22))
-            up = [f"#{c['id']} {p}" for ut, uid, c in live if st <= ut <= fin + dt.timedelta(hours=every)
-                  for p in [ws.q('SELECT platform FROM uploads WHERE id=?', (uid,))[0]['platform']]][:3]
-            rep = {"started": iso(st), "skipped_campaigns": ["PB Blake (trading creator): rules don't allow automated "
-                                                             "clipping tools (or it isn't confirmed)"],
+            up = [f"#{c['id']} {p}/{acct}" for ut, uid, c, p, acct in live
+                  if st <= ut <= fin + dt.timedelta(hours=every)][:3]
+            rep = {"started": iso(st), "runner": "cloud",
+                   "skipped_campaigns": ["PB Blake (trading creator): rules don't allow automated "
+                                         "clipping tools (or it isn't confirmed)"],
                    "approved": [u.split()[0] for u in up], "held": [], "uploaded": up, "upload_errors": [],
                    "notes": [], "finished": iso(fin)}
             if k == 0:
                 rep["held"] = [f"#{c['id']} {c['title'][:60]}" for c in clip_rows if c["status"] == "pending_review"][:1]
-                rep["upload_errors"] = ["instagram #%d: media processing timed out" % newest["id"]] if newest else []
+                rep["upload_errors"] = (["instagram #%d: media processing timed out" % newest["id"]]
+                                        if newest and "instagram" in newest["spec"]["platforms"] else [])
                 rep["notes"] = ["TikTok draft sent to your inbox: finish it in the app",
+                                f"tiktok/tradever.clips: daily upload cap ({cap}) reached; 3 clip(s) wait",
                                 "views refreshed for %d posts" % len(posts)]
             fh.write(json.dumps(rep) + "\n")
 
     # settings + a little AI spend
     for k, v in {"autopilot.enabled": True, "autopilot.enabled_at": iso(start), "autopilot.via": "free",
-                 "autopilot.platforms": ["tiktok", "instagram", "youtube"], "autopilot.max_uploads_per_day": 3,
-                 "autopilot.min_score": 55, "autopilot.privacy": "public", "autopilot.every_hours": every,
+                 "autopilot.platforms": ["tiktok", "instagram", "youtube"], "autopilot.max_uploads_per_day": cap,
+                 "autopilot.max_per_day": cap, "autopilot.min_score": 55, "autopilot.privacy": "public",
+                 "autopilot.every_hours": every, "autopilot.runner": "cloud",
                  "autopilot.campaigns": [c["file"] for c in camps if c["auto"]], "spend.monthly_cap_usd": 5.0,
                  "dashboard.goal_month_usd": 300}.items():
         ws.set_setting(k, v)

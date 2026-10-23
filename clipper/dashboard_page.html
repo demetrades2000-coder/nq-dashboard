@@ -312,6 +312,8 @@ tr.click { cursor: pointer; }
 .check li small { color: var(--ink-2); font-size: 12px; line-height: 1.45; }
 .check .ico { width: 22px; height: 22px; padding: 3px; border-radius: 7px; flex: none; }
 .check .ok > .ico { color: var(--good-ink); background: color-mix(in srgb, var(--good) 14%, transparent); } .check .no > .ico { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+.check .na > .ico { color: var(--muted); background: rgba(238,241,248,.06); }
+.check.tight { gap: 0; font-size: 12.5px; } .check.tight li { padding: 7px 0; gap: 9px; } .check.tight .ico { width: 20px; height: 20px; } .check.tight li small { font-size: 11.5px; }
 .cap { white-space: pre-wrap; font: 12.5px/1.55 var(--mono); color: var(--ink-2); background: rgba(7,8,12,.5); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; overflow-wrap: anywhere; }
 .hook { font-size: 17px !important; font-weight: 650; line-height: 1.4 !important; color: var(--ink); padding-left: 12px; border-left: 3px solid var(--accent); }
 
@@ -450,6 +452,28 @@ button.li:hover .lt, a.li:hover .lt { color: var(--accent-2); }
 .up-row .acts { display: flex; gap: 6px; }
 .tl-bar { position: relative; height: 10px; border-radius: 99px; background: var(--surface-3); margin: 10px 0 6px; overflow: hidden; }
 .tl-bar i { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); box-shadow: 0 0 10px var(--accent); min-width: 6px; }
+
+/* accounts (one card per posting account) + up next */
+.acard .card-h { margin-bottom: 10px; }
+.acard .card-h h3 { font-size: 15px; min-width: 0; } .acard .card-h h3 > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acard .pdot { width: 10px; height: 10px; flex: none; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); }
+.acard .capl { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 12px; color: var(--ink-2); margin-bottom: 6px; }
+.acard .capl b { font: 700 20px var(--mono); color: var(--ink); letter-spacing: -.02em; } .acard .capl b i { font-style: normal; font-size: 12px; color: var(--muted); font-weight: 600; }
+.acard .nums { margin: 14px 0 0; }
+.acard .sp { display: block; width: 100%; height: 44px; margin-top: 12px; overflow: visible; }
+.acard .spl { display: flex; justify-content: space-between; font: 500 10.5px var(--mono); color: var(--muted); margin-top: 3px; }
+.acard .anote { font-size: 12px; color: var(--ink-2); margin-top: 10px; line-height: 1.45; overflow-wrap: anywhere; }
+.qline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); margin: -4px 0 14px; }
+.qline b { color: var(--ink); font-weight: 650; }
+.clip .to { position: absolute; left: 8px; right: 8px; bottom: 9px; z-index: 2; display: flex; }
+.clip .to .chip { max-width: 100%; height: 22px; padding: 0 8px; font-size: 11px; overflow: hidden; text-overflow: ellipsis; background: rgba(10,12,18,.7); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.fmt { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.fmt > div { padding: 14px 16px; border-radius: 14px; background: rgba(22,26,35,.7); border: 1px solid var(--line); min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.fmt span { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.fmt span .ico { color: var(--c, var(--accent)); width: 15px; height: 15px; }
+.fmt b { font: 750 24px var(--sans); letter-spacing: -.02em; } .fmt em { font-style: normal; font-size: 12px; color: var(--ink-2); }
+.fmt .meter { margin-top: 6px; } .fmt .meter i { background: var(--c, var(--accent)); }
+.pay td { vertical-align: top; white-space: normal; } @media (max-width: 760px) { .pay td, .pay th { padding: 9px 6px; } } .pay td small { display: block; color: var(--muted); font: 500 11px var(--sans); }
 
 /* goal ring card + projection */
 .proj { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
@@ -612,6 +636,8 @@ html:not([data-fx="off"]) .page.entering > .card, html:not([data-fx="off"]) .pag
   .pn > i { width: 42px; height: 42px; font-size: 12px; } .pn span { display: none; } .pn b { font-size: 11px; } .pipe { padding-top: 12px; } .pipe::before { top: 32px; } .pn .cv { top: -12px; font-size: 9px; padding: 0 4px; }
   .h24 { grid-template-columns: 26px repeat(24, minmax(0, 1fr)); gap: 1px; } .h24 .c { height: 18px; border-radius: 3px; } .h24 .hx { font-size: 8px; }
   .proj { grid-template-columns: 1fr; }
+  .fmt { grid-template-columns: 1fr 1fr; gap: 8px; } .fmt > div { padding: 11px 12px; } .fmt b { font-size: 19px; }
+  .acard .nums { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .toolbar .field { flex-basis: 100%; }
   .toast { bottom: calc(96px + env(safe-area-inset-bottom)); }
   .hide-sm { display: none; }
@@ -712,6 +738,8 @@ const P = {
   grid: '<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/>',
   table: '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10"/>',
   hash: '<path d="M5 9h15M4 15h15M10 4L8 20M16 4l-2 16"/>',
+  slides: '<rect x="3.5" y="6.5" width="13" height="14" rx="2"/><path d="M7.5 6.5V5a1.5 1.5 0 0 1 1.5-1.5h10A1.5 1.5 0 0 1 20.5 5v11a1.5 1.5 0 0 1-1.5 1.5h-2.5"/><path d="M6.5 16.5l3-3.5 2.5 2.5 1.5-1.5 2 2.5"/>',
+  users: '<circle cx="9" cy="8.5" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M15.5 5.2a3.5 3.5 0 0 1 0 6.6M17.5 14.2a6.5 6.5 0 0 1 4 5.8"/>',
   logo: '<rect x="4" y="3" width="11" height="15" rx="2.5"/><path d="M9 8v5l4-2.5z"/><path d="M18 7l2.5-1.5M18 11h3M18 15l2.5 1.5"/>'
 };
 const icon = (n, s = 18, cls = '') => P[n] ? `<svg class="ico ${cls}" viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>` : '';
@@ -912,14 +940,14 @@ const GROUPS = [
   { id: 'today', label: 'Today', icon: 'today', pages: [['today', 'Today', 'today']] },
   { id: 'clips', label: 'Clips', icon: 'clips', pages: [['clips', 'Clips', 'clips']] },
   { id: 'analytics', label: 'Analytics', icon: 'stats', pages: [['analytics', 'Analytics', 'stats']] },
-  { id: 'money', label: 'Money', icon: 'money', pages: [['earnings', 'Earnings', 'money'], ['campaigns', 'Campaigns', 'camp']] },
+  { id: 'money', label: 'Money', icon: 'money', pages: [['earnings', 'Earnings', 'money'], ['campaigns', 'Campaigns', 'camp'], ['accounts', 'Accounts', 'users']] },
   { id: 'system', label: 'System', icon: 'system', pages: [['jobs', 'Jobs & health', 'jobs'], ['activity', 'Activity', 'activity'], ['settings', 'Settings', 'settings']] },
 ];
 const PAGES = {};
 GROUPS.forEach(g => g.pages.forEach(([id, label, ic]) => { PAGES[id] = { id, label, icon: ic, group: g.id }; }));
-const ALIAS = { home: 'today', health: 'jobs', queue: 'jobs', leads: 'campaigns', money: 'earnings', stats: 'analytics', events: 'activity', feed: 'activity', gallery: 'clips', system: 'jobs' };
+const ALIAS = { account: 'accounts', queue_next: 'accounts', next: 'accounts', home: 'today', health: 'jobs', queue: 'jobs', leads: 'campaigns', money: 'earnings', stats: 'analytics', events: 'activity', feed: 'activity', gallery: 'clips', system: 'jobs' };
 // 3D background presets (fx.js scenes): each page picks a mood
-const SCENE = { today: 'today', clips: 'trades', analytics: 'lab', earnings: 'results', campaigns: 'eval', jobs: 'engine', activity: 'engine', settings: 'engine' };
+const SCENE = { today: 'today', clips: 'trades', analytics: 'lab', earnings: 'results', campaigns: 'eval', accounts: 'results', jobs: 'engine', activity: 'engine', settings: 'engine' };
 const groupOf = (p) => PAGES[p]?.group || 'today';
 let PAGE = 'today', RTOK = 0, routed = false;
 function badgeFor(g) {
@@ -1058,7 +1086,7 @@ function clipThumb(c, cls = 'th') {
 function clipCard(c) {
   const plats = [...new Set((c.uploads || []).map(u => u.platform))];
   return `<button type="button" class="clip" data-clip="${esc(c.id)}" aria-label="${esc(c.title)}">${clipThumb(c)}
-      <span class="tl">${stChip(c.status)}</span><span class="sc" style="--sc:${scoreCol(c.score)}" title="Score ${esc(c.score)}">${Math.round(c.score || 0)}</span><span class="du">${num(c.dur)}s</span>
+      <span class="tl">${stChip(c.status)}${c.kind === 'slideshow' ? `<span class="chip" title="photo slideshow">${icon('slides', 12)}</span>` : ''}</span><span class="sc" style="--sc:${scoreCol(c.score)}" title="Score ${esc(c.score)}">${Math.round(c.score || 0)}</span><span class="du">${num(c.dur)}s</span>
       <span class="bt"><span><b>${(c.uploads || []).some(u => u.state === 'live') ? icon('eye', 14) + kfmt(c.views || 0) : '<span style="font-size:12px;font-weight:650;opacity:.85">not posted</span>'}</b>${!moneyHidden() && c.net ? `<em>${usd(c.net)}</em>` : ''}</span><span class="pl">${plats.map(p => `<i style="--c:${pcol(p)}" title="${esc(pname(p))}"></i>`).join('')}</span></span></span>
     <span class="ct">${esc(c.title)}</span><span class="cs">${esc(c.campaign || '')} · ${esc(ago(c.created))}</span></button>`;
 }
@@ -1082,7 +1110,7 @@ function openClip(id) {
     ${(c.reasons || []).length ? `<section><h4>${icon('sparkle')}Why it was picked</h4><div class="chips">${c.reasons.map(r => `<span class="chip good">${icon('check', 13)}${esc(r)}</span>`).join('')}</div></section>` : ''}
     ${(c.flags || []).length ? `<section><h4>${icon('alert')}Flags</h4>${c.flags.map(f => `<div class="prob">${icon('alert')}<span>${esc(f)}</span></div>`).join('')}</section>` : ''}
     <section><h4>${icon('film')}Source</h4><p style="font-weight:600">${esc(c.source_title || '—')}</p><div class="doc-meta small mut" style="margin-top:4px">${esc(c.campaign || '')} · cut ${range} of the source video · ${num(c.dur)} s</div></section>`;
-  sheet(`<span class="tile-i" style="margin:0;--c:${scoreCol(c.score)}">${icon('clips')}</span><div><div class="eyebrow">#${esc(c.id)} · ${esc(c.campaign || '')} · ${esc((STATUS[c.status] || [c.status])[0])}</div><h3>${esc(c.title)}</h3></div>
+  sheet(`<span class="tile-i" style="margin:0;--c:${scoreCol(c.score)}">${icon('clips')}</span><div><div class="eyebrow">#${esc(c.id)} · ${esc(c.campaign || '')} · ${esc((STATUS[c.status] || [c.status])[0])}${c.kind === 'slideshow' ? ' · slideshow' : ''}</div><h3>${esc(c.title)}</h3></div>
     <div class="sh-res"><b>${kfmt(c.views || 0)}</b><span class="up">${moneyHidden() ? 'views' : usd(c.net)}</span></div>`, body,
     `${c.caption ? `<button class="btn" type="button" data-copy="${esc(c.caption)}" data-copied="Caption copied">${icon('copy')}Caption</button>` : ''}${best ? `<a class="btn primary" href="${esc(best.url)}" target="_blank" rel="noopener">${icon('play')}Open on ${esc(pname(best.platform))}</a>` : ''}`, 'Clip ' + c.id);
 }
@@ -1232,7 +1260,7 @@ function headline() {
 function pageToday(el) {
   const a = A(), s = S(), last = a.last || {}, cy = cycleSteps(), [h2, hp] = headline(), gains = viewGains();
   const next = tms(a.next_run), daily = E().daily || [], hist = AN().views_history || [];
-  const cap = (a.cap || 0) * Math.max(1, (a.platforms || []).length);
+  const accs = ACCS(), cap = accs.length ? sum(accs, x => x.cap) : (a.cap || 0) * Math.max(1, (a.platforms || []).length);
   const goal = goalTarget(), mnet = monthNet(), gfrac = goal && ok(mnet) ? mnet / goal : 0;
   const plat = (a.platforms || []).map(pname).join(', ') || '—';
   const byp = E().by_platform || {}, plist = Object.keys(byp).sort((x, y) => (byp[y].views || 0) - (byp[x].views || 0));
@@ -1247,7 +1275,7 @@ function pageToday(el) {
       <div class="cds">
         <div><span>Next cycle</span><div class="cd" ${ok(next) ? `data-cd="${next}"` : ''}>${ok(next) ? dur((next - Date.now()) / 1000) : '—'}</div><div class="cd-t">${ok(next) ? `${esc(fDT(a.next_run))} · estimate` : a.enabled ? 'after the first cycle' : 'autopilot off'}</div></div>
         <div><span>Last cycle · ago</span><div class="cd">${last.finished ? esc(dur((Date.now() - tms(last.finished)) / 1000)) : '—'}</div><div class="cd-t">${last.finished ? `${num(last.uploaded || 0)} uploaded · ${num(last.held || 0)} held · ${plural(last.upload_errors || 0, 'error')}` : 'no cycle yet'}</div></div>
-        <div><span>Posted today</span><div class="cd">${num(s.today_posts || 0)}<span style="display:inline;font-size:14px;color:var(--muted);letter-spacing:0;text-transform:none"> / ${num(cap)}</span></div><div class="cd-t">daily cap across ${plural((a.platforms || []).length, 'platform')}</div></div></div>
+        <div><span>Posted today</span><div class="cd">${num(s.today_posts || 0)}<span style="display:inline;font-size:14px;color:var(--muted);letter-spacing:0;text-transform:none"> / ${num(cap)}</span></div><div class="cd-t">daily cap across ${accs.length ? plural(accs.length, 'account') : plural((a.platforms || []).length, 'platform')}</div></div></div>
       <div class="pcline"><span class="dot ${!(D.accounts || []).some(x => x.connected) ? 'warn' : a.enabled ? '' : 'off'}"></span><span>${(D.accounts || []).map(x => `${x.connected ? '' : '<span class="mut">'}${esc(x.name)}${x.connected ? ' ✓' : ' · not connected</span>'}`).join(' · ') || 'No posting accounts yet'}</span></div>
       <div class="hero-links"><button class="chipbtn" type="button" data-go="clips">${icon('clips')}<span>${plural(s.clips || 0, 'clip')}</span></button><button class="chipbtn" type="button" data-go="earnings">${icon('money')}<span>Earnings ${usdA(s.net)}</span></button>
         <button class="chipbtn" type="button" data-go="campaigns">${icon('camp')}<span>${plural((D.campaigns || []).length, 'campaign')}</span></button><button class="chipbtn ${failingChecks().length ? 'warn' : ''}" type="button" data-go="jobs">${icon('health')}<span>${failingChecks().length ? plural(failingChecks().length, 'health issue') : 'Health OK'}</span></button></div></div>
@@ -1265,6 +1293,7 @@ function pageToday(el) {
       ${statBox('Posting streak', `${num(AN().streak?.current || 0)} d`, `best ${num(AN().streak?.best || 0)} days`, AN().streak?.current ? 'up' : '', spark((AN().calendar || []).slice(-30).map(r => r.posts ? 1 : 0), { bars: true, color: 'var(--warn)' }), 'flame')}
     </div>
     ${todoCard()}
+    ${upNextCard(true)}
     <div class="grid g12">
       <div class="card"><div class="card-h"><h3>${icon('target')}Monthly goal</h3><button class="chipbtn" type="button" data-go="settings">${icon('settings')}<span>${goal ? 'Change' : 'Set goal'}</span></button></div>
         <div class="ring-w">${ring(gfrac, { top: moneyHidden() ? 'hidden' : goal ? Math.round(gfrac * 100) + '%' : usdA(mnet), sub: goal ? 'of the goal' : 'this month' })}
@@ -1415,6 +1444,7 @@ function pageAnalytics(el) {
       <div class="card"><div class="card-h"><h3>${icon('film')}Length vs views</h3><span class="meta">average views a post</span></div><div id="anLen"></div></div>
       <div class="card"><div class="card-h"><h3>${icon('layers')}Where the views come from</h3><span class="meta">${plural(sum(ps, p => p.posts), 'post')}</span></div>${platDonut(ps)}</div>
     </div>
+    <div class="card"><div class="card-h"><h3>${icon('slides')}Video vs slideshow</h3><span class="meta">TikTok photo carousels against video clips</span></div>${formatHTML(an.format_split)}</div>
     <div class="card"><div class="card-h"><h3>${icon('target')}Score vs views</h3><div class="legend" style="margin:0">${[...new Set((an.score_vs_views || []).map(p => p.platform))].map(p => `<span><i style="background:${pcol(p)}"></i>${esc(pname(p))}</span>`).join('')}</div></div>
       <div class="card-d">Each dot is one post: the engine’s score when it cut the clip (x) and the views it got (y, log scale). Tap a dot to open the clip.</div><div id="anSc"></div><div class="note" id="anScN"></div></div>
     <div class="grid g2">
@@ -1493,6 +1523,7 @@ function pageEarnings(el) {
       <div class="card"><div class="card-h"><h3>${icon('camp')}By campaign</h3><button class="chipbtn" type="button" data-go="campaigns"><span>Campaigns</span>${icon('right')}</button></div>${byCampaign()}</div>
       <div class="card"><div class="card-h"><h3>${icon('trophy')}Top posts</h3><span class="meta">by views</span></div>${topPosts()}</div>
     </div>
+    ${payoutCard()}
     ${projection()}`;
   const draw = () => {
     const P2 = store.get('eP', 'daily'), M = store.get('eM', hid ? 'views' : 'net'), rows = e[P2] || [];
@@ -1570,9 +1601,119 @@ function campCard(c) {
     <div class="meter sm" style="margin-top:4px"><i style="width:${(100 * (c.views || 0) / mx).toFixed(1)}%"></i></div>
     ${c.notes ? `<p class="cnote">${esc(c.notes)}</p>` : ''}
     ${(c.problems || []).map(p => `<div class="prob">${icon('alert')}<span>${esc(p)}</span></div>`).join('')}
+    ${rulesHTML(c)}
     <div class="row-btns" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">${url ? `<a class="btn sm primary" href="${esc(url)}" target="_blank" rel="noopener">${icon('ext', 15)}Open campaign</a>` : ''}<button class="btn sm ghost" type="button" data-camp="${esc(c.name)}">${icon('clips', 15)}Its clips</button></div></div>`;
 }
 document.addEventListener('click', (e) => { const b = e.target.closest('[data-camp]'); if (!b) return; CS.camp = b.dataset.camp; CS.st = 'all'; CS.shown = 24; location.hash = '#/clips'; });
+
+// ===================================================================== ACCOUNTS (one card per posting account; each clip goes to exactly one) + up next
+const ACCS = () => D.accounts_detail || [];
+const NEXT = () => D.up_next || [];
+const ACC_ST = { posting: ['posting', 'good', 'send'], at_cap: ['at daily cap', 'warn', 'hold'], idle: ['idle', '', 'clock'], error: ['error', 'bad', 'alert'] };
+const accChip = (st) => { const x = ACC_ST[st] || [String(st || '—'), '', 'info']; return `<span class="chip ${x[1]}">${icon(x[2], 13)}${esc(x[0])}</span>`; };
+const KIND = { video: ['Video', 'clips', 'var(--accent-2)'], slideshow: ['Slideshow', 'slides', 'var(--violet)'] };
+const kname = (k) => (KIND[k] || KIND.video)[0];
+const AL = { k: store.get('alK', 'views_7d') };
+// the schedule line: how often the autopilot runs, when next, and the daily cap per account
+function scheduleLine() {
+  const a = A(), next = tms(a.next_run), mpd = ok(a.max_per_day) ? a.max_per_day : a.cap;
+  const ceil = ACCS().some(x => x.platform === 'tiktok') ? ' (TikTok allows 15)' : '';
+  return `<div class="qline">${icon('clock', 15)}<span>${a.enabled ? `Autopilot every <b>${num(a.every_hours || 6)} h</b>` : '<b>Autopilot off</b>'}${a.runner === 'cloud' ? ' · in the cloud, PC can be off' : a.runner ? ` · on ${esc(a.runner)}` : ''}</span>
+    <span>· next run <b>${ok(next) ? esc(fDT(a.next_run)) : '—'}</b>${ok(next) ? ` <span class="mut">(${next > Date.now() ? 'in ' + esc(dur((next - Date.now()) / 1000)) : 'due'})</span>` : ''}</span>
+    <span>· up to <b>${num(mpd || 0)}</b> a day per account${ceil}</span></div>`;
+}
+function nextCard(q) {
+  const c = clipById(q.clip_id) || {};
+  const t = { ...c, id: q.clip_id, thumb: q.thumb ?? c.thumb, hook: c.hook || q.title, title: q.title };
+  return `<button type="button" class="clip" data-clip="${esc(q.clip_id)}" aria-label="${esc(q.title)} goes to ${esc(q.account)}">${clipThumb(t)}
+      <span class="tl"><span class="chip ${q.slot === 'tomorrow' ? 'warn' : 'acc'}">${esc(q.slot)}</span></span>
+      <span class="sc" style="--sc:${scoreCol(q.score)}" title="Score ${esc(q.score)}">${Math.round(q.score || 0)}</span>
+      <span class="to">${q.kind === 'slideshow' ? `<span class="chip" title="photo slideshow" style="flex:none;margin-right:4px">${icon('slides', 12)}</span>` : ''}<span class="chip pf" style="--c:${pcol(q.platform)}" title="${esc(pname(q.platform))} account">@${esc(q.account)}</span></span></span>
+    <span class="ct">${esc(q.title)}</span><span class="cs">${esc(q.campaign || '')} · ${esc(q.reason || '')}</span></button>`;
+}
+function upNextCard(compact = false) {
+  const n = NEXT(), now = n.filter(q => q.slot !== 'tomorrow').length;
+  return `<div class="card"><div class="card-h"><h3>${icon('queue')}Up next</h3><div>${n.length ? `<span class="badge acc">${plural(n.length, 'post')} waiting</span>` : '<span class="badge good">queue empty</span>'}${compact ? `<button class="chipbtn" type="button" data-go="accounts"><span>Accounts</span>${icon('right')}</button>` : ''}</div></div>
+    ${scheduleLine()}
+    ${n.length ? `<div class="card-d" style="margin:0 0 12px">Approved clips not posted yet and the account each goes to: every clip goes to exactly one account, the one with the most room under today’s cap. ${now ? `${plural(now, 'post')} at the next run` : 'All accounts are at their cap'}${now < n.length ? `, ${num(n.length - now)} wait for tomorrow` : ''}.</div>
+      <div class="cstrip">${n.map(nextCard).join('')}</div>` : emptyBox('Nothing waiting.', 'Approved clips line up here until the next run posts them.')}</div>`;
+}
+function pageAccounts(el) {
+  const L = ACCS(), hid = moneyHidden();
+  const today = sum(L, x => x.today), capTot = sum(L, x => x.cap), v7 = sum(L, x => x.views_7d), best = [...L].sort((a, b) => (b.views_7d || 0) - (a.views_7d || 0))[0];
+  const nSt = (k) => L.filter(x => x.status === k).length;
+  el.innerHTML = banners() + head('Money · accounts', L.length ? `${plural(L.length, 'posting account')}` : 'No posting accounts yet',
+      'Every account the autopilot posts to. A campaign can use several accounts on one platform; each clip goes to exactly one of them, never twice, and every account keeps its own daily cap.')
+    + `<div class="stats">
+        ${statBox('Accounts', L.length, `${num(nSt('posting'))} posting · ${num(nSt('at_cap'))} at cap${nSt('error') ? ` · ${num(nSt('error'))} error` : ''}`, '', '', 'users')}
+        ${statBox('Posts today', today, `of ${num(capTot)} allowed across all accounts`, '', `<div class="meter sm" style="margin-top:8px"><i style="width:${capTot ? clamp(100 * today / capTot, 2, 100).toFixed(0) : 0}%"></i></div>`, 'send')}
+        ${statBox('Views · 7 days', kfmt(v7), `${num(sum(L, x => x.posts_7d))} posts this week`, v7 ? 'up' : '', '', 'eye')}
+        ${statBox('Top account', best && best.views_7d ? '@' + esc(best.name) : '—', best && best.views_7d ? `${esc(pname(best.platform))} · +${kfmt(best.views_7d)} views in 7 d` : 'no views this week yet', '', '', 'trophy')}
+      </div>
+    ${howto('accounts', `<ul><li><b>Today / cap</b>: posts made today (every attempt counts, like the autopilot counts them) against the daily cap per account: the setting <span class="mono">autopilot.max_per_day</span>, never above the platform’s own limit (TikTok: 15 a day).</li>
+      <li><b>Status</b>: <b>posting</b> = posted recently and has room today, <b>at daily cap</b> = the next clips wait for tomorrow, <b>idle</b> = no post in the last day, <b>error</b> = an upload failed or an error mentioned the account in the last 24 h.</li>
+      <li><b>Views 7 d</b>: views gained in the last 7 days (from the tracker’s view history). <b>Est. net</b>: views × the campaign’s rate after fees, caps and minimums.</li></ul>`)}
+    ${upNextCard()}
+    ${L.length ? `<div class="card"><div class="card-h"><h3>${icon('trophy')}Leaderboard</h3>${segHTML('alK', [['views_7d', 'Views 7 d'], ['avg_views', 'Avg'], ['engagement', 'Eng.'], ['net', 'Net']], AL.k, 'sm')}</div><div id="alB">${accBoard()}</div></div>` : ''}
+    ${secH('Accounts', `<em>${plural(L.length, 'account')}</em>`)}
+    ${L.length ? `<div class="grid g2 astart">${L.map(accCard).join('')}</div>` : `<div class="card">${emptyBox('No accounts yet.', 'Connect one (python pipeline.py zernio auth) and list it in a campaign’s <span class="mono">accounts</span>: a name, a list of names, or "*" for every connected account.')}</div>`}`;
+  onSeg('alK', (v) => { AL.k = v; store.set('alK', v); $('#alB').innerHTML = accBoard(); });
+}
+function accBoard() {
+  const k = AL.k, hid = moneyHidden(), L = [...ACCS()];
+  const val = (x) => k === 'net' ? (hid ? null : x.net) : x[k];
+  const fmt = (x) => k === 'engagement' ? pct(x.engagement || 0) : k === 'net' ? usd(x.net) : kfmt(val(x) || 0);
+  L.sort((a, b) => (val(b) || 0) - (val(a) || 0));
+  const mx = Math.max(1e-9, ...L.map(x => val(x) || 0));
+  return `<div class="lbd">${L.map((x, i) => `<div class="li"><span class="rk">${i + 1}</span><span class="lt">@${esc(x.name)} <span class="mut small" style="font-weight:500">${esc(pname(x.platform))}</span></span><span class="lv">${fmt(x)}</span>
+    <span class="ls">${accChip(x.status)}<span class="meter sm"><i style="width:${(100 * (val(x) || 0) / mx).toFixed(1)}%;background:${pcol(x.platform)}"></i></span><span class="mono" style="white-space:nowrap">${num(x.today)}/${num(x.cap)} today<span class="hide-sm"> · ${plural(x.posts_7d || 0, 'post')} 7 d</span></span></span></div>`).join('')}</div>`;
+}
+function accCard(x) {
+  const frac = x.cap ? clamp(x.today / x.cap, 0, 1) : 0, days = (x.daily_views || []).length;
+  return `<div class="card acard" style="--c:${pcol(x.platform)}"><div class="card-h"><h3><i class="pdot"></i><span>@${esc(x.name)}</span></h3>${accChip(x.status)}</div>
+    <div class="chips" style="margin-bottom:12px">${pchip(x.platform)}${(x.campaigns || []).map(c => `<span class="chip">${icon('camp', 13)}${esc(c)}</span>`).join('')}${x.slideshows ? `<span class="chip">${icon('slides', 13)}${plural(x.slideshows, 'slideshow')}</span>` : ''}</div>
+    <div class="capl"><span>Posts today</span><b>${num(x.today)}<i> / ${num(x.cap)} cap</i></b></div>
+    <div class="meter ${x.today >= x.cap ? 'warn' : 'good'}"><i style="width:${(100 * Math.max(frac, x.today ? .03 : 0)).toFixed(1)}%"></i></div>
+    <div class="nums">${nbox('Posts 7 d', num(x.posts_7d || 0))}${nbox('Views', kfmt(x.views || 0))}${nbox('Views 7 d', '+' + kfmt(x.views_7d || 0))}${nbox('Avg / post', kfmt(x.avg_views || 0))}
+      ${nbox('Likes', kfmt(x.likes || 0))}${nbox('Engagement', pct(x.engagement || 0))}${nbox('Est. net', usd(x.net))}${nbox('Last post', x.last_post ? esc(ago(x.last_post)) : '—')}</div>
+    ${spark(x.daily_views || [], { color: phex(x.platform), bars: true })}<div class="spl"><span>views a day · last ${num(days)} days</span><span>${kfmt((x.daily_views || [])[days - 1] || 0)} today</span></div>
+    ${x.status_note ? `<div class="anote">${x.status === 'error' ? `<span class="dn">${icon('alert', 14)}</span> ` : ''}${esc(x.status_note)}</div>` : ''}</div>`;
+}
+
+// campaign rules: the brief's own requirements, judged on what was posted
+function rulesHTML(c) {
+  const ch = c.checks || [];
+  if (!ch.length) return '';
+  const met = ch.filter(x => x.ok === true).length, bad = ch.filter(x => x.ok === false).length;
+  return `<div class="sec-h" style="margin:16px 2px 6px"><span>Campaign rules</span><i></i><em class="${bad ? 'wn' : 'up'}">${met}/${ch.length} met</em></div>
+    <ul class="check tight">${ch.map(x => `<li class="${x.ok === true ? 'ok' : x.ok === false ? 'no' : 'na'}">${icon(x.ok === true ? 'check' : x.ok === false ? 'close' : 'clock')}<span><b>${esc(x.label)}</b>${x.detail ? `<small>${esc(x.detail)}</small>` : ''}</span></li>`).join('')}</ul>`;
+}
+
+// payout reality: per clip, how many views a post needs before it pays and where the cap stops it
+function payoutCard() {
+  const C = (D.campaigns || []).filter(c => c.posts || (c.payout && (c.payout.min_payout || c.payout.cap)));
+  if (!C.length) return '';
+  const rows = C.map(c => { const p = c.payout || {}; const share = p.posts ? p.posts_paying / p.posts : null;
+    return `<tr><td style="white-space:normal;min-width:110px"><b style="font-weight:600">${esc(c.name)}</b><small>${moneyHidden() ? '' : usd(c.cpm) + ' per 1K views'}${c.min_views ? ` · ${kfmt(c.min_views)} views gate` : ''}</small></td>
+      <td class="num">${p.min_payout ? usd(p.min_payout) : '<span class="mut">none</span>'}<small>${p.views_to_min ? `needs ${num(p.views_to_min)} views` : 'any view pays'}</small></td>
+      <td class="num">${p.posts ? `<b class="${share >= .5 ? 'up' : share > 0 ? 'wn' : 'dn'}">${num(p.posts_paying)}</b> <span class="mut">of ${num(p.posts)}</span>` : '<span class="mut">—</span>'}</td>
+      <td class="num hide-sm">${p.cap ? `${usd(p.cap, 0)}<small>at ${kfmt(p.views_to_cap)} views${p.posts_at_cap ? ` · ${num(p.posts_at_cap)} hit it` : ''}</small>` : '<span class="mut">no cap</span>'}</td></tr>`; }).join('');
+  const under = sum(C, c => (c.payout || {}).posts - (c.payout || {}).posts_paying);
+  return `<div class="card pay"><div class="card-h"><h3>${icon('target')}Payout reality</h3><span class="chip warn">${icon('info', 13)}per clip, not per account</span></div>
+    <div class="tw"><table><thead><tr><th>Campaign</th><th class="num">Min a clip</th><th class="num">Posts over it</th><th class="num hide-sm">Max a clip</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="note">Views needed = the minimum payout ÷ the rate × 1,000 (or the campaign’s view gate, if higher). A post under it earns <b>nothing</b>, however many posts you make${under > 0 ? `: ${plural(under, 'post')} so far sit${under === 1 ? 's' : ''} below the line` : ''}. Above the cap a post earns no more. Counts are the tracker’s public views; the campaign pays on the views it verifies, after its review, and can reject posts.</div></div>`;
+}
+
+// format split: video clips vs TikTok photo slideshows
+function formatHTML(fs) {
+  const by = Object.fromEntries((fs || []).map(f => [f.kind, f])), list = ['video', 'slideshow'].map(k => by[k] || { kind: k, posts: 0, views: 0, avg_views: 0, engagement: 0 });
+  if (!sum(list, f => f.posts)) return emptyBox('No posts yet.', 'Video clips and photo slideshows are compared here once both have posts.');
+  const mx = Math.max(1, ...list.map(f => f.avg_views || 0)), [v, sl] = list;
+  const verdict = v.posts && sl.posts ? (sl.avg_views > v.avg_views ? `Slideshows average <b>${pct(sl.avg_views / Math.max(1, v.avg_views) - 1, 0)}</b> more views a post` : `Videos average <b>${pct(v.avg_views / Math.max(1, sl.avg_views) - 1, 0)}</b> more views a post`) + ` (${plural(sl.posts, 'slideshow')}, ${plural(v.posts, 'video')}: small samples swing).` : `Only ${esc(v.posts ? 'videos' : 'slideshows')} so far.`;
+  return `<div class="fmt">${list.map(f => { const K = KIND[f.kind] || KIND.video; return `<div style="--c:${K[2]}"><span>${icon(K[1])}${esc(K[0])}s</span><b>${f.posts ? kfmt(f.avg_views) : '—'}</b><em>avg views a post</em>
+      <div class="meter sm"><i style="width:${(100 * (f.avg_views || 0) / mx).toFixed(1)}%"></i></div><em class="mono" style="margin-top:4px">${plural(f.posts || 0, 'post')} · ${kfmt(f.views || 0)} views · ${pct(f.engagement || 0)} eng.</em></div>`; }).join('')}</div>
+    <div class="note">${verdict}</div>`;
+}
 
 // ===================================================================== JOBS & HEALTH
 const QK = [['queued', 'Queued', 'queue', 'var(--accent)'], ['running', 'Running', 'bolt', 'var(--accent-2)'], ['retry_wait', 'Retry wait', 'clock', 'var(--warn)'], ['failed', 'Failed', 'alert', 'var(--bad)'], ['blocked', 'Blocked', 'close', 'var(--bad)'], ['done', 'Done', 'check', 'var(--good)']];
@@ -1648,7 +1789,7 @@ function pageSettings(el) {
   $('#sHow').onclick = () => { try { Object.keys(localStorage).filter(k => k.startsWith('ce.howto.')).forEach(k => localStorage.removeItem(k)); } catch (e) { } toast('Notes closed'); };
 }
 function applyLook() { const r = document.documentElement; r.dataset.accent = store.get('accent', 'indigo'); r.dataset.motion = store.get('motion', true) ? 'on' : 'off'; FX?.retheme?.(); if (r.classList.contains('bg2on') && !BG.raf) BG.raf = requestAnimationFrame(bgFrame); }
-const PAGE_FN = { today: pageToday, clips: pageClips, analytics: pageAnalytics, earnings: pageEarnings, campaigns: pageCampaigns, jobs: pageJobs, activity: pageActivity, settings: pageSettings };
+const PAGE_FN = { today: pageToday, clips: pageClips, analytics: pageAnalytics, earnings: pageEarnings, campaigns: pageCampaigns, accounts: pageAccounts, jobs: pageJobs, activity: pageActivity, settings: pageSettings };
 
 // ===================================================================== top bar status + data loading (hosted: data.json every 60 s; from disk: the copy the PC built)
 function status() {

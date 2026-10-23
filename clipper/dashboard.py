@@ -167,6 +167,28 @@ def thumb_dir(ws) -> Path:
     return ws.home / "thumbs"
 
 
+IMAGE_EXT = (".jpg", ".jpeg", ".png", ".webp")
+
+
+def thumb_source(file) -> str | None:
+    """The file a thumbnail is cut from: the clip video, or for a slideshow its first slide (the file itself when it is
+    an image, else the first image in the slideshow's folder). None when nothing usable is on disk."""
+    try:
+        p = Path(file)
+        if p.is_dir():
+            slides = sorted(x for x in p.iterdir() if x.suffix.lower() in IMAGE_EXT and x.is_file())
+            return str(slides[0]) if slides else None
+        if p.is_file():
+            return str(p)
+        if p.suffix:  # slideshow saved as <name>.mp4 next to a <name>/ slides folder
+            d = p.with_suffix("")
+            if d.is_dir():
+                return thumb_source(d)
+    except OSError:
+        return None
+    return None
+
+
 def make_thumbs(ws, limit: int = THUMB_LIMIT) -> int:
     """270x480 JPEG of a frame ~1.5 s in, for the newest `limit` clips with a rendered file. Only missing ones are made;
     failures are skipped silently. Returns how many were created."""
@@ -176,12 +198,10 @@ def make_thumbs(ws, limit: int = THUMB_LIMIT) -> int:
         return 0
     todo = []
     for r in rows:
-        try:
-            if not Path(r["file"]).is_file():
-                continue
-        except OSError:
+        src = thumb_source(r["file"])
+        if not src:
             continue
-        todo.append(r)
+        todo.append({"id": r["id"], "file": src})
         if len(todo) >= limit:
             break
     out_dir = thumb_dir(ws)
@@ -202,9 +222,11 @@ def make_thumbs(ws, limit: int = THUMB_LIMIT) -> int:
     for r in todo:
         dest = out_dir / f"{r['id']}.jpg"
         tmp = out_dir / f"{r['id']}.tmp.jpg"
-        for at in ("1.5", "0"):
+        image = Path(r["file"]).suffix.lower() in IMAGE_EXT   # a slideshow's first slide: no seeking in a still
+        for at in ((None,) if image else ("1.5", "0")):
             try:
-                subprocess.run([ff, "-y", "-loglevel", "error", "-ss", at, "-i", str(r["file"]), "-frames:v", "1",
+                seek = ["-ss", at] if at else []
+                subprocess.run([ff, "-y", "-loglevel", "error", *seek, "-i", str(r["file"]), "-frames:v", "1",
                                 "-vf", vf, "-q:v", "4", str(tmp)], capture_output=True, timeout=30)
                 if tmp.is_file() and tmp.stat().st_size > 0:
                     tmp.replace(dest)
@@ -252,18 +274,315 @@ def _bucket(rows, key_fn, keys) -> list:
     return [(k, v) for k, v in out.items()]
 
 
+# ---------------------------------------------------------------- accounts, rules, queue (v2.1)
+
+KINDS = ("video", "slideshow")
+PLATFORM_NAMES = {"tiktok": "TikTok", "instagram": "Instagram", "youtube": "YouTube", "x": "X"}
+DEFAULT_MAX_PER_DAY = 3
+
+
+def _kind(v) -> str:
+    v = str(v or "").strip().lower()
+    return v if v in KINDS else "video"
+
+
+def _num(v, default=None):
+    if isinstance(v, bool):
+        return default
+    if isinstance(v, (int, float)):
+        return float(v)
+    try:
+        return float(str(v).strip().rstrip("%"))
+    except (TypeError, ValueError):
+        return default
+
+
+def max_per_day(ws) -> int:
+    """Posts per account per day: setting autopilot.max_per_day, else the older autopilot.max_uploads_per_day, else 3."""
+    for key in ("autopilot.max_per_day", "autopilot.max_uploads_per_day"):
+        v = _num(ws.setting(key, None))
+        if v is not None and v >= 0:
+            return int(v)
+    return DEFAULT_MAX_PER_DAY
+
+
+def platform_ceiling(platform: str, default: int) -> int:
+    try:
+        import pipeline as pl
+        return int(pl.PLATFORM_DAILY_CEILING.get(platform, default))
+    except Exception:
+        return {"tiktok": 15}.get(platform, default)
+
+
+def campaign_accounts(c: dict, platform: str, seen: list | None = None) -> list[str]:
+    """Account names a campaign posts to on a platform. `accounts.<platform>` may be a name, a list of names or "*"
+    (every connected account: the ones already seen posting on that platform). Nothing set means "default"."""
+    v = (c.get("accounts") or {}).get(platform) if isinstance(c.get("accounts"), dict) else None
+    items = [str(x).strip() for x in (v if isinstance(v, list) else [v] if v not in (None, "") else [])]
+    out = [x for x in items if x and x != "*"]
+    if "*" in items:
+        out += list(seen or [])
+    return list(dict.fromkeys(out)) or ["default"]
+
+
+def _min_engagement(c: dict) -> float | None:
+    v = _num(c.get("min_engagement"))
+    if v is None or v <= 0:
+        return None
+    return v / 100 if v > 1 else v   # 2 or "2%" -> 0.02
+
+
+def _logo_path(c: dict) -> Path | None:
+    logo = ((c.get("on_screen") or {}).get("logo") or "").strip()
+    if not logo:
+        return None
+    p = Path(logo).expanduser()
+    if not p.is_absolute():
+        p = Path(c.get("_path") or ".").parent / p
+    return p
+
+
+def campaign_checks(c: dict, cu: list, clips: list, now_dt: dt.datetime) -> list[dict]:
+    """The campaign's own requirements as a checklist, each judged on what was posted. ok is True/False, or None when
+    there is nothing to judge yet."""
+    out = []
+    plats = [str(p).lower() for p in c.get("platforms") or []]
+    cu = [u for u in cu if u.get("state") != "failed"]   # a failed upload never went out
+    recent = sorted((u for u in cu if u["_t"]), key=lambda u: u["_t"], reverse=True)[:20]
+    # 1. required tags (at the end of the caption when the brief says so)
+    cap = c.get("caption") or {}
+    if cap.get("required_mentions") or cap.get("required_hashtags"):
+        last = bool(cap.get("mentions_last"))
+        bad, n = [], 0
+        for u in recent:
+            text = (u.get("caption") or "").strip()
+            if not text:
+                continue
+            n += 1
+            tags = cmp.mentions_for(c, u["platform"]) + cmp._tags(cap.get("required_hashtags"))
+            low = text.lower()
+            miss = [t for t in tags if t.lower() not in low]
+            if miss or (last and cmp.mentions_for(c, u["platform"]) and
+                        not re.search(r"(" + r"\s+".join(re.escape(t) for t in cmp.mentions_for(c, u["platform"])) + r")\s*$",
+                                      text, re.I)):
+                bad.append(u)
+        want = " ".join(cmp.mentions_for(c, plats[0] if plats else "tiktok") or cmp._tags(cap.get("required_hashtags")))
+        out.append({"label": f"Required tags{' at the caption end' if last else ''}",
+                    "ok": None if not n else not bad,
+                    "detail": (f"{want}: " if want else "") + (f"{n - len(bad)} of the last {n} captions" if n
+                                                               else "no captions posted yet")})
+    # 2. logo
+    lp = _logo_path(c)
+    if lp is not None:
+        exists = lp.is_file()
+        out.append({"label": "Brand logo on screen", "ok": exists,
+                    "detail": f"{lp.name} {'found' if exists else 'missing: add the file next to the brief'}"})
+    # 3. minimum length
+    cmin = _num((c.get("clip") or {}).get("min"))
+    if cmin:
+        mine = [x for x in clips if x["campaign"] == c.get("name") and x["status"] in ("approved", "posted")
+                and x.get("kind") != "slideshow"]
+        short = min((x["dur"] for x in mine), default=None)
+        out.append({"label": f"Clips at least {cmin:g} s", "ok": None if short is None else short >= cmin,
+                    "detail": f"shortest approved clip {short} s" if short is not None else "no approved clips yet"})
+    # 4. posts a week
+    ppw = _num(c.get("posts_per_week"))
+    if ppw:
+        n7 = sum(1 for u in cu if u["_t"] and u["_t"] >= now_dt - dt.timedelta(days=7))
+        out.append({"label": f"{ppw:g}+ posts a week", "ok": n7 >= ppw, "detail": f"{n7} in the last 7 days"})
+    # 5. engagement floor
+    eng = _min_engagement(c)
+    if eng:
+        v = sum(int(u["views"] or 0) for u in cu)
+        lk = sum(int(u["likes"] or 0) for u in cu)
+        out.append({"label": f"Engagement {eng * 100:g}%+", "ok": None if not v else lk / v >= eng,
+                    "detail": f"{lk / v * 100:.1f}% likes / views" if v else "no views yet"})
+    # 6. platforms
+    if plats:
+        off = sorted({u["platform"] for u in cu if u["platform"] not in plats})
+        names = ", ".join(PLATFORM_NAMES.get(p, p.capitalize()) for p in plats)
+        out.append({"label": f"{names} only" if len(plats) == 1 else f"Platforms: {names}", "ok": not off,
+                    "detail": ("also posted on " + ", ".join(off)) if off else "every post on an allowed platform"})
+    # 7. automation
+    aa = cmp.automation_allowed(c)
+    out.append({"label": "Automation allowed by the rules", "ok": aa is True,
+                "detail": "recorded in the brief" if aa is True else "rules ban it" if aa is False
+                else "not confirmed: stays manual"})
+    return out
+
+
+EMPTY_PAYOUT = {"min_payout": 0.0, "views_to_min": 0, "cap": 0.0, "views_to_cap": 0, "posts": 0, "posts_paying": 0,
+                "posts_at_cap": 0}
+
+
+def _safe(fn, default):
+    """A new dashboard section never takes the whole page down: on any error it is empty."""
+    try:
+        return fn()
+    except Exception:
+        return default
+
+
+def campaign_payout(c: dict, cu: list) -> dict:
+    """Per-clip payout reality: views a post needs before it pays anything and before it hits the cap."""
+    cpm = _num(c.get("cpm"), 0.0) or 0.0
+    mn = _num(c.get("min_payout"), 0.0) or 0.0
+    cap = _num(c.get("max_payout_per_clip"), 0.0) or 0.0
+    gate = int(_num(c.get("min_views"), 0) or 0)
+    need = max(gate, int(-(-mn * 1000 // cpm)) if cpm and mn else 0)
+    to_cap = int(-(-cap * 1000 // cpm)) if cpm and cap else 0
+    views = [int(u["views"] or 0) for u in cu]
+    return {"min_payout": mn, "views_to_min": need, "cap": cap, "views_to_cap": to_cap,
+            "posts": len(views), "posts_paying": sum(1 for v in views if v >= max(need, 1)) if cpm else 0,
+            "posts_at_cap": sum(1 for v in views if to_cap and v >= to_cap)}
+
+
+def _event_hits(events: list, platform: str, account: str, since: dt.datetime) -> list:
+    pat = re.compile(r"(^|[^\w.])@?" + re.escape(account) + r"($|[^\w.])", re.I)
+    out = []
+    for e in events:
+        t = _parse(e.get("ts"))
+        if not t or t < since or (e.get("level") not in ("error", "warn")):
+            continue
+        msg = str(e.get("message") or "")
+        if pat.search(msg) or f"{platform}/{account}".lower() in msg.lower():
+            out.append(e)
+    return out
+
+
+def accounts_detail(ws, uploads: list, camps: dict, auto_files: set, eposts_by_url: dict, events: list,
+                    now_dt: dt.datetime, cap_setting: int, every: int) -> list[dict]:
+    today = now_dt.date().isoformat()
+    keys: dict[tuple, dict] = {}
+    for u in uploads:
+        keys.setdefault((u["platform"], u["account"]), {"campaigns": set()})["campaigns"].add(u["campaign"])
+    seen: dict[str, list] = {}
+    for p, a in keys:
+        seen.setdefault(p, []).append(a)
+    for c in camps.values():
+        if c.get("_path") not in auto_files:
+            continue
+        for p in c.get("platforms") or []:
+            p = str(p).lower()
+            for a in campaign_accounts(c, p, sorted(seen.get(p, []))):
+                keys.setdefault((p, a), {"campaigns": set()})["campaigns"].add(c.get("name"))
+    days = [(now_dt.date() - dt.timedelta(days=i)) for i in range(13, -1, -1)]
+    out = []
+    for (p, a), meta in keys.items():
+        tried = [u for u in uploads if u["platform"] == p and u["account"] == a]
+        mine = [u for u in tried if u.get("state") != "failed"]
+        cap = min(cap_setting, platform_ceiling(p, cap_setting))
+        views = sum(int(u["views"] or 0) for u in mine)
+        likes = sum(int(u["likes"] or 0) for u in mine)
+        t7 = now_dt - dt.timedelta(days=7)
+        hist = [eposts_by_url[u["url"]] for u in mine if u.get("url") and u["url"] in eposts_by_url]
+        if hist:
+            daily = []
+            for d in days:
+                end = now_dt if d == now_dt.date() else dt.datetime.combine(d, dt.time(23, 59, 59))
+                daily.append(_gained(hist, end - dt.timedelta(days=1), end))
+            v7 = _gained(hist, t7, now_dt)
+        else:   # no history: views of the posts made each day (at today's counts)
+            daily = [sum(int(u["views"] or 0) for u in mine if (u["created"] or "")[:10] == d.isoformat()) for d in days]
+            v7 = sum(int(u["views"] or 0) for u in mine if u["_t"] and u["_t"] >= t7)
+        today_n = sum(1 for u in tried if (u["created"] or "")[:10] == today)   # the cap counts every attempt
+        last = max((u["_t"] for u in mine if u["_t"]), default=None)
+        fails = [u for u in tried if u.get("state") == "failed" and u["_t"] and u["_t"] >= now_dt - dt.timedelta(hours=24)]
+        errs = _event_hits(events, p, a, now_dt - dt.timedelta(hours=24))
+        if fails or any(e.get("level") == "error" for e in errs):
+            status = "error"
+            note = (fails[0].get("notes") and _jl(fails[0]["notes"], [""])[0]) or (errs[0]["message"] if errs else "")
+            note = str(note or "upload failed in the last 24 h")[:160]
+        elif today_n >= cap:
+            status, note = "at_cap", f"{today_n} of {cap} posts today: next ones wait for tomorrow"
+        elif last and last >= now_dt - dt.timedelta(hours=max(24, every * 2)):
+            status, note = "posting", f"{cap - today_n} slot{'s' if cap - today_n != 1 else ''} left today"
+        else:
+            status, note = "idle", "no post in the last day" if mine else "nothing posted yet"
+        out.append({"platform": p, "name": a, "campaigns": sorted(x for x in meta["campaigns"] if x),
+                    "today": today_n, "cap": cap, "posts": len(mine),
+                    "posts_7d": sum(1 for u in mine if u["_t"] and u["_t"] >= t7),
+                    "views": views, "views_7d": int(v7), "avg_views": round(views / len(mine)) if mine else 0,
+                    "likes": likes, "engagement": round(likes / views, 4) if views else 0.0,
+                    "last_post": last.isoformat(timespec="seconds") if last else None,
+                    "net": round(float(sum(u["net"] for u in mine)), 2),
+                    "net_7d": round(float(sum(u["net"] for u in mine if u["_t"] and u["_t"] >= t7)), 2),
+                    "slideshows": sum(1 for u in mine if u.get("c_kind") == "slideshow"),
+                    "daily_views": [int(x) for x in daily], "status": status, "status_note": note})
+    out.sort(key=lambda x: (-x["views_7d"], -x["views"], x["platform"], x["name"]))
+    return out
+
+
+def up_next(ws, clips: list, uploads: list, camps: dict, accounts: list, pol_platforms: list, auto_files: set,
+            limit: int = 30) -> list:
+    """Approved clips not posted yet and the account each goes to next: the autopilot hands every clip to exactly one
+    account per platform, the one with the most room under today's cap (ties: fewest posts overall, then name), in
+    score order like pipeline.autopilot. "*" accounts resolve to the accounts already seen posting (no network here)."""
+    load = {(a["platform"], a["name"]): [a["today"], a["posts"], a["cap"]] for a in accounts}
+    seen: dict[str, list] = {}
+    for a in accounts:
+        seen.setdefault(a["platform"], []).append(a["name"])
+    by_name = {c.get("name"): c for c in camps.values()}
+    done = {}
+    for u in uploads:
+        if u.get("state") != "failed":
+            done.setdefault(u["clip_id"], set()).add(u["platform"])
+    out = []
+    for x in sorted((x for x in clips if x["status"] == "approved"), key=lambda x: (-x["score"], x["id"])):
+        c = by_name.get(x["campaign"]) or {}
+        if c.get("_path") not in auto_files:   # only campaigns on autopilot post by themselves
+            continue
+        plats = [str(p).lower() for p in c.get("platforms") or pol_platforms or []]
+        plats = [p for p in plats if not pol_platforms or p in pol_platforms]
+        for p in plats:
+            if p in done.get(x["id"], set()):
+                continue
+            names = campaign_accounts(c, p, sorted(seen.get(p, [])))
+            for n in names:
+                load.setdefault((p, n), [0, 0, platform_ceiling(p, DEFAULT_MAX_PER_DAY)])
+            # the pipeline's rotation: the account with the most room left today, then the fewest posts overall
+            pick = sorted(names, key=lambda n: (-(load[(p, n)][2] - load[(p, n)][0]), load[(p, n)][1], n))[0]
+            l = load[(p, pick)]
+            slot = "next run" if l[0] < l[2] else "tomorrow"
+            if slot == "next run":
+                l[0] += 1
+                l[1] += 1
+            out.append({"clip_id": x["id"], "title": x["title"], "campaign": x["campaign"], "score": x["score"],
+                        "thumb": x["thumb"], "kind": x.get("kind", "video"), "dur": x["dur"], "platform": p,
+                        "account": pick, "slot": slot,
+                        "reason": "fewest posts today" if len(names) > 1 else "the campaign's only account"})
+            if len(out) >= limit:
+                return out
+    return out
+
+
+def format_split(uploads: list) -> list[dict]:
+    out = []
+    for k in KINDS:
+        us = [u for u in uploads if u.get("c_kind", "video") == k]
+        v = sum(int(u["views"] or 0) for u in us)
+        lk = sum(int(u["likes"] or 0) for u in us)
+        out.append({"kind": k, "posts": len(us), "views": v, "avg_views": round(v / len(us)) if us else 0,
+                    "engagement": round(lk / v, 4) if v else 0.0})
+    return out
+
+
 def build_data(ws) -> dict:
     import pipeline as pl  # late import: pipeline imports this module
     camps = _load_campaigns(ws)
     now_dt = dt.datetime.now()
     today = now_dt.date()
 
-    uploads = _rows(ws, "SELECT u.*, c.title, c.campaign, c.score, c.start AS c_start, c.end_ AS c_end, c.text AS c_text "
-                        "FROM uploads u JOIN clips c ON c.id=u.clip_id ORDER BY u.id DESC")
+    ccols = {r[1] for r in ws.q("PRAGMA table_info(clips)")}
+    kind_sql = "COALESCE(NULLIF(c.kind, ''), 'video')" if "kind" in ccols else "'video'"
+    uploads = _rows(ws, "SELECT u.*, c.title, c.campaign, c.score, c.start AS c_start, c.end_ AS c_end, c.text AS c_text, "
+                        f"{kind_sql} AS c_kind FROM uploads u JOIN clips c ON c.id=u.clip_id ORDER BY u.id DESC")
     for u in uploads:
         c = camps.get(u["campaign"]) or {}
         u["net"] = round(cmp.payout(c, int(u["views"] or 0))[1], 2) if c.get("cpm") else 0.0
         u["_t"] = _parse(u["created"])
+        u["account"] = str(u.get("account") or "default")
+        u["c_kind"] = _kind(u.get("c_kind"))
     by_clip: dict[int, list] = {}
     for u in uploads:
         by_clip.setdefault(u["clip_id"], []).append(
@@ -287,6 +606,7 @@ def build_data(ws) -> dict:
                       "caption": r["caption"] or "",
                       "reasons": [str(x) for x in _jl(r["reasons"] if "reasons" in keys else None, [])],
                       "source_title": src_titles.get(r["source_id"]) or "",
+                      "kind": _kind(r["kind"] if "kind" in keys else None),
                       "start": round(float(r["start"] or 0), 1), "end": round(float(r["end_"] or 0), 1)})
 
     campaigns = []
@@ -311,7 +631,11 @@ def build_data(ws) -> dict:
                           "views": sum(int(u["views"] or 0) for u in cu), "net": round(float(sum(u["net"] for u in cu)), 2),
                           "clips": sum(1 for x in clips if x["campaign"] == name),
                           "automation_allowed": cmp.automation_allowed(c),
-                          "notes": str(c.get("notes") or "")[:300]})
+                          "notes": str(c.get("notes") or "")[:300],
+                          "posts_7d": sum(1 for u in cu if u["_t"] and u["_t"] >= now_dt - dt.timedelta(days=7)),
+                          "posts_per_week": _num(c.get("posts_per_week"), 0) or 0,
+                          "checks": _safe(lambda: campaign_checks(c, cu, clips, now_dt), []),
+                          "payout": _safe(lambda: campaign_payout(c, cu), dict(EMPTY_PAYOUT))})
     campaigns.sort(key=lambda x: (not x["auto"], bool(x["problems"]), x["name"]))
 
     leads = []
@@ -365,6 +689,13 @@ def build_data(ws) -> dict:
         eposts = [_post_points(p) for p in edb.get("posts") or [] if isinstance(p, dict)]
     except Exception:
         eposts = []
+    eposts_by_url = {}
+    try:
+        for p in edb.get("posts") or []:
+            if isinstance(p, dict) and p.get("url"):
+                eposts_by_url[p["url"]] = _post_points(p)
+    except Exception:
+        pass
     views_history = []
     for i in range(29, -1, -1):
         d = today - dt.timedelta(days=i)
@@ -464,6 +795,12 @@ def build_data(ws) -> dict:
     goal = float(goal) if isinstance(goal, (int, float)) and not isinstance(goal, bool) and goal > 0 else None
 
     pol = pl.autopilot_policy(ws)
+    cap_setting = max_per_day(ws)
+    recent_events = _rows(ws, "SELECT ts, level, message FROM events ORDER BY id DESC LIMIT 300")
+    acc_detail = _safe(lambda: accounts_detail(ws, uploads, camps, autopilot_files, eposts_by_url, recent_events, now_dt,
+                                               cap_setting, every), [])
+    queue_next = _safe(lambda: up_next(ws, clips, uploads, camps, acc_detail,
+                                       [str(x).lower() for x in pol.get("platforms") or []], autopilot_files), [])
     g = pl.LedgerGuard(ws)
     enabled = bool(ws.setting("autopilot.enabled", False))
     return {
@@ -477,7 +814,11 @@ def build_data(ws) -> dict:
                       "privacy": pol["privacy"], "last": {k: (len(v) if isinstance(v, list) else v)
                                                           for k, v in last.items() if k != "notes"},
                       "notes": (last.get("notes") or [])[:8], "errors": (last.get("upload_errors") or [])[:8],
-                      "every_hours": every, "next_run": next_run},
+                      "every_hours": every, "next_run": next_run,
+                      "max_per_day": cap_setting,
+                      "runner": str(last.get("runner") or ws.setting("autopilot.runner", "") or "") or None},
+        "accounts_detail": acc_detail,
+        "up_next": queue_next,
         "accounts": accounts,
         "stats": {"clips": len(clips), "posted": sum(1 for c in clips if c["status"] == "posted"),
                   "posts": len(uploads), "views": views, "likes": likes, "net": net,
@@ -506,6 +847,7 @@ def build_data(ws) -> dict:
         "analytics": {"views_history": views_history, "hour_heatmap": hour_heatmap, "length_buckets": length_buckets,
                       "score_vs_views": score_vs_views, "funnel": funnel, "hook_words": hook_words,
                       "platform_split": plat_split,
+                      "format_split": format_split(uploads),
                       "calendar": [{"date": d, **v} for d, v in cal.items()],
                       "streak": streak(post_days, today)},
         "pipeline": {"queue": queue, "sources": ws.q("SELECT COUNT(*) n FROM sources")[0]["n"]},
@@ -552,6 +894,9 @@ def hide_money(data: dict) -> dict:
             u["net"] = None
     for c in d["campaigns"]:
         c["net"] = None
+    for a in d.get("accounts_detail") or []:
+        a["net"] = None
+        a["net_7d"] = None
     e = d["earnings"]
     for v in e["by_platform"].values():
         v["net"] = None

@@ -579,6 +579,22 @@ def _event_hits(events: list, platform: str, account: str, since: dt.datetime) -
     return out
 
 
+def _norm_path(p) -> str:
+    try:
+        return os.path.normcase(str(Path(p).resolve()))
+    except (OSError, TypeError, ValueError):
+        return str(p)
+
+
+class PathSet(set):
+    """Campaign file paths compared as the same file (Windows short names like RUNNER~1, case, symlinks)."""
+    def __init__(self, items=()):
+        super().__init__(_norm_path(x) for x in items if x)
+
+    def __contains__(self, p):
+        return bool(p) and super().__contains__(_norm_path(p))
+
+
 def accounts_detail(ws, uploads: list, camps: dict, auto_files: set, eposts_by_url: dict, events: list,
                     now_dt: dt.datetime, cap_setting: int, every: int) -> list[dict]:
     today = now_dt.date().isoformat()
@@ -743,7 +759,7 @@ def build_data(ws) -> dict:
                       "start": round(float(r["start"] or 0), 1), "end": round(float(r["end_"] or 0), 1)})
 
     campaigns = []
-    autopilot_files = set(ws.setting("autopilot.campaigns", []))
+    autopilot_files = PathSet(ws.setting("autopilot.campaigns", []))
     for name, c in camps.items():
         perm = c.get("permission") or {}
         try:

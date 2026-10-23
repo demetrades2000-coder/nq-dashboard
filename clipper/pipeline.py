@@ -1349,11 +1349,18 @@ def autopilot_policy(ws: WS) -> dict:
 
 def in_post_hours(hours, tz: str, now_utc=None) -> bool:
     """True when the local hour in tz is inside [start, end) (end may pass midnight, e.g. [20, 2])."""
+    now_utc = now_utc or dt.datetime.now(dt.timezone.utc)
     try:
         from zoneinfo import ZoneInfo
-        t = (now_utc or dt.datetime.now(dt.timezone.utc)).astimezone(ZoneInfo(tz))
-    except Exception:  # noqa: BLE001  (no tz database: never block posting on it)
-        return True
+        t = now_utc.astimezone(ZoneInfo(tz))
+    except Exception:  # noqa: BLE001  (no tz database, e.g. Windows without tzdata)
+        if tz != "America/New_York":
+            return True
+        # US Eastern without a database: DST from the 2nd Sunday of March to the 1st Sunday of November
+        y = now_utc.year
+        start = dt.datetime(y, 3, 8 + (6 - dt.date(y, 3, 8).weekday()) % 7, 7, tzinfo=dt.timezone.utc)
+        end = dt.datetime(y, 11, 1 + (6 - dt.date(y, 11, 1).weekday()) % 7, 6, tzinfo=dt.timezone.utc)
+        t = now_utc + dt.timedelta(hours=-4 if start <= now_utc < end else -5)
     a, b = int(hours[0]), int(hours[1])
     return a <= t.hour < b if a <= b else (t.hour >= a or t.hour < b)
 

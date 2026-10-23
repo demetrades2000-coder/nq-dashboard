@@ -1,0 +1,47 @@
+{
+  "id": "payout-story-121k",
+  "angle": "payout_story",
+  "title": "His biggest payout ever: $121,000",
+  "caption": "Layth's biggest prop payout, and the years it took to get there. #tradever #propfirm #payout #futurestrading #ad @tradeverfunding @laythbanks",
+  "slides": [
+    {
+      "kind": "hook",
+      "text": "His biggest payout ever: *$121,000*.",
+      "sub": "The part nobody posts comes next.",
+      "tag": "PAYOUT STORY"
+    },
+    {
+      "kind": "quote",
+      "text": "The biggest payout I ever received was $121,000 with an 80-20 profit split.",
+      "sub": "On his own trading, before Tradever"
+    },
+    {
+      "kind": "point",
+      "text": "*15 years* of trading. Unprofitable for the first *four*.",
+      "sub": "Overnight success takes a while.",
+      "tag": "PAYOUT STORY"
+    },
+    {
+      "kind": "quote",
+      "text": "I was unprofitable for four years day trading."
+    },
+    {
+      "kind": "quote",
+      "text": "I'm the kind of person where I just never give up and I never did."
+    },
+    {
+      "kind": "cta",
+      "text": "Get funded with *Tradever*",
+      "sub": "Use code *LAYTH* for 40% off",
+      "button": "LINK IN BIO"
+    }
+  ],
+  "images": [
+    "slide_01.jpg",
+    "slide_02.jpg",
+    "slide_03.jpg",
+    "slide_04.jpg",
+    "slide_05.jpg",
+    "slide_06.jpg"
+  ]
+}

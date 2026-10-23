@@ -1,0 +1,42 @@
+{
+  "id": "myth-eval-like-live-account",
+  "angle": "myth_buster",
+  "title": "Stop treating your prop eval like a live account",
+  "caption": "The mindset shift Tradever's CEO teaches for prop evaluations. #tradever #propfirm #tradingtips #futurestrading #ad @tradeverfunding @laythbanks",
+  "slides": [
+    {
+      "kind": "hook",
+      "text": "Treating your eval like a *live account*?",
+      "sub": "Layth calls it one of the most common prop firm mistakes.",
+      "tag": "MYTH BUSTER"
+    },
+    {
+      "kind": "quote",
+      "text": "What you're trying to do is … figure out how fast you can make the profit target before you hit the max loss limit.",
+      "sub": "On prop evaluations"
+    },
+    {
+      "kind": "quote",
+      "text": "Treat these accounts like a business and an investment."
+    },
+    {
+      "kind": "point",
+      "text": "How fast can you make *$3,000* before you lose *$2,000* on a *50K* account?",
+      "sub": "The question he has his students ask.",
+      "tag": "MYTH BUSTER"
+    },
+    {
+      "kind": "cta",
+      "text": "Get funded with *Tradever*",
+      "sub": "Use code *LAYTH* for 40% off",
+      "button": "LINK IN BIO"
+    }
+  ],
+  "images": [
+    "slide_01.jpg",
+    "slide_02.jpg",
+    "slide_03.jpg",
+    "slide_04.jpg",
+    "slide_05.jpg"
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "id": "rule-payout-qualify",
+  "angle": "rule_breakdown",
+  "title": "No consistency rule once funded, $100 minimum withdrawal",
+  "caption": "Layth breaks down one of his favorite Tradever accounts. Read the full rules before you buy. #tradever #propfirm #fundedtrader #futurestrading #ad @tradeverfunding @laythbanks",
+  "slides": [
+    {
+      "kind": "hook",
+      "text": "*No consistency rule* once funded.",
+      "sub": "Layth on one of his favorite Tradever accounts.",
+      "tag": "RULE BREAKDOWN"
+    },
+    {
+      "kind": "quote",
+      "text": "It has no consistency rule when funded."
+    },
+    {
+      "kind": "point",
+      "text": "Three days of *$150* profit to qualify for a payout.",
+      "sub": "As Layth describes the payout rule.",
+      "tag": "RULE BREAKDOWN"
+    },
+    {
+      "kind": "point",
+      "text": "Minimum withdrawal: *$100*.",
+      "sub": "No need to chase one huge day.",
+      "tag": "RULE BREAKDOWN"
+    },
+    {
+      "kind": "quote",
+      "text": "You can withdraw as soon as you hit that buffer and you hit that $100 profit target."
+    },
+    {
+      "kind": "cta",
+      "text": "Get funded with *Tradever*",
+      "sub": "Use code *LAYTH* for 40% off",
+      "button": "LINK IN BIO"
+    }
+  ],
+  "images": [
+    "slide_01.jpg",
+    "slide_02.jpg",
+    "slide_03.jpg",
+    "slide_04.jpg",
+    "slide_05.jpg",
+    "slide_06.jpg"
+  ]
+}

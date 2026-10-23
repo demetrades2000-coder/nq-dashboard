@@ -1,0 +1,41 @@
+{
+  "id": "ceo-iq-vs-eq",
+  "angle": "ceo_quote",
+  "title": "You don't need a high IQ to trade",
+  "caption": "Tradever's CEO on what actually matters in day trading. Spoiler: it's not your IQ. #tradever #propfirm #daytrading #futurestrading #ad @tradeverfunding @laythbanks",
+  "slides": [
+    {
+      "kind": "hook",
+      "text": "You don't need a *high IQ* to trade.",
+      "sub": "Tradever's CEO says it comes down to something else.",
+      "tag": "CEO QUOTE"
+    },
+    {
+      "kind": "quote",
+      "text": "What really matters when it comes to day trading is not having a high IQ, it's about having a high EQ, which is emotional intelligence."
+    },
+    {
+      "kind": "point",
+      "text": "Strategy or *discipline*?",
+      "sub": "His answer: “Discipline, 100%.”",
+      "tag": "CEO QUOTE"
+    },
+    {
+      "kind": "quote",
+      "text": "You could have the best strategy in the world, but if you are not disciplined and use proper risk management, nine times out of 10, you will find yourself failing."
+    },
+    {
+      "kind": "cta",
+      "text": "Get funded with *Tradever*",
+      "sub": "Use code *LAYTH* for 40% off",
+      "button": "LINK IN BIO"
+    }
+  ],
+  "images": [
+    "slide_01.jpg",
+    "slide_02.jpg",
+    "slide_03.jpg",
+    "slide_04.jpg",
+    "slide_05.jpg"
+  ]
+}

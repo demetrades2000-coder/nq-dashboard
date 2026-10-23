@@ -1,0 +1,40 @@
+{
+  "id": "ceo-why-he-built-tradever",
+  "angle": "ceo_quote",
+  "title": "He missed out on payouts, so he built his own prop firm",
+  "caption": "Tradever's CEO Layth on why he started a prop firm: he was the trader who didn't get paid. #tradever #propfirm #daytrading #futurestrading #ad @tradeverfunding @laythbanks",
+  "slides": [
+    {
+      "kind": "hook",
+      "text": "He missed out on *hundreds of thousands* in payouts.",
+      "sub": "So he built his own prop firm.",
+      "tag": "CEO QUOTE"
+    },
+    {
+      "kind": "quote",
+      "text": "I've been a victim of trading on a prop firm and not getting payouts.",
+      "sub": "On why Tradever exists"
+    },
+    {
+      "kind": "quote",
+      "text": "If you don't pay people out, you're not staying in business for a long time."
+    },
+    {
+      "kind": "quote",
+      "text": "The reason why I launched my own prop firm is to mitigate people from not getting a payout."
+    },
+    {
+      "kind": "cta",
+      "text": "Get funded with *Tradever*",
+      "sub": "Use code *LAYTH* for 40% off",
+      "button": "LINK IN BIO"
+    }
+  ],
+  "images": [
+    "slide_01.jpg",
+    "slide_02.jpg",
+    "slide_03.jpg",
+    "slide_04.jpg",
+    "slide_05.jpg"
+  ]
+}

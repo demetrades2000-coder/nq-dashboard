@@ -1,0 +1,40 @@
+{
+  "id": "myth-revenge-trading",
+  "angle": "myth_buster",
+  "title": "The revenge-trading spiral that cost him $600,000",
+  "caption": "Tradever's CEO on his worst trading mistake, and the rule he follows now. #tradever #propfirm #tradingtips #futurestrading #ad @tradeverfunding @laythbanks",
+  "slides": [
+    {
+      "kind": "hook",
+      "text": "He lost over *$600,000* in about *two weeks*.",
+      "sub": "One mistake. Here's which one.",
+      "tag": "MYTH BUSTER"
+    },
+    {
+      "kind": "quote",
+      "text": "My worst trading mistake was probably whenever I would go into episodes of revenge trading."
+    },
+    {
+      "kind": "quote",
+      "text": "I was up $150,000 and I didn't take profit and within a minute the market flipped back."
+    },
+    {
+      "kind": "quote",
+      "text": "Once you lose like two or three losses in a row, you got to just stop.",
+      "sub": "His rule now. There's always another day to trade."
+    },
+    {
+      "kind": "cta",
+      "text": "Get funded with *Tradever*",
+      "sub": "Use code *LAYTH* for 40% off",
+      "button": "LINK IN BIO"
+    }
+  ],
+  "images": [
+    "slide_01.jpg",
+    "slide_02.jpg",
+    "slide_03.jpg",
+    "slide_04.jpg",
+    "slide_05.jpg"
+  ]
+}

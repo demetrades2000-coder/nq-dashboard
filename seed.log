@@ -1,0 +1,79 @@
+[cloud 23:52:41] $ git fetch -q origin...: fatal: couldn't find remote ref clipper-cloud
+[cloud 23:52:41] $ git reset -q --hard...: fatal: ambiguous argument 'origin/clipper-cloud': unknown revision or path not in the working tree.
+Use '--' to separate paths from revisions, like this:
+'git <command> [<revision>...] -- [<file>...]'
+[cloud 23:52:42] ZERNIO_API_KEY is not set in this cloud environment: clipping and queueing only, no posting
+0 job(s) queued. Next: python pipeline.py run
+AI ranking: OFF (budget $0.00/month, spent $0.0000; credentials: none)
+[   0.2s]    job #1 attempt 1/4: /home/user/nq-dashboard/clipper/campaigns/footage/tradever/tradever-podcast-0927.mp4
+[   0.2s] OK local file: /home/user/nq-dashboard/clipper/campaigns/footage/tradever/tradever-podcast-0927.mp4
+[  47.9s] OK using cached transcript (faster-whisper)
+[  50.5s]    AI ranking off: no monthly budget approved (run: pipeline.py budget --monthly 5)
+[  77.3s] OK clip 01 rendered (39s, fit, straight cut, captions) -> clip_01_if-you-re-trading-with-1-to-500-leverage.mp4
+[ 118.2s] OK clip 02 rendered (42s, fit, jump-cut, captions) -> clip_02_i-ended-up-taking-that-500k.mp4
+[ 140.3s] OK clip 03 rendered (34s, fit, jump-cut, captions) -> clip_03_there-was-one-point-where-i-was-revenge.mp4
+[ 163.0s] OK clip 04 rendered (26s, fit, jump-cut, captions) -> clip_04_i-literally-only-trade-for-90-minutes-a.mp4
+[ 197.9s] OK clip 05 rendered (42s, fit, jump-cut, captions) -> clip_05_if-you-re-a-profitable-day-trader-you-wi.mp4
+[ 231.5s] OK clip 06 rendered (45s, fit, straight cut, captions) -> clip_06_that-s-a-almost-30-000.mp4
+[ 251.2s] OK clip 07 rendered (26s, fit, jump-cut, captions) -> clip_07_if-you-re-coming-in-as-a-newbie-you-can.mp4
+[ 271.9s] OK clip 08 rendered (26s, fit, jump-cut, captions) -> clip_08_if-you-come-in-and-you-buy-a-couple-of-a.mp4
+[ 293.1s] OK clip 09 rendered (27s, fit, straight cut, captions) -> clip_09_essentially-you-come-in-and-you-buy-an-a.mp4
+[ 306.5s] OK clip 10 rendered (16s, fit, straight cut, captions) -> clip_10_trading-has-changed-how-i-look-at-life-h.mp4
+[ 322.6s] OK clip 11 rendered (20s, fit, jump-cut, captions) -> clip_11_if-you-understand-the-markets.mp4
+[ 347.8s] OK clip 12 rendered (44s, fit, jump-cut, captions) -> clip_12_for-example.mp4
+[ 373.5s] OK clip 13 rendered (41s, fit, jump-cut, captions) -> clip_13_the-reason-why-variance-is-so-important.mp4
+[ 391.3s] OK clip 14 rendered (27s, fit, jump-cut, captions) -> clip_14_if-you-are-a-profitable-trader-it-affect.mp4
+[ 409.0s] OK clip 15 rendered (33s, fit, jump-cut, captions) -> clip_15_then-from-day-from-penny-stocks.mp4
+[ 419.3s] OK clip 16 rendered (20s, fit, jump-cut, captions) -> clip_16_my-worst-trading-mistake-was-probably.mp4
+[ 435.8s] OK clip 17 rendered (25s, fit, jump-cut, captions) -> clip_17_i-profited-about-160.mp4
+[ 450.1s] OK clip 18 rendered (28s, fit, straight cut, captions) -> clip_18_honestly.mp4
+[ 460.2s] OK clip 19 rendered (14s, fit, straight cut, captions) -> clip_19_people-when-they-trade-on-prop-firms-the.mp4
+[ 478.3s] OK clip 20 rendered (30s, fit, straight cut, captions) -> clip_20_live-account-because-if-you-re-trading-o.mp4
+[ 509.5s] OK clip 21 rendered (48s, fit, jump-cut, captions) -> clip_21_you-can-trade-as-many-profitable-days-as.mp4
+[ 521.1s] OK clip 22 rendered (16s, fit, jump-cut, captions) -> clip_22_when-you-re-trading-with-real-money.mp4
+[ 538.9s] OK clip 23 rendered (32s, fit, jump-cut, captions) -> clip_23_so-a-prop-firm-is-basically-a-trading-fi.mp4
+[ 553.8s] OK clip 24 rendered (27s, fit, jump-cut, captions) -> clip_24_if-you-are-making-money-on-these-account.mp4
+[ 553.8s] OK job #1: 24/24 clips ready for review
+[ 553.8s]    job #2 attempt 1/4: /home/user/nq-dashboard/clipper/campaigns/footage/tradever/tradever-1012.mp4
+[ 553.8s] OK local file: /home/user/nq-dashboard/clipper/campaigns/footage/tradever/tradever-1012.mp4
+[ 555.0s]    transcript via faster-whisper ...
+[ 596.2s]    whisper 'small' on cpu
+[ 661.7s]    transcribing ...   76%
+[ 672.2s] OK transcript: 412 words via faster-whisper
+[ 672.3s]    AI ranking off: no monthly budget approved (run: pipeline.py budget --monthly 5)
+[ 697.7s] OK clip 01 rendered (30s, fit, straight cut, captions) -> clip_01_i-m-million-dollar-worth-of-gang-nigga-1.mp4
+[ 708.3s] OK clip 02 rendered (13s, fit, jump-cut, captions) -> clip_02_spend-that-bitch-and-spin-it-again.mp4
+[ 720.8s] OK clip 03 rendered (17s, fit, straight cut, captions) -> clip_03_take-everyone-down-but-they-got-us-nowhe.mp4
+[ 730.3s] OK clip 04 rendered (12s, fit, jump-cut, captions) -> clip_04_shit-can-t-fit-in-now.mp4
+[ 730.3s] OK job #2: 4/4 clips ready for review
+Processed 2 job(s). 28 clip(s) waiting for review.
+Next: python pipeline.py review
+[ 730.3s] OK clip #2 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0002_i-ended-up-taking-that-500k.mp4
+[ 730.3s] OK clip #3 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0003_there-was-one-point-where-i-was-revenge.mp4
+[ 730.3s] OK clip #4 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0004_i-literally-only-trade-for-90-minutes-a.mp4
+[ 730.3s] OK clip #5 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0005_if-you-re-a-profitable-day-trader-you-wi.mp4
+[ 730.3s] OK clip #6 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0006_that-s-a-almost-30-000.mp4
+[ 730.4s] OK clip #7 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0007_if-you-re-coming-in-as-a-newbie-you-can.mp4
+[ 730.4s] OK clip #9 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0009_essentially-you-come-in-and-you-buy-an-a.mp4
+[ 730.4s] OK clip #10 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0010_trading-has-changed-how-i-look-at-life-h.mp4
+[ 730.4s] OK clip #11 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0011_if-you-understand-the-markets.mp4
+[ 730.4s] OK clip #12 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0012_for-example.mp4
+[ 730.4s] OK clip #13 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0013_the-reason-why-variance-is-so-important.mp4
+[ 730.4s] OK clip #14 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0014_if-you-are-a-profitable-trader-it-affect.mp4
+[ 730.4s] OK clip #15 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0015_then-from-day-from-penny-stocks.mp4
+[ 730.4s] OK clip #16 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0016_my-worst-trading-mistake-was-probably.mp4
+[ 730.4s] OK clip #18 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0018_honestly.mp4
+[ 730.4s] OK clip #19 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0019_people-when-they-trade-on-prop-firms-the.mp4
+[ 736.7s] OK slideshow 'ceo-why-he-built-tradever' ready (5 slides)
+[ 742.6s] OK slideshow 'myth-9-out-of-100-pass' ready (5 slides)
+[ 750.3s] OK slideshow 'rule-payout-qualify' ready (6 slides)
+[ 757.0s] OK slideshow 'payout-story-121k' ready (6 slides)
+[ 762.8s] OK slideshow 'ceo-iq-vs-eq' ready (5 slides)
+[ 768.7s] OK slideshow 'myth-eval-like-live-account' ready (5 slides)
+Autopilot cycle: 17 auto-approved, 0 uploaded, 12 held, 0 upload error(s). Report: /home/user/clip-cloud/ws/AUTOPILOT_REPORT.md
+{
+  "posted_today": null,
+  "report": "# Autopilot report\n\nCycle started 2026-10-22T23:52:42, finished 2026-10-23T00:05:30.\n\n## Auto-approved\n\n- #2 I ended up taking that 500K\n- #3 There was one point where I was revenge trading\n- #4 I literally only trade for 90 minutes a day every single\n- #5 If you're a profitable day trader, you will probably pass a \n- #6 \u201cThat's a almost $30 ,000\u201d\n- #7 If you're coming in as a newbie, you can come\n- #9 Essentially, you come in and you buy an account\n- #10 Trading has changed how I look at life, honestly\n- #11 If you understand the markets\n- #12 For example\n- #13 The reason why variance is so important with prop trading\n- #14 If you are a profitable trader, it affects you in all aspect\n- #15 Then from day, from penny stocks\n- #16 My worst trading mistake was probably\n- #18 Honestly\n- #19 People, when they trade on prop firms, they're trading on mu\n- 6 new slideshow(s) for Tradever Prop Firm (Motion Clipping)\n\n## Held for you (open `pipeline.py review` to decide)\n\n- #1 If you're trading with 1 to 500 leverage: 2 word(s) the recognizer was unsure of: 1, 1. Check names and numbers.\n- #8 If you come in and you buy a couple of accounts: 2 word(s) the recognizer was unsure of: 3, 50K. Check names and numbers.\n- #17 I profited about 160: 1 word(s) the recognizer was unsure of: 160,. Check names and numbers.\n- #25 I'm million dollar worth of gang, nigga 10 million, then cat: 6 word(s) the recognizer was unsure of: 10, Pieces, Cause, Rory, Look,, Every. Check names and numbers.\n- #20 Live account because if you're trading on a prop firm: score 54 below autopilot minimum 55\n- #21 You can trade as many profitable days as you want: score 54 below autopilot minimum 55\n- #22 When you're trading with real money: score 51 below autopilot minimum 55\n- #23 So a prop firm is basically a trading firm that allows: score 50 below autopilot minimum 55\n- #24 If you are making money on these accounts you will put: score 49 below autopilot minimum 55\n- #26 Spend that bitch and spin it again: score 49 below autopilot minimum 55\n- #27 Take everyone down, but they got us nowhere When I drop: score 40 below autopilot minimum 55\n- #28 Shit can't fit in now: score 18 below autopilot minimum 55\n\n## Notes\n\n- Zernio isn't connected: run `pipeline.py zernio auth`\n- tiktok/default: daily upload cap (2 per account) reached; 5 clip(s) wait\n- tiktok/default: daily upload cap (3 per account) reached; 15 clip(s) wait\n\nAI spend this month: $0.0000 of $0.00.\nView counts are the platforms' public numbers; the campaign pays on the views it verifies.\n",
+  "site": "/home/user/clip-cloud/site",
+  "zernio_key": false
+}

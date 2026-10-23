@@ -1,0 +1,71 @@
+[cloud 00:06:20] $ git fetch -q origin...: fatal: couldn't find remote ref clipper-cloud
+[cloud 00:06:20] $ git reset -q --hard...: fatal: ambiguous argument 'origin/clipper-cloud': unknown revision or path not in the working tree.
+Use '--' to separate paths from revisions, like this:
+'git <command> [<revision>...] -- [<file>...]'
+[cloud 00:06:21] ZERNIO_API_KEY is not set in this cloud environment: clipping and queueing only, no posting
+0 job(s) queued. Next: python pipeline.py run
+AI ranking: OFF (budget $0.00/month, spent $0.0000; credentials: none)
+[   0.3s]    job #1 attempt 1/4: /home/user/nq-dashboard/clipper/campaigns/footage/tradever/tradever-podcast-0927.mp4
+[   0.3s] OK local file: /home/user/nq-dashboard/clipper/campaigns/footage/tradever/tradever-podcast-0927.mp4
+[  11.1s] OK using cached transcript (faster-whisper)
+[  14.3s]    AI ranking off: no monthly budget approved (run: pipeline.py budget --monthly 5)
+[  41.7s] OK clip 01 rendered (39s, fit, straight cut, captions) -> clip_01_if-you-re-trading-with-1-to-500-leverage.mp4
+[  68.7s] OK clip 02 rendered (42s, fit, jump-cut, captions) -> clip_02_i-ended-up-taking-that-500k.mp4
+[  87.8s] OK clip 03 rendered (34s, fit, jump-cut, captions) -> clip_03_i-got-greedy-and-then-lost-money-and-the.mp4
+[ 104.3s] OK clip 04 rendered (26s, fit, jump-cut, captions) -> clip_04_i-literally-only-trade-for-90-minutes-a.mp4
+[ 128.1s] OK clip 05 rendered (42s, fit, jump-cut, captions) -> clip_05_if-you-re-a-profitable-day-trader-you-wi.mp4
+[ 154.7s] OK clip 06 rendered (45s, fit, straight cut, captions) -> clip_06_that-s-a-almost-30-000-20-to-30-000-a-mo.mp4
+[ 170.2s] OK clip 07 rendered (26s, fit, jump-cut, captions) -> clip_07_if-you-come-in-and-you-buy-a-couple-of-a.mp4
+[ 185.6s] OK clip 08 rendered (26s, fit, jump-cut, captions) -> clip_08_if-you-re-coming-in-as-a-newbie-you-can.mp4
+[ 201.1s] OK clip 09 rendered (27s, fit, straight cut, captions) -> clip_09_essentially-you-come-in-and-you-buy-an-a.mp4
+[ 214.6s] OK clip 10 rendered (24s, fit, straight cut, captions) -> clip_10_aim-for-1-000-or-1-200.mp4
+[ 223.6s] OK clip 11 rendered (16s, fit, straight cut, captions) -> clip_11_trading-has-changed-how-i-look-at-life-h.mp4
+[ 236.7s] OK clip 12 rendered (20s, fit, jump-cut, captions) -> clip_12_if-you-understand-the-markets.mp4
+[ 260.9s] OK clip 13 rendered (41s, fit, jump-cut, captions) -> clip_13_the-reason-why-variance-is-so-important.mp4
+[ 277.2s] OK clip 14 rendered (27s, fit, jump-cut, captions) -> clip_14_if-you-are-a-profitable-trader-it-affect.mp4
+[ 296.2s] OK clip 15 rendered (33s, fit, jump-cut, captions) -> clip_15_then-from-day-from-penny-stocks.mp4
+[ 307.0s] OK clip 16 rendered (20s, fit, jump-cut, captions) -> clip_16_my-worst-trading-mistake-was-probably.mp4
+[ 326.9s] OK clip 17 rendered (25s, fit, jump-cut, captions) -> clip_17_what-a-live-account-does-is-it-actually.mp4
+[ 343.4s] OK clip 18 rendered (28s, fit, straight cut, captions) -> clip_18_if-you-re-coming-in-and-you-re-already-s.mp4
+[ 352.4s] OK clip 19 rendered (14s, fit, straight cut, captions) -> clip_19_people-when-they-trade-on-prop-firms-the.mp4
+[ 370.1s] OK clip 20 rendered (30s, fit, straight cut, captions) -> clip_20_live-account-because-if-you-re-trading-o.mp4
+[ 401.8s] OK clip 21 rendered (48s, fit, jump-cut, captions) -> clip_21_you-can-trade-as-many-profitable-days-as.mp4
+[ 412.3s] OK clip 22 rendered (16s, fit, jump-cut, captions) -> clip_22_when-you-re-trading-with-real-money.mp4
+[ 429.4s] OK clip 23 rendered (32s, fit, jump-cut, captions) -> clip_23_so-a-prop-firm-is-basically-a-trading-fi.mp4
+[ 443.2s] OK clip 24 rendered (27s, fit, jump-cut, captions) -> clip_24_if-you-are-making-money-on-these-account.mp4
+[ 443.2s] OK job #1: 24/24 clips ready for review
+Processed 1 job(s). 24 clip(s) waiting for review.
+Next: python pipeline.py review
+[ 443.2s] OK clip #1 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0001_if-you-re-trading-with-1-to-500-leverage.mp4
+[ 443.3s] OK clip #2 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0002_i-ended-up-taking-that-500k.mp4
+[ 443.3s] OK clip #3 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0003_i-got-greedy-and-then-lost-money-and-the.mp4
+[ 443.3s] OK clip #4 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0004_i-literally-only-trade-for-90-minutes-a.mp4
+[ 443.3s] OK clip #5 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0005_if-you-re-a-profitable-day-trader-you-wi.mp4
+[ 443.3s] OK clip #6 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0006_that-s-a-almost-30-000-20-to-30-000-a-mo.mp4
+[ 443.3s] OK clip #7 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0007_if-you-come-in-and-you-buy-a-couple-of-a.mp4
+[ 443.3s] OK clip #8 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0008_if-you-re-coming-in-as-a-newbie-you-can.mp4
+[ 443.3s] OK clip #9 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0009_essentially-you-come-in-and-you-buy-an-a.mp4
+[ 443.3s] OK clip #10 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0010_aim-for-1-000-or-1-200.mp4
+[ 443.3s] OK clip #11 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0011_trading-has-changed-how-i-look-at-life-h.mp4
+[ 443.3s] OK clip #12 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0012_if-you-understand-the-markets.mp4
+[ 443.3s] OK clip #13 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0013_the-reason-why-variance-is-so-important.mp4
+[ 443.3s] OK clip #14 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0014_if-you-are-a-profitable-trader-it-affect.mp4
+[ 443.4s] OK clip #15 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0015_then-from-day-from-penny-stocks.mp4
+[ 443.4s] OK clip #16 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0016_my-worst-trading-mistake-was-probably.mp4
+[ 443.4s] OK clip #17 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0017_what-a-live-account-does-is-it-actually.mp4
+[ 443.4s] OK clip #18 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0018_if-you-re-coming-in-and-you-re-already-s.mp4
+[ 443.4s] OK clip #19 approved -> /home/user/clip-cloud/ws/ready/tradever-prop-firm-motion-clipping/0019_people-when-they-trade-on-prop-firms-the.mp4
+[ 449.5s] OK slideshow 'ceo-why-he-built-tradever' ready (5 slides)
+[ 455.3s] OK slideshow 'myth-eval-like-live-account' ready (5 slides)
+[ 462.0s] OK slideshow 'rule-payout-qualify' ready (6 slides)
+[ 469.0s] OK slideshow 'payout-story-121k' ready (6 slides)
+[ 474.9s] OK slideshow 'ceo-iq-vs-eq' ready (5 slides)
+[ 480.9s] OK slideshow 'myth-revenge-trading' ready (5 slides)
+Autopilot cycle: 20 auto-approved, 0 uploaded, 5 held, 0 upload error(s). Report: /home/user/clip-cloud/ws/AUTOPILOT_REPORT.md
+{
+  "posted_today": null,
+  "report": "# Autopilot report\n\nCycle started 2026-10-23T00:06:21, finished 2026-10-23T00:14:21.\n\n## Auto-approved\n\n- #1 If you're trading with 1 to 500 leverage\n- #2 I ended up taking that 500K\n- #3 I got greedy and then lost money and then tried to make that\n- #4 I literally only trade for 90 minutes a day every single day\n- #5 If you're a profitable day trader, you will probably pass a \n- #6 \u201cThat's a almost $30,000, $20 to $30,000 a month income whic\n- #7 If you come in and you buy a couple of accounts\n- #8 If you're coming in as a newbie, you can come\n- #9 Essentially, you come in and you buy an account\n- #10 \u201cAim for $1,000 or $1,200\u201d\n- #11 Trading has changed how I look at life, honestly\n- #12 If you understand the markets\n- #13 The reason why variance is so important with prop trading\n- #14 If you are a profitable trader, it affects you in all aspect\n- #15 Then from day, from penny stocks\n- #16 My worst trading mistake was probably\n- #17 What a live account does is it actually allows the trader\n- #18 If you're coming in and you're already scared to lose\n- #19 People, when they trade on prop firms, they're trading on mu\n- 6 new slideshow(s) for Tradever Prop Firm (Motion Clipping)\n\n## Held for you (open `pipeline.py review` to decide)\n\n- #20 Live account because if you're trading on a prop firm: score 54 below autopilot minimum 55\n- #21 You can trade as many profitable days as you want: score 54 below autopilot minimum 55\n- #22 When you're trading with real money: score 51 below autopilot minimum 55\n- #23 So a prop firm is basically a trading firm that allows: score 50 below autopilot minimum 55\n- #24 If you are making money on these accounts you will put: score 49 below autopilot minimum 55\n\n## Notes\n\n- Zernio isn't connected: run `pipeline.py zernio auth`\n- tiktok/default: daily upload cap (3 per account) reached; 18 clip(s) wait\n- tiktok/default: daily upload cap (2 per account) reached; 5 clip(s) wait\n\nAI spend this month: $0.0000 of $0.00.\nView counts are the platforms' public numbers; the campaign pays on the views it verifies.\n",
+  "site": "/home/user/clip-cloud/site",
+  "zernio_key": false
+}
+exit 0

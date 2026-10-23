@@ -147,8 +147,10 @@ class CampaignFolderLogoAccounts(unittest.TestCase):
             pl.doctor_checks = orig
             builtins.input = real_input
         self.assertIn("Step 2/5", out)
-        self.assertIn("No campaign is ready yet", out)  # the repo's own briefs all still have TODOs
-        self.assertEqual(rc, 1)
+        # the repo's Tradever brief is filled in and verified; the other leads still have TODOs; Alpha bans tools
+        self.assertIn("READY tradever.json", out)
+        self.assertIn("TODO  aixfunded.json", out)
+        self.assertIn("SKIP  alpha-futures.json", out)
 
 
 class CampaignSetTests(unittest.TestCase):

@@ -88,7 +88,8 @@ class WS:
         if "account" not in {r[1] for r in self.db.execute("PRAGMA table_info(uploads)")}:
             self.db.execute("ALTER TABLE uploads ADD COLUMN account TEXT DEFAULT 'default'")
         have = {r[1] for r in self.db.execute("PRAGMA table_info(clips)")}
-        for col in ("submitted_at TEXT", "upload_notes TEXT", "video_id TEXT", "held_reason TEXT", "reasons TEXT"):
+        for col in ("submitted_at TEXT", "upload_notes TEXT", "video_id TEXT", "held_reason TEXT", "reasons TEXT",
+                    "kind TEXT DEFAULT 'video'"):
             if col.split()[0] not in have:
                 self.db.execute(f"ALTER TABLE clips ADD COLUMN {col}")
         self.db.commit()
@@ -503,7 +504,9 @@ def process_source(ws: WS, row: sqlite3.Row, a) -> None:
     ws.set_source(sid, status="transcribing")
     args.transcript = row["transcript"]
     audio = cl.extract_audio(video, work) if info.has_audio else None
+    args.prompt = cmp.spelling_prompt(c) or None
     words, tsrc = cl.transcribe(video, audio, work, args)
+    words = cmp.fix_spelling(words, c.get("spelling"))
     curve = cl.energy_curve(audio)
 
     ws.set_source(sid, status="selecting")
@@ -576,7 +579,10 @@ def process_source(ws: WS, row: sqlite3.Row, a) -> None:
             ws.event(f"job #{sid} clip {i}: render crashed: {cl.redact(str(e))}", "error", sid)
         flags = [{"level": "info", "msg": n} for n in notes if "extended" in n]
         flags += [{"level": "warn", "msg": n} for n in notes if "extended" not in n]
-        low = [w.w for w in k.words if getattr(w, "p", 1.0) < LOW_CONF]
+        # only names and numbers matter: a misheard "and" is harmless, a misheard "$500" or brand name is not
+        low = [w.w for i_, w in enumerate(k.words) if getattr(w, "p", 1.0) < LOW_CONF and
+               (re.search(r"[\d$%]", w.w) or (w.w[:1].isupper() and i_ > 0 and
+                                              not re.search(r"[.!?]$", k.words[i_ - 1].w) and cl.norm(w.w) != "i"))]
         if low:
             flags.append({"level": "warn", "msg": f"{len(low)} word(s) the recognizer was unsure of: "
                                                   f"{', '.join(low[:8])}. Check names and numbers."})
@@ -1245,6 +1251,10 @@ class ZernioUploader:
         self.z, self.platform, self.account, self.consent = zernio, platform, account, consent
 
     def upload(self, path, title, description, tags, privacy, paid):
+        if Path(path).is_dir():   # a slideshow deck folder: post its images as a TikTok photo carousel
+            imgs = sorted(Path(path).glob("slide_*.jpg")) or sorted(Path(path).glob("slide_*.png"))
+            return self.z.upload_photos(imgs, self.platform, self.account, title, description, paid, privacy,
+                                        self.consent)
         return self.z.upload(Path(path), self.platform, self.account, description, paid, privacy, self.consent)
 
     def lookup(self, post_id):
@@ -1321,6 +1331,7 @@ def normalize_result(res: dict, requested_privacy: str) -> dict:
 def autopilot_policy(ws: WS) -> dict:
     return {
         "max_uploads_per_day": int(ws.setting("autopilot.max_uploads_per_day", 3)),
+        "max_slides_per_day": int(ws.setting("autopilot.max_slides_per_day", 2)),
         "min_score": float(ws.setting("autopilot.min_score", 55)),
         "privacy": ws.setting("autopilot.privacy", "public"),
         "hold_on": ws.setting("autopilot.hold_on", HOLD_DEFAULT),
@@ -1349,8 +1360,11 @@ def hold_reason(r, pol: dict) -> str | None:
     return None
 
 
-def uploads_today(ws: WS, platform: str | None = None, account: str | None = None) -> int:
+def uploads_today(ws: WS, platform: str | None = None, account: str | None = None, kind: str | None = None) -> int:
     sql, args = "SELECT COUNT(*) n FROM uploads WHERE created >= ?", [dt.date.today().isoformat()]
+    if kind:
+        sql += " AND clip_id IN (SELECT id FROM clips WHERE COALESCE(kind,'video')=?)"
+        args.append(kind)
     if platform:
         sql += " AND platform=?"
         args.append(platform)
@@ -1419,7 +1433,34 @@ class UploaderPool:
 
 
 def campaign_account(c: dict, platform: str) -> str:
-    return str((c.get("accounts") or {}).get(platform) or "default")
+    v = (c.get("accounts") or {}).get(platform)
+    if isinstance(v, list):
+        v = v[0] if v else None
+    return str(v) if v and v != "*" else "default"
+
+
+_ZERNIO_NAMES: dict[str, list[str]] = {}
+
+
+def campaign_accounts(c: dict, platform: str, via: str = "native") -> list[str]:
+    """Every account a campaign posts to on a platform. A list rotates; "*" means every account of that platform
+    connected in Zernio (free route). Each clip still goes to exactly ONE of them (no reposting across accounts)."""
+    v = (c.get("accounts") or {}).get(platform)
+    if v == "*":
+        if via in ("free", "zernio") and platform != "youtube":
+            if platform not in _ZERNIO_NAMES:
+                try:
+                    import zernio
+                    names = [str(a.get("username") or a.get("displayName") or a.get("_id") or a.get("id"))
+                             for a in zernio.list_accounts() if str(a.get("platform", "")).lower() == platform]
+                except Exception:  # noqa: BLE001  (no key / offline: fall back to the single default account)
+                    names = []
+                _ZERNIO_NAMES[platform] = names
+            return list(_ZERNIO_NAMES[platform]) or ["default"]
+        return ["default"]
+    if isinstance(v, list):
+        return [str(x) for x in v if str(x).strip()] or ["default"]
+    return [str(v)] if v else ["default"]
 
 
 def record_upload(ws: WS, clip_row, platform: str, res: dict, caption: str, account: str = "default") -> None:
@@ -1445,6 +1486,62 @@ def track_url(ws: WS, url: str, clip_row) -> None:
         tracker.cmd_add(argparse.Namespace(url=url, campaign=cf, clip=Path(clip_row["ready_file"] or "").name,
                                            views=0, cpm=None, name=None), db)
         tracker.save_db(db_path, db)
+
+
+def campaign_transcript(ws: WS, campaign_name: str) -> str:
+    """Everything said in this campaign's footage (from the cached transcripts), with names spelled right."""
+    parts = []
+    for r in ws.q("SELECT id, workdir, campaign_file FROM sources WHERE campaign=? ORDER BY id", (campaign_name,)):
+        f = Path(r["workdir"] or (ws.home / "sources" / str(r["id"]))) / "transcript.json"
+        if not f.exists():
+            f = ws.home / "sources" / str(r["id"]) / "transcript.json"
+        try:
+            words = [cl.Word(**w) for w in json.loads(f.read_text(encoding="utf-8"))["words"]]
+            c = cmp.load(r["campaign_file"])
+            parts.append(" ".join(w.w for w in cmp.fix_spelling(words, c.get("spelling"))))
+        except Exception:  # noqa: BLE001
+            continue
+    return "\n".join(parts)
+
+
+def make_slideshows(ws: WS, c: dict, campaign_file: str, limit: int | None = None) -> int:
+    """Render new photo-carousel decks (slideshow.py) as approved 'slideshow' clips. Returns how many were added."""
+    import slideshow
+    from PIL import Image
+    src = ws.q("SELECT id FROM sources WHERE campaign=? ORDER BY id DESC LIMIT 1", (c["name"],))
+    if not src:
+        return 0
+    decks = slideshow.decks_from_transcript(campaign_transcript(ws, c["name"]), c)
+    have = {r["text"] for r in ws.q("SELECT text FROM clips WHERE campaign=? AND kind='slideshow'", (c["name"],))}
+    logo_rel = (c.get("on_screen") or {}).get("logo") or ""
+    logo = Path(campaign_file).parent / logo_rel
+    if not logo.is_file():
+        raise RuntimeError(f"campaign logo missing: {logo}")
+    made = 0
+    for d in decks:
+        if d["id"] in have:
+            continue
+        if limit is not None and made >= limit:
+            break
+        folder = ws.home / "ready" / cmp.slug(c) / "slides" / d["id"]
+        jpgs = []
+        for png in slideshow.render(d["slides"], folder, logo):
+            jpg = png.with_suffix(".jpg")
+            Image.open(png).convert("RGB").save(jpg, quality=90, optimize=True)
+            png.unlink()
+            jpgs.append(jpg.name)
+        (folder / "deck.json").write_text(json.dumps(dict(d, images=jpgs), indent=2, ensure_ascii=False),
+                                          encoding="utf-8")
+        posts = {"tiktok": {"caption": d["caption"], "title": d["title"]}}
+        ws.x("""INSERT INTO clips(source_id, campaign, rank, start, end_, title, caption, hashtags, posts, checks, flags,
+                words, text, score, file, status, created, reasons, ready_file, kind, review_note, reviewed_at)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+             (src[0]["id"], c["name"], 0, 0, 0, d["title"], d["caption"], "[]", json.dumps(posts), "[]", "[]", "[]",
+              d["id"], 80.0, str(folder), "approved", now(), json.dumps([d["angle"]]), str(folder), "slideshow",
+              "auto-approved: deck checked against the transcript and the brief", now()))
+        ws.event(f"slideshow '{d['id']}' ready ({len(jpgs)} slides)", "ok")
+        made += 1
+    return made
 
 
 def autopilot_cycle(ws: WS, a, uploader=None, uploaders=None) -> int:
@@ -1487,6 +1584,16 @@ def autopilot_cycle(ws: WS, a, uploader=None, uploaders=None) -> int:
                 continue
             ok, msg = approve_clip(ws, r["id"], "auto-approved by autopilot policy")
             (rep["approved"] if ok else rep["held"]).append(f"#{r['id']} {r['title'][:60]}" + ("" if ok else f": {msg}"))
+        # 3b. photo-carousel slideshows for campaigns that want them (self-checked decks are approved directly)
+        for f in ws.setting("autopilot.campaigns", []):
+            try:
+                cc = load_campaign_checked(f)
+                if cc.get("slideshows") and cmp.automation_allowed(cc) is True:
+                    n = make_slideshows(ws, cc, f, limit=int(ws.setting("autopilot.slides_per_cycle", 6)))
+                    if n:
+                        rep["approved"].append(f"{n} new slideshow(s) for {cc['name']}")
+            except Exception as e:  # noqa: BLE001  (slides never block video posting)
+                rep["notes"].append(f"slideshows not made: {classify(e)[1]}")
         # 4. upload each approved clip to every platform its campaign pays on, using the campaign's account
         #    for that platform, within a daily cap per platform account
         todo = ws.q("SELECT c.*, s.campaign_file FROM clips c JOIN sources s ON s.id=c.source_id "
@@ -1499,23 +1606,34 @@ def autopilot_cycle(ws: WS, a, uploader=None, uploaders=None) -> int:
             except Exception:
                 continue
             camp_platforms = [p.lower() for p in c.get("platforms", [])]
-            done = {u["platform"] for u in ws.q("SELECT platform FROM uploads WHERE clip_id=?", (r["id"],))}
+            done = {u["platform"] for u in ws.q("SELECT platform FROM uploads WHERE clip_id=? AND state != 'failed'",
+                                                (r["id"],))}
             for p in pol["platforms"]:
                 if p in camp_platforms and p not in done:
-                    need.setdefault((p, campaign_account(c, p)), []).append(r)
+                    kind = r["kind"] or "video"
+                    if kind == "slideshow" and p != "tiktok":
+                        continue   # photo carousels go to TikTok only
+                    need.setdefault((p, tuple(campaign_accounts(c, p, pol["via"])), kind), []).append(r)
         pool = UploaderPool(rep, uploaders, pol["via"], ws)
-        for (p, acct), rows in need.items():
-            up = pool.get(p, acct)
-            if up is None:
-                continue
-            # TikTok caps posts made through any app at ~15/day per account (shared across apps): never exceed it
-            cap = min(pol["max_uploads_per_day"], PLATFORM_DAILY_CEILING.get(p, pol["max_uploads_per_day"]))
-            room = cap - uploads_today(ws, p, acct)
-            if room <= 0:
-                rep["notes"].append(f"{p}/{acct}: daily upload cap ({cap}) reached; "
-                                    f"{len(rows)} clip(s) wait")
-                continue
-            for r in rows[:room]:
+        # TikTok caps posts made through any app at ~15/day per account (shared across apps): never exceed it
+        for (p, accts, kind), rows in need.items():
+            per = pol["max_slides_per_day"] if kind == "slideshow" else pol["max_uploads_per_day"]
+            cap = min(per, PLATFORM_DAILY_CEILING.get(p, per))   # TikTok counts videos and photo posts separately
+            room = {a_: cap - uploads_today(ws, p, a_, kind) for a_ in accts}
+            total = {a_: ws.q("SELECT COUNT(*) n FROM uploads WHERE platform=? AND COALESCE(account,'default')=?",
+                              (p, a_))[0]["n"] for a_ in accts}
+            dead: set = set()
+            for r in rows:
+                live = [a_ for a_ in accts if room[a_] > 0 and a_ not in dead]
+                if not live:
+                    rep["notes"].append(f"{p}/{'+'.join(accts)}: daily upload cap ({cap} per account) reached; "
+                                        f"{len(rows) - rows.index(r)} clip(s) wait")
+                    break
+                acct = max(live, key=lambda a_: (room[a_], -total[a_]))   # rotate: most room, then fewest posts
+                up = pool.get(p, acct)
+                if up is None:
+                    dead.add(acct)
+                    continue
                 c = camps[r["campaign_file"]]
                 post = json.loads(r["posts"] or "{}")
                 if p == "youtube":
@@ -1533,8 +1651,10 @@ def autopilot_cycle(ws: WS, a, uploader=None, uploaders=None) -> int:
                     msg = classify(e)[1]
                     rep["upload_errors"].append(f"{p}/{acct} #{r['id']}: {msg}")
                     if any(k in msg.lower() for k in ("quota", "limit", "too many", "expired", "login")):
-                        break
+                        dead.add(acct)   # this account is done for now; the others keep posting
                     continue
+                room[acct] -= 1
+                total[acct] += 1
                 record_upload(ws, ws.q("SELECT * FROM clips WHERE id=?", (r["id"],))[0], p, res, desc, acct)
                 rep["uploaded"].append(f"{p}/{acct} #{r['id']} {res['url'] or res['state']}"
                                        + (" — " + "; ".join(res["notes"]) if res["notes"] else ""))

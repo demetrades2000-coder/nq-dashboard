@@ -10,8 +10,8 @@ One-time setup (you):
   3. python pipeline.py autopilot enable --via free --platforms tiktok,instagram,youtube
 
 Flow per clip: POST /v1/media/presign -> PUT the file to the presigned URL -> POST /v1/posts with
-publishNow. The key lives in the OS keychain (or ZERNIO_API_KEY). Built from Zernio's public docs; this build
-environment could not reach Zernio, so it is tested against a simulated API only.
+publishNow. The key lives in the OS keychain (or ZERNIO_API_KEY). Checked against Zernio's live API docs
+(docs.zernio.com, 2026-10-22): presign/PUT/posts flow, tiktokSettings, commercialContentType, photo carousels.
 """
 
 from __future__ import annotations
@@ -204,8 +204,9 @@ def upload(path: Path, platform: str, account: str, caption: str, paid: bool = F
     if platform == "tiktok":
         tts = {"privacy_level": "PUBLIC_TO_EVERYONE" if privacy == "public" else "SELF_ONLY",
                "allow_comment": True, "allow_duet": True, "allow_stitch": True,
-               "content_preview_confirmed": True, "express_consent_given": True,
-               "brand_content_toggle": bool(paid), "brand_organic_toggle": False}
+               "content_preview_confirmed": True, "express_consent_given": True}
+        if paid:   # a paid campaign post is a paid partnership (TikTok's "branded content" label)
+            tts["commercialContentType"] = "brand_content"
         body["tiktokSettings"] = tts  # docs show both placements; send both
         entry["platformSpecificData"] = {"tiktokSettings": tts}
     st, out = _call("POST", f"{API}/posts", body, auth, http, sleep)
@@ -220,6 +221,53 @@ def upload(path: Path, platform: str, account: str, caption: str, paid: bool = F
     notes = [] if url else ["published; link not returned yet (checked again next cycle)"]
     return {"remote_id": pe.get("platformPostId"), "url": url, "state": "live" if url else "processing",
             "notes": notes, "publish_id": str(pid) if pid else None}
+
+
+def upload_photos(images: list, platform: str, account: str, title: str, caption: str, paid: bool = False,
+                  privacy: str = "public", consent: bool = False, http=None, sleep=time.sleep) -> dict:
+    """Publish a photo carousel (TikTok slideshow) now: each image is presigned and uploaded, then one post."""
+    if platform != "tiktok":
+        raise ZernioError("photo carousels are only set up for TikTok")
+    if not consent:
+        raise ZernioError("TikTok requires your consent for automated posts: run `pipeline.py zernio auth` and accept")
+    if not 1 <= len(images) <= 35:
+        raise ZernioError(f"a TikTok carousel takes 1-35 images, got {len(images)}")
+    auth = _auth()
+    acct = pick_account(list_accounts(http, sleep), platform, account)
+    acct_id = acct.get("_id") or acct.get("id")
+    items = []
+    for img in images:
+        img = Path(img)
+        ctype = "image/png" if img.suffix.lower() == ".png" else "image/jpeg"
+        st, pre = _call("POST", f"{API}/media/presign", {"filename": img.name, "contentType": ctype,
+                                                          "size": img.stat().st_size}, auth, http, sleep)
+        if st >= 400 or not pre.get("uploadUrl"):
+            raise ZernioError(_explain(st, pre) if st >= 400 else "Zernio didn't return an upload URL")
+        st, _ = _call("PUT", pre["uploadUrl"], headers={"Content-Type": ctype}, http=http, sleep=sleep,
+                      raw=img.read_bytes())
+        if st >= 400:
+            raise ZernioError(f"image upload to Zernio storage failed (HTTP {st}); retried next cycle")
+        items.append({"type": "image", "url": pre["publicUrl"]})
+    tts = {"privacy_level": "PUBLIC_TO_EVERYONE" if privacy == "public" else "SELF_ONLY", "allow_comment": True,
+           "media_type": "photo", "photo_cover_index": 0, "description": caption[:4000], "auto_add_music": True,
+           "content_preview_confirmed": True, "express_consent_given": True}
+    if paid:
+        tts["commercialContentType"] = "brand_content"
+    entry = {"platform": platform, "accountId": acct_id, "platformSpecificData": {"tiktokSettings": tts}}
+    body = {"content": (title or "")[:90], "mediaItems": items, "platforms": [entry], "publishNow": True,
+            "tiktokSettings": tts}
+    st, out = _call("POST", f"{API}/posts", body, auth, http, sleep)
+    if st >= 400:
+        raise ZernioError(_explain(st, out))
+    post = out.get("post") if isinstance(out.get("post"), dict) else out
+    pe = _platform_entry(post, platform)
+    if str(pe.get("status", "")).lower() in ("failed", "error"):
+        raise ZernioError(f"{platform} rejected the carousel: {pe.get('errorMessage') or pe.get('error') or pe}")
+    url = _find_url(pe) or _find_url(post)
+    pid = post.get("_id") or post.get("id")
+    return {"remote_id": pe.get("platformPostId"), "url": url, "state": "live" if url else "processing",
+            "notes": [] if url else ["published; link not returned yet (checked again next cycle)"],
+            "publish_id": str(pid) if pid else None}
 
 
 def post_url(post_id: str, platform: str, http=None, sleep=time.sleep) -> dict | None:

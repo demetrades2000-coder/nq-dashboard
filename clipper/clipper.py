@@ -444,7 +444,8 @@ def _whisper_words(model, audio: Path, args) -> list[Word]:
     # Pass samples, not a path: decoding a path goes through PyAV, and PyAV 15 removed an argument
     # faster-whisper still passes (open(..., metadata_errors=...)), which breaks fresh installs on Windows.
     segs, info = model.transcribe(wav_samples(audio), language=args.lang or None, word_timestamps=True,
-                                  vad_filter=True, beam_size=5)
+                                  vad_filter=True, beam_size=5,
+                                  initial_prompt=getattr(args, "prompt", None) or None)
     words, last_print = [], 0.0
     total = getattr(info, "duration", 0) or 1
     for seg in segs:
@@ -754,6 +755,35 @@ def pick(cands: list[Clip], k: int, gap: float = 3.0) -> list[Clip]:
 
 # ---------------------------------------------------------------- packaging copy
 
+DANGLE_END = {"or", "and", "but", "so", "the", "a", "an", "to", "with", "of", "for", "in", "on", "at", "that",
+              "because", "if", "like", "my", "your", "is", "was", "are", "you", "i", "we", "it", "this", "then"}
+
+
+def _headline(text: str, max_words: int = 11) -> str:
+    """A complete-looking headline: the clause that fits, never ending on a dangling word."""
+    t = re.sub(r"^(so|and|but|okay|ok|yeah|um|uh|like|well)[, ]+", "", text.strip(), flags=re.I).strip()
+    words = t.split()
+    if re.match(r"(if|when|once)\b", t, re.I) and len(words) <= max_words + 8:
+        max_words += 8   # "If you..., you will..." needs both halves to land
+    if len(words) > max_words + 3:   # a sentence a few words over the limit stays whole
+        parts = re.split(r"(?<=[,;:])\s+", t)
+        acc = []
+        for part in parts:
+            if len((" ".join(acc + [part])).split()) > max_words:
+                break
+            acc.append(part)
+        if acc:
+            words = " ".join(acc).split()
+        else:  # no clause fits: cut before the last joining word inside the limit ("... and then I put")
+            joins = [i for i, w in enumerate(words[:max_words + 1]) if i >= 4 and
+                     re.sub(r"[^a-z]", "", w.lower()) in ("and", "but", "so", "then", "because", "or", "which", "where")]
+            words = words[:joins[-1]] if joins else words[:max_words]
+    while len(words) > 3 and re.sub(r"[^a-z']", "", words[-1].lower()) in DANGLE_END:
+        words.pop()
+    out = " ".join(words).rstrip(",;:-")
+    return out[:1].upper() + out[1:]
+
+
 def best_line(c: Clip) -> str:
     sents = sentences(c.words) if c.words else []
     if not sents:
@@ -763,9 +793,8 @@ def best_line(c: Clip) -> str:
         return (sum(t in MONEY for t in toks) * 2 + sum(t in EMOTION for t in toks) * 1.5
                 + len(NUM_RE.findall(s.text)) * 2 + sum(bool(re.search(p, s.text.lower())) for p in HOOKS)
                 + (2 if s.s < c.s + 5 else 0) - abs(len(toks) - 9) * 0.15)
-    top = max(sents[:6], key=line_score)
-    words = top.text.split()
-    return " ".join(words[:10]).rstrip(",;:-") + ("..." if len(words) > 10 else "")
+    top = max(sents[:8], key=line_score)
+    return _headline(top.text)
 
 
 def make_copy(c: Clip, meta: dict, camp: dict | None = None) -> None:
@@ -775,6 +804,9 @@ def make_copy(c: Clip, meta: dict, camp: dict | None = None) -> None:
     if not c.caption:
         who = meta.get("uploader") or ""
         c.caption = f"{c.title} {'— ' + who if who else ''}".strip()
+    pool = ((camp or {}).get("caption") or {}).get("hashtags") or []
+    if not c.hashtags and pool:   # the campaign's own niche tags beat the generic topic tags
+        c.hashtags = [t if t.startswith("#") else "#" + t for t in pool][:6]
     if not c.hashtags:
         tags = []
         for t in c.topics:

@@ -87,7 +87,8 @@ class ZernioUnit(unittest.TestCase):
         self.assertEqual(b["mediaItems"], [{"type": "video", "url": "https://cdn.example/clip.mp4"}])
         t = b["tiktokSettings"]
         self.assertEqual(t["privacy_level"], "PUBLIC_TO_EVERYONE")
-        self.assertTrue(t["express_consent_given"] and t["content_preview_confirmed"] and t["brand_content_toggle"])
+        self.assertTrue(t["express_consent_given"] and t["content_preview_confirmed"])
+        self.assertEqual(t["commercialContentType"], "brand_content")   # paid campaign post = paid partnership
         self.assertEqual(b["content"], "#ad caption")
         self.assertEqual((res["state"], res["url"]), ("live", "https://www.tiktok.com/p/1"))
 

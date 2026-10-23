@@ -270,3 +270,35 @@ def payout(c: dict, views: int) -> tuple[float, float]:
 
 def slug(c: dict) -> str:
     return re.sub(r"[^a-z0-9]+", "-", c["name"].lower()).strip("-")[:50] or "campaign"
+
+
+def fix_spelling(words: list, mapping: dict | None) -> list:
+    """Correct names the recognizer gets wrong, from the campaign's "spelling" map ({"Trade Ever": "Tradever"}).
+    Keys may span several words; matching ignores case and punctuation; the replacement keeps the last word's
+    trailing punctuation and spans the matched words' timing."""
+    if not mapping or not words:
+        return words
+    import dataclasses
+    def key(t):
+        return re.sub(r"[^a-z0-9']", "", t.lower())
+    rules = sorted(((k.split(), v) for k, v in mapping.items() if k.split()), key=lambda kv: -len(kv[0]))
+    out, i = [], 0
+    while i < len(words):
+        for src, dst in rules:
+            n = len(src)
+            if i + n <= len(words) and all(key(words[i + j].w) == key(src[j]) for j in range(n)):
+                last = words[i + n - 1]
+                tail = re.search(r"[^\w']*$", last.w).group(0)
+                out.append(dataclasses.replace(words[i], w=dst + tail, e=last.e, p=1.0))  # a known name: certain
+                i += n
+                break
+        else:
+            out.append(words[i])
+            i += 1
+    return out
+
+
+def spelling_prompt(c: dict | None) -> str:
+    """Names to prime the recognizer with (the campaign's correct spellings)."""
+    vals = list(dict.fromkeys(((c or {}).get("spelling") or {}).values()))
+    return ", ".join(vals)

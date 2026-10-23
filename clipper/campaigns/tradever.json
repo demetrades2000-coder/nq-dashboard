@@ -15,18 +15,16 @@
   "max_payout_per_clip": 500,
   "min_payout": 7,
   "platforms": [
-    "tiktok",
-    "instagram",
-    "youtube"
+    "tiktok"
   ],
   "sources": [
     "footage/tradever"
   ],
   "language": "en",
   "clip": {
-    "min": 8,
-    "max": 60,
-    "count": 6,
+    "min": 12,
+    "max": 55,
+    "count": 24,
     "latest": 2,
     "layout": "auto",
     "title": true,
@@ -39,7 +37,15 @@
       "@laythbanks"
     ],
     "mentions_last": true,
-    "required_text": ""
+    "required_text": "",
+    "hashtags": [
+      "#futurestrading",
+      "#propfirm",
+      "#daytrading",
+      "#trading",
+      "#tradever",
+      "#fundedtrader"
+    ]
   },
   "on_screen": {
     "watermark": "",
@@ -83,11 +89,23 @@
     "fundingticks",
     "phonk"
   ],
-  "notes": "Live 2026-10-22: $5 per 1K views on TikTok, Instagram and YouTube, min payout $7 a clip (~1,400 views), max $500 a clip, $1,937 of $2,000 left, 28 clippers, 179 approved posts, ~101K views so far (~570 per post on average). Brief: content that makes traders at other prop firms switch to Tradever, and new traders choose it first (futures prop firm, weekly payouts). No content rules listed; check the 4 reference files after joining (footage and any rules) and drop the videos into footage/tradever. Brief says $1 per 1K (dated September) while the live campaign page pays $5 per 1K: the page payout model is what Content Rewards pays out. Official logo + approved CEO/podcast clips come from the other reference files.",
+  "notes": "Live 2026-10-22: $5 per 1K views on TikTok, Instagram and YouTube, min payout $7 a clip (~1,400 views), max $500 a clip, $1,937 of $2,000 left, 28 clippers, 179 approved posts, ~101K views so far (~570 per post on average). Brief: content that makes traders at other prop firms switch to Tradever, and new traders choose it first (futures prop firm, weekly payouts). No content rules listed; check the 4 reference files after joining (footage and any rules) and drop the videos into footage/tradever. Brief says $1 per 1K (dated September) while the live campaign page pays $5 per 1K: the page payout model is what Content Rewards pays out. Official logo + approved CEO/podcast clips come from the other reference files. TikTok only (owner 2026-10-22): the brief forbids reposting the same content across accounts, so each clip goes to one TikTok account.",
   "automation_allowed": true,
   "accounts": {
-    "tiktok": "tradever",
-    "instagram": "tradever",
-    "youtube": "tradever"
-  }
+    "tiktok": "*"
+  },
+  "spelling": {
+    "Trade Ever": "Tradever",
+    "TradeEver": "Tradever",
+    "Trade-Ever": "Tradever",
+    "Tradeever": "Tradever",
+    "Trade ever": "Tradever",
+    "Lace": "Layth",
+    "Lathe": "Layth",
+    "Lyth": "Layth"
+  },
+  "posts_per_week": 5,
+  "min_engagement": 0.02,
+  "footage_drive_folder": "1wduTKbFieecsryD4NemBVevdn6qcpXht",
+  "slideshows": true
 }

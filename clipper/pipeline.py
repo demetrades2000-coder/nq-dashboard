@@ -1463,6 +1463,7 @@ def campaign_accounts(c: dict, platform: str, via: str = "native") -> list[str]:
     """Every account a campaign posts to on a platform. A list rotates; "*" means every account of that platform
     connected in Zernio (free route). Each clip still goes to exactly ONE of them (no reposting across accounts)."""
     v = (c.get("accounts") or {}).get(platform)
+    match = str(c.get("account_match") or "").lower().strip()
     if v == "*":
         if via in ("free", "zernio") and platform != "youtube":
             if platform not in _ZERNIO_NAMES:
@@ -1473,7 +1474,10 @@ def campaign_accounts(c: dict, platform: str, via: str = "native") -> list[str]:
                 except Exception:  # noqa: BLE001  (no key / offline: fall back to the single default account)
                     names = []
                 _ZERNIO_NAMES[platform] = names
-            return list(_ZERNIO_NAMES[platform]) or ["default"]
+            names = list(_ZERNIO_NAMES[platform])
+            if match:   # brand pages: only accounts named for this campaign ("page name must include X")
+                return [n for n in names if match in n.lower().replace(" ", "")]
+            return names or ["default"]
         return ["default"]
     if isinstance(v, list):
         return [str(x) for x in v if str(x).strip()] or ["default"]
@@ -1519,6 +1523,12 @@ def campaign_transcript(ws: WS, campaign_name: str) -> str:
         except Exception:  # noqa: BLE001
             continue
     return "\n".join(parts)
+
+
+def campaign_paused(ws: WS, name: str) -> str | None:
+    """Why a campaign is paused (set by the cloud runner's live budget check), or None."""
+    st = ws.setting(f"campaign_live.{name}", None) or {}
+    return None if st.get("ok", True) else (st.get("reason") or "paused")
 
 
 def make_slideshows(ws: WS, c: dict, campaign_file: str, limit: int | None = None) -> int:
@@ -1582,6 +1592,10 @@ def autopilot_cycle(ws: WS, a, uploader=None, uploaders=None) -> int:
                 rep["skipped_campaigns"].append(f"{cc['name']}: rules don't allow automated clipping tools "
                                                 "(or it isn't confirmed)")
                 continue
+            paused = campaign_paused(ws, cc["name"])
+            if paused:
+                rep["skipped_campaigns"].append(f"{cc['name']}: paused ({paused})")
+                continue
             ns = argparse.Namespace(campaign=f, sources=[], transcript=None, latest=None,
                                     cookies_from_browser=getattr(a, "cookies_from_browser", None), force=False)
             try:
@@ -1605,7 +1619,7 @@ def autopilot_cycle(ws: WS, a, uploader=None, uploaders=None) -> int:
         for f in ws.setting("autopilot.campaigns", []):
             try:
                 cc = load_campaign_checked(f)
-                if cc.get("slideshows") and cmp.automation_allowed(cc) is True:
+                if cc.get("slideshows") and cmp.automation_allowed(cc) is True and not campaign_paused(ws, cc["name"]):
                     n = make_slideshows(ws, cc, f, limit=int(ws.setting("autopilot.slides_per_cycle", 6)))
                     if n:
                         rep["approved"].append(f"{n} new slideshow(s) for {cc['name']}")
@@ -1622,6 +1636,8 @@ def autopilot_cycle(ws: WS, a, uploader=None, uploaders=None) -> int:
                 c = camps.setdefault(r["campaign_file"], cmp.load(r["campaign_file"]))
             except Exception:
                 continue
+            if campaign_paused(ws, c["name"]):
+                continue   # out of budget / closed: its queue waits (or is dropped if it never reopens)
             camp_platforms = [p.lower() for p in c.get("platforms", [])]
             done = {u["platform"] for u in ws.q("SELECT platform FROM uploads WHERE clip_id=? AND state != 'failed'",
                                                 (r["id"],))}
@@ -1638,6 +1654,11 @@ def autopilot_cycle(ws: WS, a, uploader=None, uploaders=None) -> int:
             need = {}
         # TikTok caps posts made through any app at ~15/day per account (shared across apps): never exceed it
         for (p, accts, kind), rows in need.items():
+            if not accts:
+                c0 = camps[rows[0]["campaign_file"]]
+                rep["notes"].append(f"{c0['name']}: no {p} account connected with '{c0.get('account_match')}' in its "
+                                    f"name; {len(rows)} post(s) wait (connect one in Zernio)")
+                continue
             per = pol["max_slides_per_day"] if kind == "slideshow" else pol["max_uploads_per_day"]
             cap = min(per, PLATFORM_DAILY_CEILING.get(p, per))   # TikTok counts videos and photo posts separately
             room = {a_: cap - uploads_today(ws, p, a_, kind) for a_ in accts}

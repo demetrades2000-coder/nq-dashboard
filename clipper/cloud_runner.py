@@ -29,7 +29,26 @@ REPO = HERE.parent
 STATE_BRANCH = os.environ.get("CLIP_CLOUD_BRANCH", "clipper-cloud")
 HOME = Path(os.environ.get("CLIP_CLOUD_DIR", str(REPO.parent / "clip-cloud")))   # next to the repo checkout
 WSDIR = HOME / "ws"
-CAMPAIGNS = [HERE / "campaigns" / "tradever.json"]
+DISCOVER_EVERY_H = 12
+
+
+def active_campaigns() -> list[Path]:
+    """Every campaign brief that is cleared for the cloud autopilot: rules allow automated tools and not opted out.
+    New campaigns join by adding their brief (onboard.py); none is hard-coded."""
+    out = []
+    for f in sorted((HERE / "campaigns").glob("*.json")) + sorted((HOME / "campaigns").glob("*.json")):
+        if f.name.startswith("_"):
+            continue
+        try:
+            c = json.loads(f.read_text(encoding="utf-8"))
+        except ValueError:
+            continue
+        if c.get("automation_allowed") is True and c.get("cloud", True) is not False:
+            out.append(f)
+    return out
+
+
+CAMPAIGNS = active_campaigns()
 MAX_SOURCE_BYTES = 2_500_000_000   # raw 4K masters are skipped (process those on a PC or pre-convert them)
 
 GITIGNORE = """# raw downloads and intermediate files stay out of the state branch
@@ -176,6 +195,62 @@ def link_footage() -> None:
                         shutil.copy2(f, tgt)
 
 
+def refresh_live(ws, state: dict) -> list[str]:
+    """Check every active campaign's live page: budget left, status, rate. A campaign that runs out of budget or
+    closes is paused automatically (its posts stop; the others keep going); it resumes if it gets refilled."""
+    import contentrewards as crw
+    notes = []
+    for f in CAMPAIGNS:
+        c = json.loads(f.read_text(encoding="utf-8"))
+        url = (c.get("permission") or {}).get("campaign_url") or ""
+        if "contentrewards.com" not in url:
+            continue
+        before = ws.setting(f"campaign_live.{c['name']}", None) or {}
+        try:
+            live = crw.fetch_campaign(url)
+        except Exception as e:  # noqa: BLE001  (a failed check never pauses a campaign)
+            notes.append(f"{c['name']}: live check failed ({e}); keeping its last status")
+            continue
+        ok, why = crw.health(live, min_left=max(25.0, 3 * float(c.get("min_payout") or 0)))
+        rate = ((live.get("rates") or {}).get("tiktok") or {}).get("cpm")
+        info = {"ok": ok, "reason": why, "left": live.get("left"), "budget": live.get("budget"), "cpm": rate,
+                "status": live.get("status"), "creators": live.get("creators"), "views": live.get("views"),
+                "checked": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+        ws.set_setting(f"campaign_live.{c['name']}", info)
+        if before.get("ok", True) and not ok:
+            msg = f"{c['name']} paused automatically: {why}. Posting moved to the other campaigns."
+            ws.event(msg, "warn")
+            notes.append(msg)
+        elif not before.get("ok", True) and ok:
+            ws.event(f"{c['name']} resumed: {why}", "ok")
+            notes.append(f"{c['name']} resumed ({why})")
+        if rate and c.get("cpm") and abs(rate - float(c["cpm"])) > 0.001:
+            notes.append(f"{c['name']}: live rate is ${rate}/1K (brief says ${c['cpm']}); earnings use the live rate")
+    return notes
+
+
+def discover_leads(ws, state: dict) -> int:
+    """Twice a day: scan Content Rewards for campaigns worth joining next, ranked for this clipper."""
+    last = state.get("last_discover", 0)
+    if time.time() - last < DISCOVER_EVERY_H * 3600:
+        return 0
+    import contentrewards as crw
+    try:
+        found = crw.rank(crw.discover())
+    except Exception as e:  # noqa: BLE001
+        log(f"discover failed: {e}")
+        return 0
+    joined = {(json.loads(f.read_text(encoding="utf-8")).get("permission") or {}).get("campaign_url", "")
+              for d in (HERE / "campaigns", HOME / "campaigns") for f in d.glob("*.json") if not f.name.startswith("_")}
+    leads = [{k: c.get(k) for k in ("id", "name", "org", "url", "rates", "left", "budget", "creators", "views",
+                                     "categories", "types", "content_rules", "requirements", "requires_application",
+                                     "score")} for c in found if c["url"] not in joined][:25]
+    ws.set_setting("leads.discovered", leads)
+    (HOME / "leads.json").write_text(json.dumps(leads, indent=2), encoding="utf-8")
+    state["last_discover"] = time.time()
+    return len(leads)
+
+
 def configure(ws, per_account: int) -> None:
     ws.set_setting("autopilot.enabled", True)
     ws.set_setting("autopilot.via", "free")
@@ -211,9 +286,25 @@ def main(argv=None) -> int:
                     help="posts per TikTok account per day (TikTok's own ceiling is 15)")
     ap.add_argument("--no-push", action="store_true", help="don't save the state branch (testing)")
     ap.add_argument("--no-drive", action="store_true")
+    ap.add_argument("--no-discover", action="store_true")
+    ap.add_argument("--onboard", nargs="+", metavar="LINK",
+                    help="add a campaign you joined: its Content Rewards link, then its brief / Drive links")
     a = ap.parse_args(argv)
 
     load_state()
+    if a.onboard:
+        global CAMPAIGNS
+        import onboard
+        (HOME / "campaigns" / "logos").mkdir(parents=True, exist_ok=True)
+        cr_links = [x for x in a.onboard if "contentrewards.com" in x or "whop.com" in x]
+        if not cr_links:
+            raise SystemExit("--onboard needs the campaign's contentrewards.com link first")
+        path = onboard.build(cr_links[0], [x for x in a.onboard if x not in cr_links], campaigns_dir=HOME / "campaigns",
+                             download=onboard.gdown_download)
+        c = json.loads(path.read_text(encoding="utf-8"))
+        log(f"onboarded {c['name']}: ${c['cpm']}/1K, automation_allowed={c['automation_allowed']}, posts from TikTok "
+            f"accounts with '{c['account_match']}' in the name")
+        CAMPAIGNS = active_campaigns()
     os.environ["CLIPPER_HOME"] = str(WSDIR)
     sys.path.insert(0, str(HERE))
     import pipeline as pl
@@ -226,6 +317,12 @@ def main(argv=None) -> int:
             sync_drive(cf, state)
     link_footage()
     configure(ws, a.per_account)
+    for n in refresh_live(ws, state):
+        log(n)
+    if not a.no_discover:
+        n = discover_leads(ws, state)
+        if n:
+            log(f"{n} campaign leads ranked (dashboard: Campaigns > Leads)")
     import zernio
     key = bool(zernio.api_key())
     if not key:

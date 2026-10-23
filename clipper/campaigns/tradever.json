@@ -123,5 +123,7 @@
   "slideshows": true,
   "footage_skip": [
     "tradever-1012"
-  ]
+  ],
+  "account_match": "tradever",
+  "cloud": true
 }

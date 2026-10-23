@@ -9,7 +9,9 @@ YouTube (long-tail views, 2-6% likes), earnings.json with daily view snapshots, 
 jobs (one failed, one waiting to retry), a held clip and two links to submit. The Tradever brief is TikTok only
 with its rules (tags at the caption end, logo, 5 posts a week, 2% engagement, $7 minimum payout) and posts to two
 rotating TikTok accounts (tradever.clips at today's cap, tradever.daily with room), with photo slideshows among its
-posts and three approved clips waiting for a slot. Each clip gets a tiny 2 s
+posts and three approved clips waiting for a slot. Agency view: the cloud runner's live checks say Tradever is active
+($1,937 of $2,000 left) and AiXfunded was paused automatically (budget almost gone); seven discovered campaigns wait
+as leads. Each clip gets a tiny 2 s
 placeholder video (an ffmpeg gradient) so thumbnails work; without ffmpeg the clips simply have no thumbnail.
 Then it builds dashboard.html. `--preview` also writes a hosted-style copy (index.html, data.json,
 thumbs/...) with the "sample data" banner on into <workspace>/site/.
@@ -67,6 +69,41 @@ CAMPAIGNS = [
      "videos": ["I turned $500 into a funded account (full story)", "Stop trading the first 5 minutes",
                 "My exact morning routine as a full time trader", "Reacting to subscriber trades"]},
 ]
+
+CR = "https://contentrewards.com/c/campaigns/"
+DISCOVERED = [   # what cloud_runner.discover_leads stores (contentrewards.rank order)
+    {"id": "5b1e6c2a-0d3e-4f7a-9a51-2c0f6d1e7a01", "name": "Apex Futures Clipping | $5k Budget", "org": "Motion Clipping",
+     "rates": {"tiktok": {"cpm": 4.0, "min": 5.0, "max": 400.0}, "instagram": {"cpm": 3.0, "min": 5.0, "max": 300.0}},
+     "left": 4620.0, "budget": 5000.0, "creators": 41, "views": 312400, "categories": ["Finance"],
+     "types": ["Clipping", "Slideshows"], "content_rules": 2, "requirements": 1, "requires_application": False,
+     "score": 9.84},
+    {"id": "7c2f1d9b-3a4e-4b8c-8d12-5e6f7a8b9c02", "name": "The Money Podcast clips", "org": "Diary Media",
+     "rates": {"tiktok": {"cpm": 2.5, "min": 2.0, "max": 250.0}}, "left": 7800.0, "budget": 10000.0, "creators": 212,
+     "views": 2210000, "categories": ["Podcast", "Business"], "types": ["Clipping"], "content_rules": 4,
+     "requirements": 2, "requires_application": False, "score": 5.21},
+    {"id": "9d3a2e8c-4b5f-4c9d-9e23-6f7a8b9c0d03", "name": "FundedNext Rapid: trader stories", "org": "FundedNext",
+     "rates": {"tiktok": {"cpm": 3.5, "min": 10.0, "max": 500.0}}, "left": 2950.0, "budget": 3000.0, "creators": 9,
+     "views": 18400, "categories": ["Finance"], "types": ["Clipping"], "content_rules": 6, "requirements": 3,
+     "requires_application": True, "score": 4.73},
+    {"id": "1e4b3f7d-5c6a-4dae-8f34-7a8b9c0d1e04", "name": "Founder Mode | startup lessons", "org": "20VC",
+     "rates": {"tiktok": {"cpm": 1.5, "min": 1.0, "max": 150.0}}, "left": 3100.0, "budget": 4000.0, "creators": 96,
+     "views": 860000, "categories": ["Business", "Education"], "types": ["Clipping"], "content_rules": 1,
+     "requirements": 0, "requires_application": False, "score": 3.12},
+    {"id": "2f5c4a8e-6d7b-4ebf-9a45-8b9c0d1e2f05", "name": "Crypto desk daily recap", "org": "Ivan on Tech",
+     "rates": {"tiktok": {"cpm": 2.0, "min": 3.0, "max": 200.0}}, "left": 640.0, "budget": 1500.0, "creators": 133,
+     "views": 590000, "categories": ["Technology", "Finance"], "types": ["Clipping"], "content_rules": 3,
+     "requirements": 1, "requires_application": False, "score": 2.05},
+    {"id": "3a6d5b9f-7e8c-4fc0-8b56-9c0d1e2f3a06", "name": "Morning routine slideshows", "org": "Habit Lab",
+     "rates": {"tiktok": {"cpm": 1.0, "min": 1.0, "max": 100.0}}, "left": 1800.0, "budget": 2000.0, "creators": 58,
+     "views": 240000, "categories": ["Lifestyle"], "types": ["Slideshows"], "content_rules": 2, "requirements": 0,
+     "requires_application": False, "score": 1.38},
+    {"id": "4b7e6c0a-8f9d-4ad1-9c67-0d1e2f3a4b07", "name": "Comedy podcast highlights", "org": "Late Night Pod",
+     "rates": {"tiktok": {"cpm": 0.8, "min": 1.0, "max": 80.0}}, "left": 920.0, "budget": 1200.0, "creators": 340,
+     "views": 3400000, "categories": ["Comedy Podcast"], "types": ["Clipping"], "content_rules": 5, "requirements": 2,
+     "requires_application": True, "score": 0.61},
+]
+for _d in DISCOVERED:
+    _d["url"] = CR + _d["id"]
 
 HOOKS = [
     ("Most traders blow their account in week one", "Most traders blow their account in the first week because they size up after one green day."),
@@ -225,6 +262,8 @@ def build(home: Path, days: int = 30, seed: int = 7) -> pl.WS:
             "notes": spec["notes"], "automation_allowed": spec["automation_allowed"],
             "accounts": {p: (spec.get("accounts") or spec["handle"]) for p in spec["platforms"]},
         }
+        if spec.get("auto"):   # agency: each campaign posts from accounts named for its brand
+            brief["account_match"] = spec["handle"]
         for k in ("posts_per_week", "min_engagement"):
             if k in extra:
                 brief[k] = extra[k]
@@ -485,6 +524,20 @@ def build(home: Path, days: int = 30, seed: int = 7) -> pl.WS:
                                 f"tiktok/tradever.clips: daily upload cap ({cap}) reached; 3 clip(s) wait",
                                 "views refreshed for %d posts" % len(posts)]
             fh.write(json.dumps(rep) + "\n")
+
+    # agency: the cloud runner's live checks of the campaign pages (Tradever active, AiXfunded paused: out of budget)
+    # and the campaigns it discovered on Content Rewards, ranked for this clipper
+    checked = (now - dt.timedelta(hours=1, minutes=12)).astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    ws.set_setting("campaign_live.Tradever (prop firm)",
+                   {"ok": True, "reason": "$1,937 left", "left": 1937.49, "budget": 2000.0, "cpm": 5.0,
+                    "status": "funded", "creators": 28, "views": 101677, "checked": checked})
+    ws.set_setting("campaign_live.AiXfunded (prop firm)",
+                   {"ok": False, "reason": "budget almost gone ($12.40 left)", "left": 12.4, "budget": 2000.0,
+                    "cpm": 4.0, "status": "funded", "creators": 61, "views": 498210, "checked": checked})
+    ws.x("INSERT INTO events(ts, level, message) VALUES(?,?,?)",
+         (iso(now - dt.timedelta(hours=1, minutes=12)), "warn", "AiXfunded (prop firm) paused automatically: budget almost "
+          "gone ($12.40 left). Posting moved to the other campaigns."))
+    ws.set_setting("leads.discovered", DISCOVERED)
 
     # settings + a little AI spend
     for k, v in {"autopilot.enabled": True, "autopilot.enabled_at": iso(start), "autopilot.via": "free",

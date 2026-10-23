@@ -243,17 +243,38 @@ def make_thumbs(ws, limit: int = THUMB_LIMIT) -> int:
 
 # ---------------------------------------------------------------- data
 
+def campaign_dirs(ws) -> list[Path]:
+    """Where campaign briefs live: the repo's campaigns/, the workspace's own campaigns/ and, in the cloud layout
+    (<state>/ws is the workspace), the cloud state's <state>/campaigns/ where onboarded campaigns are written."""
+    out = [Path(__file__).resolve().parent / "campaigns", ws.home / "campaigns"]
+    if ws.home.name == "ws":   # cloud_runner layout: <state>/ws next to <state>/campaigns
+        out.append(ws.home.parent / "campaigns")
+    env = os.environ.get("CLIP_CLOUD_DIR")
+    if env:
+        out.append(Path(env) / "campaigns")
+    seen, dirs = set(), []
+    for d in out:
+        try:
+            r = d.resolve()
+        except OSError:
+            continue
+        if r not in seen and r.is_dir():
+            seen.add(r)
+            dirs.append(r)
+    return dirs
+
+
 def _load_campaigns(ws) -> dict:
     camps_files = {}
     for r in ws.q("SELECT DISTINCT campaign, campaign_file FROM sources"):
         camps_files[r["campaign"]] = r["campaign_file"]
-    root = Path(__file__).resolve().parent / "campaigns"
-    for f in root.glob("*.json"):
-        if not f.name.startswith("_"):
-            try:
-                camps_files.setdefault(cmp.load(str(f))["name"], str(f))
-            except Exception:
-                pass
+    for root in campaign_dirs(ws):
+        for f in sorted(root.glob("*.json")):
+            if not f.name.startswith("_"):
+                try:
+                    camps_files.setdefault(cmp.load(str(f))["name"], str(f))
+                except Exception:
+                    pass
     camps = {}
     for name, f in camps_files.items():
         try:
@@ -316,12 +337,16 @@ def platform_ceiling(platform: str, default: int) -> int:
 
 def campaign_accounts(c: dict, platform: str, seen: list | None = None) -> list[str]:
     """Account names a campaign posts to on a platform. `accounts.<platform>` may be a name, a list of names or "*"
-    (every connected account: the ones already seen posting on that platform). Nothing set means "default"."""
+    (every connected account: the ones already seen posting on that platform; with `account_match`, only those whose
+    name contains it, and none matching means no account). Nothing set means "default"."""
     v = (c.get("accounts") or {}).get(platform) if isinstance(c.get("accounts"), dict) else None
     items = [str(x).strip() for x in (v if isinstance(v, list) else [v] if v not in (None, "") else [])]
     out = [x for x in items if x and x != "*"]
     if "*" in items:
-        out += list(seen or [])
+        match = str(c.get("account_match") or "").lower().strip()
+        out += [n for n in (seen or []) if not match or match in str(n).lower().replace(" ", "")]
+        if match:   # brand pages only: no account named for the brand yet means nothing posts (no "default")
+            return list(dict.fromkeys(out))
     return list(dict.fromkeys(out)) or ["default"]
 
 
@@ -437,6 +462,110 @@ def campaign_payout(c: dict, cu: list) -> dict:
             "posts_at_cap": sum(1 for v in views if to_cap and v >= to_cap)}
 
 
+# ---------------------------------------------------------------- agency: live checks + discovered leads (v2.2)
+
+EMPTY_LIVE = {"state": "unchecked", "ok": None, "reason": "", "left": None, "budget": None, "spent": None,
+              "spent_frac": None, "cpm": None, "brief_cpm": None, "cpm_differs": False, "status": None,
+              "creators": None, "views": None, "checked": None}
+
+
+def _int(v):
+    n = _num(v)
+    return int(n) if n is not None else None
+
+
+def _local_iso(ts) -> str | None:
+    d = _parse(ts)
+    return d.isoformat(timespec="seconds") if d else None
+
+
+def campaign_live(ws, c: dict) -> dict:
+    """The cloud runner's last live check of the campaign page (setting campaign_live.<name>). ok False = paused
+    automatically (out of budget / closed); never checked = state 'unchecked'. Rates and budgets are public."""
+    raw = ws.setting(f"campaign_live.{c.get('name')}", None)
+    brief = _num(c.get("cpm"))
+    out = dict(EMPTY_LIVE, brief_cpm=brief)
+    if not isinstance(raw, dict) or not raw:
+        return out
+    ok = raw.get("ok")
+    ok = bool(ok) if isinstance(ok, bool) else (None if ok is None else bool(ok))
+    left, budget, cpm = _num(raw.get("left")), _num(raw.get("budget")), _num(raw.get("cpm"))
+    spent = round(budget - left, 2) if budget is not None and left is not None else None
+    frac = round(min(1.0, max(0.0, spent / budget)), 4) if spent is not None and budget else None
+    out.update({"state": "paused" if ok is False else "active" if ok else "unchecked", "ok": ok,
+                "reason": str(raw.get("reason") or ("paused" if ok is False else ""))[:200],
+                "left": left, "budget": budget, "spent": spent, "spent_frac": frac, "cpm": cpm,
+                "cpm_differs": bool(cpm is not None and brief is not None and abs(cpm - brief) > 0.001),
+                "status": str(raw["status"]) if raw.get("status") else None,
+                "creators": _int(raw.get("creators")), "views": _int(raw.get("views")),
+                "checked": _local_iso(raw.get("checked"))})
+    return out
+
+
+def _names(v) -> list[str]:
+    if isinstance(v, (list, tuple)):
+        return [str(x) for x in v if x not in (None, "")][:8]
+    return [str(v)] if v not in (None, "") else []
+
+
+def leads_discovered(ws, joined_urls: set) -> list[dict]:
+    """Campaigns the cloud runner found on Content Rewards and ranked for this clipper (setting leads.discovered),
+    minus any joined since. Best score first. Every field present; public rates and budgets."""
+    raw = ws.setting("leads.discovered", [])
+    out = []
+    for r in raw if isinstance(raw, list) else []:
+        if not isinstance(r, dict) or not (r.get("name") or r.get("url")):
+            continue
+        url = str(r.get("url") or "")
+        url = url if re.match(r"https?://", url) else ""
+        if url and url.rstrip("/") in joined_urls:
+            continue
+        rates = {}
+        for p, v in (r.get("rates") or {}).items() if isinstance(r.get("rates"), dict) else []:
+            if isinstance(v, dict):
+                rates[str(p).lower()] = {"cpm": _num(v.get("cpm")), "min": _num(v.get("min")), "max": _num(v.get("max"))}
+        tk = rates.get("tiktok") or (next(iter(rates.values())) if rates else {})
+        left, budget = _num(r.get("left")), _num(r.get("budget"))
+        out.append({"id": str(r.get("id") or ""), "name": str(r.get("name") or url)[:160],
+                    "org": str(r.get("org") or ""), "url": url, "rates": rates,
+                    "platforms": list(rates), "cpm": tk.get("cpm"), "min": tk.get("min"), "max": tk.get("max"),
+                    "left": left, "budget": budget,
+                    "spent_frac": round(min(1.0, max(0.0, (budget - left) / budget)), 4)
+                    if left is not None and budget else None,
+                    "creators": _int(r.get("creators")), "views": _int(r.get("views")),
+                    "categories": _names(r.get("categories")), "types": _names(r.get("types")),
+                    "content_rules": _int(r.get("content_rules")), "requirements": _int(r.get("requirements")),
+                    "requires_application": r.get("requires_application") if isinstance(r.get("requires_application"),
+                                                                                      bool) else None,
+                    "score": _num(r.get("score"), 0.0) or 0.0})
+    out.sort(key=lambda x: (-x["score"], -(x["cpm"] or 0), x["name"]))
+    for i, x in enumerate(out):
+        x["rank"] = i + 1
+    return out
+
+
+def agency_summary(campaigns: list, accounts: list) -> dict:
+    """Campaigns on autopilot at once: active vs paused (live check), budget left across the active ones, accounts."""
+    auto = [c for c in campaigns if c["auto"]]
+    active = [c for c in auto if c["live"]["state"] != "paused"]
+    paused = [c for c in auto if c["live"]["state"] == "paused"]
+    names = {c["name"] for c in active}
+    accs = sorted({f"{a['platform']}/{a['name']}" for a in accounts if names & set(a.get("campaigns") or [])})
+    lefts = [c["live"]["left"] for c in active if c["live"]["left"] is not None]
+    return {"campaigns": len(auto), "active": len(active), "paused": len(paused),
+            "unchecked": sum(1 for c in active if c["live"]["state"] == "unchecked"),
+            "budget_left": round(sum(lefts), 2) if lefts else None,
+            "budget_total": round(sum(c["live"]["budget"] for c in active if c["live"]["budget"] is not None), 2)
+            if any(c["live"]["budget"] is not None for c in active) else None,
+            "accounts": accs, "accounts_n": len(accs),
+            "paused_list": [{"name": c["name"], "reason": c["live"]["reason"], "checked": c["live"]["checked"]}
+                            for c in paused]}
+
+
+EMPTY_AGENCY = {"campaigns": 0, "active": 0, "paused": 0, "unchecked": 0, "budget_left": None, "budget_total": None,
+                "accounts": [], "accounts_n": 0, "paused_list": []}
+
+
 def _event_hits(events: list, platform: str, account: str, since: dt.datetime) -> list:
     pat = re.compile(r"(^|[^\w.])@?" + re.escape(account) + r"($|[^\w.])", re.I)
     out = []
@@ -514,7 +643,7 @@ def accounts_detail(ws, uploads: list, camps: dict, auto_files: set, eposts_by_u
 
 
 def up_next(ws, clips: list, uploads: list, camps: dict, accounts: list, pol_platforms: list, auto_files: set,
-            limit: int = 30) -> list:
+            limit: int = 30, paused: set | None = None) -> list:
     """Approved clips not posted yet and the account each goes to next: the autopilot hands every clip to exactly one
     account per platform, the one with the most room under today's cap (ties: fewest posts overall, then name), in
     score order like pipeline.autopilot. "*" accounts resolve to the accounts already seen posting (no network here)."""
@@ -532,12 +661,16 @@ def up_next(ws, clips: list, uploads: list, camps: dict, accounts: list, pol_pla
         c = by_name.get(x["campaign"]) or {}
         if c.get("_path") not in auto_files:   # only campaigns on autopilot post by themselves
             continue
+        if x["campaign"] in (paused or set()):   # paused by the live budget check: its clips wait
+            continue
         plats = [str(p).lower() for p in c.get("platforms") or pol_platforms or []]
         plats = [p for p in plats if not pol_platforms or p in pol_platforms]
         for p in plats:
             if p in done.get(x["id"], set()):
                 continue
             names = campaign_accounts(c, p, sorted(seen.get(p, [])))
+            if not names:   # brand campaign without a brand-named account yet
+                continue
             for n in names:
                 load.setdefault((p, n), [0, 0, platform_ceiling(p, DEFAULT_MAX_PER_DAY)])
             # the pipeline's rotation: the account with the most room left today, then the fewest posts overall
@@ -635,7 +768,12 @@ def build_data(ws) -> dict:
                           "posts_7d": sum(1 for u in cu if u["_t"] and u["_t"] >= now_dt - dt.timedelta(days=7)),
                           "posts_per_week": _num(c.get("posts_per_week"), 0) or 0,
                           "checks": _safe(lambda: campaign_checks(c, cu, clips, now_dt), []),
-                          "payout": _safe(lambda: campaign_payout(c, cu), dict(EMPTY_PAYOUT))})
+                          "payout": _safe(lambda: campaign_payout(c, cu), dict(EMPTY_PAYOUT)),
+                          "account_match": str(c.get("account_match") or "").strip(),
+                          "accounts_spec": {str(p).lower(): _names(v) for p, v in (c.get("accounts") or {}).items()}
+                          if isinstance(c.get("accounts"), dict) else {},
+                          "posting_accounts": [],
+                          "live": _safe(lambda: campaign_live(ws, c), dict(EMPTY_LIVE))})
     campaigns.sort(key=lambda x: (not x["auto"], bool(x["problems"]), x["name"]))
 
     leads = []
@@ -799,8 +937,16 @@ def build_data(ws) -> dict:
     recent_events = _rows(ws, "SELECT ts, level, message FROM events ORDER BY id DESC LIMIT 300")
     acc_detail = _safe(lambda: accounts_detail(ws, uploads, camps, autopilot_files, eposts_by_url, recent_events, now_dt,
                                                cap_setting, every), [])
+    paused = {c["name"] for c in campaigns if c["live"]["state"] == "paused"}
     queue_next = _safe(lambda: up_next(ws, clips, uploads, camps, acc_detail,
-                                       [str(x).lower() for x in pol.get("platforms") or []], autopilot_files), [])
+                                       [str(x).lower() for x in pol.get("platforms") or []], autopilot_files,
+                                       paused=paused), [])
+    for c in campaigns:
+        c["posting_accounts"] = sorted({f"{a['platform']}/{a['name']}" for a in acc_detail
+                                        if c["name"] in (a.get("campaigns") or [])})
+    agency = _safe(lambda: agency_summary(campaigns, acc_detail), json.loads(json.dumps(EMPTY_AGENCY)))
+    joined = {str(c["url"]).rstrip("/") for c in campaigns if c.get("url")}
+    discovered = _safe(lambda: leads_discovered(ws, joined), [])
     g = pl.LedgerGuard(ws)
     enabled = bool(ws.setting("autopilot.enabled", False))
     return {
@@ -854,6 +1000,8 @@ def build_data(ws) -> dict:
         "health": health(ws, enabled, accounts),
         "goals": {"month_target": goal},
         "leads": leads,
+        "agency": agency,
+        "leads_discovered": discovered,
         "jobs": _rows(ws, "SELECT id, status, attempts, title, input, last_error, updated FROM sources ORDER BY id DESC LIMIT 60"),
         "events": _rows(ws, "SELECT ts, level, message FROM events ORDER BY id DESC LIMIT 60"),
         "spend": {"month": round(g.month_spent(), 4), "cap": float(ws.setting("spend.monthly_cap_usd", 0) or 0)},

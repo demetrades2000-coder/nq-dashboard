@@ -482,6 +482,30 @@ button.li:hover .lt, a.li:hover .lt { color: var(--accent-2); }
 .proj em { font-style: normal; font-size: 12px; color: var(--ink-2); }
 .ccard .card-h h3 { font-size: 15.5px; }
 .ccard .nums { margin: 12px 0; }
+.live { margin: 12px 0 0; padding: 12px 13px; border-radius: 14px; background: rgba(22,26,35,.7); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.live.paused { border-color: color-mix(in srgb, var(--bad) 40%, transparent); background: color-mix(in srgb, var(--bad) 7%, rgba(22,26,35,.7)); }
+.live-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; } .live-h .chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.live-h .mut { margin-left: auto; font-size: 11.5px; }
+.bud { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 12.5px; color: var(--ink-2); } .bud b { font: 650 13px var(--mono); color: var(--ink); } .bud em { font-style: normal; font: 500 11.5px var(--mono); color: var(--muted); white-space: nowrap; }
+.live-k { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); } .live-k b { color: var(--ink-2); font-weight: 600; }
+.acm { display: flex; align-items: flex-start; gap: 8px; margin: 10px 0 0; font-size: 12.5px; color: var(--ink-2); line-height: 1.45; } .acm .ico { flex: none; color: var(--accent-2); margin-top: 1px; } .acm b { color: var(--ink); }
+.agy { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.agy > div { padding: 12px 14px; border-radius: 14px; background: rgba(22,26,35,.7); border: 1px solid var(--line); min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.agy span { font-size: 10.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); } .agy b { font: 750 22px var(--sans); letter-spacing: -.02em; } .agy em { font-style: normal; font-size: 11.5px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agy-p { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.agy-line { display: flex; align-items: center; gap: 8px 12px; flex-wrap: nowrap; font-size: 12.5px; color: var(--ink-2); } .agy-line b { color: var(--ink); } .agy-line > span { flex: 1; min-width: 0; } .agy-line > .ico { flex: none; color: var(--accent); } .agy-line .chipbtn { margin-left: auto; flex: none; }
+.lgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.lcard { display: flex; flex-direction: column; gap: 10px; }
+.lcard .lh { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; }
+.lcard .lh .rk { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; font: 750 12px var(--mono); color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--line); grid-row: span 2; }
+.lcard:nth-child(1) .rk { color: #1a1205; background: linear-gradient(135deg, var(--gold), #ffe7a3); border-color: transparent; }
+.lcard .lh h3 { margin: 0; font-size: 14.5px; font-weight: 650; line-height: 1.3; min-width: 0; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.lcard .lh small { grid-column: 2; font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lcard .lh .sc { grid-row: span 2; grid-column: 3; text-align: right; font: 750 15px var(--mono); color: var(--accent-2); } .lcard .lh .sc i { display: block; font: 600 9.5px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-style: normal; }
+.lcard .nums.n3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.lcard .nums b small { font: 500 10.5px var(--sans); color: var(--muted); }
+.lcard .btn { align-self: flex-start; margin-top: auto; }
+.howadd { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: var(--ink-2); line-height: 1.5; margin: 0 0 14px; } .howadd .ico { flex: none; color: var(--accent); margin-top: 2px; }
 .ccard .cnote { font-size: 12.5px; color: var(--ink-2); line-height: 1.5; margin: 10px 0 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .prob { display: flex; gap: 7px; align-items: flex-start; font-size: 12.5px; color: var(--warn); margin: 6px 0 0; line-height: 1.45; } .prob .ico { width: 15px; height: 15px; margin-top: 1px; }
 .skel { height: 92px; border-radius: 18px; margin-bottom: 12px; background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%); background-size: 200% 100%; animation: shim 1.3s infinite; }
@@ -638,6 +662,8 @@ html:not([data-fx="off"]) .page.entering > .card, html:not([data-fx="off"]) .pag
   .proj { grid-template-columns: 1fr; }
   .fmt { grid-template-columns: 1fr 1fr; gap: 8px; } .fmt > div { padding: 11px 12px; } .fmt b { font-size: 19px; }
   .acard .nums { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .agy { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .agy b { font-size: 19px; } .agy em { white-space: normal; } .agy > div { padding: 10px 12px; }
+  .lgrid { grid-template-columns: 1fr; gap: 12px; } .lcard .nums.n3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } .live-h .mut { margin-left: 0; width: 100%; }
   .toolbar .field { flex-basis: 100%; }
   .toast { bottom: calc(96px + env(safe-area-inset-bottom)); }
   .hide-sm { display: none; }
@@ -1292,6 +1318,7 @@ function pageToday(el) {
       ${statBox('Effective CPM', moneyHidden() ? 'hidden' : usd(s.effective_cpm), 'est. net per 1,000 views', '', moneyHidden() ? '' : `<div class="mbar">${plist.map(p => { const v = byp[p].views ? 1000 * (byp[p].net || 0) / byp[p].views : 0; return `<div><span>${esc(pname(p))}</span><i style="--c:${pcol(p)};width:${clamp(100 * v / Math.max(.0001, ...plist.map(q => byp[q].views ? 1000 * (byp[q].net || 0) / byp[q].views : 0)), 2, 100).toFixed(0)}%"></i><b>${usd(v)}</b></div>`; }).join('')}</div>`, 'bolt')}
       ${statBox('Posting streak', `${num(AN().streak?.current || 0)} d`, `best ${num(AN().streak?.best || 0)} days`, AN().streak?.current ? 'up' : '', spark((AN().calendar || []).slice(-30).map(r => r.posts ? 1 : 0), { bars: true, color: 'var(--warn)' }), 'flame')}
     </div>
+    ${agencyLine()}
     ${todoCard()}
     ${upNextCard(true)}
     <div class="grid g12">
@@ -1319,6 +1346,12 @@ function pageToday(el) {
   drawV(store.get('tdV', 'total')); onSeg('tdV', drawV);
   onSeg('todoSeg', (k) => { store.set('todoTab', k); $('#todoBody').innerHTML = todoBody(k); });
   reelDrag();
+}
+function agencyLine() {
+  const g = AG(), P = g.paused_list || [];
+  if (!g.campaigns) return '';
+  return `<div class="card"><div class="agy-line">${icon('layers', 16)}<span><b>Agency</b> · ${plural(g.active || 0, 'campaign')} active${g.paused ? ` · <span class="dn">${num(g.paused)} paused</span>` : ''}${ok(g.budget_left) ? ` · ${cash(g.budget_left)} budget left` : ''} · ${plural(g.accounts_n || 0, 'account')}</span><button class="chipbtn" type="button" data-go="campaigns" aria-label="Campaigns"><span class="hide-sm">Campaigns</span>${icon('right')}</button></div>
+    ${P.length ? `<div class="agy-p">${P.map(x => `<div class="prob">${icon('hold')}<span><b>${esc(x.name)}</b> paused automatically: ${esc(x.reason || 'paused')}. The others keep posting.</span></div>`).join('')}</div>` : ''}</div>`;
 }
 const daysLeft = () => { const d = new Date(), e = new Date(d.getFullYear(), d.getMonth() + 1, 0); return e.getDate() - d.getDate() + 1; };
 function pipeHTML() {
@@ -1363,6 +1396,7 @@ function alertsList() {
   const q = (D.pipeline || {}).queue || {};
   if (q.failed) out.push(['bad', 'jobs', `${plural(q.failed, 'job')} failed`, 'Open Jobs to see the error.', 'jobs']);
   if (q.blocked) out.push(['warn', 'jobs', `${plural(q.blocked, 'job')} blocked`, 'Usually a campaign rule: see the job note.', 'jobs']);
+  (AG().paused_list || []).forEach(x => out.push(['bad', 'hold', `${x.name} paused`, `${x.reason || 'paused'}${x.checked ? ' · checked ' + ago(x.checked) : ''}. Posting continues on the other campaigns; it resumes by itself if refilled.`, 'campaigns']));
   const cp = (D.campaigns || []).filter(c => (c.problems || []).length);
   if (cp.length) out.push(['warn', 'camp', `${plural(cp.length, 'campaign')} need${cp.length === 1 ? 's' : ''} attention`, cp.map(c => c.name).join(', '), 'campaigns']);
   const sp = D.spend || {};
@@ -1570,31 +1604,82 @@ function campState(c) {
   const stale = c.age != null && c.age > 30;
   if (c.automation_allowed === false) return ['manual only', 'bad'];
   if ((c.problems || []).length) return ['needs setup', 'warn'];
+  if (c.auto && c.live?.state === 'paused') return ['paused', 'bad'];
   if (stale) return ['re-verify', 'warn'];
   return c.auto ? ['on autopilot', 'good'] : ['ready', 'acc'];
 }
+// agency: live budget checks of every campaign (cloud runner, every cycle) and the campaigns found to join next
+const AG = () => D.agency || {};
+const LD = () => D.leads_discovered || [];
+const cash = (v) => !ok(v) ? '—' : '$' + Number(v).toLocaleString('en-US', { maximumFractionDigits: Math.abs(v) >= 100 ? 0 : 2, minimumFractionDigits: Math.abs(v) >= 100 || v % 1 === 0 ? 0 : 2 });   // public campaign figures: never hidden
+const rate = (v) => !ok(v) ? '—' : '$' + Number(v).toFixed(v % 1 ? 2 : 0);
+const liveChip = (l) => !l || l.state === 'unchecked' ? `<span class="chip">${icon('clock', 13)}Not checked yet</span>`
+  : l.state === 'paused' ? `<span class="chip bad" title="${esc(l.reason)}">${icon('hold', 13)}Paused${l.reason ? ' — ' + esc(l.reason) : ''}</span>` : `<span class="chip good">${icon('check', 13)}Active</span>`;
+function budgetHTML(left, budget, frac) {
+  if (!ok(left) && !ok(budget)) return '';
+  const f = ok(frac) ? frac : ok(budget) && budget ? clamp((budget - left) / budget, 0, 1) : 0, k = f >= .9 ? 'bad' : f >= .7 ? 'warn' : 'good';
+  return `<div class="bud"><span><b>${cash(left)}</b>${ok(budget) ? ` of ${cash(budget)}` : ''} left</span><em>${pct(f, 0)} spent</em></div><div class="meter sm ${k}" role="img" aria-label="${pct(f, 0)} of the budget spent"><i style="width:${(100 * Math.max(f, f ? .02 : 0)).toFixed(1)}%"></i></div>`;
+}
+function liveHTML(c) {
+  const l = c.live || {};
+  if (!c.auto && l.state === 'unchecked') return '';
+  return `<div class="live ${l.state === 'paused' ? 'paused' : ''}"><div class="live-h">${liveChip(l)}<span class="mut">${l.checked ? 'checked ' + esc(ago(l.checked)) : 'the cloud checks it every cycle'}</span></div>
+    ${budgetHTML(l.left, l.budget, l.spent_frac)}
+    ${l.state !== 'unchecked' ? `<div class="live-k">${ok(l.cpm) ? `<span>Live rate <b>${rate(l.cpm)}/1K</b>${l.cpm_differs ? ` <span class="wn">(brief ${rate(l.brief_cpm)})</span>` : ''}</span>` : ''}${ok(l.creators) ? `<span><b>${num(l.creators)}</b> creators competing</span>` : ''}${ok(l.views) ? `<span><b>${kfmt(l.views)}</b> campaign views</span>` : ''}</div>` : ''}
+    ${l.state === 'paused' ? '<div class="small mut">Posting continues on the other campaigns; this one resumes by itself if the budget is refilled.</div>' : ''}</div>`;
+}
+function acctLine(c) {
+  const pl = (c.platforms || []).map(pname).join(' / ') || 'TikTok', acc = c.posting_accounts || [];
+  if (!c.account_match && !acc.length) return '';
+  return `<div class="acm">${icon('users', 15)}<span>${c.account_match ? `Posts from ${esc(pl)} accounts with <b>‘${esc(c.account_match)}’</b> in the name` : 'Posts from'}${acc.length ? `: ${[...new Set(acc.map(a => a.split('/').slice(1).join('/')))].map(a => '@' + esc(a)).join(', ')}` : c.account_match && c.auto ? ' <span class="wn">(none connected yet: name one for the brand in Zernio)</span>' : ''}</span></div>`;
+}
+function agencyCard() {
+  const g = AG(), P = g.paused_list || [];
+  if (!g.campaigns && !LD().length) return '';
+  return `<div class="card"><div class="card-h"><h3>${icon('layers')}Agency</h3><span class="badge ${g.paused ? 'warn' : g.active ? 'good' : ''}">${g.campaigns ? `${num(g.active)} of ${num(g.campaigns)} posting` : 'no campaigns on autopilot'}</span></div>
+    <div class="agy"><div><span>Active</span><b class="${g.active ? 'up' : ''}">${num(g.active || 0)}</b><em>${g.unchecked ? `${num(g.unchecked)} not checked yet` : 'posting every cycle'}</em></div>
+      <div><span>Paused</span><b class="${g.paused ? 'dn' : ''}">${num(g.paused || 0)}</b><em>${g.paused ? 'out of budget or closed' : 'none'}</em></div>
+      <div><span>Budget left</span><b>${cash(g.budget_left)}</b><em>${ok(g.budget_total) ? `of ${cash(g.budget_total)} · active campaigns` : 'across active campaigns'}</em></div>
+      <div><span>Accounts in use</span><b>${num(g.accounts_n || 0)}</b><em title="${esc((g.accounts || []).join(', '))}">${(g.accounts || []).length ? esc([...new Set((g.accounts || []).map(a => '@' + a.split('/').slice(1).join('/')))].join(', ')) : 'brand-named pages'}</em></div></div>
+    ${P.length ? `<div class="agy-p">${P.map(x => `<div class="prob">${icon('hold')}<span><b>${esc(x.name)}</b> paused automatically: ${esc(x.reason || 'paused')}. Posting continues on the others; it resumes by itself if refilled.</span></div>`).join('')}</div>` : ''}
+    <div class="note">The cloud runs every campaign at once (every ${num(A().every_hours || 4)} h, PC off). Each one posts only from TikTok accounts named for its brand, and its live page is checked every cycle.</div></div>`;
+}
+function leadCard(l) {
+  const app = l.requires_application, chips = [...(l.categories || []), ...(l.types || [])];
+  return `<div class="card lcard"><div class="lh"><span class="rk">${num(l.rank)}</span><h3 title="${esc(l.name)}">${esc(l.name)}</h3><span class="sc">${num(l.score, 1)}<i>score</i></span><small>${esc(l.org || '—')}</small></div>
+    <div class="chips">${app === true ? `<span class="chip warn">${icon('doc', 13)}application needed</span>` : app === false ? `<span class="chip good">${icon('check', 13)}join instantly</span>` : ''}${chips.map(x => `<span class="chip">${esc(x)}</span>`).join('')}</div>
+    <div class="nums n3">${nbox('Rate /1K', rate(l.cpm))}${nbox('Min payout', ok(l.min) && l.min ? cash(l.min) : '—')}${nbox('Creators', ok(l.creators) ? num(l.creators) : '—')}</div>
+    ${budgetHTML(l.left, l.budget, l.spent_frac)}
+    <div class="live-k">${ok(l.max) && l.max ? `<span>max <b>${cash(l.max)}</b> a clip</span>` : ''}${(l.platforms || []).length ? `<span>${(l.platforms || []).map(pname).join(', ')}</span>` : ''}${ok(l.content_rules) ? `<span>${plural(l.content_rules, 'content rule')}</span>` : ''}${ok(l.requirements) ? `<span>${plural(l.requirements, 'requirement')}</span>` : ''}</div>
+    ${l.url ? `<a class="btn sm primary" href="${esc(l.url)}" target="_blank" rel="noopener">${icon('ext', 15)}Open / Join</a>` : ''}</div>`;
+}
 function pageCampaigns(el) {
-  const C = D.campaigns || [], L = D.leads || [], live = C.filter(c => c.auto && !(c.problems || []).length && c.automation_allowed !== false);
+  const C = D.campaigns || [], L = D.leads || [], LDs = LD(), g = AG(), live = C.filter(c => c.auto && !(c.problems || []).length && c.automation_allowed !== false && c.live?.state !== 'paused');
   const avg = C.length ? sum(C, c => c.cpm) / C.length : null;
-  el.innerHTML = banners() + head('Campaigns', `${plural(live.length, 'campaign')} on autopilot`, 'Rates, rules status and results per campaign. A campaign runs only when its rules allow automation, its permission check is recent and nothing is left to fill in.')
+  el.innerHTML = banners() + head('Campaigns', `${plural(live.length, 'campaign')} posting`, 'Every campaign runs at once in the cloud, each from its own brand-named accounts. A campaign posts only when its rules allow automation, nothing is left to fill in and its live page still has budget.')
+    + agencyCard()
     + `<div class="stats">
-        ${statBox('Campaigns', C.length, `${num(live.length)} running · ${num(C.length - live.length)} paused`, '', '', 'camp')}
+        ${statBox('Campaigns', C.length, `${num(live.length)} posting · ${num(g.paused || 0)} paused`, '', '', 'camp')}
         ${statBox('Avg rate', moneyHidden() ? 'hidden' : avg != null ? usd(avg) : '—', 'per 1,000 views', '', '', 'bolt')}
         ${statBox('Posts', sum(C, c => c.posts), `${kfmt(sum(C, c => c.views))} views`, '', '', 'send')}
         ${statBox('Est. net', usd(sum(C, c => c.net)), 'all campaigns', moneyHidden() ? 'mut' : 'up', '', 'money')}
-        ${statBox('Leads', L.length, 'campaigns not set up yet', '', '', 'lead')}
+        ${statBox('Leads', LDs.length, LDs.length ? 'campaigns to join next' : `${plural(L.length, 'file')} not ready`, '', '', 'lead')}
       </div>
     <div class="grid g2">${C.map(campCard).join('') || `<div class="card span2">${emptyBox('No campaigns yet.', 'Add a campaign brief in the campaigns folder.')}</div>`}</div>
-    ${secH('Leads', `<em>${plural(L.length, 'lead')}</em>`)}
-    ${L.length ? `<div class="card"><div class="lbd">${L.sort((a, b) => (b.cpm || 0) - (a.cpm || 0)).map((l, i) => `<div class="li"><span class="rk">${i + 1}</span><span class="lt">${esc(l.name)}</span><span class="lv">${moneyHidden() ? 'hidden' : usd(l.cpm)}<span class="mut small"> /1K</span></span>
+    ${secH('Leads', `<em>${plural(LDs.length, 'campaign')} found</em>`)}
+    <div class="howadd">${icon('info')}<span>To add one: join it, then send its link and its reference links (brief doc, Drive folder, logo) to Claude — the clipper sets it up and starts posting from accounts named for the brand.</span></div>
+    ${LDs.length ? `<div class="lgrid">${LDs.map(leadCard).join('')}</div>` : `<div class="card" style="margin-bottom:14px">${emptyBox('No leads found yet.', 'The cloud scans Content Rewards twice a day and ranks campaigns that fit (English, no adult or gambling brands).')}</div>`}
+    ${L.length ? `${secH('Campaign files not ready', `<em>${plural(L.length, 'file')}</em>`)}<div class="card"><div class="lbd">${[...L].sort((a, b) => (b.cpm || 0) - (a.cpm || 0)).map((l, i) => `<div class="li"><span class="rk">${i + 1}</span><span class="lt">${esc(l.name)}</span><span class="lv">${rate(l.cpm)}<span class="mut small"> /1K</span></span>
         <span class="ls" style="flex-wrap:wrap;gap:6px">${l.status ? `<span class="chip ${/ban/i.test(l.status) ? 'bad' : 'warn'}">${esc(l.status)}</span>` : ''}${autoChip(l.automation_allowed)}${(l.platforms || []).map(p => pchip(p)).join('')}
           ${l.url ? `<a class="chip" href="${esc(l.url)}" target="_blank" rel="noopener">${icon('ext', 13)}open</a>` : ''}</span>
-        ${l.note ? `<span class="ls" style="color:var(--ink-2);font-size:12.5px;white-space:normal">${esc(l.note)}</span>` : ''}</div>`).join('')}</div></div>` : `<div class="card">${emptyBox('No leads.', 'Campaign files that are not ready yet show up here.')}</div>`}`;
+        ${l.note ? `<span class="ls" style="color:var(--ink-2);font-size:12.5px;white-space:normal">${esc(l.note)}</span>` : ''}</div>`).join('')}</div></div>` : ''}`;
 }
 function campCard(c) {
   const [lab, k] = campState(c), mx = Math.max(1, ...(D.campaigns || []).map(x => x.views || 0)), url = c.url && !/TODO/i.test(c.url) ? c.url : '';
   return `<div class="card ccard"><div class="card-h"><h3>${icon('camp')}${esc(c.name)}</h3><span class="badge ${k}">${lab}</span></div>
     <div class="chips">${autoChip(c.automation_allowed)}${(c.platforms || []).map(p => pchip(p)).join('')}</div>
+    ${liveHTML(c)}
+    ${acctLine(c)}
     <div class="nums">${nbox('Rate', moneyHidden() ? 'hidden' : usd(c.cpm) + '<span class="mut" style="font-size:11px"> /1K</span>')}${nbox('Max a clip', c.cap ? usd(c.cap, 0) : '—')}${nbox('Fee', num(c.fee || 0, (c.fee || 0) % 1 ? 1 : 0) + '%')}${nbox('Min views', c.min_views ? kfmt(c.min_views) : '—')}</div>
     <div class="kv one"><div><span>Clips / posts</span><b>${num(c.clips || 0)} / ${num(c.posts || 0)}</b></div><div><span>Views</span><b>${num(c.views || 0)}</b></div><div><span>Est. net</span><b class="up">${usd(c.net)}</b></div>
       <div><span>Rules checked</span><b class="${c.age != null && c.age > 30 ? 'wn' : ''}">${c.verified_on ? esc(fDate(c.verified_on)) + (c.age != null ? ` · ${num(c.age)} d ago` : '') : 'never'}</b></div></div>

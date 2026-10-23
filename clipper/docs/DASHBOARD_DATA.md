@@ -6,7 +6,8 @@ must be present: use empty lists, 0 or null, never omit. Money fields are number
 become `null` everywhere when `hide_money` is true. Dates are ISO strings in local time.
 
 Existing v1 fields stay unchanged. Fields marked **NEW** are added in v2; **v2.1** marks the multi-account,
-campaign-rules, queue and slideshow additions (same `version: 2`, every new field always present).
+campaign-rules, queue and slideshow additions; **v2.2** marks the agency additions (live campaign checks, brand
+accounts, agency summary, discovered leads). Same `version: 2`, every new field always present.
 
 ```jsonc
 {
@@ -44,7 +45,7 @@ campaign-rules, queue and slideshow additions (same `version: 2`, every new fiel
     "clip_id": 51, "title": "...", "campaign": "...", "score": 79.2, "thumb": "thumbs/51.jpg", "kind": "slideshow",
     "dur": 18, "platform": "tiktok", "account": "tradever.daily", "slot": "next run",   // or "tomorrow" (every account at cap)
     "reason": "fewest posts today"
-  }],
+  }],                                 // v2.2 clips of a paused campaign (live.state paused) are left out: they wait
   "accounts": [{"name": "Zernio (TikTok/Instagram, free)", "connected": true}],
 
   "stats": {
@@ -94,7 +95,22 @@ campaign-rules, queue and slideshow additions (same `version: 2`, every new fiel
                                       //      min_engagement (0.02 or 2 = 2%), platforms, automation_allowed
     "payout": {"min_payout": 7.0, "views_to_min": 1400,   // v2.1 views a post needs before it pays (min_payout / cpm * 1000,
                "cap": 500.0, "views_to_cap": 100000,      //      or min_views if higher); views where max_payout_per_clip stops it
-               "posts": 13, "posts_paying": 8, "posts_at_cap": 0}   // public campaign rates: kept when hide_money
+               "posts": 13, "posts_paying": 8, "posts_at_cap": 0},  // public campaign rates: kept when hide_money
+    "account_match": "tradever",      // v2.2 brief field: posts only from accounts whose name contains it ("" = none).
+                                      //      With accounts.<platform> "*" the dashboard lists only the seen accounts
+                                      //      matching it (none matching = nothing posts, no "default" account)
+    "accounts_spec": {"tiktok": ["*"]},   // v2.2 the brief's accounts.<platform> as lists ({} when unset)
+    "posting_accounts": ["tiktok/tradever.clips", "tiktok/tradever.daily"],  // v2.2 accounts_detail rows of this campaign
+    "live": {                         // v2.2 the cloud runner's live check of the campaign page (setting
+                                      //      campaign_live.<name>); public figures, kept when hide_money
+      "state": "active",              //      active | paused (ok false: out of budget / closed, posting stops, resumes
+                                      //      by itself when refilled) | unchecked (no check yet: every other field null)
+      "ok": true, "reason": "$1,937 left",
+      "left": 1937.49, "budget": 2000.0, "spent": 62.51, "spent_frac": 0.0313,   // spent = budget - left
+      "cpm": 5.0, "brief_cpm": 5.0, "cpm_differs": false,   // live TikTok rate vs the brief's cpm
+      "status": "funded", "creators": 28, "views": 101677,
+      "checked": "2026-10-22T23:28:25"   // local time (stored as UTC "Z")
+    }
   }],
 
   "earnings": {
@@ -135,6 +151,27 @@ campaign-rules, queue and slideshow additions (same `version: 2`, every new fiel
   "leads": [{"name": "...", "cpm": 6.0, "platforms": ["tiktok"], "automation_allowed": null,
              "status": "needs setup", "url": "...", "note": "..."}],   // NEW  campaign files that aren't ready
 
+  "agency": {                         // v2.2 campaigns on autopilot (auto) running at once
+    "campaigns": 2, "active": 1, "paused": 1,   // active = auto and live.state != paused (unchecked counts as active)
+    "unchecked": 0,                   // active ones never checked yet
+    "budget_left": 1937.49, "budget_total": 2000.0,   // sums over active campaigns with a live check, else null
+    "accounts": ["tiktok/tradever.clips"], "accounts_n": 1,   // accounts_detail rows serving an active campaign
+    "paused_list": [{"name": "...", "reason": "budget almost gone ($12.40 left)", "checked": "..."}]
+  },
+
+  "leads_discovered": [{              // v2.2 setting leads.discovered (cloud runner, Content Rewards, ranked and filtered:
+                                      //      no adult/gambling/non-English), minus campaigns already joined (same url);
+                                      //      best score first. Public rates and budgets: kept when hide_money
+    "rank": 1, "id": "...", "name": "...", "org": "...", "url": "https://contentrewards.com/c/campaigns/...",  // url "" if not http(s)
+    "rates": {"tiktok": {"cpm": 4.0, "min": 5.0, "max": 400.0}}, "platforms": ["tiktok"],
+    "cpm": 4.0, "min": 5.0, "max": 400.0,   // TikTok rate (else the first platform's), or null
+    "left": 4620.0, "budget": 5000.0, "spent_frac": 0.076,
+    "creators": 41, "views": 312400,  // creators = competition
+    "categories": ["Finance"], "types": ["Clipping", "Slideshows"],
+    "content_rules": 2, "requirements": 1, "requires_application": false,   // null when unknown
+    "score": 9.84
+  }],
+
   "jobs":   [{"id": 1, "status": "done", "attempts": 1, "title": "...", "input": "...", "last_error": null, "updated": "..."}],
   "events": [{"ts": "...", "level": "ok", "message": "..."}],
   "spend":  {"month": 0.0, "cap": 0.0}
@@ -147,5 +184,13 @@ Thumbnails: `thumbs/<clip id>.jpg` sits next to `dashboard.html` in the workspac
 Pages (v2.1): **Money → Accounts** (`#/accounts`): one card per account (today vs cap, 7-day posts and views, totals,
 engagement, last post, est. net, daily-views sparkline, status chip), a leaderboard and the Up next queue with the
 posting schedule line. Up next is also on Today. Campaign cards carry the rules checklist; Earnings has the
-Payout reality card; Analytics has Video vs slideshow. New sections are computed defensively: an error in one
-leaves it empty instead of breaking the page.
+Payout reality card; Analytics has Video vs slideshow.
+
+Agency (v2.2): **Campaigns** opens with the Agency card (active, paused, budget left, accounts in use, paused reasons);
+each campaign card shows its live chip (Active / Paused — reason / Not checked yet), budget bar, live rate when it
+differs from the brief, creators competing, last check and its brand accounts. Below the cards, **Leads** lists
+`leads_discovered` as ranked cards with an Open / Join button; campaign files that aren't ready (`leads`) follow.
+**Today** has an Agency line and a Paused alert per paused campaign. Campaign briefs load from the repo `campaigns/`,
+the workspace's `campaigns/` and the cloud state's `<state>/campaigns/` (the parent of a workspace folder named `ws`, or `CLIP_CLOUD_DIR`).
+
+New sections are computed defensively: an error in one leaves it empty instead of breaking the page.

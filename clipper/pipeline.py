@@ -2214,7 +2214,7 @@ def doctor_checks(ws: WS, fix: bool = False) -> list[tuple[str, bool, str]]:
         out.append(("ffmpeg H.264 encoder (libx264)", "libx264" in enc, "install a full ffmpeg build"))
     except SystemExit:
         out.append(("ffmpeg", False, "winget install Gyan.FFmpeg  /  brew install ffmpeg  /  sudo apt install ffmpeg"))
-    pkgs = [("yt_dlp", "yt-dlp", True), ("faster_whisper", "faster-whisper", True), ("numpy", "numpy", True),
+    pkgs = [("yt_dlp", "yt-dlp", True), ("faster_whisper", "faster-whisper", True), ("numpy", "numpy", True), ("PIL", "Pillow", True),
             ("cv2", "opencv-python-headless<5", False), ("keyring", "keyring", True),
             ("googleapiclient", "google-api-python-client", False), ("google_auth_oauthlib", "google-auth-oauthlib", False),
             ("anthropic", "anthropic", False)]

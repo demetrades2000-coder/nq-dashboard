@@ -148,7 +148,8 @@ class CampaignFolderLogoAccounts(unittest.TestCase):
             builtins.input = real_input
         self.assertIn("Step 2/5", out)
         # the repo's Tradever brief is filled in and verified; the other leads still have TODOs; Alpha bans tools
-        self.assertIn("READY tradever.json", out)
+        # READY when its (gitignored) footage is on this machine, else TODO asking only for the footage
+        self.assertRegex(out, r"(READY tradever\.json|TODO  tradever\.json:\n\s+- put the campaign's footage)")
         self.assertIn("TODO  aixfunded.json", out)
         self.assertIn("SKIP  alpha-futures.json", out)
 

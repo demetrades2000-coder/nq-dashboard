@@ -98,6 +98,16 @@ class RotationTests(unittest.TestCase):
         self.cycle(fake2)                                                            # same day: caps hold
         self.assertEqual(fake2.calls, [])
 
+    def test_per_run_limit_and_quiet_hours(self):
+        self.ws.set_setting("autopilot.per_account_per_run", 1)
+        fake = FakeTikTok()
+        self.cycle(fake)
+        self.assertEqual(len(fake.calls), 4)          # 1 video + 1 slideshow per account this run
+        self.ws.set_setting("autopilot.post_hours", [0, 0])   # empty window: nothing posts
+        fake2 = FakeTikTok()
+        self.cycle(fake2)
+        self.assertEqual(fake2.calls, [])
+
     def test_star_means_every_connected_account(self):
         c = {"accounts": {"tiktok": "*"}}
         pl._ZERNIO_NAMES.clear()
@@ -115,6 +125,16 @@ class RotationTests(unittest.TestCase):
         self.assertEqual(pl.campaign_accounts({"accounts": {"tiktok": ["x", "y"]}}, "tiktok"), ["x", "y"])
         self.assertEqual(pl.campaign_accounts({}, "tiktok"), ["default"])
         self.assertEqual(pl.campaign_account({"accounts": {"tiktok": "*"}}, "tiktok"), "default")
+
+
+class PostHoursTests(unittest.TestCase):
+    def test_window(self):
+        utc = dt.timezone.utc
+        noon_ny = dt.datetime(2026, 10, 23, 16, 0, tzinfo=utc)      # 12:00 in New York (EDT)
+        one_am_ny = dt.datetime(2026, 10, 23, 5, 0, tzinfo=utc)     # 01:00 in New York
+        self.assertTrue(pl.in_post_hours([8, 23], "America/New_York", noon_ny))
+        self.assertFalse(pl.in_post_hours([8, 23], "America/New_York", one_am_ny))
+        self.assertTrue(pl.in_post_hours([20, 2], "America/New_York", one_am_ny))   # window over midnight
 
 
 class CarouselTests(unittest.TestCase):

@@ -1334,6 +1334,10 @@ def autopilot_policy(ws: WS) -> dict:
     return {
         "max_uploads_per_day": int(ws.setting("autopilot.max_uploads_per_day", 3)),
         "max_slides_per_day": int(ws.setting("autopilot.max_slides_per_day", 2)),
+        # spread posts through the day at hours the audience is awake (campaigns want a US/UK audience)
+        "post_hours": ws.setting("autopilot.post_hours", None),          # e.g. [8, 23] = 08:00-22:59 in post_tz
+        "post_tz": ws.setting("autopilot.post_tz", "America/New_York"),
+        "per_run": int(ws.setting("autopilot.per_account_per_run", 0)),  # 0 = no per-run limit
         "min_score": float(ws.setting("autopilot.min_score", 55)),
         "privacy": ws.setting("autopilot.privacy", "public"),
         "hold_on": ws.setting("autopilot.hold_on", HOLD_DEFAULT),
@@ -1341,6 +1345,17 @@ def autopilot_policy(ws: WS) -> dict:
         "platforms": ws.setting("autopilot.platforms", ["youtube"]),
         "via": ws.setting("autopilot.via", "native"),
     }
+
+
+def in_post_hours(hours, tz: str, now_utc=None) -> bool:
+    """True when the local hour in tz is inside [start, end) (end may pass midnight, e.g. [20, 2])."""
+    try:
+        from zoneinfo import ZoneInfo
+        t = (now_utc or dt.datetime.now(dt.timezone.utc)).astimezone(ZoneInfo(tz))
+    except Exception:  # noqa: BLE001  (no tz database: never block posting on it)
+        return True
+    a, b = int(hours[0]), int(hours[1])
+    return a <= t.hour < b if a <= b else (t.hour >= a or t.hour < b)
 
 
 def hold_reason(r, pol: dict) -> str | None:
@@ -1617,11 +1632,17 @@ def autopilot_cycle(ws: WS, a, uploader=None, uploaders=None) -> int:
                         continue   # photo carousels go to TikTok only
                     need.setdefault((p, tuple(campaign_accounts(c, p, pol["via"])), kind), []).append(r)
         pool = UploaderPool(rep, uploaders, pol["via"], ws)
+        if pol["post_hours"] and not in_post_hours(pol["post_hours"], pol["post_tz"]):
+            rep["notes"].append(f"outside posting hours {pol['post_hours'][0]}:00-{pol['post_hours'][1]}:00 "
+                                f"({pol['post_tz']}): {sum(len(v) for v in need.values())} post(s) wait for the next run")
+            need = {}
         # TikTok caps posts made through any app at ~15/day per account (shared across apps): never exceed it
         for (p, accts, kind), rows in need.items():
             per = pol["max_slides_per_day"] if kind == "slideshow" else pol["max_uploads_per_day"]
             cap = min(per, PLATFORM_DAILY_CEILING.get(p, per))   # TikTok counts videos and photo posts separately
             room = {a_: cap - uploads_today(ws, p, a_, kind) for a_ in accts}
+            if pol["per_run"]:
+                room = {a_: min(v, pol["per_run"]) for a_, v in room.items()}
             total = {a_: ws.q("SELECT COUNT(*) n FROM uploads WHERE platform=? AND COALESCE(account,'default')=?",
                               (p, a_))[0]["n"] for a_ in accts}
             dead: set = set()

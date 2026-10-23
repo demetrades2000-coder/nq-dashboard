@@ -184,6 +184,10 @@ def configure(ws, per_account: int) -> None:
     ws.set_setting("autopilot.privacy", "public")
     ws.set_setting("autopilot.campaigns", [str(c) for c in CAMPAIGNS])
     ws.set_setting("autopilot.every_hours", 4)
+    ws.set_setting("autopilot.post_hours", [8, 23])            # 08:00-22:59 New York: US/UK audience awake
+    ws.set_setting("autopilot.post_tz", "America/New_York")
+    ws.set_setting("autopilot.per_account_per_run", 1)         # one video (and one slideshow) per account per run
+    ws.set_setting("autopilot.runner", "cloud")
     # TikTok's per-post consent (content preview + music terms) for automated posting: the owner asked for
     # fully automatic TikTok posting on 2026-10-22 ("I want this all auto"); Zernio sends the flags per post.
     ws.set_setting("zernio.tiktok_consent", True)

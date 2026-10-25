@@ -5,6 +5,7 @@ Slideshow (TikTok photo carousel) tests.
 """
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -92,7 +93,7 @@ class SlideshowTest(unittest.TestCase):
         tn = ss.norm(ss.clean_transcript(TRANSCRIPT))
         said = ss.numbers(ss.clean_transcript(TRANSCRIPT), words=True)
         quotes = 0
-        tx_ids = {x["id"] for x in ss.TRANSCRIPT_DECKS}
+        tx_ids = {x["id"] for x in ss.TRANSCRIPT_DECKS} | {d["id"] for d in self.decks if d["id"].startswith("mined-")}
         for d in self.decks:
             self.assertEqual(ss.verify_deck(d, CAMPAIGN, TRANSCRIPT, from_transcript=d["id"] in tx_ids), [], d["id"])
             for s in d["slides"]:
@@ -117,6 +118,83 @@ class SlideshowTest(unittest.TestCase):
     def test_builtin_decks_without_transcript(self):
         decks = ss.decks_from_transcript("", CAMPAIGN)
         self.assertEqual({d["id"] for d in decks}, {d["id"] for d in ss.BUILTIN_DECKS})
+
+    # ---- miner
+    def test_mined_count_order_and_ids(self):
+        mined = ss.mine_decks(TRANSCRIPT, CAMPAIGN)
+        self.assertGreaterEqual(len(mined), 30)
+        self.assertLessEqual(len(mined), 40)
+        ids = [d["id"] for d in mined]
+        self.assertEqual(len(set(ids)), len(ids), "duplicate mined ids")
+        self.assertTrue(all(re.match(r"^mined-[a-z]+-[0-9a-f]{8}$", i) for i in ids), ids)
+        # hand-written first, then mined, in the same order as mine_decks
+        full = [d["id"] for d in self.decks]
+        n_hand = len([i for i in full if not i.startswith("mined-")])
+        self.assertEqual(full[n_hand:], ids)
+        self.assertTrue(all(not i.startswith("mined-") for i in full[:n_hand]))
+        # ids and content are stable between runs; limit and existing_ids never change the others
+        again = ss.mine_decks(TRANSCRIPT, CAMPAIGN)
+        self.assertEqual(json.dumps(mined), json.dumps(again))
+        self.assertEqual([d["id"] for d in ss.mine_decks(TRANSCRIPT, CAMPAIGN, limit=5)], ids[:5])
+        rest = ss.mine_decks(TRANSCRIPT, CAMPAIGN, existing_ids=ids[:3])
+        self.assertEqual([d["id"] for d in rest if d["id"] in ids], [i for i in ids if i not in ids[:3]][:len(rest)])
+        self.assertFalse({d["id"] for d in rest} & set(ids[:3]))
+        self.assertTrue(len({d["angle"] for d in mined}) >= 4, {d["angle"] for d in mined})
+
+    def test_mined_decks_are_safe_and_verbatim(self):
+        mined = ss.mine_decks(TRANSCRIPT, CAMPAIGN)
+        tn = ss.norm(ss.clean_transcript(TRANSCRIPT))
+        said = ss.numbers(ss.clean_transcript(TRANSCRIPT), words=True)
+        banned = ss.banned_list(CAMPAIGN) + ["shit", "freaking", "stupid", "damn", "hell"]
+        seen_quotes = set()
+        for d in mined:
+            self.assertEqual(ss.verify_deck(d, CAMPAIGN, TRANSCRIPT, from_transcript=True), [], d["id"])
+            s = d["slides"]
+            self.assertTrue(5 <= len(s) <= 7, d["id"])
+            self.assertEqual(s[-1]["kind"], "cta")
+            self.assertEqual(s[0]["kind"], "hook")
+            self.assertTrue(d["caption"].endswith("@tradeverfunding @laythbanks"))
+            self.assertLessEqual(len(d["title"]), 90)
+            blob = json.dumps(d, ensure_ascii=False).lower()
+            for b in banned:
+                self.assertNotIn(b, blob, f"{d['id']}: {b}")
+            for x in s:
+                if x["kind"] == "quote" or x.get("verbatim"):
+                    self.assertTrue(ss.quote_in(x["text"], tn), x["text"])
+                if x["kind"] != "cta":
+                    for n in ss.numbers(ss.plain(x["text"]) + " " + ss.plain(x.get("sub", ""))):
+                        self.assertIn(n, said, f"{d['id']}: {n}")
+                if x["kind"] == "quote":
+                    seen_quotes.add(ss.norm(x["text"]))
+            # results/money claims in his first person carry the own-history hedge
+            for x in s:
+                if x["kind"] in ("quote", "point") and ss._FIRST.search(x["text"]) and ss._OWN_RESULT.search(x["text"]) \
+                        and "for the money" not in x["text"]:
+                    self.assertIn("Not a promise", x.get("sub", ""), f"{d['id']}: {x['text']}")
+        self.assertGreater(len(seen_quotes), 30)
+
+    def test_mined_no_near_duplicates(self):
+        mined = ss.mine_decks(TRANSCRIPT, CAMPAIGN)
+        sh = [ss._shingles([x["text"] for x in d["slides"] if x["kind"] == "quote" or x.get("verbatim")]) for d in mined]
+        for i in range(len(sh)):
+            for j in range(i):
+                self.assertLessEqual(ss._jaccard(sh[i], sh[j]), 0.34, (mined[i]["id"], mined[j]["id"]))
+        hand = ss._shingles([x[1] for spec in ss.TRANSCRIPT_DECKS for x in spec["slides"] if x[0] == "quote"])
+        for s_ in sh:
+            self.assertLess(ss._jaccard(s_, hand), 0.2)
+
+    def test_mined_graceful_on_empty_and_other_footage(self):
+        for t in ("", "   ", None, "[  1.0] Hello there.\n[  3.0] Short one.", "no timestamps at all, just words"):
+            self.assertEqual(ss.mine_decks(t, CAMPAIGN), [])
+        self.assertEqual({d["id"] for d in ss.decks_from_transcript("", CAMPAIGN)}, {d["id"] for d in ss.BUILTIN_DECKS})
+        # different footage without timestamps still mines safely (every deck verified)
+        other = "\n".join(ss.clean_transcript(TRANSCRIPT).splitlines()[::-1])
+        for d in ss.mine_decks(other, CAMPAIGN):
+            self.assertEqual(ss.verify_deck(d, CAMPAIGN, other, from_transcript=True), [], d["id"])
+
+    def test_mine_zero_disables(self):
+        self.assertEqual(len(ss.decks_from_transcript(TRANSCRIPT, CAMPAIGN, mine=0)),
+                         len([d for d in self.decks if not d["id"].startswith("mined-")]))
 
     def test_deterministic(self):
         again = ss.decks_from_transcript(TRANSCRIPT, CAMPAIGN)

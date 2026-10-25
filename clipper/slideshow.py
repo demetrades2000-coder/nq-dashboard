@@ -4,12 +4,14 @@ TikTok photo-carousel (slideshow) generator.
 Builds 5-7 slide decks (1080x1920, 9:16) for a campaign from a podcast transcript plus a few
 built-in rule-breakdown / myth-buster decks, and renders them as premium dark slides.
 
-  python slideshow.py build --campaign campaigns/tradever.json --transcript podcast.txt --out out/ [--limit N]
+  python slideshow.py build --campaign campaigns/tradever.json --transcript podcast.txt --out out/ [--limit N] [--mine N]
 
 API
   render(slides, out_dir, logo_path, theme=None) -> [Path]      one PNG per slide
   render_slide(slide, index, total, logo_path, theme=None) -> (Image, boxes)
-  decks_from_transcript(transcript_text, campaign) -> [deck]     deck = {id, angle, title, caption, slides}
+  decks_from_transcript(transcript_text, campaign, mine=40) -> [deck]   hand-written decks first, then mined ones
+  mine_decks(transcript_text, campaign, existing_ids=(), limit=40) -> [deck]   automatic miner (any transcript)
+                                                                  deck = {id, angle, title, caption, slides}
   verify_deck(deck, campaign, transcript_text) -> [problem]      empty list = deck is clean
 
 Slide dict: {"text": str, "sub": optional str, "kind": "hook"|"point"|"quote"|"cta", "tag": optional str}
@@ -132,6 +134,7 @@ def fit(text, role, max_w, max_h, max_size, min_size=36, lh=1.1):
     """Largest font size whose wrapped text fits (max_w, max_h). Returns (font, lines, line_h, height)."""
     toks = tokens(text)
     size = max_size
+    max_w = max_w - 6                                   # ink can overhang the advance width by a pixel or two
     while True:
         f = font(role, size)
         lines = wrap(toks, f, max_w)
@@ -687,9 +690,12 @@ HASHTAGS = {
     "payout_story": "#tradever #propfirm #payout #futurestrading",
     "myth_buster": "#tradever #propfirm #tradingtips #futurestrading",
     "rule_breakdown": "#tradever #propfirm #fundedtrader #futurestrading",
+    "mistake": "#tradever #propfirm #tradingmistakes #futurestrading",
+    "advice": "#tradever #propfirm #tradingtips #daytrading",
 }
 TAG_FOR_ANGLE = {"ceo_quote": "CEO QUOTE", "payout_story": "PAYOUT STORY", "myth_buster": "MYTH BUSTER",
-                 "rule_breakdown": "RULE BREAKDOWN"}
+                 "rule_breakdown": "RULE BREAKDOWN",
+                 "mistake": "MISTAKE", "advice": "ADVICE"}
 
 
 def _caption(spec, campaign) -> str:
@@ -753,9 +759,10 @@ def verify_deck(deck, campaign, transcript_text=None, from_transcript=False) -> 
     return probs
 
 
-def decks_from_transcript(transcript_text: str, campaign: dict) -> list[dict]:
+def decks_from_transcript(transcript_text: str, campaign: dict, mine: int = 40, existing_ids=()) -> list[dict]:
     """All decks whose quotes/numbers check out against the transcript, plus the built-in rule decks.
-    Order rotates hook angles (ceo quote, myth buster, rule breakdown, payout story...)."""
+    Order rotates hook angles (ceo quote, myth buster, rule breakdown, payout story...). The hand-written decks come
+    first, then up to `mine` automatically mined ones (mine_decks; 0 = none). `existing_ids` are skipped."""
     decks = []
     for spec, from_tx in [(s, True) for s in TRANSCRIPT_DECKS] + [(s, False) for s in BUILTIN_DECKS]:
         deck = {"id": spec["id"], "angle": spec["angle"], "title": spec["title"],
@@ -776,7 +783,616 @@ def decks_from_transcript(transcript_text: str, campaign: dict) -> list[dict]:
         for a in order:
             if buckets.get(a):
                 out.append(buckets[a].pop(0))
+    skip = set(existing_ids or ())
+    out = [d for d in out if d["id"] not in skip]
+    if mine and (transcript_text or "").strip():
+        have = {d["id"] for d in out}
+        out += [d for d in mine_decks(transcript_text, campaign, existing_ids=skip, limit=mine) if d["id"] not in have]
     return out
+
+
+# ----------------------------------------------------------------------------------------------- miner
+# Automatic deck miner: sentences -> scored spans -> decks. No network, no AI; deterministic.
+# Every text taken from the transcript is a word-for-word substring (after the campaign spelling fixes); the miner
+# re-checks that itself, then verify_deck() re-checks quotes, numbers, banned phrases, structure.
+_FILLER_PHRASES = ["i mean", "you know", "at the end of the day"]
+_FILLER = {"100%", "so", "and", "but", "well", "now", "okay", "ok", "yeah", "yes", "oh", "ooh", "look", "honestly", "basically",
+           "actually", "obviously", "essentially", "absolutely", "like", "right", "um", "uh", "hey", "man", "then",
+           "also", "personally", "definitely", "literally"}
+_BAD_START = {"about", "before", "probably", "me", "understanding", "no", "yes", "meaning", "another", "either", "both",
+              "such", "and", "but", "or", "because", "which", "who", "whom", "that", "it", "they", "them", "those",
+              "these", "he", "she", "so", "then", "also", "plus", "however", "though", "although", "to", "of",
+              "whatever", "like", "than"}
+_BAD_END = {"and", "but", "or", "the", "a", "an", "to", "of", "in", "with", "that", "is", "are", "was", "were", "for",
+            "on", "at", "as", "if", "so", "because", "my", "your", "our", "their", "i", "you", "we", "it", "this",
+            "by", "from", "be", "been", "have", "has", "had", "do", "does", "not", "very", "more", "than", "into",
+            "about", "just", "really", "gonna", "wanna", "can", "will", "would", "could", "should", "what", "who"}
+_CONJ = {"and", "but", "because", "so", "which", "where", "when", "while", "then", "that"}
+_ANSWER_OPEN = re.compile(r"^(ooh|oh yeah|oh|absolutely|yeah|definitely|okay|exactly|that's a (great|good|really)|"
+                          r"hey, look)\b", re.I)
+_HOST_HINT = re.compile(r"\b(tell (me|us)|you mentioned|like you (said)|introduce yourself|"
+                        r"your (company|job|favorite|biggest|worst|firm)|do you|did you|are you|were you|have you)\b", re.I)
+# anything that reads like a promise / income claim / other brand / rant is never mined
+_NO_MINE = re.compile(
+    r"promise|guarant|sky'?s the limit|will continue to receive|replace your job|thousands of dollars a day|"
+    r"can ensure|\bROI\b|million|crypto|\bNFTs?\b|penny|sykes|\bGNC\b|affiliate|scams?\b|shady|"
+    r"freaking|\bhell\b|stupid|dumb|\bsucks?\b|\bcrap\b|\bass\b|taking that|\bfake|screenshots|"
+    r"you will (then )?(make|earn|get|receive|be able)|you('ll| will) (end up )?find|definitely earn|"
+    r"money (fast|quick)|get rich|as fast as possible|outrageous|obsessed|life\W*changing|"
+    r"more better|put pro firms|out of business|haven't looked back|never give up and I never did|"
+    r"\bmentor\b|\bcourses?\b|youtube|\bAI\b|rat race|programmed|nothing against|other firms|"
+    r"i'm sure|i'm gonna say|i don't (really )?have|to be honest|i told you|agree with me|i found it|"
+    r"you see it|one thing (i|that)|this one's|can agree|wouldn't|somewhere around|"
+    r"my name is|way to living|made me\b|made a lot|profited about|gonna hurt|here\.$|i would definitely|"
+    r"let me|for instance|question|decent living|\$[\d,. ]+\w*[^.?!]*\b(a|per|each) (day|week|month|year)\b|"
+    r"\b(a|per|each) (day|week|month)\b[^.?!]*\$|\bgrand amount|^100%", re.I)
+_MONEY = re.compile(r"\$|\d|\bpayouts?\b|\bprofit|\bearn|\bmade\b|\bpaid\b|\bwithdraw|\blost\b|\bwin\b|\bwins\b", re.I)
+_RULES = re.compile(r"\brules?\b|consistency|drawdown|profit target|minimum|qualify|activation|buffer|evaluation|"
+                    r"\bevals?\b|max loss|risk management|\b\d+ ?%|accounts? (are|is)|live (account|program)", re.I)
+_FIRST = re.compile(r"\b(i|i've|i'm|i'd|my|me)\b", re.I)
+_EMOTION = ["scared", "fear", "greedy", "victim", "disciplin", "psycholog", "gambl", "spiral", "lose", "lost",
+            "losing", "hurt", "trust", "failing", "mistake", "problem", "hard", "easy", "best", "worst", "biggest",
+            "only", "every", "nothing", "furthest", "truth", "reality", "patient", "overthink", "greed", "revenge",
+            "blow", "wrong", "stop", "never", "always", "mindset", "emotional", "business", "risk", "probability",
+            "marathon", "process", "variance", "diversify", "edge"]
+_CONTRAST = re.compile(r"\b(but|not|never|instead|rather|versus|than|actually|no|nothing|without|don't|do not|"
+                       r"isn't|aren't|wasn't|doesn't|won't|can't)\b", re.I)
+_ADVICE = re.compile(r"\b(make sure|don't|do not|never|stop|always|treat|avoid|watch out|focus|remember|aim|"
+                     r"you want to|you need|you have to|you should|you gotta|space out|spacing out|pay attention)\b", re.I)
+_MISTAKE = re.compile(r"mistake|revenge|greedy|losing|\blost\b|\blose\b|spiral|blowing|overthink|scared|gambl|hedg|"
+                      r"downfall|wrong|victim", re.I)
+_MYTH = re.compile(r"\bmyth|actually|truth|furthest|not easy|harder|glorified|red flag|reality|misconception|"
+                   r"\bnot\b.*\bbut\b|smart|intelligen|\bIQ\b", re.I)
+_PAYOUT = re.compile(r"payout|paid out|get paid|withdraw|profit split|profited|funded", re.I)
+_WEAK = re.compile(r"\b(kind of|sort of|you know|stuff|things?|whatever|somewhere around|probably|maybe|i guess|"
+                   r"um|uh|a lot of times|basically)\b", re.I)
+
+TOPICS = [  # (label, regex) most specific first
+    ("revenge trading", r"revenge"), ("hedging", r"hedg"), ("the consistency rule", r"consistency"),
+    ("discipline", r"disciplin"), ("risk management", r"risk management"), ("gambling", r"gambl|full port"),
+    ("leverage", r"leverage"), ("your mindset", r"mindset|psycholog|scared to lose|emotional|\bEQ\b|perceived value"),
+    ("prop evals", r"evaluation|\bevals?\b|profit target|max loss"), ("variance", r"variance"),
+    ("live accounts", r"live account|live program|real funds|real money"), ("payouts", r"payout|paid out|withdraw"),
+    ("your stack", r"\bstack\b"), ("trusting a firm", r"trustpilot|red flag|reviews|moving the goalpost|change the rules"),
+    ("futures", r"futures"), ("beginners", r"beginner|newbie"), ("nine-to-fives", r"nine to five|five to nine"),
+    ("losing streaks", r"losses in a row|call it a day"), ("the process", r"process|marathon|probability"),
+    ("prop firms", r"prop firm"), ("day trading", r"day trad|trading"),
+]
+HOOK_SUBS = {
+    "ceo_quote": ["Tradever's CEO, in his own words.", "Layth, Tradever's CEO, on camera.", "Straight from Tradever's CEO."],
+    "myth_buster": ["A prop firm myth, busted by Tradever's CEO.", "Tradever's CEO sets the record straight."],
+    "rule_breakdown": ["Prop firm rules, explained by Tradever's CEO.", "Read your account's full rules first."],
+    "payout_story": ["Layth on payouts. His own history, not a promise.", "From Layth's own trading history."],
+    "mistake": ["A mistake Tradever's CEO says to avoid.", "Layth on what goes wrong."],
+    "advice": ["Advice from Tradever's CEO.", "What Layth tells his students."],
+}
+TOPIC_HOOKS = {
+    "ceo_quote": ["Tradever's CEO on *{t}*.", "What Layth says about *{t}*."],
+    "myth_buster": ["Think you understand *{t}*?", "The truth about *{t}*."],
+    "rule_breakdown": ["Rule breakdown: *{t}*.", "*{t}*: know it before you buy."],
+    "payout_story": ["Payouts, straight from the CEO's *own story*."],
+    "mistake": ["A *{t}* mistake to avoid.", "Where traders slip on *{t}*."],
+    "advice": ["Advice on *{t}* from Tradever's CEO.", "Do this about *{t}*."],
+}
+CAPTION_BITS = {
+    "ceo_quote": ["Tradever's CEO Layth in his own words.", "Layth, Tradever's CEO, on what he has learned trading."],
+    "myth_buster": ["A common prop firm and trading myth, answered by Tradever's CEO.",
+                    "Tradever's CEO busts a trading myth."],
+    "rule_breakdown": ["Rule breakdown from Tradever's CEO. Read the full rules of your account before you buy.",
+                       "Prop firm rules explained. Always check your account's own rules."],
+    "payout_story": ["Layth on payouts, from his own trading history. Not a promise of results.",
+                     "A payout story from Tradever's CEO. His own history, not a promise."],
+    "mistake": ["A trading mistake Tradever's CEO says to avoid.", "Layth on a mistake that costs traders."],
+    "advice": ["Advice from Tradever's CEO for prop firm traders.", "What Layth tells his students."],
+}
+POINT_LABELS = {
+    "ceo_quote": ["Layth, Tradever's CEO", "In his words"],
+    "myth_buster": ["Myth busted", "The reality"],
+    "rule_breakdown": ["Know the rule", "Check your account's rules"],
+    "payout_story": ["Layth's own history", "His own trading, not a promise"],
+    "mistake": ["Avoid this", "What goes wrong"],
+    "advice": ["His advice", "Do this instead"],
+}
+HEDGE_OWN = "On his own trading. Not a promise of results."
+HEDGE_RULES = "As Layth describes it. Check the rules of your own account."
+ANGLE_ORDER = ["ceo_quote", "myth_buster", "rule_breakdown", "payout_story", "mistake", "advice"]
+_ANGLE_SLUG = {"ceo_quote": "ceo", "myth_buster": "myth", "rule_breakdown": "rule", "payout_story": "payout",
+               "mistake": "mistake", "advice": "advice"}
+QUOTE_MAX, POINT_MAX, HOOK_MAX = 215, 72, 118
+_SEG = re.compile(r"^\s*(?:\[\s*([\d.:]+)\]\s*)?(.*)$")
+_LABELLED = re.compile(r"^([A-Za-z][A-Za-z .'-]{0,20}?)\s*:\s+(.+)$")
+_HOST_LABELS = {"host", "interviewer", "interviewer 1", "q", "question", "moderator", "interviewer 2"}
+_CEO_LABELS = {"layth", "ceo", "guest", "layth banks", "answer", "a"}
+
+
+def _h(*parts) -> int:
+    return int(hashlib.sha1("|".join(map(str, parts)).encode("utf-8")).hexdigest()[:8], 16)
+
+
+def _sentences(text: str) -> list[dict]:
+    """Sentences of the cleaned transcript with their timestamp; host lines/questions are flagged, not dropped."""
+    out = []
+    for li, raw in enumerate((text or "").splitlines()):
+        m = _SEG.match(raw)
+        ts = None
+        try:
+            ts = float((m.group(1) or "").split(":")[-1]) if m and m.group(1) else None
+        except ValueError:
+            pass
+        body = clean_transcript(raw)
+        if not body:
+            continue
+        host_line = False
+        lab = _LABELLED.match(body)
+        if lab and lab.group(1).strip().lower() in _HOST_LABELS | _CEO_LABELS:
+            host_line = lab.group(1).strip().lower() in _HOST_LABELS
+            body = lab.group(2)
+        parts = [p.strip() for p in re.split(r"(?<=[.!?])\s+", body) if p.strip()]
+        for k, p in enumerate(parts):
+            host = host_line or p.endswith("?") or bool(_HOST_HINT.search(p))
+            if k == 0 and len(parts) > 1 and not p.endswith("?") and _ANSWER_OPEN.match(parts[1]):
+                host = True                                  # the host's tail fragment right before "Ooh, ..." / "Absolutely"
+            out.append({"i": len(out), "ts": ts, "line": li, "k": k, "text": p, "host": host})
+    return out
+
+
+_STOP = set("a an the and or but if so of to in on at for with from by as is are was were be been it its this that these "
+            "those you he she we they me my your our their them his her does did have has had not just very really can "
+            "could would should will than then there here what which who whom when where why how about into over up out "
+            "down all any some more most too also only own same such".split())
+
+
+def _words_info(s: str):
+    return [w for w in s.split()]
+
+
+def _wclean(w: str) -> str:
+    return re.sub(r"^[^\w$]+|[^\w%]+$", "", w).lower()
+
+
+def _first_index(words: list[str]) -> int:
+    """Skip leading filler ("So", "Yeah,", "I mean", "I think") so the span starts on content."""
+    i = 0
+    while i < len(words):
+        low = " ".join(_wclean(w) for w in words[i:i + 4])
+        hit = next((p for p in _FILLER_PHRASES if low.startswith(p)), None)
+        if hit:
+            i += len(hit.split())
+            continue
+        if _wclean(words[i]) in _FILLER:
+            i += 1
+            continue
+        break
+    return i
+
+
+_MEANING = re.compile(r"\b(not|no|never|but|if|unless|only|without|however|nobody|nothing|except)\b|n't", re.I)
+_SUBORD = {"if", "when", "because", "while", "although", "since", "as", "whenever", "unless", "after", "before"}
+
+
+def _spans(sentence: str) -> list[str]:
+    """The sentence as a quote: whole (minus leading filler like "So" / "Yeah,"), or - when it is too long - its
+    first clause(s) ending in an ellipsis. Dropped words may never carry a negation, condition, contrast or number."""
+    words = _words_info(sentence)
+    i0 = _first_index(words)
+    seg = words[i0:]
+    if len(seg) < 5 or _wclean(seg[0]) in _BAD_START or _wclean(seg[-1]) in _BAD_END:
+        return []
+    txt = " ".join(seg).strip()
+    if len(txt) <= QUOTE_MAX and re.search(r"[.!]$", txt):
+        return [txt[0].upper() + txt[1:]]
+    out = []
+    for j in range(8, len(seg)):
+        if not (re.search(r"[,;]$", seg[j - 1]) or _wclean(seg[j]) in ("and", "so", "which", "because")):
+            continue
+        part = " ".join(seg[:j]).rstrip(",;:")
+        dropped = " ".join(seg[j:])
+        if (len(part) > QUOTE_MAX or _wclean(seg[j - 1]) in _BAD_END or _wclean(seg[0]) in _SUBORD
+                or _MEANING.search(dropped) or re.search(r"\d", dropped) or _SUBORD & {_wclean(w) for w in seg[:j][-3:]}):
+            continue
+        out.append(part[0].upper() + part[1:] + "\u2026")
+    return out[-1:]
+
+
+def _span_score(t: str) -> float:
+    low = t.lower()
+    nw = len(t.split())
+    sc = 0.0
+    nums = re.findall(r"\$?\d[\d,.]*[kK%]?", t)
+    if nums:
+        sc += 1.5 + (1.0 if "$" in t else 0.0)
+    sc += min(3.0, 1.5 * len(_CONTRAST.findall(t)))
+    if re.search(r"\byou(r|'re|'ll)?\b", low):
+        sc += 1.0
+    if _ADVICE.search(t):
+        sc += 2.0
+    hits = [e for e in _EMOTION if e in low]
+    sc += min(3.0, 1.0 * len(hits))
+    if _RULES.search(t) or _PAYOUT.search(t):
+        sc += 1.0
+    if _MISTAKE.search(t):
+        sc += 1.0
+    sc += 2.0 if 6 <= nw <= 15 else 1.0 if 16 <= nw <= 22 else -1.0 if nw > 26 else 0.0
+    if len(t) <= 90:
+        sc += 1.0
+    sc -= 1.0 * len(_WEAK.findall(t))
+    if re.search(r"\b(this|that|those|these|it)\b", low) and not re.search(r"\b(this is|that's|it's|it is)\b", low):
+        sc -= 0.5
+    if re.search(r"[.!]$", t):
+        sc += 0.5
+    return sc
+
+
+def _angle_of(t: str) -> str:
+    first = bool(_FIRST.search(t))
+    you = bool(re.search(r"\byou('re|'ll|r)?\b", t, re.I))
+    contrast = len(_CONTRAST.findall(t))
+    scores = {
+        "payout_story": (2.0 * len(_PAYOUT.findall(t)) + 1.0) if first and _PAYOUT.search(t) else 0.0,
+        "rule_breakdown": 1.5 * len(_RULES.findall(t)) + (1.0 if _PAYOUT.search(t) else 0.0),
+        "myth_buster": 1.5 * len(_MYTH.findall(t)) + (1.0 * contrast if not first else 0.5 * contrast)
+                       + (1.0 if re.search(r"\b(trading|traders?|prop|accounts?)\b", t, re.I) else 0.0),
+        "mistake": 1.5 * len(_MISTAKE.findall(t)) + (1.0 if re.search(r"\bstop\b|\bloss(es)?\b", t, re.I) else 0.0),
+        "advice": 0.0 if first else (2.0 * len(_ADVICE.findall(t)) + (1.5 if you else 0.0)
+                                     + (1.0 if re.search(r"\bif you\b", t, re.I) else 0.0)),
+        "ceo_quote": 1.2 + (0.8 if first else 0.0),
+    }
+    return max(ANGLE_ORDER, key=lambda a: (scores[a], -ANGLE_ORDER.index(a)))
+
+
+def _content(t: str) -> set:
+    return {w[:5] for w in re.findall(r"[a-z]{4,}", t.lower()) if w not in _STOP}
+
+
+def _shingles(texts, n=3) -> set:
+    toks = norm(" ".join(texts)).split()
+    return {" ".join(toks[i:i + n]) for i in range(max(0, len(toks) - n + 1))}
+
+
+def _jaccard(a: set, b: set) -> float:
+    return len(a & b) / len(a | b) if a and b else 0.0
+
+
+def _topic(texts, angle) -> str:
+    blob = " ".join(texts)
+    best, bs = "", 0
+    for label, rx in TOPICS:
+        c = len(re.findall(rx, blob, re.I)) * (1 if label in _GENERIC else 3)
+        if c > bs:
+            best, bs = label, c
+    return best
+
+
+_GENERIC = {"prop firms", "day trading"}
+
+
+def _topics(q: str) -> set:
+    return {label for label, rx in TOPICS if label not in _GENERIC and re.search(rx, q, re.I)}
+
+
+def _star(text: str) -> str:
+    """Paint the punchiest 1-3 words green (numbers/money are painted automatically when there are no stars)."""
+    if re.search(r"\d", text):
+        return text
+    words = text.split()
+    for i, w in enumerate(words):
+        wc = _wclean(w)
+        if any(wc.startswith(e) for e in ("disciplin", "scared", "revenge", "gambl", "mistake", "greed", "fear",
+                                         "spiral", "psycholog", "trust", "never", "stop", "probab", "marathon",
+                                         "hedg", "variance", "emotional", "consistency", "risk")):
+            j = i + 1
+            if wc in ("never", "stop") and i + 1 < len(words):
+                j = min(len(words), i + 3)
+            elif i + 1 < len(words) and _wclean(words[i + 1]) in ("management", "rule", "trading", "intelligence", "to"):
+                j = i + 2 + (1 if _wclean(words[i + 1]) == "to" and i + 2 < len(words) else 0)
+            seg = " ".join(words[i:j])
+            tail = re.search(r"[.,!?:;]+$", seg)
+            core = seg[:tail.start()] if tail else seg
+            words[i:j] = [("*" + core + "*" + (tail.group(0) if tail else ""))]
+            return " ".join(words)
+    return text
+
+
+_VERBISH = re.compile(r"\b(is|are|was|were|am|be|been|have|has|had|do|does|did|can|could|will|would|should|get|got|make|"
+                      r"makes|made|take|want|wanna|need|know|go|goes|see|think|feel|say|lose|lost|win|pass|pay|paid|"
+                      r"trade|trades|work|works|allows?|means?|matters?|comes?|learn|understand|use|treat|stop|try|"
+                      r"aim|keep|start|become|has|hit|follow|add|launch|started|built|build|move|spend)\b|"
+                      r"'(s|re|m|ve|ll|d)\b|n't\b", re.I)
+_DEPENDENT = re.compile(r"^\W*(for example|so for example)|\bhonestly\b|\bleverage\b|\b(i mentioned|i said|like i|as i|earlier|before,|this one|that one|you guys|so that way|"
+                        r"that way|the thing is|this has|these people|this is based)\b|^\W*(this|that|it|they|these|those)\b",
+                        re.I)
+
+
+_JUNK = re.compile(r"\b(this|these|those)\b(?! is\b)|as well|clocking|strive|forefront|age of information|for all i care|"
+                   r"people, when|myself\.$|that's cool|with me\b", re.I)
+
+
+def _self_contained(q: str) -> bool:
+    body = q.rstrip("\u2026")
+    return (6 <= len(body.split()) <= 36 and not _DEPENDENT.search(body) and not _JUNK.search(body)
+            and len(_content(body)) >= 4)
+
+
+def _mk_cand(i, ts, q, cov, whole=True, text_len=0):
+    short = q if len(q) <= HOOK_MAX and len(q.split()) >= 4 and q[-1] in ".!" else ""
+    qs = _span_score(q) + (1.5 if whole else 0.0)
+    return {"i": i, "ts": ts, "q": q, "qs": qs, "p": short, "ps": _span_score(short) if short else -9.0,
+            "angle": _angle_of(q), "cov": frozenset(cov)}
+
+
+_SUBJ = {"i", "i've", "i'm", "i'd", "you", "you're", "you've", "we", "we're", "there", "there's", "it's", "the", "a",
+         "my", "your", "our", "no", "nobody", "every", "trading", "prop", "most", "many", "people", "that's"}
+_STARTER = re.compile(r"^(if|when|whenever|while|because|although|since|unless|after|before)\b", re.I)
+
+
+def _clauses(sentence: str) -> list[str]:
+    """Independent clauses of a compound sentence, each a verbatim substring that stands alone."""
+    words = _words_info(sentence)
+    i0 = _first_index(words)
+    seg = words[i0:]
+    if len(seg) < 12 or _STARTER.match(seg[0]) or _wclean(seg[0]) in _BAD_START:
+        return []
+    cuts = [j for j in range(6, len(seg) - 5) if _wclean(seg[j]) in ("and", "but", "so")]
+    out = []
+    for j in cuts[:2]:
+        conj = _wclean(seg[j])
+        pre, post = seg[:j], seg[j + 1:]
+        if conj != "but" and not _MEANING.search(" ".join(pre)) and not re.search(r"\d", " ".join(post)):
+            out.append(" ".join(pre).rstrip(",;:"))
+        if post and _wclean(post[0]) in _SUBJ and not _MEANING.search(" ".join(pre)) or conj == "but" and post and _wclean(post[0]) in _SUBJ:
+            out.append(" ".join(post))
+    res = []
+    for t in out:
+        t = t.rstrip(",;:").rstrip(".!") + "."
+        w = t.split()
+        if len(w) >= 5 and _wclean(w[-1].rstrip(".")) not in _BAD_END and _wclean(w[0]) not in _BAD_START:
+            res.append(t[0].upper() + t[1:])
+    return res
+
+
+def _mine_candidates(sents, campaign):
+    """Quote candidates: one per sentence (whole, or its first clauses) plus pairs of adjacent sentences.
+    Rejects the host, risky/unverifiable text, banned phrases, profanity."""
+    blocked_words = banned_list(campaign)
+    bad = lambda x: bool(_NO_MINE.search(x)) or any(b in x.lower() for b in blocked_words)
+    singles = {}
+    for s in sents:
+        if s["host"]:
+            continue
+        sp = [x for x in _spans(s["text"]) if not bad(x)]
+        if not sp:
+            continue
+        sp = [x for x in sp if _self_contained(x)]
+        if not sp:
+            continue
+        q = max(sp, key=lambda x: (len(x) <= QUOTE_MAX, _span_score(x), -len(x)))
+        singles[s["i"]] = (s, q)
+    cands = {}
+    for i, (s, q) in singles.items():
+        cands[i] = _mk_cand(i, s["ts"], q, {i}, whole=not q.endswith("\u2026"))
+    # independent clauses of long compound sentences ("A, and B" -> A / B; "A, but B" -> B only)
+    for s in sents:
+        if s["host"] or s["i"] in singles and len(singles[s["i"]][1]) <= 110:
+            continue
+        for n, piece in enumerate(_clauses(s["text"])):
+            if bad(piece) or not _self_contained(piece):
+                continue
+            c = _mk_cand(s["i"], s["ts"], piece, {s["i"]}, whole=False)
+            c["qs"] = _span_score(piece) + 0.5
+            cands[s["i"] + 0.1 * (n + 1)] = c
+    for i, (s, q) in singles.items():
+        n = singles.get(i + 1)
+        if not n or n[0]["line"] != s["line"] or q.endswith("\u2026") or n[1].endswith("\u2026"):
+            continue
+        pair = q + " " + n[1]
+        if len(pair) <= QUOTE_MAX + 20 and _span_score(q) >= 2.0 and _span_score(n[1]) >= 2.0:
+            c = _mk_cand(i, s["ts"], pair, {i, i + 1})
+            c["qs"] = (cands[i]["qs"] + cands[i + 1]["qs"]) / 2 + 1.0
+            c["p"], c["ps"] = "", -9.0
+            cands[i + 0.5] = c
+    return cands
+
+
+_OWN_RESULT = re.compile(r"\$\s?\d|\bpayouts?\b|\bprofit(ed|able)?\b|\bpaid\b|\bmade\b|\bearn|(lost|losing|making|make|made) (a lot of |more |even more )?money", re.I)
+_RULE_MONEY = re.compile(r"\$\s?\d|\d\s?%|\bpayout|\bwithdraw|\bprofit target|\bconsistency|\bsplit\b", re.I)
+
+
+def _hedge(txt: str) -> str:
+    """Income / results text stays attributed to his own history; rule amounts point to the account's own rules."""
+    if re.search(r"\bfor the money\b", txt, re.I):
+        return ""
+    if _FIRST.search(txt) and _OWN_RESULT.search(txt):
+        return HEDGE_OWN
+    if _RULE_MONEY.search(txt) and re.search(r"\d", txt):
+        return HEDGE_RULES
+    return ""
+
+
+def _window_angle(cs) -> str:
+    votes = {a: 0.0 for a in ANGLE_ORDER}
+    for c in cs:
+        votes[_angle_of(c["q"])] += max(1.0, c["qs"])
+    best = max(ANGLE_ORDER, key=lambda a: (votes[a], -ANGLE_ORDER.index(a)))
+    return best
+
+
+_MEANING_STARTS = re.compile(r"^(if|when|whenever)\b.*,\s*(it'?s|that'?s) (cool|great|fine)", re.I)
+
+
+def _deck_for(chosen, campaign, angle=None, avoid=frozenset()):
+    """chosen: candidates of one passage, any order. Hook = punchiest short line (or a framed topic hook),
+    body = 3-5 of the remaining lines in the order they were said."""
+    by_score = sorted(chosen, key=lambda c: (-c["qs"], c["i"]))
+    angle = angle or _window_angle(by_score[:4])
+    claims = [c for c in by_score if norm(c["q"]) not in avoid and c["p"] and c["ps"] >= 4.5
+              and len(c["p"]) <= HOOK_MAX and not _MEANING_STARTS.match(c["p"])]
+    if not claims:                                   # no punchy line: settle for a plain short one
+        claims = [c for c in by_score if norm(c["q"]) not in avoid and c["p"] and c["ps"] >= 2.5
+                  and len(c["p"]) <= HOOK_MAX]
+    claims.sort(key=lambda c: (c is not chosen[0], -c["ps"]))
+    anchor = claims[0] if claims else chosen[0]
+    if claims:
+        angle = anchor["angle"]
+    h = _h(norm(anchor["q"]))
+    topic = _topic([c["q"] for c in by_score], angle)
+    if topic and sum(1 for c in by_score[:5] if topic in c["topics"] or topic in _GENERIC) < 3:
+        topic = ""
+    hook = {"kind": "hook", "tag": TAG_FOR_ANGLE.get(angle, "")}
+    hook_sub = HOOK_SUBS[angle][h % len(HOOK_SUBS[angle])]
+    rest = [c for c in by_score if c is not anchor]
+    if claims:
+        hook["text"] = _star(anchor["p"])
+        hook["verbatim"] = True
+        title = anchor["p"].rstrip(".")
+        hook_sub = _hedge(anchor["p"]) or hook_sub
+        body_src = rest
+    else:
+        tpl = TOPIC_HOOKS[angle][h % len(TOPIC_HOOKS[angle])]
+        if "{t}" in tpl and not topic:
+            tpl = "Tradever's CEO, *in his own words*."
+        hook["text"] = tpl.replace("{t}", topic)
+        title = plain(hook["text"]).rstrip(".")
+        body_src = by_score
+    hook["sub"] = hook_sub
+    n_body = 3 + (1 if h % 3 == 1 else 0) + (1 if h % 11 == 0 else 0)
+    body = sorted(body_src[:n_body], key=lambda c: c["i"])
+    if len(body) < 3:
+        return None, set()
+    patterns = ["QQQQQ", "QPQPQ", "PQQPQ", "QQPQP", "PQPQQ", "QPPQQ"]
+    pat = patterns[(h >> 4) % len(patterns)]
+    labels = POINT_LABELS[angle]
+    slides = [hook]
+    for n, c in enumerate(body):
+        if pat[n % len(pat)] == "P" and c["p"] and len(c["p"]) <= POINT_MAX and c["ps"] >= 2.5:
+            sl = {"kind": "point", "text": _star(c["p"]), "verbatim": True, "tag": TAG_FOR_ANGLE.get(angle, ""),
+                  "sub": labels[(h + n) % len(labels)]}
+            txt = c["p"]
+        else:
+            sl = {"kind": "quote", "text": c["q"]}
+            txt = c["q"]
+            if n == 0 and topic:
+                sl["sub"] = "On " + topic
+        sl_h = _hedge(txt)
+        if sl_h:
+            sl["sub"] = sl_h
+        slides.append(sl)
+    slides.append({"kind": "cta", "text": DEFAULT_THEME["cta_text"], "sub": DEFAULT_THEME["cta_sub"],
+                   "button": DEFAULT_THEME["cta_button"]})
+    cap_bits = CAPTION_BITS[angle]
+    spec = {"angle": angle, "caption": cap_bits[h % len(cap_bits)]}
+    title = (title[0].upper() + title[1:]) if title else "Tradever's CEO"
+    if len(title) > 90:
+        title = title[:86].rsplit(" ", 1)[0].rstrip(",;: ") + "..."
+    deck = {"id": f"mined-{_ANGLE_SLUG[angle]}-{hashlib.sha1(norm(anchor['q']).encode()).hexdigest()[:8]}",
+            "angle": angle, "title": title, "caption": _caption(spec, campaign), "slides": slides}
+    used = set(anchor["cov"]) if claims else set()
+    for c in body:
+        used |= set(c["cov"])
+    return deck, used
+
+
+def _verbatim_ok(deck, tn: str) -> bool:
+    for s in deck["slides"]:
+        if s.get("verbatim") or s["kind"] == "quote":
+            if not quote_in(s["text"], tn):
+                return False
+    return True
+
+
+def mine_decks(transcript_text, campaign, existing_ids=(), limit=40) -> list[dict]:
+    """Automatic deck miner. Scores transcript sentences for hookiness, finds coherent passages (a run of strong,
+    self-contained lines said close together on one topic), groups them by angle and builds decks: hook, 3-5
+    verified quote/point slides in spoken order, CTA. Deterministic; ids derive from the hook quote's hash so
+    they are stable between runs. Returns [] for an empty/short transcript. `existing_ids` are skipped after
+    mining, so the other decks never change."""
+    if not (transcript_text or "").strip():
+        return []
+    sents = _sentences(transcript_text)
+    if len(sents) < 12:
+        return []
+    tn = norm(clean_transcript(transcript_text))
+    hand_texts = [norm(x[1]) for spec in TRANSCRIPT_DECKS for x in spec["slides"] if x[0] == "quote"]
+    hand_shingles = _shingles([x[1] for spec in TRANSCRIPT_DECKS for x in spec["slides"]])
+    cands = _mine_candidates(sents, campaign)
+    for k in list(cands):                              # lines already used by the hand-written decks stay theirs
+        q = norm(cands[k]["q"])
+        if any(q in ht or ht in q for ht in hand_texts) or len(_shingles([cands[k]["q"]]) & hand_shingles) >= 4:
+            del cands[k]
+    for c in cands.values():
+        c["topics"] = _topics(c["q"])
+    anchors = sorted((c for c in cands.values() if c["qs"] >= 3.5), key=lambda c: (-c["qs"], c["i"]))
+    uses: dict = {}
+    anchored: set = set()
+    decks, used_sets, deck_sh, hooks = [], [], [], set()
+    free = lambda c, mu: all(uses.get(x, 0) < mu for x in c["cov"])
+    for max_use in (1, 2, 3, 4):
+        for a in anchors:
+            key = (a["i"], len(a["cov"]))
+            if key in anchored or not free(a, max_use):
+                continue
+            pool = []
+            for k, c in cands.items():
+                d = abs(c["i"] - a["i"])
+                if c["cov"] & a["cov"] or not free(c, max_use) or c["qs"] < 2.5:
+                    continue
+                shared = len(a["topics"] & c["topics"])
+                rel = _jaccard(_content(a["q"]), _content(c["q"]))
+                near = 2.0 if d <= 12 else 0.0
+                same = 2.0 if c["angle"] == a["angle"] else 0.0
+                pool.append((c["qs"] + 3.0 * shared + 12 * rel + near + same
+                             - 4.0 * max(uses.get(x, 0) for x in c["cov"]), k))
+            pool.sort(key=lambda x: (-x[0], x[1]))
+            sup = []
+            for _, k in pool:
+                if all(not (cands[k]["cov"] & x["cov"]) for x in sup):
+                    sup.append(cands[k])
+                if len(sup) == 8:
+                    break
+            made = None
+            for skip in range(0, 4):                           # if too close to an earlier deck, swap supports
+                pick = [a] + sup[skip:skip + 5]
+                if len(pick) < 4:
+                    break
+                deck, used = _deck_for(pick, campaign, a["angle"], hooks)
+                if not deck or not _verbatim_ok(deck, tn):
+                    continue
+                if verify_deck(deck, campaign, transcript_text, from_transcript=True):
+                    continue
+                if any(len(used & u) > (1 if max_use <= 1 else 2) for u in used_sets) or any(d0["id"] == deck["id"] for d0, _ in decks):
+                    continue
+                sh = _shingles([x["text"] for x in deck["slides"] if x["kind"] == "quote" or x.get("verbatim")])
+                if any(_jaccard(sh, o) > 0.34 for o in deck_sh):
+                    continue
+                made = (deck, used, sh)
+                break
+            if not made:
+                continue
+            deck, used, sh = made
+            for i in used:
+                uses[i] = uses.get(i, 0) + 1
+            anchored.add(key)
+            used_sets.append(used)
+            deck_sh.append(sh)
+            if deck["slides"][0].get("verbatim"):
+                hooks.add(norm(deck["slides"][0]["text"]))
+            got = [c for c in pick if c["cov"] & used]
+            decks.append((deck, sum(c["qs"] for c in got) / max(1, len(got))
+                          + (2.0 if deck["slides"][0].get("verbatim") else 0.0)))
+        if len(decks) >= max(limit or 0, 40):
+            break
+    # rotate angles so any prefix is a mix; inside an angle the best passage first
+    buckets: dict = {a: [] for a in ANGLE_ORDER}
+    for d, sc in sorted(decks, key=lambda x: (-x[1], x[0]["id"])):
+        buckets[d["angle"]].append(d)
+    skip = set(existing_ids or ())
+    out = []
+    while any(buckets.values()):
+        for a in ANGLE_ORDER:
+            if buckets[a]:
+                d = buckets[a].pop(0)
+                if d["id"] not in skip:
+                    out.append(d)
+    return out[:limit] if limit else out
 
 
 # ----------------------------------------------------------------------------------------------- CLI
@@ -790,7 +1406,7 @@ def _resolve(p: str, base: Path) -> Path:
     return q
 
 
-def build(campaign_path, transcript_path, out_dir, limit=None, only=None) -> list[dict]:
+def build(campaign_path, transcript_path, out_dir, limit=None, only=None, mine=40) -> list[dict]:
     cpath = _resolve(campaign_path, Path.cwd())
     campaign = json.loads(Path(cpath).read_text(encoding="utf-8"))
     logo_rel = (campaign.get("on_screen") or {}).get("logo") or ""
@@ -800,7 +1416,7 @@ def build(campaign_path, transcript_path, out_dir, limit=None, only=None) -> lis
     if not Path(logo).is_file():
         raise SystemExit(f"logo not found: {logo_rel}")
     text = Path(transcript_path).read_text(encoding="utf-8") if transcript_path else ""
-    decks = decks_from_transcript(text, campaign)
+    decks = decks_from_transcript(text, campaign, mine=mine)
     if only:
         decks = [d for d in decks if d["id"] in only]
     if limit:
@@ -824,17 +1440,19 @@ def main(argv=None):
     b.add_argument("--out", required=True)
     b.add_argument("--limit", type=int, default=None)
     b.add_argument("--only", nargs="*", default=None, help="deck ids to render")
+    b.add_argument("--mine", type=int, default=40, help="max auto-mined decks after the hand-written ones (0 = none)")
     ls = sub.add_parser("list", help="list the decks without rendering")
     ls.add_argument("--campaign", required=True)
     ls.add_argument("--transcript", default="")
+    ls.add_argument("--mine", type=int, default=40, help="max auto-mined decks after the hand-written ones (0 = none)")
     a = ap.parse_args(argv)
     if a.cmd == "build":
-        decks = build(a.campaign, a.transcript, a.out, a.limit, a.only)
+        decks = build(a.campaign, a.transcript, a.out, a.limit, a.only, a.mine)
         print(f"{len(decks)} decks -> {a.out}")
     else:
         campaign = json.loads(_resolve(a.campaign, Path.cwd()).read_text(encoding="utf-8"))
         text = Path(a.transcript).read_text(encoding="utf-8") if a.transcript else ""
-        for d in decks_from_transcript(text, campaign):
+        for d in decks_from_transcript(text, campaign, mine=a.mine):
             print(f"{d['id']:32s} {len(d['slides'])} {d['angle']:15s} {d['title']}")
     return 0
 

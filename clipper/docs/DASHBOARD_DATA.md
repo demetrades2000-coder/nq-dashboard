@@ -7,7 +7,8 @@ become `null` everywhere when `hide_money` is true. Dates are ISO strings in loc
 
 Existing v1 fields stay unchanged. Fields marked **NEW** are added in v2; **v2.1** marks the multi-account,
 campaign-rules, queue and slideshow additions; **v2.2** marks the agency additions (live campaign checks, brand
-accounts, agency summary, discovered leads). Same `version: 2`, every new field always present.
+accounts, agency summary, discovered leads); **v2.3** marks the daily-chore additions (submit list, status light, content
+supply, account health, payout tracker). Same `version: 2`, every new field always present.
 
 ```jsonc
 {
@@ -37,7 +38,12 @@ accounts, agency summary, discovered leads). Same `version: 2`, every new field 
     "last_post": "2026-10-22T09:12:00", "net": 120.5, "net_7d": 30.1,   // money: null when hide_money
     "slideshows": 4, "daily_views": [0, 120, "... 14 values, oldest first"],
     "status": "posting",              // posting | at_cap | idle | error (failed upload / error event naming it in 24 h)
-    "status_note": "1 slot left today"
+    "status_note": "1 slot left today",
+    "health": {"state": "ok",         // v2.3 no_posts (connected, nothing went out) | limited | early (fewer than 4 posts a day
+                                      //      old: too soon to judge) | ok. limited = >= 4 live posts and the median views of
+                                      //      the last 4 posts that are >= 24 h old is < 100, OR (with view history) >= 3 posts
+                                      //      this week, >= 4 live and <= 5 views gained in 7 days ("flat while posting")
+               "median_last4": 1692, "note": "plain-language explanation, incl. \"New accounts often get little reach ...\""}
   }],
   "up_next": [{                       // v2.1 approved clips of autopilot campaigns not posted yet (score order, max 30), one row per
                                       //      platform still to post, with the account the rotation picks (most room today,
@@ -61,7 +67,10 @@ accounts, agency summary, discovered leads). Same `version: 2`, every new field 
   },
 
   "todo": {
-    "submit": [{"clip_id": 1, "platform": "tiktok", "url": "...", "title": "...", "page": "campaign url"}],
+    "submit": [{"clip_id": 1, "platform": "tiktok", "url": "...", "title": "...", "page": "campaign url",
+                "campaign": "Tradever (prop firm)", "account": "tradever.clips", "created": "2026-10-22T09:12:00",
+                "views": 329, "likes": 15, "upload_id": 90}],   // v2.3 every upload with a link and no submitted_at that did
+                                      //      not fail and is not a draft (up to 200, newest first; stats.to_submit counts all)
     "drafts": [{"clip_id": 1, "caption": "...", "title": "..."}],
     "held":   [{"id": 1, "title": "...", "reason": "..."}]
   },
@@ -93,7 +102,7 @@ accounts, agency summary, discovered leads). Same `version: 2`, every new field 
                                       //      null (nothing to judge yet). From caption.required_mentions/required_hashtags
                                       //      (+ mentions_last), on_screen.logo (file exists), clip.min, posts_per_week,
                                       //      min_engagement (0.02 or 2 = 2%), platforms, automation_allowed
-    "payout": {"min_payout": 7.0, "views_to_min": 1400,   // v2.1 views a post needs before it pays (min_payout / cpm * 1000,
+    "payout": {"min_payout": 7.0, "views_to_min": 1400,   // v2.3 adds best_views (best single post) and total_views (all posts)   // v2.1 views a post needs before it pays (min_payout / cpm * 1000,
                "cap": 500.0, "views_to_cap": 100000,      //      or min_views if higher); views where max_payout_per_clip stops it
                "posts": 13, "posts_paying": 8, "posts_at_cap": 0},  // public campaign rates: kept when hide_money
     "account_match": "tradever",      // v2.2 brief field: posts only from accounts whose name contains it ("" = none).
@@ -159,6 +168,27 @@ accounts, agency summary, discovered leads). Same `version: 2`, every new field 
     "paused_list": [{"name": "...", "reason": "budget almost gone ($12.40 left)", "checked": "..."}]
   },
 
+  "supply": {                         // v2.3 content supply meter
+    "video": 2, "slideshow": 2, "total": 4,   // approved, unposted clips of autopilot campaigns that are not paused
+    "per_day": 2.0, "pace_source": "history", // distinct clips uploaded per day over the last 3 days; "caps" = busiest
+                                      //      platform's accounts x daily cap when there is no history; "none" = unknown
+    "days_left": 2.0,                 // total / per_day, null when the pace is unknown
+    "level": "warn",                  // good | warn (< 3 days) | bad (< 1 day, or out) | none (no pace / nothing configured)
+    "by_kind": {"video": {"per_day": 1.0, "days_left": 2.0}, "slideshow": {"per_day": 1.0, "days_left": 2.0}},
+    "refill": "what refills it (new Drive footage, more generated slideshow decks)",
+    "decks_available": 7, "note": "..."   // settings supply.decks_available (int) / supply.note (str) written by the runner; null / ""
+  },
+  "status": {                         // v2.3 traffic light for the top of Today and Submit
+    "level": "amber", "headline": "...",   // green "Everything is running" | amber | red; headline = the worst reason
+    "reasons": [{"level": "red", "code": "stale_run", "text": "Autopilot hasn't run for 22h — restart",
+                 "page": "jobs", "action": {"label": "Open GitHub Actions", "url": "https://github.com/.../clipper-cloud.yml"}}],
+                                      //      codes: stale_run (red, last run > 1.5 x autopilot.every_hours old), never_ran,
+                                      //      autopilot_off, no_accounts (red, nothing connected and no post in 24 h),
+                                      //      no_uploads_24h (red, clips waiting, none posted in 24 h, inside post hours),
+                                      //      paused, supply, accounts_limited, account_errors, upload_errors. Red first.
+    "run": {"finished": "...", "every_hours": 4, "stale_after_hours": 6.0, "age_hours": 1.9, "enabled": true,
+            "actions_url": "https://github.com/demetrades2000-coder/nq-dashboard/actions/workflows/clipper-cloud.yml"}
+  },                                  //      the page re-judges stale_run from `run.finished` and the clock on every view
   "leads_discovered": [{              // v2.2 setting leads.discovered (cloud runner, Content Rewards, ranked and filtered:
                                       //      no adult/gambling/non-English), minus campaigns already joined (same url);
                                       //      best score first. Public rates and budgets: kept when hide_money
@@ -192,5 +222,14 @@ differs from the brief, creators competing, last check and its brand accounts. B
 `leads_discovered` as ranked cards with an Open / Join button; campaign files that aren't ready (`leads`) follow.
 **Today** has an Agency line and a Paused alert per paused campaign. Campaign briefs load from the repo `campaigns/`,
 the workspace's `campaigns/` and the cloud state's `<state>/campaigns/` (the parent of a workspace folder named `ws`, or `CLIP_CLOUD_DIR`).
+
+Daily chore (v2.3): **Submit** (`#/submit`, first tab and the default page, manifest `start_url` `./#/submit`) has one card per
+campaign with links in `todo.submit`: Copy next link (copies the oldest link not ticked and ticks it), Copy all (one per line, no
+ticks), Open campaign page (`campaigns[].url`, else the link's `page`), per-link circles to toggle and Undo last. Ticks are kept
+in this browser only (`localStorage` `ce.submitted` = {link: time}); a link the database marks submitted never arrives. The
+number of unticked links is the Submit tab badge, the title prefix "(N)" and `navigator.setAppBadge`. **Today** starts with the
+status strip (`status`) and shows the content supply meter (`supply`), which Accounts shows too; Accounts cards flag
+`health`; **Earnings** has "How close are we to the first payout" from `campaigns[].payout` (`best_views`, `total_views`,
+`views_to_min`): a post only counts once it passes the minimum on its own. `python demo.py <dir> --stale` builds a stuck autopilot.
 
 New sections are computed defensively: an error in one leaves it empty instead of breaking the page.

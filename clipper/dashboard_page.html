@@ -682,6 +682,67 @@ html:not([data-fx="off"]) .page.entering > .card, html:not([data-fx="off"]) .pag
   .nav .kids { display: none !important; } .nav a.g.cur { background: color-mix(in srgb, var(--accent) 16%, transparent); }
   .stats.s4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* v2.3: submit page, status strip, content supply, account health, payout tracker */
+.sstrip { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; margin: 0 0 14px; border-radius: 16px; border: 1px solid var(--line); background: rgba(16,19,26,.7); min-width: 0; }
+.sstrip .sdot { flex: none; width: 12px; height: 12px; margin-top: 5px; border-radius: 50%; background: var(--good); box-shadow: 0 0 12px var(--good); }
+.sstrip .stx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.sstrip .stx b { font-size: 14.5px; font-weight: 650; line-height: 1.35; overflow-wrap: anywhere; }
+.sstrip .stx small { font-size: 12px; color: var(--ink-2); line-height: 1.45; }
+.sstrip .srs { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.sstrip .sr { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-2); min-width: 0; }
+.sstrip .sr i { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); } .sstrip .sr.red i { background: var(--bad); }
+.sstrip .sr span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.sstrip .sa { flex: none; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.sstrip.amber { border-color: color-mix(in srgb, var(--warn) 45%, transparent); background: color-mix(in srgb, var(--warn) 8%, rgba(16,19,26,.7)); }
+.sstrip.amber .sdot { background: var(--warn); box-shadow: 0 0 12px var(--warn); }
+.sstrip.red { border-color: color-mix(in srgb, var(--bad) 55%, transparent); background: color-mix(in srgb, var(--bad) 10%, rgba(16,19,26,.7)); }
+.sstrip.red .sdot { background: var(--bad); box-shadow: 0 0 12px var(--bad); animation: pulse 1.8s infinite; }
+.btn.big { min-height: 58px; width: 100%; font-size: 17px; border-radius: 16px; gap: 10px; }
+.btn.big .ico { width: 22px; height: 22px; }
+.subcard.done { opacity: .72; }
+.subcard .sub-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.subcard .sub-top h3 { margin: 0; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+.subcard .sub-top h3 .ico { color: var(--accent); flex: none; }
+.subcard .leftn { text-align: center; margin: 8px 0 12px; font: 600 13px var(--mono); color: var(--ink-2); }
+.subcard .leftn b { color: var(--ink); }
+.subcard .acts { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; } .subcard .acts .btn { flex: 1 1 140px; } .subcard .acts.minor .btn { flex: 1 1 100px; }
+.lrows { display: flex; flex-direction: column; gap: 6px; }
+.lrow { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 14px; border: 1px solid var(--line); background: rgba(22,26,35,.55); min-width: 0; }
+.lrow.on { opacity: .55; }
+.lrow.on .lt { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 70%, transparent); }
+.lrow .ck { flex: none; width: 44px; height: 44px; margin: -6px 0 -6px -6px; display: grid; place-items: center; border: 0; background: transparent; padding: 0; }
+.lrow .ck i { width: 26px; height: 26px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--muted) 80%, transparent); display: grid; place-items: center; color: transparent; transition: all .15s; }
+.lrow.on .ck i { background: var(--good); border-color: var(--good); color: #04130c; }
+.lrow .ck .ico { width: 15px; height: 15px; stroke-width: 3; }
+.lrow .lb { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.lrow .lt { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.lrow .ls { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.caught { text-align: center; padding: 26px 10px 22px; }
+.caught .big-ok { width: 64px; height: 64px; margin: 0 auto 12px; border-radius: 50%; display: grid; place-items: center; color: #04130c; background: var(--good); box-shadow: 0 0 36px color-mix(in srgb, var(--good) 45%, transparent); }
+.caught .big-ok .ico { width: 34px; height: 34px; stroke-width: 3; }
+.caught h2 { margin: 0 0 6px; font-size: 22px; letter-spacing: -.02em; } .caught p { margin: 0; color: var(--ink-2); }
+.caught .cd { display: inline-block; font: 700 18px var(--mono); color: var(--ink); margin: 0 2px; }
+.sup { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: center; }
+.sup .sbig { font-size: 34px; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; } .sup .sbig small { font-size: 14px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
+.sup .sbig.good { color: var(--good-ink); } .sup .sbig.warn { color: var(--warn); } .sup .sbig.bad { color: var(--bad); }
+.sup .ssub { color: var(--ink-2); font-size: 12.5px; margin-top: 4px; }
+.sup .kv2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .sup .kv2 > div { padding: 9px 11px; border-radius: 12px; background: rgba(22,26,35,.55); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 1px; }
+.sup .kv2 span { font-size: 11px; color: var(--muted); } .sup .kv2 b { font-size: 18px; font-weight: 700; }
+.hchip { margin-top: 10px; padding: 9px 12px; border-radius: 12px; font-size: 12.5px; line-height: 1.5; color: var(--ink-2); border: 1px solid var(--line); background: rgba(22,26,35,.5); }
+.hchip.limited { border-color: color-mix(in srgb, var(--warn) 45%, transparent); background: color-mix(in srgb, var(--warn) 9%, rgba(16,19,26,.6)); }
+.hchip b { color: var(--warn); }
+.trk { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; } .trk .tl2 { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--ink-2); } .trk .tl2 b { color: var(--ink); font-weight: 650; }
+.trk .tl2 .mono { white-space: nowrap; }
+.trkc { padding: 14px 0; border-bottom: 1px solid var(--line); } .trkc:first-of-type { padding-top: 0; } .trkc:last-of-type { border-bottom: 0; padding-bottom: 0; }
+.trkc h4 { margin: 0; font-size: 14px; font-weight: 650; } .trkc .meta2 { font-size: 12px; color: var(--muted); margin-top: 2px; }
+@media (max-width: 760px) {
+  .sup { grid-template-columns: 1fr; gap: 12px; } .sup .sbig { font-size: 30px; }
+  .sstrip { padding: 11px 12px; gap: 8px 10px; flex-wrap: wrap; } .sstrip .stx { flex: 1 1 calc(100% - 28px); }
+  .sstrip .sa { flex: 1 1 100%; flex-direction: row; flex-wrap: wrap; justify-content: flex-start; padding-left: 22px; }
+  .subcard .acts .btn { flex: 1 1 140px; min-height: 46px; } .subcard .acts.minor .btn { min-height: 38px; flex: 1 1 120px; }
+  .tabs { gap: 2px; padding: 6px 4px; } .tabs a { font-size: 10px; } .tabs a .nb { left: calc(50% + 4px); }
+}
 :root[data-motion="off"] *, :root[data-motion="off"] *::before, :root[data-motion="off"] *::after { animation: none !important; transition: none !important; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
@@ -719,6 +780,7 @@ const store = { get(k, d) { try { const v = localStorage.getItem('ce.' + k); ret
                 set(k, v) { try { localStorage.setItem('ce.' + k, JSON.stringify(v)); } catch (e) { } } };
 // ===================================================================== icons (the NQ set + clip ones)
 const P = {
+  submit: '<path d="M12 15V4.5M7.5 9L12 4.5 16.5 9"/><path d="M4.5 14.5v3.5a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-3.5"/>',
   today: '<path d="M3 12h3l3-8 4 16 3-8h5"/>',
   clips: '<rect x="3.5" y="5" width="17" height="14" rx="3"/><path d="M10 9.5v5l4.5-2.5z"/>',
   stats: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
@@ -963,6 +1025,7 @@ const heatBg = (v, mx) => v > 0 ? `color-mix(in srgb, var(--accent-2) ${Math.rou
 
 // ===================================================================== routes: five groups, the same on the phone tab bar and the desktop sidebar
 const GROUPS = [
+  { id: 'submit', label: 'Submit', icon: 'submit', pages: [['submit', 'Submit', 'submit']] },
   { id: 'today', label: 'Today', icon: 'today', pages: [['today', 'Today', 'today']] },
   { id: 'clips', label: 'Clips', icon: 'clips', pages: [['clips', 'Clips', 'clips']] },
   { id: 'analytics', label: 'Analytics', icon: 'stats', pages: [['analytics', 'Analytics', 'stats']] },
@@ -973,12 +1036,13 @@ const PAGES = {};
 GROUPS.forEach(g => g.pages.forEach(([id, label, ic]) => { PAGES[id] = { id, label, icon: ic, group: g.id }; }));
 const ALIAS = { account: 'accounts', queue_next: 'accounts', next: 'accounts', home: 'today', health: 'jobs', queue: 'jobs', leads: 'campaigns', money: 'earnings', stats: 'analytics', events: 'activity', feed: 'activity', gallery: 'clips', system: 'jobs' };
 // 3D background presets (fx.js scenes): each page picks a mood
-const SCENE = { today: 'today', clips: 'trades', analytics: 'lab', earnings: 'results', campaigns: 'eval', accounts: 'results', jobs: 'engine', activity: 'engine', settings: 'engine' };
+const SCENE = { submit: 'today', today: 'today', clips: 'trades', analytics: 'lab', earnings: 'results', campaigns: 'eval', accounts: 'results', jobs: 'engine', activity: 'engine', settings: 'engine' };
 const groupOf = (p) => PAGES[p]?.group || 'today';
-let PAGE = 'today', RTOK = 0, routed = false;
+let PAGE = 'submit', RTOK = 0, routed = false;
 function badgeFor(g) {
   if (!D) return '';
-  if (g === 'today') { const n = (S().to_submit || 0) + (S().drafts || 0) + (S().held || 0); return n ? `<i class="nb warn">${n > 99 ? '99+' : n}</i>` : ''; }
+  if (g === 'submit') { const n = subLeft(); return n ? `<i class="nb">${n > 99 ? '99+' : n}</i>` : ''; }
+  if (g === 'today') { const n = (S().drafts || 0) + (S().held || 0) + statusNow().reasons.length; return n ? `<i class="nb warn">${n > 99 ? '99+' : n}</i>` : ''; }
   if (g === 'system') { const n = failingChecks().length + (((D.pipeline || {}).queue || {}).failed || 0); return n ? `<i class="nb warn">${n}</i>` : ''; }
   return '';
 }
@@ -986,7 +1050,13 @@ function nav() {
   $('#nav').innerHTML = GROUPS.map(g => `<a href="#/${g.pages[0][0]}" data-g="${g.id}" class="g">${icon(g.icon)}<span>${g.label}</span>${badgeFor(g.id)}</a>` +
     (g.pages.length > 1 ? `<div class="kids" data-kids="${g.id}">${g.pages.map(([id, l, ic]) => `<a href="#/${id}" data-p="${id}">${icon(ic)}<span>${l}</span></a>`).join('')}</div>` : '')).join('');
   $('#tabs').innerHTML = GROUPS.map(g => `<a href="#/${g.pages[0][0]}" data-t="${g.id}">${icon(g.icon)}<span>${g.label}</span>${badgeFor(g.id)}</a>`).join('');
-  markNav();
+  markNav(); syncBadges();
+}
+// the document title and the installed app's icon badge carry the number of links still to submit
+function syncBadges() {
+  const n = D ? subLeft() : 0;
+  document.title = (n ? `(${n}) ` : '') + (PAGES[PAGE] || PAGES.submit).label + ' · Clip Engine';
+  try { if (n && navigator.setAppBadge) navigator.setAppBadge(n).catch(() => { }); else if (navigator.clearAppBadge) navigator.clearAppBadge().catch(() => { }); } catch (e) { }
 }
 function markNav() {
   const g = groupOf(PAGE), G = GROUPS.find(x => x.id === g);
@@ -996,15 +1066,15 @@ function markNav() {
   $$('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.t === g));
 }
 function route() {
-  let p = (location.hash || '#/today').replace(/^#\/?/, '').split('/')[0] || 'today';
+  let p = (location.hash || '#/submit').replace(/^#\/?/, '').split('/')[0] || 'submit';
   if (ALIAS[p]) p = ALIAS[p];
-  if (!PAGES[p]) p = 'today';
+  if (!PAGES[p]) p = 'submit';
   PAGE = p;
   const g = groupOf(p), G = GROUPS.find(x => x.id === g);
   markNav();
   $('#title').textContent = PAGES[p].label;
   $('#crumb').textContent = G.pages.length > 1 && p !== G.pages[0][0] ? G.label : '';
-  document.title = PAGES[p].label + ' · Clip Engine';
+  syncBadges();
   subBar(p, g);
   closeSheet();
   if (routed) FX?.warp();
@@ -1043,7 +1113,7 @@ function render(soft = false) {
     return;
   }
   if (!soft) { el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; }
-  try { (PAGE_FN[PAGE] || pageToday)(el); }
+  try { (PAGE_FN[PAGE] || pageSubmit)(el); }
   catch (err) { console.error(err); el.innerHTML = `<div class="card"><b>Could not draw this page.</b><div class="note">${esc(err.message)}</div></div>`; }
   if (!soft) countAll(el);
   tickCD();
@@ -1268,6 +1338,144 @@ function reelDrag() {
   r.addEventListener('click', (e) => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
 }
 
+// ===================================================================== SUBMIT (the owner's daily chore: paste each new TikTok link on the campaign page)
+// Ticks live in this browser (localStorage 'ce.submitted' = { link: time marked }); a link the database already marks submitted never arrives here.
+const subDone = () => { const m = store.get('submitted', {}); return m && typeof m === 'object' && !Array.isArray(m) ? m : {}; };
+const isDone = (u) => !!subDone()[u];
+const subLinks = () => ((D && D.todo && D.todo.submit) || []).filter(x => x && x.url).slice().sort((a, b) => (tms(a.created) || 0) - (tms(b.created) || 0));
+const subLeft = () => subLinks().filter(x => !isDone(x.url)).length;
+function setDone(urls, on) {
+  const m = subDone(); urls.forEach(u => { if (on) m[u] = Date.now(); else delete m[u]; });
+  store.set('submitted', m); nav(); if (PAGE === 'submit') render(true);
+}
+function subGroups() {
+  const by = new Map(), cmp = new Map((D.campaigns || []).map(c => [c.name, c]));
+  subLinks().forEach(x => { const k = x.campaign || 'Other links'; if (!by.has(k)) by.set(k, []); by.get(k).push(x); });
+  const gs = [...by].map(([name, links]) => { const c = cmp.get(name) || {};
+    return { name, links, pending: links.filter(x => !isDone(x.url)), page: c.url || links.map(x => x.page).find(Boolean) || '' }; });
+  gs.sort((a, b) => (b.pending.length > 0) - (a.pending.length > 0) || a.name.localeCompare(b.name));   // stable: cards do not jump while you tap
+  return gs;
+}
+// copy that reports whether it worked; the clipboard call runs inside the tap, as iOS requires
+function copyP(text) {
+  return new Promise((res) => {
+    const fb = () => { const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select();
+      let r = false; try { r = document.execCommand('copy'); } catch (e) { } ta.remove(); res(r); };
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(() => res(true), fb); else fb();
+  });
+}
+function subRow(x) {
+  const on = isDone(x.url);
+  return `<div class="lrow ${on ? 'on' : ''}"><button class="ck" type="button" data-subtoggle="${esc(x.url)}" aria-pressed="${on}" aria-label="${on ? 'Submitted: tap to undo' : 'Mark as submitted'}"><i>${icon('check')}</i></button>
+    <div class="lb"><div class="lt">${pchip(x.platform)}<span>@${esc(x.account || 'default')}</span></div>
+      <div class="ls">${esc(fDate(x.created))} ${esc(fTime(x.created))} · ${num(x.views || 0)} views · ${esc(x.title || '')}</div></div>
+    <button class="btn sm icon" type="button" data-copy="${esc(x.url)}" data-copied="Link copied" aria-label="Copy this link only" title="Copy this link only">${icon('copy', 15)}</button></div>`;
+}
+function subCard(g) {
+  const total = g.links.length, left = g.pending.length, did = total - left;
+  return `<div class="card subcard ${left ? '' : 'done'}" data-subcamp="${esc(g.name)}">
+    <div class="sub-top"><h3>${icon('camp')}<span>${esc(g.name)}</span></h3>${left ? `<span class="badge acc">${plural(left, 'link')} to submit</span>` : '<span class="badge good">all submitted</span>'}</div>
+    ${left ? `<button class="btn primary big" type="button" data-subnext>${icon('copy')}Copy next link</button><div class="leftn" data-left><b>${left} of ${total}</b> left</div>` : ''}
+    <div class="acts"><button class="btn" type="button" data-suball ${left ? '' : 'disabled'}>${icon('copy', 16)}Copy all${left ? ' ' + left : ''}</button>
+      ${g.page ? `<a class="btn" href="${esc(g.page)}" target="_blank" rel="noopener">${icon('ext', 16)}Open campaign page</a>` : `<span class="btn ghost" aria-disabled="true" title="No campaign link in the brief">${icon('ext', 16)}No campaign link</span>`}</div>
+    <div class="acts minor" style="margin:-6px 0 12px"><button class="btn sm ghost" type="button" data-subundo ${did ? '' : 'disabled'}>Undo last</button>${left > 1 ? '<button class="btn sm ghost" type="button" data-suballdone>Mark all submitted</button>' : ''}</div>
+    <div class="lrows">${g.links.map(subRow).join('')}</div></div>`;
+}
+function pageSubmit(el) {
+  const gs = subGroups(), left = subLeft(), a = A(), next = tms(a.next_run);
+  const done = store.get('submitted', {}); const known = new Set(subLinks().map(x => x.url));   // forget ticks of links that left the list long ago
+  const old = Object.keys(done).filter(u => !known.has(u) && Date.now() - done[u] > 45 * 864e5); if (old.length) { old.forEach(u => delete done[u]); store.set('submitted', done); }
+  el.innerHTML = banners() + statusStrip(true)
+    + head('Submit · the 2-minute chore', left ? `${plural(left, 'link')} to submit` : 'All caught up',
+        'Tap Copy next link, paste it into the campaign’s submit box on Content Rewards, repeat. Your ticks are saved on this device.',
+        ok(next) ? `<span class="chip">${icon('clock', 13)}next run in <b data-cd="${next}" style="margin-left:4px">${esc(dur((next - Date.now()) / 1000))}</b></span>` : '')
+    + (left > 25 ? `<div class="banner warn">${icon('info')}<span><b>${num(left)} links waiting.</b> If you already submitted the older ones, tap <b>Mark all submitted</b> on a campaign and only new posts will show up.</span></div>` : '')
+    + (left ? '' : `<div class="card caught"><div class="big-ok">${icon('check')}</div><h2>All caught up</h2>
+        <p>${subLinks().length ? 'Every posted link is marked submitted.' : 'Nothing posted is waiting to be submitted.'} ${ok(next) ? `The next run is in <span class="cdn" data-cd="${next}" style="font:700 17px var(--mono);color:var(--ink)">${esc(dur((next - Date.now()) / 1000))}</span> (${esc(fDT(a.next_run))}).` : a.enabled ? 'The next run happens by itself.' : 'Autopilot is off.'}</p></div>`)
+    + gs.map(subCard).join('')
+    + howto('submit', `<ul><li><b>Copy next link</b> copies the oldest link you have not submitted and ticks it off. Paste it into the submit box on the campaign page, then come back and tap again.</li>
+      <li><b>Copy all</b> copies every remaining link, one per line, without ticking them. <b>Undo last</b> or tapping a circle un-ticks a link.</li>
+      <li>Ticks are saved in this browser only. A link disappears for good once the database marks it submitted (<span class="mono">python pipeline.py submitted all</span>).</li></ul>`);
+}
+document.addEventListener('click', async (e) => {
+  const t = e.target.closest('[data-subnext],[data-suball],[data-subundo],[data-suballdone],[data-subtoggle]'); if (!t || !D) return;
+  const card = t.closest('.subcard'), g = card && subGroups().find(x => x.name === card.dataset.subcamp); if (!g) return;
+  e.preventDefault();
+  if (t.hasAttribute('data-subtoggle')) { const u = t.dataset.subtoggle; setDone([u], !isDone(u)); return; }
+  if (t.hasAttribute('data-subnext')) {
+    const nx = g.pending[0]; if (!nx) return;
+    const total = g.links.length, left = g.pending.length - 1;
+    const okc = await copyP(nx.url); setDone([nx.url], true);
+    toast(okc ? `Link copied · ${left} of ${total} left` : 'Marked, but copy was blocked: use the copy button on the row', okc ? 2200 : 4000); return;
+  }
+  if (t.hasAttribute('data-suball')) { if (!g.pending.length) return; const okc = await copyP(g.pending.map(x => x.url).join('\n')); toast(okc ? `${plural(g.pending.length, 'link')} copied` : 'Copy was blocked by the browser'); return; }
+  if (t.hasAttribute('data-subundo')) {
+    const m = subDone(), last = g.links.filter(x => m[x.url]).sort((x, y) => m[y.url] - m[x.url])[0]; if (!last) return;
+    setDone([last.url], false); toast('Undone'); return;
+  }
+  if (t.hasAttribute('data-suballdone')) {   // two taps: the first only arms the button
+    if (!t.classList.contains('armed')) { t.classList.add('armed'); t.textContent = `Tap again: mark ${g.pending.length} submitted`; clearTimeout(t._t); t._t = setTimeout(() => { t.classList.remove('armed'); t.textContent = 'Mark all submitted'; }, 3500); return; }
+    setDone(g.pending.map(x => x.url), true); toast(`${plural(g.pending.length, 'link')} marked submitted`);
+  }
+});
+
+// ===================================================================== status light, content supply, account health (v2.3)
+// The run-age rule is re-judged on every view from the clock; every other reason is as the dashboard was built.
+function statusNow() {
+  const st = D && D.status || {}, run = st.run || {}, a = A();
+  let rs = (st.reasons || []).filter(r => r.code !== 'stale_run');
+  const fin = tms(run.finished || a.last?.finished), every = run.every_hours || a.every_hours || 6;
+  if ((run.enabled ?? a.enabled) && ok(fin)) {
+    const h = (Date.now() - fin) / 3600e3;
+    if (h > every * 1.5) rs.unshift({ level: 'red', code: 'stale_run', text: `Autopilot hasn't run for ${Math.round(h)}h — restart`, page: 'jobs', action: { label: 'Open GitHub Actions', url: run.actions_url || ACTIONS_URL } });
+  }
+  rs.sort((x, y) => (x.level === 'red' ? 0 : 1) - (y.level === 'red' ? 0 : 1));
+  return { level: rs.some(r => r.level === 'red') ? 'red' : rs.length ? 'amber' : 'green', reasons: rs };
+}
+const ACTIONS_URL = 'https://github.com/demetrades2000-coder/nq-dashboard/actions/workflows/clipper-cloud.yml';
+function statusStrip(compact = false) {
+  if (!D) return '';
+  const st = statusNow(), rs = st.reasons, top = rs[0], a = A(), next = tms(a.next_run);
+  const sub = top ? '' : `Last run ${a.last?.finished ? esc(ago(a.last.finished)) : '—'}${ok(next) && next > Date.now() ? ` · next in <span data-cd="${next}">${esc(dur((next - Date.now()) / 1000))}</span>` : ''}`;
+  const act = top?.action ? `<a class="btn sm" href="${esc(top.action.url)}" target="_blank" rel="noopener">${icon('ext', 14)}${esc(top.action.label)}</a>` : top?.page && !compact ? `<button class="btn sm ghost" type="button" data-go="${esc(top.page)}">Open</button>` : '';
+  const more = compact && rs.length ? `<button class="btn sm ghost" type="button" data-go="today">${rs.length > 1 ? `+${rs.length - 1} more` : 'Details'}</button>` : '';
+  return `<div class="sstrip ${st.level}" role="status" data-level="${st.level}"><span class="sdot"></span><div class="stx"><b>${esc(top ? top.text : 'Everything is running')}</b>${sub ? `<small>${sub}</small>` : ''}
+    ${!compact && rs.length > 1 ? `<div class="srs">${rs.slice(1).map(r => `<div class="sr ${r.level}"><i></i><span>${esc(r.text)}</span>${r.action ? `<a class="btn sm" href="${esc(r.action.url)}" target="_blank" rel="noopener">${esc(r.action.label)}</a>` : r.page ? `<button class="btn sm ghost" type="button" data-go="${esc(r.page)}">Open</button>` : ''}</div>`).join('')}</div>` : ''}</div>
+    ${act || more ? `<div class="sa">${act}${more}</div>` : ''}</div>`;
+}
+const SUP = () => D.supply || {};
+function supplyCard() {
+  const s = SUP(), lvl = s.level || 'none', d = s.days_left, ds = !ok(d) ? '—' : d >= 10 ? String(Math.round(d)) : String(+(+d).toFixed(1));
+  const big = lvl === 'none' ? `<div class="sbig mut">—<small> days left</small></div><div class="ssub">Appears once the autopilot has posted or accounts are connected.</div>`
+    : !s.total ? `<div class="sbig bad">Out of content</div><div class="ssub">Nothing approved is waiting to be posted.</div>`
+    : `<div class="sbig ${lvl}">≈ ${ds} <small>day${+ds === 1 ? '' : 's'} of content left</small></div><div class="ssub">${num(s.total)} clips ready at about ${num(s.per_day, 1)} posts a day (${s.pace_source === 'history' ? 'pace of the last 3 days' : 'the daily caps'}).</div>`;
+  return `<div class="card"><div class="card-h"><h3>${icon('layers')}Content supply</h3>${lvl === 'bad' ? '<span class="badge bad">running out</span>' : lvl === 'warn' ? '<span class="badge warn">getting low</span>' : lvl === 'good' ? '<span class="badge good">enough</span>' : ''}</div>
+    <div class="sup"><div>${big}${lvl === 'none' ? '' : `<div class="meter ${lvl === 'good' ? 'good' : lvl}" style="margin-top:12px"><i style="width:${clamp((+d || 0) / 7 * 100, s.total ? 3 : 0, 100).toFixed(0)}%"></i></div><div class="ssub mono" style="margin-top:4px">amber under 3 days · red under 1</div>`}</div>
+      <div class="kv2"><div><span>Video clips</span><b>${num(s.video || 0)}</b></div><div><span>Slideshows</span><b>${num(s.slideshow || 0)}</b></div>
+        <div><span>Posting pace</span><b>${num(s.per_day || 0, 1)}<i style="font-style:normal;font-size:12px;color:var(--muted)"> /day</i></b></div>
+        <div><span>${ok(s.decks_available) ? 'Slideshow decks' : 'Approved total'}</span><b>${ok(s.decks_available) ? num(s.decks_available) : num(s.total || 0)}</b></div></div></div>
+    <div class="note">${esc(s.refill || '')}${s.note ? ` <b>${esc(s.note)}</b>` : ''}</div></div>`;
+}
+function healthBlock(x) {
+  const h = x.health || {};
+  if (h.state === 'limited') return `<div class="hchip limited"><b>Possibly limited.</b> ${esc(String(h.note || '').replace(/^Possibly limited: /, '').replace(/^./, (c) => c.toUpperCase()))}</div>`;
+  if (h.state === 'no_posts') return `<div class="hchip">${icon('clock', 14)} <b style="color:var(--ink-2)">No posts yet.</b> ${esc(h.note || '')}</div>`;
+  return '';
+}
+const healthChip = (x) => { const s = (x.health || {}).state; return s === 'limited' ? `<span class="chip warn">${icon('alert', 13)}possibly limited</span>` : s === 'no_posts' ? `<span class="chip">${icon('clock', 13)}no posts yet</span>` : ''; };
+// how close each campaign is to its first payout: one post has to pass the minimum on its own
+function trackerCard() {
+  const C = (D.campaigns || []).filter(c => c.payout && c.payout.views_to_min > 0 && c.cpm > 0);
+  if (!C.length) return '';
+  const row = (label, v, need) => { const f = clamp(v / need, 0, 1), got = v >= need;
+    return `<div class="trk"><div class="tl2"><span>${label}</span><b class="mono">${num(v)} / ${num(need)} views</b></div><div class="meter ${got ? 'good' : f > .5 ? '' : 'warn'}"><i style="width:${(100 * Math.max(f, v ? .02 : 0)).toFixed(1)}%"></i></div></div>`; };
+  return `<div class="card"><div class="card-h"><h3>${icon('target')}How close are we to the first payout</h3><span class="chip warn">${icon('info', 13)}a post counts on its own</span></div>
+    ${C.map(c => { const p = c.payout, need = p.views_to_min, best = p.best_views || 0, tot = p.total_views || 0;
+      return `<div class="trkc"><h4>${esc(c.name)}</h4><div class="meta2">${moneyHidden() ? '' : `${usd(p.min_payout)} minimum ÷ ${usd(c.cpm)} per 1K views = `}${num(need)} views needed on a single post${p.posts_paying ? ` · <span class="up">${plural(p.posts_paying, 'post')} already over</span>` : ''}</div>
+        ${row('Best post so far', best, need)}${row('All posts together', tot, need)}
+        <div class="note" style="margin-top:8px">${best >= need ? 'The best post has passed the minimum, so it pays.' : `The best post needs ${num(need - best)} more views.`} ${tot >= need && best < need ? 'The total is over the line, but views from different posts do not add up: ' : ''}A post only counts once it passes the minimum by itself.</div></div>`; }).join('')}</div>`;
+}
+
 // ===================================================================== TODAY
 function cycleSteps() {
   const j = runningJob(), steps = ['Fetch', 'Transcribe', 'Select', 'Render', 'Post'];
@@ -1278,7 +1486,7 @@ function headline() {
   const a = A(), s = S(), err = (a.last?.upload_errors || 0) + (a.errors || []).length, j = runningJob();
   if (!a.enabled) return ['Autopilot is off', 'Nothing posts until you turn it on (python pipeline.py autopilot on).'];
   if (err) return [`Last cycle had ${plural(err, 'error')}`, 'Check the alerts below: uploads that failed are retried on the next cycle.'];
-  if (s.to_submit) return [`${plural(s.to_submit, 'link')} ready to submit`, 'Paste them on the campaign pages so the views count.'];
+  if (subLeft()) return [`${plural(subLeft(), 'link')} ready to submit`, 'Open the Submit tab: paste them on the campaign pages so the views count.'];
   if (j) return [`Working: ${esc((STATUS[j.status] || [j.status])[0])}`, esc(j.title || j.input || '')];
   if (s.held) return [`${plural(s.held, 'clip')} held for you`, 'Review them, or the autopilot keeps going with the rest.'];
   return ['All caught up', `Posting ${s.posts_7d ? plural(s.posts_7d, 'clip') + ' a week' : 'on schedule'}; the next cycle runs by itself.`];
@@ -1290,7 +1498,7 @@ function pageToday(el) {
   const goal = goalTarget(), mnet = monthNet(), gfrac = goal && ok(mnet) ? mnet / goal : 0;
   const plat = (a.platforms || []).map(pname).join(', ') || '—';
   const byp = E().by_platform || {}, plist = Object.keys(byp).sort((x, y) => (byp[y].views || 0) - (byp[x].views || 0));
-  el.innerHTML = banners() + `
+  el.innerHTML = banners() + statusStrip() + `
     <div class="card hero-card"><div class="hero3d" id="tdOrb">${reelHTML()}
         <span class="hero-tag">${icon('bolt')}CLIP REEL · latest ${Math.min(14, CLIPS().length)} clips</span>${s.views_24h ? `<span class="hero-tag r">${icon('long')}+${kfmt(s.views_24h)} today</span>` : ''}</div>
       <div class="state">
@@ -1319,6 +1527,7 @@ function pageToday(el) {
       ${statBox('Posting streak', `${num(AN().streak?.current || 0)} d`, `best ${num(AN().streak?.best || 0)} days`, AN().streak?.current ? 'up' : '', spark((AN().calendar || []).slice(-30).map(r => r.posts ? 1 : 0), { bars: true, color: 'var(--warn)' }), 'flame')}
     </div>
     ${agencyLine()}
+    ${supplyCard()}
     ${todoCard()}
     ${upNextCard(true)}
     <div class="grid g12">
@@ -1366,10 +1575,8 @@ function pipeHTML() {
 function todoCard() {
   const t = D.todo || {}, n = { submit: (t.submit || []).length, drafts: (t.drafts || []).length, held: (t.held || []).length };
   let k = store.get('todoTab', 'submit'); if (!n[k]) k = ['submit', 'drafts', 'held'].find(x => n[x]) || 'submit';
-  return `<div class="card"><div class="card-h"><h3>${icon('check')}To do</h3>${segHTML('todoSeg', [['submit', `Submit <i>${n.submit}</i>`], ['drafts', `TikTok drafts <i>${n.drafts}</i>`], ['held', `Held <i>${n.held}</i>`]], k, 'sm')}</div><div id="todoBody">${todoBody(k)}</div></div>`;
+  return `<div class="card"><div class="card-h"><h3>${icon('check')}To do</h3>${segHTML('todoSeg', [['submit', `Submit <i>${subLeft()}</i>`], ['drafts', `TikTok drafts <i>${n.drafts}</i>`], ['held', `Held <i>${n.held}</i>`]], k, 'sm')}</div><div id="todoBody">${todoBody(k)}</div></div>`;
 }
-const TODO_N = { n: 6 };
-document.addEventListener('click', (e) => { if (e.target.closest('#todoMore')) { TODO_N.n = 999; $('#todoBody').innerHTML = todoBody('submit'); } });
 function todoBody(k) {
   const t = D.todo || {};
   if (k === 'drafts') {
@@ -1381,11 +1588,8 @@ function todoBody(k) {
     const h = t.held || [];
     return h.length ? `<div class="card-d">Held back by the autopilot. Review them with <span class="mono">python pipeline.py review</span>.</div><div class="list">${h.map(x => { const c = clipById(x.id); return `<button class="item" type="button" data-clip="${esc(x.id)}" style="text-align:left;color:inherit;width:100%">${c ? `<span class="chip" style="--sc:${scoreCol(c.score)}">${num(c.score, 0)}</span>` : ''}<span class="grow"><span class="t" style="display:block">#${esc(x.id)} ${esc(x.title)}</span><span class="s" style="display:block">${esc(x.reason || 'waiting for review')}</span></span>${icon('right', 16)}</button>`; }).join('')}</div>` : emptyBox('Nothing held.', 'Clips under the minimum score or with a flag wait here for you.');
   }
-  const s = t.submit || [];
-  return s.length ? `<div class="toolbar" style="margin:0 0 12px"><span class="card-d" style="margin:0;flex:1 1 220px">Paste these on the campaign pages so the views count. Then run <span class="mono">python pipeline.py submitted all</span>.</span>
-      <button class="btn primary sm" type="button" data-copy="${esc(s.map(x => x.url).join('\n'))}" data-copied="${s.length} links copied">${icon('copy', 15)}Copy all ${s.length}</button></div>
-    <div class="list">${s.slice(0, TODO_N.n).map(x => `<div class="item">${pchip(x.platform)}<div class="grow"><button class="t linkbtn" type="button" data-clip="${esc(x.clip_id)}" style="display:block;max-width:100%;text-align:left;color:var(--ink);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">#${esc(x.clip_id)} ${esc(x.title)}</button><div class="s mono">${esc(x.url)}</div></div>
-      <button class="btn sm icon" type="button" data-copy="${esc(x.url)}" data-copied="Link copied" title="Copy link" aria-label="Copy link">${icon('copy', 15)}</button>${x.page ? `<a class="btn sm" href="${esc(x.page)}" target="_blank" rel="noopener" title="Open the campaign page">${icon('ext', 15)}<span class="hide-sm">Campaign</span></a>` : ''}</div>`).join('')}</div>${s.length > TODO_N.n ? `<div class="more" style="margin:12px 0 0"><button class="btn ghost sm" type="button" id="todoMore">Show all ${s.length} links</button></div>` : ''}`
+  const n = subLeft();
+  return n ? `<div class="item"><div class="grow"><div class="t">${plural(n, 'link')} to submit</div><div class="s">One tap per link on the Submit tab; ticks are saved on this device.</div></div><button class="btn primary sm" type="button" data-go="submit">${icon('submit', 15)}Open Submit</button></div>`
     : emptyBox('Nothing to submit.', 'New links show up here after each cycle.');
 }
 function alertsList() {
@@ -1557,6 +1761,7 @@ function pageEarnings(el) {
       <div class="card"><div class="card-h"><h3>${icon('camp')}By campaign</h3><button class="chipbtn" type="button" data-go="campaigns"><span>Campaigns</span>${icon('right')}</button></div>${byCampaign()}</div>
       <div class="card"><div class="card-h"><h3>${icon('trophy')}Top posts</h3><span class="meta">by views</span></div>${topPosts()}</div>
     </div>
+    ${trackerCard()}
     ${payoutCard()}
     ${projection()}`;
   const draw = () => {
@@ -1730,14 +1935,16 @@ function pageAccounts(el) {
   el.innerHTML = banners() + head('Money · accounts', L.length ? `${plural(L.length, 'posting account')}` : 'No posting accounts yet',
       'Every account the autopilot posts to. A campaign can use several accounts on one platform; each clip goes to exactly one of them, never twice, and every account keeps its own daily cap.')
     + `<div class="stats">
-        ${statBox('Accounts', L.length, `${num(nSt('posting'))} posting · ${num(nSt('at_cap'))} at cap${nSt('error') ? ` · ${num(nSt('error'))} error` : ''}`, '', '', 'users')}
+        ${statBox('Accounts', L.length, `${num(nSt('posting'))} posting · ${num(nSt('at_cap'))} at cap${nSt('error') ? ` · ${num(nSt('error'))} error` : ''}${L.some(x => (x.health || {}).state === 'limited') ? ` · ${num(L.filter(x => (x.health || {}).state === 'limited').length)} possibly limited` : ''}`, '', '', 'users')}
         ${statBox('Posts today', today, `of ${num(capTot)} allowed across all accounts`, '', `<div class="meter sm" style="margin-top:8px"><i style="width:${capTot ? clamp(100 * today / capTot, 2, 100).toFixed(0) : 0}%"></i></div>`, 'send')}
         ${statBox('Views · 7 days', kfmt(v7), `${num(sum(L, x => x.posts_7d))} posts this week`, v7 ? 'up' : '', '', 'eye')}
         ${statBox('Top account', best && best.views_7d ? '@' + esc(best.name) : '—', best && best.views_7d ? `${esc(pname(best.platform))} · +${kfmt(best.views_7d)} views in 7 d` : 'no views this week yet', '', '', 'trophy')}
       </div>
     ${howto('accounts', `<ul><li><b>Today / cap</b>: posts made today (every attempt counts, like the autopilot counts them) against the daily cap per account: the setting <span class="mono">autopilot.max_per_day</span>, never above the platform’s own limit (TikTok: 15 a day).</li>
       <li><b>Status</b>: <b>posting</b> = posted recently and has room today, <b>at daily cap</b> = the next clips wait for tomorrow, <b>idle</b> = no post in the last day, <b>error</b> = an upload failed or an error mentioned the account in the last 24 h.</li>
+      <li><b>Possibly limited</b>: at least 4 live posts and the median views of the last 4 posts (each at least a day old) is under 100, or views stayed flat across a week of posting. <b>No posts yet</b>: connected but nothing posted.</li>
       <li><b>Views 7 d</b>: views gained in the last 7 days (from the tracker’s view history). <b>Est. net</b>: views × the campaign’s rate after fees, caps and minimums.</li></ul>`)}
+    ${supplyCard()}
     ${upNextCard()}
     ${L.length ? `<div class="card"><div class="card-h"><h3>${icon('trophy')}Leaderboard</h3>${segHTML('alK', [['views_7d', 'Views 7 d'], ['avg_views', 'Avg'], ['engagement', 'Eng.'], ['net', 'Net']], AL.k, 'sm')}</div><div id="alB">${accBoard()}</div></div>` : ''}
     ${secH('Accounts', `<em>${plural(L.length, 'account')}</em>`)}
@@ -1755,14 +1962,14 @@ function accBoard() {
 }
 function accCard(x) {
   const frac = x.cap ? clamp(x.today / x.cap, 0, 1) : 0, days = (x.daily_views || []).length;
-  return `<div class="card acard" style="--c:${pcol(x.platform)}"><div class="card-h"><h3><i class="pdot"></i><span>@${esc(x.name)}</span></h3>${accChip(x.status)}</div>
+  return `<div class="card acard" style="--c:${pcol(x.platform)}"><div class="card-h"><h3><i class="pdot"></i><span>@${esc(x.name)}</span></h3><div>${healthChip(x)}${accChip(x.status)}</div></div>
     <div class="chips" style="margin-bottom:12px">${pchip(x.platform)}${(x.campaigns || []).map(c => `<span class="chip">${icon('camp', 13)}${esc(c)}</span>`).join('')}${x.slideshows ? `<span class="chip">${icon('slides', 13)}${plural(x.slideshows, 'slideshow')}</span>` : ''}</div>
     <div class="capl"><span>Posts today</span><b>${num(x.today)}<i> / ${num(x.cap)} cap</i></b></div>
     <div class="meter ${x.today >= x.cap ? 'warn' : 'good'}"><i style="width:${(100 * Math.max(frac, x.today ? .03 : 0)).toFixed(1)}%"></i></div>
     <div class="nums">${nbox('Posts 7 d', num(x.posts_7d || 0))}${nbox('Views', kfmt(x.views || 0))}${nbox('Views 7 d', '+' + kfmt(x.views_7d || 0))}${nbox('Avg / post', kfmt(x.avg_views || 0))}
       ${nbox('Likes', kfmt(x.likes || 0))}${nbox('Engagement', pct(x.engagement || 0))}${nbox('Est. net', usd(x.net))}${nbox('Last post', x.last_post ? esc(ago(x.last_post)) : '—')}</div>
     ${spark(x.daily_views || [], { color: phex(x.platform), bars: true })}<div class="spl"><span>views a day · last ${num(days)} days</span><span>${kfmt((x.daily_views || [])[days - 1] || 0)} today</span></div>
-    ${x.status_note ? `<div class="anote">${x.status === 'error' ? `<span class="dn">${icon('alert', 14)}</span> ` : ''}${esc(x.status_note)}</div>` : ''}</div>`;
+    ${x.status_note ? `<div class="anote">${x.status === 'error' ? `<span class="dn">${icon('alert', 14)}</span> ` : ''}${esc(x.status_note)}</div>` : ''}${healthBlock(x)}</div>`;
 }
 
 // campaign rules: the brief's own requirements, judged on what was posted
@@ -1874,7 +2081,7 @@ function pageSettings(el) {
   $('#sHow').onclick = () => { try { Object.keys(localStorage).filter(k => k.startsWith('ce.howto.')).forEach(k => localStorage.removeItem(k)); } catch (e) { } toast('Notes closed'); };
 }
 function applyLook() { const r = document.documentElement; r.dataset.accent = store.get('accent', 'indigo'); r.dataset.motion = store.get('motion', true) ? 'on' : 'off'; FX?.retheme?.(); if (r.classList.contains('bg2on') && !BG.raf) BG.raf = requestAnimationFrame(bgFrame); }
-const PAGE_FN = { today: pageToday, clips: pageClips, analytics: pageAnalytics, earnings: pageEarnings, campaigns: pageCampaigns, accounts: pageAccounts, jobs: pageJobs, activity: pageActivity, settings: pageSettings };
+const PAGE_FN = { submit: pageSubmit, today: pageToday, clips: pageClips, analytics: pageAnalytics, earnings: pageEarnings, campaigns: pageCampaigns, accounts: pageAccounts, jobs: pageJobs, activity: pageActivity, settings: pageSettings };
 
 // ===================================================================== top bar status + data loading (hosted: data.json every 60 s; from disk: the copy the PC built)
 function status() {

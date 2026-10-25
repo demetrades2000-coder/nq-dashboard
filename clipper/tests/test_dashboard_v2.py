@@ -192,7 +192,7 @@ class ContractDemoTests(unittest.TestCase):
         check(self, d, SPEC)
         for k in ("clips", "posts", "views", "likes", "to_submit", "drafts", "held", "views_7d", "posts_7d"):
             self.assertGreater(d["stats"][k], 0, k)
-        self.assertEqual(d["stats"]["to_submit"], 2)
+        self.assertEqual(d["stats"]["to_submit"], 6)
         self.assertEqual(d["stats"]["drafts"], 1)
         self.assertGreaterEqual(d["stats"]["held"], 1)
         self.assertGreaterEqual(d["stats"]["views_7d"], d["stats"]["views_24h"])

@@ -99,7 +99,7 @@ class PublishTests(unittest.TestCase):
         files = dashboard.site_files(d)
         self.assertNotIn('"net": 0', files["data.json"].decode())
         man = json.loads(files["manifest.webmanifest"])
-        self.assertEqual(man["start_url"], "./#/today")
+        self.assertEqual(man["start_url"], "./#/submit")
 
     def test_publish_url(self):
         self.assertEqual(pl.publish_url(self.ws), "https://me.github.io/site/")

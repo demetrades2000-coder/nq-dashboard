@@ -437,7 +437,7 @@ def campaign_checks(c: dict, cu: list, clips: list, now_dt: dt.datetime) -> list
 
 
 EMPTY_PAYOUT = {"min_payout": 0.0, "views_to_min": 0, "cap": 0.0, "views_to_cap": 0, "posts": 0, "posts_paying": 0,
-                "posts_at_cap": 0}
+                "posts_at_cap": 0, "best_views": 0, "total_views": 0}
 
 
 def _safe(fn, default):
@@ -459,7 +459,8 @@ def campaign_payout(c: dict, cu: list) -> dict:
     views = [int(u["views"] or 0) for u in cu]
     return {"min_payout": mn, "views_to_min": need, "cap": cap, "views_to_cap": to_cap,
             "posts": len(views), "posts_paying": sum(1 for v in views if v >= max(need, 1)) if cpm else 0,
-            "posts_at_cap": sum(1 for v in views if to_cap and v >= to_cap)}
+            "posts_at_cap": sum(1 for v in views if to_cap and v >= to_cap),
+            "best_views": max(views, default=0), "total_views": sum(views)}
 
 
 # ---------------------------------------------------------------- agency: live checks + discovered leads (v2.2)
@@ -595,6 +596,44 @@ class PathSet(set):
         return bool(p) and super().__contains__(_norm_path(p))
 
 
+LIMITED_MEDIAN_VIEWS = 100      # median views of an account's last 4 posts under this = possibly limited
+LIMITED_MIN_AGE_H = 24          # a post younger than this hasn't had time to collect views: it isn't judged
+LIMITED_EXPLAIN = "New accounts often get little reach for the first days. Keep posting; don't delete the account."
+
+
+def _median(vals: list) -> float | None:
+    v = sorted(vals)
+    if not v:
+        return None
+    m = len(v) // 2
+    return float(v[m]) if len(v) % 2 else (v[m - 1] + v[m]) / 2
+
+
+def account_health(mine: list, posts_7d: int, has_history: bool, views_7d: int, now_dt: dt.datetime) -> dict:
+    """Is this TikTok account getting reach? `mine` = its uploads that went out (failed ones excluded).
+    state: no_posts (connected, nothing posted yet) | limited (>= 4 live posts and the median views of the last 4 posts
+    that are at least a day old is under 100, or views stayed flat across a week of posting) | early (posts, but too few
+    old enough to judge) | ok. Never raises on missing fields."""
+    live = [u for u in mine if u.get("state") == "live" or u.get("url")]
+    if not mine:
+        return {"state": "no_posts", "median_last4": None,
+                "note": "Connected, but nothing posted yet. The next run should post here."}
+    old = sorted((u for u in live if u.get("_t") and u["_t"] <= now_dt - dt.timedelta(hours=LIMITED_MIN_AGE_H)),
+                 key=lambda u: u["_t"], reverse=True)
+    last4 = old[:4]
+    med = _median([int(u["views"] or 0) for u in last4]) if len(last4) == 4 else None
+    if len(live) >= 4 and med is not None and med < LIMITED_MEDIAN_VIEWS:
+        return {"state": "limited", "median_last4": int(med),
+                "note": f"Possibly limited: the last 4 posts got a median of {int(med)} views. {LIMITED_EXPLAIN}"}
+    if has_history and len(live) >= 4 and len(old) >= 2 and posts_7d >= 3 and views_7d <= 5:
+        return {"state": "limited", "median_last4": None if med is None else int(med),
+                "note": f"Possibly limited: views stayed flat across {posts_7d} posts this week. {LIMITED_EXPLAIN}"}
+    if med is None:
+        return {"state": "early", "median_last4": None,
+                "note": "Too early to tell: fewer than 4 posts are a day old yet."}
+    return {"state": "ok", "median_last4": int(med), "note": f"Reach looks normal (median {int(med):,} views on the last 4 posts)."}
+
+
 def accounts_detail(ws, uploads: list, camps: dict, auto_files: set, eposts_by_url: dict, events: list,
                     now_dt: dt.datetime, cap_setting: int, every: int) -> list[dict]:
     today = now_dt.date().isoformat()
@@ -644,6 +683,7 @@ def accounts_detail(ws, uploads: list, camps: dict, auto_files: set, eposts_by_u
             status, note = "posting", f"{cap - today_n} slot{'s' if cap - today_n != 1 else ''} left today"
         else:
             status, note = "idle", "no post in the last day" if mine else "nothing posted yet"
+        posts_7d = sum(1 for u in mine if u["_t"] and u["_t"] >= t7)
         out.append({"platform": p, "name": a, "campaigns": sorted(x for x in meta["campaigns"] if x),
                     "today": today_n, "cap": cap, "posts": len(mine),
                     "posts_7d": sum(1 for u in mine if u["_t"] and u["_t"] >= t7),
@@ -653,7 +693,8 @@ def accounts_detail(ws, uploads: list, camps: dict, auto_files: set, eposts_by_u
                     "net": round(float(sum(u["net"] for u in mine)), 2),
                     "net_7d": round(float(sum(u["net"] for u in mine if u["_t"] and u["_t"] >= t7)), 2),
                     "slideshows": sum(1 for u in mine if u.get("c_kind") == "slideshow"),
-                    "daily_views": [int(x) for x in daily], "status": status, "status_note": note})
+                    "daily_views": [int(x) for x in daily], "status": status, "status_note": note,
+                    "health": account_health(mine, posts_7d, bool(hist), int(v7), now_dt)})
     out.sort(key=lambda x: (-x["views_7d"], -x["views"], x["platform"], x["name"]))
     return out
 
@@ -714,6 +755,147 @@ def format_split(uploads: list) -> list[dict]:
         out.append({"kind": k, "posts": len(us), "views": v, "avg_views": round(v / len(us)) if us else 0,
                     "engagement": round(lk / v, 4) if v else 0.0})
     return out
+
+
+# ---------------------------------------------------------------- submit list, content supply, status light (v2.3)
+
+ACTIONS_URL = "https://github.com/demetrades2000-coder/nq-dashboard/actions/workflows/clipper-cloud.yml"
+STALE_FACTOR = 1.5          # a run older than this many schedule intervals = the autopilot is stuck
+SUPPLY_WARN_DAYS, SUPPLY_BAD_DAYS = 3.0, 1.0
+PACE_DAYS = 3
+SUBMIT_LIMIT = 200
+SUPPLY_REFILL = ("New footage in the Drive folder gets clipped automatically, and more slideshow decks are generated "
+                 "automatically. Nothing for you to do unless this stays red.")
+
+
+def submit_list(uploads: list, camps: dict, limit: int = SUBMIT_LIMIT) -> list[dict]:
+    """Every live upload with a link that the database does not mark submitted (submitted_at empty). Failed uploads and
+    TikTok drafts have no link. Newest first; the page sorts oldest first (the next link to paste)."""
+    out = []
+    for u in uploads:
+        if not u.get("url") or u.get("submitted_at") or u.get("state") in ("failed", "draft"):
+            continue
+        c = camps.get(u["campaign"]) or {}
+        out.append({"clip_id": u["clip_id"], "platform": u["platform"], "url": u["url"], "title": u["title"],
+                    "page": (c.get("permission") or {}).get("campaign_url", "") or "",
+                    "campaign": u["campaign"] or "", "account": u["account"], "created": u["created"],
+                    "views": int(u["views"] or 0), "likes": int(u["likes"] or 0), "upload_id": u.get("id")})
+    return out[:limit]
+
+
+def _supply_level(days, total, per_day) -> str:
+    if not per_day:
+        return "none"
+    if days is None:
+        return "none"
+    return "bad" if days < SUPPLY_BAD_DAYS else "warn" if days < SUPPLY_WARN_DAYS else "good"
+
+
+def supply_meter(ws, campaigns: list, uploads: list, acc_detail: list, now_dt: dt.datetime) -> dict:
+    """Approved clips waiting to be posted (campaigns on autopilot that are not paused), by kind, against how fast the
+    autopilot posts: distinct clips uploaded per day over the last 3 days, else the configured caps (the busiest platform's
+    accounts x their daily cap). days_left is total / pace; amber under 3 days, red under 1."""
+    ok_campaigns = {c["name"] for c in campaigns if c["auto"] and c["live"]["state"] != "paused"}
+    ccols = {r[1] for r in ws.q("PRAGMA table_info(clips)")}
+    kind_sql = "COALESCE(NULLIF(kind, ''), 'video')" if "kind" in ccols else "'video'"
+    have = {k: 0 for k in KINDS}
+    for r in ws.q(f"SELECT campaign, {kind_sql} AS k, COUNT(*) AS n FROM clips WHERE status='approved' GROUP BY campaign, k"):
+        if r["campaign"] in ok_campaigns:
+            have[_kind(r["k"])] += int(r["n"])
+    t0 = now_dt - dt.timedelta(days=PACE_DAYS)
+    recent = {k: set() for k in KINDS}
+    for u in uploads:
+        if u.get("state") != "failed" and u["_t"] and u["_t"] >= t0:
+            recent[_kind(u.get("c_kind"))].add(u["clip_id"])
+    hist_n = sum(len(v) for v in recent.values())
+    if hist_n:
+        pace_src, per_kind = "history", {k: len(recent[k]) / PACE_DAYS for k in KINDS}
+        per_day = hist_n / PACE_DAYS
+    else:
+        caps: dict[str, int] = {}
+        for a in acc_detail:
+            caps[a["platform"]] = caps.get(a["platform"], 0) + int(a.get("cap") or 0)
+        per_day = float(max(caps.values())) if caps else 0.0
+        pace_src = "caps" if per_day else "none"
+        per_kind = {k: 0.0 for k in KINDS}
+    total = sum(have.values())
+    days = round(total / per_day, 1) if per_day else None
+    by_kind = {k: {"per_day": round(per_kind[k], 2),
+                   "days_left": round(have[k] / per_kind[k], 1) if per_kind[k] else None} for k in KINDS}
+    decks = ws.setting("supply.decks_available", None)
+    decks = int(decks) if isinstance(decks, (int, float)) and not isinstance(decks, bool) and decks >= 0 else None
+    note = ws.setting("supply.note", "")
+    return {"video": have["video"], "slideshow": have["slideshow"], "total": total, "per_day": round(per_day, 2),
+            "pace_source": pace_src, "days_left": days, "level": _supply_level(days, total, per_day), "by_kind": by_kind,
+            "refill": SUPPLY_REFILL, "decks_available": decks, "note": note.strip()[:200] if isinstance(note, str) else ""}
+
+
+EMPTY_SUPPLY = {"video": 0, "slideshow": 0, "total": 0, "per_day": 0.0, "pace_source": "none", "days_left": None,
+                "level": "none", "by_kind": {k: {"per_day": 0.0, "days_left": None} for k in KINDS},
+                "refill": SUPPLY_REFILL, "decks_available": None, "note": ""}
+
+
+def _reason(level, code, text, page=None, action=None) -> dict:
+    return {"level": level, "code": code, "text": text, "page": page, "action": action}
+
+
+def status_light(now_dt: dt.datetime, enabled: bool, last: dict, every: int, accounts: list, acc_detail: list,
+                 campaigns: list, supply: dict, uploads: list, pol: dict, in_hours: bool) -> dict:
+    """Traffic light for the top of Today and Submit: green 'Everything is running', amber / red with every reason (worst
+    first). The run-age reason depends on the clock: the page re-evaluates `run` live; everything else is as built."""
+    reasons = []
+    fin = _parse(last.get("finished"))
+    stale_after = round(every * STALE_FACTOR, 2)
+    age_h = round((now_dt - fin).total_seconds() / 3600, 2) if fin else None
+    go = {"label": "Open GitHub Actions", "url": ACTIONS_URL}
+    if enabled and age_h is not None and age_h > stale_after:
+        reasons.append(_reason("red", "stale_run", f"Autopilot hasn't run for {round(age_h)}h — restart", "jobs", go))
+    elif enabled and age_h is None:
+        reasons.append(_reason("amber", "never_ran", "Autopilot hasn't run yet — it starts at the next scheduled run",
+                               "jobs", go))
+    if not enabled:
+        reasons.append(_reason("amber", "autopilot_off", "Autopilot is off — nothing posts until it is turned on", "settings"))
+    t24 = now_dt - dt.timedelta(hours=24)
+    posted_24h = [u for u in uploads if u.get("state") != "failed" and u["_t"] and u["_t"] >= t24]
+    no_acc = not any(a["connected"] for a in accounts) and not posted_24h
+    if no_acc:
+        reasons.append(_reason("red", "no_accounts", "No posting account is connected — nothing can be posted", "accounts"))
+    if enabled and not no_acc and supply["total"] > 0 and not posted_24h and in_hours:
+        reasons.append(_reason("red", "no_uploads_24h", "Nothing posted in the last 24 hours, but clips are waiting",
+                               "accounts", go if age_h is not None and age_h > every else None))
+    paused = [c["name"] for c in campaigns if c["auto"] and c["live"]["state"] == "paused"]
+    if paused:
+        reasons.append(_reason("amber", "paused", f"{len(paused)} campaign{'s' if len(paused) != 1 else ''} paused "
+                               f"(budget): {', '.join(paused[:3])}", "campaigns"))
+    if supply["level"] in ("warn", "bad"):
+        d = supply["days_left"]
+        reasons.append(_reason("red" if supply["level"] == "bad" else "amber", "supply",
+                               ("Content has run out" if not supply["total"] else
+                                f"Content running low — about {d:g} day{'s' if d != 1 else ''} left"), "accounts"))
+    limited = [a["name"] for a in acc_detail if (a.get("health") or {}).get("state") == "limited"]
+    if limited:
+        reasons.append(_reason("amber", "accounts_limited", f"{len(limited)} account{'s' if len(limited) != 1 else ''} "
+                               f"possibly limited: {', '.join('@' + n for n in limited[:3])}", "accounts"))
+    errs = [a["name"] for a in acc_detail if a["status"] == "error"]
+    if errs:
+        reasons.append(_reason("amber", "account_errors", f"{len(errs)} account{'s' if len(errs) != 1 else ''} with "
+                               f"upload problems: {', '.join('@' + n for n in errs[:3])}", "accounts"))
+    elif last.get("upload_errors"):
+        n = last["upload_errors"] if isinstance(last["upload_errors"], int) else len(last["upload_errors"])
+        if n:
+            reasons.append(_reason("amber", "upload_errors", f"Last run had {n} upload error{'s' if n != 1 else ''}",
+                                   "activity"))
+    reasons.sort(key=lambda r: 0 if r["level"] == "red" else 1)
+    level = "red" if any(r["level"] == "red" for r in reasons) else "amber" if reasons else "green"
+    head = "Everything is running" if not reasons else reasons[0]["text"]
+    return {"level": level, "headline": head, "reasons": reasons,
+            "run": {"finished": fin.isoformat(timespec="seconds") if fin else None, "every_hours": every,
+                    "stale_after_hours": stale_after, "age_hours": age_h, "enabled": enabled, "actions_url": ACTIONS_URL}}
+
+
+EMPTY_STATUS = {"level": "green", "headline": "Everything is running", "reasons": [],
+                "run": {"finished": None, "every_hours": 6, "stale_after_hours": 9, "age_hours": None, "enabled": False,
+                        "actions_url": ACTIONS_URL}}
 
 
 def build_data(ws) -> dict:
@@ -924,9 +1106,8 @@ def build_data(ws) -> dict:
         except Exception:
             accounts.append({"name": label, "connected": False})
 
-    submit = [{"clip_id": u["clip_id"], "platform": u["platform"], "url": u["url"], "title": u["title"],
-               "page": ((camps.get(u["campaign"]) or {}).get("permission") or {}).get("campaign_url", "")}
-              for u in uploads if u["url"] and not u["submitted_at"]]
+    submit_all = submit_list(uploads, camps, limit=10 ** 9)
+    submit = submit_all[:SUBMIT_LIMIT]
     drafts = [{"clip_id": u["clip_id"], "caption": u["caption"] or "", "title": u["title"]}
               for u in _rows(ws, "SELECT u.*, c.title FROM uploads u JOIN clips c ON c.id=u.clip_id "
                                  "WHERE u.platform='tiktok' AND u.state='draft' AND u.url IS NULL")]
@@ -965,6 +1146,13 @@ def build_data(ws) -> dict:
     discovered = _safe(lambda: leads_discovered(ws, joined), [])
     g = pl.LedgerGuard(ws)
     enabled = bool(ws.setting("autopilot.enabled", False))
+    supply = _safe(lambda: supply_meter(ws, campaigns, uploads, acc_detail, now_dt), json.loads(json.dumps(EMPTY_SUPPLY)))
+    try:
+        in_hours = (not pol.get("post_hours")) or bool(pl.in_post_hours(pol["post_hours"], pol["post_tz"]))
+    except Exception:
+        in_hours = True
+    status = _safe(lambda: status_light(now_dt, enabled, last, every, accounts, acc_detail, campaigns, supply, uploads,
+                                        pol, in_hours), json.loads(json.dumps(EMPTY_STATUS)))
     return {
         "version": VERSION,
         "generated": now_dt.isoformat(timespec="seconds"),
@@ -984,7 +1172,7 @@ def build_data(ws) -> dict:
         "accounts": accounts,
         "stats": {"clips": len(clips), "posted": sum(1 for c in clips if c["status"] == "posted"),
                   "posts": len(uploads), "views": views, "likes": likes, "net": net,
-                  "to_submit": len(submit), "drafts": len(drafts), "held": len(held),
+                  "to_submit": len(submit_all), "drafts": len(drafts), "held": len(held),
                   "today_posts": sum(1 for u in uploads if day_of(u) == today.isoformat()),
                   "views_24h": _gained(eposts, now_dt - dt.timedelta(hours=24), now_dt),
                   "views_7d": _gained(eposts, now_dt - dt.timedelta(days=7), now_dt),
@@ -995,7 +1183,7 @@ def build_data(ws) -> dict:
                   "engagement": round(likes / views, 4) if views else 0.0,
                   "effective_cpm": round(net / views * 1000, 2) if views else 0.0,
                   "best_platform": plat_split[0]["platform"] if plat_split and plat_split[0]["views"] else None},
-        "todo": {"submit": submit[:50], "drafts": drafts[:20], "held": held[:30]},
+        "todo": {"submit": submit, "drafts": drafts[:20], "held": held[:30]},
         "clips": clips,
         "campaigns": campaigns,
         "earnings": {"by_platform": by_platform,
@@ -1017,6 +1205,8 @@ def build_data(ws) -> dict:
         "goals": {"month_target": goal},
         "leads": leads,
         "agency": agency,
+        "supply": supply,
+        "status": status,
         "leads_discovered": discovered,
         "jobs": _rows(ws, "SELECT id, status, attempts, title, input, last_error, updated FROM sources ORDER BY id DESC LIMIT 60"),
         "events": _rows(ws, "SELECT ts, level, message FROM events ORDER BY id DESC LIMIT 60"),
@@ -1076,12 +1266,12 @@ ASSETS = Path(__file__).resolve().parent / "site_assets"
 MANIFEST = {
     "name": "Clip Engine", "short_name": "Clips",
     "description": "Clipping autopilot: clips, posts, views and estimated earnings.",
-    "id": "./", "start_url": "./#/today", "scope": "./", "display": "standalone", "orientation": "portrait",
+    "id": "./", "start_url": "./#/submit", "scope": "./", "display": "standalone", "orientation": "portrait",
     "background_color": "#07080c", "theme_color": "#07080c",
     "icons": [{"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
               {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
               {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}],
-    "shortcuts": [{"name": n, "url": f"./#/{n.lower()}"} for n in ("Today", "Clips", "Campaigns", "Earnings", "Jobs")],
+    "shortcuts": [{"name": n, "url": f"./#/{n.lower()}"} for n in ("Submit", "Today", "Clips", "Campaigns", "Earnings", "Jobs")],
 }
 
 

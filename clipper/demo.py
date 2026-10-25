@@ -2,17 +2,19 @@
 """
 Build a realistic demo workspace for the dashboard: no network, no real rendering.
 
-  python demo.py <workspace_dir> [--days 30] [--seed 7] [--preview]
+  python demo.py <workspace_dir> [--days 30] [--seed 7] [--preview] [--stale]
 
 It writes 3 campaign briefs, ~50 clips over the last `--days` days with uploads on TikTok, Instagram and
 YouTube (long-tail views, 2-6% likes), earnings.json with daily view snapshots, events, autopilot cycles,
-jobs (one failed, one waiting to retry), a held clip and two links to submit. The Tradever brief is TikTok only
+jobs (one failed, one waiting to retry), a held clip and six links to submit (four Tradever, two AiXfunded). The Tradever brief is TikTok only
 with its rules (tags at the caption end, logo, 5 posts a week, 2% engagement, $7 minimum payout) and posts to two
 rotating TikTok accounts (tradever.clips at today's cap, tradever.daily with room), with photo slideshows among its
 posts and three approved clips waiting for a slot. Agency view: the cloud runner's live checks say Tradever is active
 ($1,937 of $2,000 left) and AiXfunded was paused automatically (budget almost gone); seven discovered campaigns wait
 as leads. Each clip gets a tiny 2 s
 placeholder video (an ffmpeg gradient) so thumbnails work; without ffmpeg the clips simply have no thumbnail.
+One Tradever page (tradever.daily) is "possibly limited" (its older posts got < 100 views) and about two days of
+approved content are left. `--stale` makes the autopilot's last cycle ~20 h old (red strip on Today).
 Then it builds dashboard.html. `--preview` also writes a hosted-style copy (index.html, data.json,
 thumbs/...) with the "sample data" banner on into <workspace>/site/.
 
@@ -221,7 +223,10 @@ def make_slides(out: Path, bases: list[Path], n: int = 6) -> list[Path]:
     return made
 
 
-def build(home: Path, days: int = 30, seed: int = 7) -> pl.WS:
+LIMITED_ACCOUNT = "tradever.daily"   # the demo's shadow-limited page: its posts older than a day got < 100 views
+
+
+def build(home: Path, days: int = 30, seed: int = 7, stale: bool = False) -> pl.WS:
     home = Path(home).expanduser().resolve()
     if home.exists() and any(home.iterdir()) and not (home / MARK).exists():
         raise SystemExit(f"{home} isn't empty and isn't a demo workspace; pick a new folder")
@@ -406,6 +411,8 @@ def build(home: Path, days: int = 30, seed: int = 7) -> pl.WS:
         age_now = max((now - ut).total_seconds() / 86400, 0.01)
         final = views_for(rng, p) * (1.15 if c["kind"] == "slideshow" else 1.0)
         final = int(final * min(1.0, 0.25 + age_now / 3))  # brand-new posts haven't caught up yet
+        if acct == LIMITED_ACCOUNT and age_now > 1.3:   # a page TikTok is throttling: almost no reach
+            final = rng.randint(28, 92)
         likes = int(final * rng.uniform(0.02, 0.06))
         rid = str(rng.randrange(10**17, 10**18))
         url = {"tiktok": f"https://www.tiktok.com/@{acct}/{'photo' if c['kind'] == 'slideshow' else 'video'}/{rid}",
@@ -458,8 +465,11 @@ def build(home: Path, days: int = 30, seed: int = 7) -> pl.WS:
         add_clip(now - dt.timedelta(minutes=40 + 25 * j), trad, "approved", kind)
 
     live.sort(key=lambda x: x[0])
-    for ut, uid, c, p, acct in live[-2:]:  # two fresh links still to submit
-        ws.x("UPDATE uploads SET submitted_at=NULL WHERE id=?", (uid,))
+    # links still to submit on two campaigns: the newest Tradever and AiXfunded TikTok posts
+    for key, n in (("tradever", 4), ("aixfunded", 2)):
+        mine = [x for x in live if x[2]["spec"]["key"] == key and x[3] == "tiktok"]
+        for ut, uid, c, p, acct in mine[-n:]:
+            ws.x("UPDATE uploads SET submitted_at=NULL WHERE id=?", (uid,))
     ws.x("UPDATE clips SET submitted_at=(SELECT MAX(submitted_at) FROM uploads u WHERE u.clip_id=clips.id), "
          "posted_at=(SELECT MIN(created) FROM uploads u WHERE u.clip_id=clips.id) WHERE status='posted' AND NOT EXISTS("
          "SELECT 1 FROM uploads u WHERE u.clip_id=clips.id AND u.submitted_at IS NULL)")
@@ -480,6 +490,12 @@ def build(home: Path, days: int = 30, seed: int = 7) -> pl.WS:
                  "VALUES(?,?,?,?,?,?,?,?)", (newest["id"], "instagram", newest["spec"]["handle"], "failed",
                                              json.dumps(["Instagram: media processing timed out"]), newest["caption"],
                                              iso(now - dt.timedelta(hours=2)), iso(now - dt.timedelta(hours=2))))
+    # supply: about two days of approved content behind the autopilot's pace of the last 3 days
+    recent = ws.q("SELECT COUNT(DISTINCT clip_id) n FROM uploads WHERE state!='failed' AND created>=?",
+                  (iso(now - dt.timedelta(days=3)),))[0]["n"]
+    have = ws.q("SELECT COUNT(*) n FROM clips WHERE status='approved' AND campaign=?", (trad["name"],))[0]["n"]
+    for j in range(max(0, round(2 * recent / 3) - have)):
+        add_clip(now - dt.timedelta(minutes=140 + 20 * j), trad, "approved", "slideshow" if j % 2 else "video")
     tracker_db = {"posts": posts}
     (home / "earnings.json").write_text(json.dumps(tracker_db, indent=2), encoding="utf-8")
 
@@ -504,10 +520,11 @@ def build(home: Path, days: int = 30, seed: int = 7) -> pl.WS:
 
     # autopilot cycles: every 6 h over the last 3 days, the last one ~2 h ago, run by the cloud autopilot
     every = 6
+    lag = 20 if stale else 0   # --stale: the last cycle finished ~20 h ago, the autopilot is stuck
     log = home / "logs" / "autopilot.jsonl"
     with log.open("w", encoding="utf-8") as fh:
         for k in range(11, -1, -1):
-            st = now - dt.timedelta(hours=2 + every * k, minutes=rng.randint(5, 14))
+            st = now - dt.timedelta(hours=2 + every * k + lag, minutes=rng.randint(5, 14))
             fin = st + dt.timedelta(minutes=rng.randint(6, 22))
             up = [f"#{c['id']} {p}/{acct}" for ut, uid, c, p, acct in live
                   if st <= ut <= fin + dt.timedelta(hours=every)][:3]
@@ -560,10 +577,12 @@ def main(argv=None) -> int:
     ap.add_argument("workspace", help="folder to create (must be new/empty, or a previous demo)")
     ap.add_argument("--days", type=int, default=30, help="how many days of history (default 30)")
     ap.add_argument("--seed", type=int, default=7)
+    ap.add_argument("--stale", action="store_true",
+                    help="a stuck autopilot: the last cycle finished ~20 h ago (the dashboard shows the red restart strip)")
     ap.add_argument("--preview", action="store_true",
                     help="also write a hosted-style copy with the sample-data banner into <workspace>/site/")
     a = ap.parse_args(argv)
-    ws = build(Path(a.workspace), a.days, a.seed)
+    ws = build(Path(a.workspace), a.days, a.seed, stale=a.stale)
     try:
         out = dashboard.write(ws)
         print(f"Demo workspace: {ws.home}\nDashboard: {out}")

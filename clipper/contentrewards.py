@@ -3,7 +3,7 @@ Content Rewards (contentrewards.com, Whop's clipping marketplace): read public c
 
   fetch_campaign(url_or_id) -> {id, name, org, rates{platform: {cpm, min, max}}, budget, spent, left, status,
                                 accepting, creators, views, categories, types, content_rules, requirements,
-                                requires_application, url}
+                                requires_application, description, url}
   discover() -> [campaign, ...]   every campaign linked from the public Discover page
   rank(campaigns, prefer=...) -> campaigns sorted by how well they fit the clipper (TikTok rate x budget left,
                                   talking/podcast/finance categories, no application, few rules)
@@ -38,10 +38,16 @@ def campaign_id(url_or_id: str) -> str | None:
 
 def parse_campaign(html: str, cid: str) -> dict | None:
     s = html.replace('\\"', '"')
-    m = re.search(r'"name":"([^"]+)","organization":\{"logoUrl":"[^"]*","name":"([^"]*)"', s)
+    # the logo is optional and names may contain escaped quotes ("Dovy \"fx\"")
+    m = re.search(r'"name":("(?:[^"\\]|\\.)*"),"organization":\{(?:"logoUrl":"[^"]*",)?"name":("(?:[^"\\]|\\.)*")', s)
     if not m:
         return None
-    out = {"id": cid, "name": m.group(1), "org": m.group(2), "url": f"{BASE}/campaigns/{cid}"}
+    try:
+        name, org = json.loads(m.group(1)), json.loads(m.group(2))
+    except ValueError:
+        name, org = m.group(1).strip('"'), m.group(2).strip('"')
+    out = {"id": cid, "name": name, "org": org, "url": f"{BASE}/campaigns/{cid}"}
+    out["description"] = parse_description(html, s, m.end())
 
     def names(key):
         g = re.search(r'"%s":\[(.*?)\]' % key, s)
@@ -68,7 +74,7 @@ def parse_campaign(html: str, cid: str) -> dict | None:
     out["creators"], out["views"] = num("creatorCount"), num("totalViews")
     rules = re.search(r'"contentRules":(\d+),"creatorRequirements":(\d+)', s)
     out["content_rules"], out["requirements"] = (int(rules.group(1)), int(rules.group(2))) if rules else (None, None)
-    st = re.search(r'"statusReason":"([a-z_]+)"', s)
+    st = re.search(r'"statusReason":"([a-z_]+)"', s) or re.search(r'"status":"([a-z_]+)","statusChangedAt"', s)
     out["status"] = st.group(1) if st else None
     app = re.search(r'"requiresApplication":(true|false)', s)
     out["requires_application"] = app.group(1) == "true" if app else None
@@ -77,6 +83,31 @@ def parse_campaign(html: str, cid: str) -> dict | None:
     if re.search(r"\b(Campaign (ended|closed|completed)|Not accepting|Budget (exhausted|depleted))", text, re.I):
         out["accepting"] = False
     return out
+
+
+def _unjson(x: str) -> str:
+    try:
+        return json.loads('"' + x.replace("\n", "\\n") + '"')
+    except ValueError:
+        return x.replace("\\n", "\n").replace("\\u0026", "&")
+
+
+def parse_description(html: str, s: str, start: int = 0) -> str:
+    """The campaign's own public description (what the owner wrote on the page, often with the rules).
+    Takes the first "description" value after the campaign name in the page data, else the page's meta description."""
+    best = ""
+    pat = r'"(?:description|about|summary)":"(.*?)"(?=,"[A-Za-z_]+":|\})'
+    m = re.search(pat, s[start:], re.S) or re.search(pat, s[:start], re.S)
+    if m:
+        best = _unjson(m.group(1))
+    if len(best.strip()) < 20:
+        mm = (re.search(r'<meta[^>]+(?:property="og:description"|name="description")[^>]+content="([^"]*)"', html, re.I)
+              or re.search(r'<meta[^>]+content="([^"]*)"[^>]+(?:property="og:description"|name="description")', html, re.I))
+        if mm:
+            import html as _h
+            best = _h.unescape(mm.group(1))
+    best = re.sub(r"[ \t]+", " ", best).strip()
+    return best[:6000]
 
 
 def fetch_campaign(url_or_id: str, get=_get) -> dict:

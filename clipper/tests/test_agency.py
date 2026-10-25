@@ -58,6 +58,15 @@ class ContentRewardsTests(unittest.TestCase):
         paused = crw.parse_campaign(page(status="paused"), "1cc66d1c-d7bb-4cd6-addb-68093cb50908")
         self.assertIn("paused", crw.health(paused)[1])
 
+    def test_pages_without_logo_or_with_quoted_names_still_parse(self):
+        cid = "1cc66d1c-d7bb-4cd6-addb-68093cb50908"
+        html = page(name='Dovy \\\\"fx\\\\" Clipping', org="Acme").replace('\\"logoUrl\\":\\"u\\",', "")
+        c = crw.parse_campaign(html, cid)
+        self.assertIsNotNone(c)
+        self.assertEqual(c["org"], "Acme")
+        self.assertIn("fx", c["name"])
+        self.assertEqual(c["rates"]["tiktok"]["cpm"], 5.0)
+
     def test_rank_skips_adult_gambling_and_non_english(self):
         cid = "1cc66d1c-d7bb-4cd6-addb-68093cb50908"
         good = crw.parse_campaign(page(), cid)

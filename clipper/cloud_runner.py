@@ -364,6 +364,14 @@ def owner_alerts(ws, state: dict, supply: dict, key: bool, http=None, now_utc=No
                     "one in the dashboard's Leads.", click=click, priority="high", tags="warning", http=http):
                 seen[f"paused:{name}"] = day
                 sent.append(f"paused:{name}")
+    try:   # errors from this cycle's posting attempts (Zernio / TikTok said no)
+        lines = (ws.home / "logs" / "autopilot.jsonl").read_text(encoding="utf-8").strip().splitlines()
+        errs = (json.loads(lines[-1]).get("upload_errors") or []) if lines else []
+    except (OSError, ValueError):
+        errs = []
+    if errs:
+        once("uploaderr", "Posting error", f"{len(errs)} post(s) failed. First: {str(errs[0])[:180]}. They retry on "
+             "the next run.", priority="high", tags="warning")
     if supply and supply.get("days_left", 99) < 2:
         once("supply", "Content running low", f"About {supply['days_left']} days of posts left. Add footage to the "
              "campaign's Drive folder.", priority="high", tags="warning")

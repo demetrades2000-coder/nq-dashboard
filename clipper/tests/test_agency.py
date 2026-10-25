@@ -227,6 +227,13 @@ class OwnerAlertTests(unittest.TestCase):
         self.cr.owner_alerts(self.ws, state, {"days_left": 9}, True, self.http, self.at(14))
         self.assertNotIn("paused:Acme", state["notified"])
 
+    def test_posting_errors_are_reported_once_a_day(self):
+        (self.ws.home / "logs").mkdir(exist_ok=True)
+        (self.ws.home / "logs" / "autopilot.jsonl").write_text(json.dumps({"upload_errors": ["tiktok/a #3: account not connected"]}) + "\n")
+        sent = self.cr.owner_alerts(self.ws, {}, {"days_left": 9}, True, self.http, self.at(12))
+        self.assertEqual(sent, ["Posting error"])
+        self.assertIn("account not connected", self.sent[0][2])
+
     def test_no_topic_means_silence(self):
         os.environ.pop("NTFY_TOPIC")
         self.assertEqual(self.cr.owner_alerts(self.ws, {}, {"days_left": 0}, False, self.http, self.at(21)), [])

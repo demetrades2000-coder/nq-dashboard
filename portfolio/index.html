@@ -133,7 +133,8 @@ h2{font:700 clamp(28px,5vw,52px)/1.1 var(--display);text-transform:uppercase;mar
 .term .bar span{width:9px;height:9px;border-radius:50%;background:var(--gold3)}
 
 /* gallery */
-.gal{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:22px}
+.gal{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,470px),1fr));gap:22px}
+.shot.lock{grid-column:1/-1}.shot.lock .pic{aspect-ratio:16/4.2}
 .shot{position:relative;border:1px solid var(--line);background:rgba(0,0,0,.7);backdrop-filter:blur(8px);transition:border-color .3s,transform .2s;cursor:none;overflow:hidden}
 @media(hover:none){.shot{cursor:pointer}}
 .shot:hover{border-color:var(--gold)}
@@ -173,11 +174,15 @@ section.drive{padding:0;height:340vh;position:relative}
 .hint{position:absolute;right:20px;bottom:30px;font:500 10px var(--mono);letter-spacing:.2em;color:var(--mute);writing-mode:vertical-rl}
 @media(max-width:700px){.hint{display:none}.dash{gap:16px;padding:12px 18px}}
 
+#dvid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;filter:grayscale(.35) sepia(.45) contrast(1.15) brightness(.78) saturate(1.2)}
+body.hasvid #dvid{display:block}body.hasvid #drivecv{display:none}
+body.hasvid .stick::after{content:"";position:absolute;inset:0;background:linear-gradient(rgba(0,0,0,.6),transparent 35%,rgba(0,0,0,.55));mix-blend-mode:multiply;pointer-events:none}
+.dash,.hint{transition:opacity .4s}body.hasvid .dash,body.hasvid .hint{opacity:0}
 /* contact */
 .contact{text-align:center;border:1px solid var(--line);padding:80px 20px;background:radial-gradient(ellipse at center,rgba(212,175,55,.12),rgba(0,0,0,.7) 70%);backdrop-filter:blur(6px)}
 .links{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:30px}
 footer{padding:36px 0 60px;text-align:center;font:400 11px var(--mono);letter-spacing:.15em;color:var(--mute)}
-@media(max-width:520px){.logo{letter-spacing:.14em;font-size:12px}nav ul{gap:12px}nav ul li:nth-child(2),nav ul li:nth-child(4){display:none}}
+@media(max-width:520px){.logo{letter-spacing:.14em;font-size:12px}nav ul{gap:12px}nav ul li:nth-child(2){display:none}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rv{opacity:1;transform:none}#intro{display:none}}
 </style>
 </head>
@@ -199,45 +204,40 @@ footer{padding:36px 0 60px;text-align:center;font:400 11px var(--mono);letter-sp
     <li><a class="l" href="#work">Systems</a></li>
     <li><a class="l" href="#gallery">Proof</a></li>
     <li><a class="l" href="#drive">Drive</a></li>
-    <li><a class="l" href="#about">About</a></li>
-    <li><a class="l" href="#contact">Contact</a></li>
+        <li><a class="l" href="#contact">Contact</a></li>
   </ul>
 </div></nav>
 
 <header id="top" class="hero"><div class="wrap">
-  <span class="tag"><i class="dot"></i> Transmission received</span>
+  <span class="tag"><i class="dot"></i> Signal detected</span>
   <h1 id="h1">ZLARIOR<span class="g a">ZLARIOR</span><span class="g b">ZLARIOR</span></h1>
   <div class="type"><span id="typed"></span><span class="cursor">&nbsp;</span></div>
-  <p class="lede">Futures trader. I build the machines that trade, snipe and grow while I sleep — an NQ futures bot, a Kalshi bot and a clipping engine farm. I'm here to get rich. Step inside.</p>
+  <p class="lede">Futures. Systems. Speed.<br>Some things are built in the dark.</p>
   <div class="cta">
-    <a class="btn solid" href="#work">Enter the systems</a>
-    <a class="btn" href="#contact">Follow the build</a>
+    <a class="btn solid" href="#work">Enter</a>
+    <a class="btn" href="#contact">Find me</a>
   </div>
 </div><div class="scrollcue">SCROLL</div></header>
 
-<div class="ticker"><div id="tick"></div></div>
 
 <main>
 <section id="work"><div class="wrap">
-  <div class="eyebrow rv">// 01 — The systems</div>
-  <h2 class="rv">Three machines. <span class="gold">One operator.</span></h2>
-  <p class="sub rv">Each one built from scratch to make money, save time, or both.</p>
+  <div class="eyebrow rv">// 01</div>
+  <h2 class="rv">The <span class="gold">machines</span></h2>
   <div class="grid" id="grid"></div>
-  <div class="stats rv" id="stats"></div>
 </div></section>
 
 <section id="gallery"><div class="wrap">
-  <div class="eyebrow rv">// 02 — Proof of work</div>
-  <h2 class="rv">Inside the <span class="gold">machines</span></h2>
-  <p class="sub rv">Real screens from my real systems. Tap any one to open it full size.</p>
+  <div class="eyebrow rv">// 02</div>
+  <h2 class="rv">Real <span class="gold">screens</span></h2>
   <div class="gal" id="gal"></div>
 </div></section>
 
 <section id="drive" class="drive">
   <div class="stick">
-    <canvas id="drivecv"></canvas><div class="vig2"></div>
+    <video id="dvid" muted loop playsinline preload="metadata"></video><canvas id="drivecv"></canvas><div class="vig2"></div>
     <div class="dtxt">
-      <div class="eyebrow">// 03 — The mindset</div>
+      <div class="eyebrow">// 03</div>
       <h2>Get rich <span class="gold">or die building</span></h2>
       <div class="mlines">
         <div class="mline on">The market pays the patient</div>
@@ -253,30 +253,11 @@ footer{padding:36px 0 60px;text-align:center;font:400 11px var(--mono);letter-sp
   </div>
 </section>
 
-<section id="about"><div class="wrap about">
-  <div class="rv">
-    <div class="eyebrow">// 04 — The operator</div>
-    <h2>Obsessed with <span class="gold">edge</span></h2>
-    <p>I'm ZLARIOR. I trade futures and I build the machines that trade with me. I don't chase ideas, I ship systems — every project here started with one question: where's the edge, and how do I automate it?</p>
-    <p>My NQ bot is tested through thousands of backtest runs, replays and post-trade studies before it earns trust. My Kalshi bot hunts mispriced markets. My clipping farm turns content into reach on autopilot.</p>
-    <p>The goal is simple: get rich. Stack compounding assets — code, audiences and capital — and keep building. When I'm not at the screens I'm chasing the next car, the next level, the next version of myself.</p>
-  </div>
-  <div class="term rv">
-    <div class="bar"><span></span><span></span><span></span></div>
-    <div><i>$</i> whoami</div><div>zlarior</div>
-    <div><i>$</i> status</div><div>building · testing · shipping</div>
-    <div><i>$</i> stack</div><div>NQ futures · Kalshi · AI · clipping</div>
-    <div><i>$</i> fuel</div><div>cars · speed · money</div>
-    <div><i>$</i> mindset</div><div>data over feelings. always.</div>
-    <div><i>$</i> next</div><div>more.<span class="cursor">&nbsp;</span></div>
-  </div>
-</div></section>
-
 <section id="contact"><div class="wrap">
   <div class="contact rv">
-    <div class="eyebrow">// 05 — Link up</div>
-    <h2>Follow the <span class="gold">build</span></h2>
-    <p class="sub" style="margin:0 auto">I'm @zlarior everywhere. Watch the systems get built in real time.</p>
+    <div class="eyebrow">// 04</div>
+    <h2>Find <span class="gold">me</span></h2>
+    <p class="sub" style="margin:0 auto">@zlarior</p>
     <div class="links" id="links"></div>
   </div>
 </div></section>
@@ -287,20 +268,20 @@ footer{padding:36px 0 60px;text-align:center;font:400 11px var(--mono);letter-sp
 <script>
 /* ============ EDIT ME ============ */
 const CONFIG = {
-  roles: ["futures trader. get rich or die building.","NQ futures trading bot","Kalshi sniping bot","clipping engine farm","AI assistant: Jarvis"],
+  roles: ["trader","builder","get rich or die building","NQ · Kalshi · Jarvis · Clip Farm"],
   ticker: ["NQ FUTURES","KALSHI","CLIPPING ENGINE","JARVIS AI","BACKTEST","AUTOMATE","COMPOUND","ZLARIOR"],
   projects: [
     { name:"NQ Futures Bot", role:"Algo trading · Nasdaq futures", status:"LIVE",
-      desc:"A trading bot that runs my LIT liquidity strategy on NQ — paper trading in the cloud, tracking a prop-firm evaluation, avoiding news blackouts, with a full research lab behind it.",
-      bullets:["Live trades, replays and backtest results","Prop-firm eval progress tracking","Monte Carlo + calendar-effects research lab","Jarvis: ask the bot anything in plain English"],
+      desc:"A bot that trades my liquidity strategy on NQ futures, tested through thousands of backtests before it earns trust.",
+      bullets:["Live trades, replays and backtests","Jarvis: ask the bot anything in plain English"],
       tags:["NQ","Python","Backtesting","AI"], link:"https://demetrades2000-coder.github.io/nq-dashboard/", cta:"Open the live dashboard" },
     { name:"Kalshi Bot", role:"Prediction markets", status:"BUILDING",
       desc:"A bot that scans Kalshi for mispriced contracts and acts on them faster than a human can click.",
-      bullets:["Scans markets for edge in real time","Rules-based, automated execution","Risk-managed position sizing"],
+      bullets:["Scans markets for edge in real time","Rules-based, automated execution"],
       tags:["Kalshi","Python","Execution"], link:"", cta:"More coming soon" },
     { name:"Clipping Engine Farm", role:"Content automation", status:"BUILDING",
       desc:"An automated engine that turns long-form content into a steady stream of short clips for audience growth — built to scale across many accounts.",
-      bullets:["Automated clipping and posting","Scales across multiple accounts","Audience growth on autopilot"],
+      bullets:["Automated clipping and posting","Scales across many accounts"],
       tags:["Automation","Video","Growth"], link:"", cta:"More coming soon" }
   ],
   stats: [
@@ -310,14 +291,11 @@ const CONFIG = {
     { n:120, s:"+", l:"Trade replays studied" }
   ],
   gallery: [
-    { img:"img/nq-replay.jpg", tag:"NQ BOT", title:"Trade replay", cap:"Step through a trade the way the bot saw it: the sweep, entry, stop and target. Short, +3.8R target hit (paper)." },
-    { img:"img/nq-study.jpg", tag:"NQ BOT", title:"Bot's own reasoning", cap:"A post-trade study with the setup, the entry logic and the bot's written thoughts on why it took the trade." },
-    { img:"img/nq-brain.jpg", tag:"NQ BOT", title:"Bot Brain", cap:"What the bot is thinking right now: the stage it's in, the levels it's watching and what it waits for next." },
-    { img:"img/nq-chart.jpg", tag:"NQ BOT", title:"Live chart", cap:"NQ 5m with the Asia highs and lows marked while the bot waits for the London sweep." },
-    { img:"img/nq-recap.jpg", tag:"NQ BOT", title:"Trade recap card", cap:"Auto-generated recap of a cloud paper trade: stop, target and R-multiple." },
-    { lock:true, tag:"JARVIS", title:"Jarvis AI", cap:"Talk to the bot in plain English. Screens dropping soon." },
-    { lock:true, tag:"KALSHI BOT", title:"Kalshi bot", cap:"Prediction-market sniper. Screens dropping soon." },
-    { lock:true, tag:"CLIP FARM", title:"Clipping engine", cap:"Clips on autopilot. Screens dropping soon." }
+    { img:"img/nq-replay.jpg", tag:"NQ BOT", title:"Trade replay", cap:"Step through a trade the way the bot saw it." },
+    { img:"img/nq-study.jpg", tag:"NQ BOT", title:"Bot's reasoning", cap:"The bot's own written thoughts on why it took the trade." },
+    { img:"img/nq-brain.jpg", tag:"NQ BOT", title:"Bot Brain", cap:"What it's thinking, right now." },
+    { img:"img/nq-recap.jpg", tag:"NQ BOT", title:"Trade recap", cap:"Stop, target and R-multiple, auto-generated." },
+    { lock:true, tag:"JARVIS · KALSHI · CLIP FARM", title:"Classified", cap:"Some screens aren't public yet." }
   ],
   links: [
     { label:"Instagram", href:"https://www.instagram.com/zlarior" }
@@ -344,9 +322,7 @@ CONFIG.projects.forEach((p,i)=>{
     c.style.transform=`perspective(900px) rotateY(${(x/r.width-.5)*8}deg) rotateX(${-(y/r.height-.5)*8}deg)`});
   c.addEventListener('mouseleave',()=>c.style.transform='');
 });
-$('#stats').innerHTML=CONFIG.stats.map(s=>`<div class="stat"><b data-n="${s.n}" data-s="${s.s}">0</b><span>${s.l}</span></div>`).join('');
 $('#links').innerHTML=CONFIG.links.map((l,i)=>`<a class="btn ${i?'':'solid'}" href="${l.href}" target="_blank" rel="noopener">${l.label}</a>`).join('');
-$('#tick').innerHTML=(CONFIG.ticker.map(t=>`${t}<span>◆</span>`).join('')).repeat(4);
 $('#yr').textContent=new Date().getFullYear();
 
 // gallery
@@ -498,6 +474,10 @@ addEventListener('scroll',onScroll,{passive:true});onScroll();
     R.render(S,cam);
   })();
 })();
+// real footage slot: drop media/drive.mp4 into the repo and it takes over the 3D car
+fetch('media/drive.mp4',{method:'HEAD'}).then(r=>{if(!r.ok||!/video/.test(r.headers.get('content-type')||''))return;
+  const v=$('#dvid');v.addEventListener('error',()=>document.body.classList.remove('hasvid'));v.src='media/drive.mp4';document.body.classList.add('hasvid');
+  new IntersectionObserver(e=>{e[0].isIntersecting?v.play().catch(()=>{}):v.pause()},{threshold:.1}).observe($('#drive'))}).catch(()=>{});
 </script>
 <script src="drive.js"></script>
 </body>

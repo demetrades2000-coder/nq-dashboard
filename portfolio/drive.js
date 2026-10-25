@@ -166,7 +166,7 @@
     elGear.textContent=Math.min(7,1+Math.floor(kmh/58));
     elNos.style.width=Math.round(p*100)+'%';
     elLines.forEach((l,i)=>{const a=i/elLines.length,b=(i+1)/elLines.length;l.classList.toggle('on',p>=a&&p<b+.0001||(i===elLines.length-1&&p>=a))});
-    R.render(S,cam);
+    if(!document.body.classList.contains("hasvid"))R.render(S,cam);
   }
   frame();
 })();

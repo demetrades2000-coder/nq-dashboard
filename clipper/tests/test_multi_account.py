@@ -98,6 +98,21 @@ class RotationTests(unittest.TestCase):
         self.cycle(fake2)                                                            # same day: caps hold
         self.assertEqual(fake2.calls, [])
 
+    def test_min_gap_spaces_an_accounts_posts(self):
+        self.ws.set_setting("autopilot.per_account_per_run", 1)
+        self.ws.set_setting("autopilot.min_gap_hours", 7)
+        first = FakeTikTok()
+        self.cycle(first)
+        self.assertEqual(len(first.calls), 4)                 # one video + one slideshow per account
+        second = FakeTikTok()
+        self.cycle(second)                                    # a moment later: too soon for both accounts
+        self.assertEqual(second.calls, [])
+        old = (dt.datetime.now() - dt.timedelta(hours=8)).isoformat(timespec="seconds")
+        self.ws.x("UPDATE uploads SET created=?", (old,))     # 8 hours later: allowed again
+        later = FakeTikTok()
+        self.cycle(later)
+        self.assertGreater(len(later.calls), 0)
+
     def test_per_run_limit_and_quiet_hours(self):
         self.ws.set_setting("autopilot.per_account_per_run", 1)
         fake = FakeTikTok()

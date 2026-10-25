@@ -1349,6 +1349,7 @@ def autopilot_policy(ws: WS) -> dict:
         "post_hours": ws.setting("autopilot.post_hours", None),          # e.g. [8, 23] = 08:00-22:59 in post_tz
         "post_tz": ws.setting("autopilot.post_tz", "America/New_York"),
         "per_run": int(ws.setting("autopilot.per_account_per_run", 0)),  # 0 = no per-run limit
+        "min_gap_hours": float(ws.setting("autopilot.min_gap_hours", 0) or 0),   # spacing between one account's posts
         "min_score": float(ws.setting("autopilot.min_score", 55)),
         "privacy": ws.setting("autopilot.privacy", "public"),
         "hold_on": ws.setting("autopilot.hold_on", HOLD_DEFAULT),
@@ -1691,6 +1692,17 @@ def autopilot_cycle(ws: WS, a, uploader=None, uploaders=None) -> int:
             room = {a_: cap - uploads_today(ws, p, a_, kind) for a_ in accts}
             if pol["per_run"]:
                 room = {a_: min(v, pol["per_run"]) for a_, v in room.items()}
+            if pol["min_gap_hours"]:   # keep an account's posts of one kind apart (looks natural, spreads the day)
+                for a_ in accts:
+                    last = ws.q("SELECT MAX(u.created) m FROM uploads u JOIN clips c ON c.id=u.clip_id WHERE u.platform=? "
+                                "AND COALESCE(u.account,'default')=? AND COALESCE(c.kind,'video')=? AND u.state != 'failed'",
+                                (p, a_, kind))[0]["m"]
+                    try:
+                        age_h = (dt.datetime.now() - dt.datetime.fromisoformat(last)).total_seconds() / 3600 if last else 1e9
+                    except ValueError:
+                        age_h = 1e9
+                    if age_h < pol["min_gap_hours"]:
+                        room[a_] = 0
             total = {a_: ws.q("SELECT COUNT(*) n FROM uploads WHERE platform=? AND COALESCE(account,'default')=?",
                               (p, a_))[0]["n"] for a_ in accts}
             dead: set = set()

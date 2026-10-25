@@ -184,6 +184,87 @@ class AgencyCycleTests(unittest.TestCase):
         self.assertIn("no tiktok account connected with 'zeta' in its name", report)
 
 
+class OwnerAlertTests(unittest.TestCase):
+    def setUp(self):
+        import cloud_runner
+        self.cr = cloud_runner
+        self.tmp = Path(tempfile.mkdtemp(prefix="clipper-alerts-"))
+        self.ws = pl.WS(str(self.tmp / "ws"))
+        self.sent = []
+        self.http = lambda topic, msg, headers: self.sent.append((topic, headers["Title"], msg)) or True
+        os.environ["NTFY_TOPIC"] = "secret-topic"
+        self.ws.x("INSERT INTO sources(id, campaign, campaign_file, input, canonical, status, created, updated) "
+                  "VALUES(1,'C','x','x','f:x','done',?,?)", (pl.now(), pl.now()))
+        self.ws.x("INSERT INTO clips(id, source_id, campaign, title, status, created, kind) VALUES(1,1,'C','t','posted',?,'video')",
+                  (pl.now(),))
+        self.ws.x("INSERT INTO uploads(clip_id, platform, account, url, state, created) VALUES(1,'tiktok','a','https://t/1','live',?)",
+                  (pl.now(),))
+
+    def tearDown(self):
+        os.environ.pop("NTFY_TOPIC", None)
+        self.ws.close()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def at(self, hour):   # a UTC instant that is `hour`:30 in New York in October (EDT, UTC-4)
+        return dt.datetime(2026, 10, 24, (hour + 4) % 24, 30, tzinfo=dt.timezone.utc)
+
+    def test_nightly_digest_once_and_only_when_there_are_new_links(self):
+        state = {}
+        self.assertEqual(self.cr.owner_alerts(self.ws, state, {}, True, self.http, self.at(12)), [])   # noon: too early
+        self.assertEqual(self.cr.owner_alerts(self.ws, state, {}, True, self.http, self.at(21)), ["digest"])
+        self.assertEqual(self.sent[0][1], "1 new links to submit")
+        self.assertEqual(self.cr.owner_alerts(self.ws, state, {}, True, self.http, self.at(22)), [])   # not twice a day
+        self.assertEqual(len(self.sent), 1)
+
+    def test_alerts_for_paused_campaign_low_supply_and_missing_key(self):
+        self.ws.set_setting("campaign_live.Acme", {"ok": False, "reason": "budget almost gone ($3 left)"})
+        state = {}
+        sent = self.cr.owner_alerts(self.ws, state, {"days_left": 1.2}, False, self.http, self.at(12))
+        self.assertIn("paused:Acme", sent)
+        self.assertIn("Content running low", sent)
+        self.assertEqual(self.cr.owner_alerts(self.ws, state, {"days_left": 1.2}, False, self.http, self.at(13)), [])
+        self.ws.set_setting("campaign_live.Acme", {"ok": True})      # refilled: the pause note is forgotten
+        self.cr.owner_alerts(self.ws, state, {"days_left": 9}, True, self.http, self.at(14))
+        self.assertNotIn("paused:Acme", state["notified"])
+
+    def test_no_topic_means_silence(self):
+        os.environ.pop("NTFY_TOPIC")
+        self.assertEqual(self.cr.owner_alerts(self.ws, {}, {"days_left": 0}, False, self.http, self.at(21)), [])
+        self.assertEqual(self.sent, [])
+
+    def test_supply_days(self):
+        self.ws.x("INSERT INTO clips(source_id, campaign, title, status, created, kind) VALUES(1,'C','a','approved',?,'video')", (pl.now(),))
+        out = self.cr.compute_supply(self.ws)
+        self.assertEqual((out["videos"], out["slideshows"]), (1, 0))
+        self.assertGreater(out["days_left"], 0)
+
+
+class StateBranchTests(unittest.TestCase):
+    def test_state_branch_stays_one_commit(self):
+        import subprocess
+        import cloud_runner
+        tmp = Path(tempfile.mkdtemp(prefix="clipper-state-"))
+        try:
+            bare = tmp / "origin.git"
+            subprocess.run(["git", "init", "-q", "--bare", str(bare)], check=True)
+            work = tmp / "work"
+            subprocess.run(["git", "init", "-q", "-b", cloud_runner.STATE_BRANCH, str(work)], check=True)
+            subprocess.run(["git", "-C", str(work), "remote", "add", "origin", str(bare)], check=True)
+            old = cloud_runner.HOME
+            cloud_runner.HOME = work
+            try:
+                for i in range(3):
+                    (work / f"f{i}.txt").write_text(str(i))
+                    cloud_runner.save_state(f"cycle {i}")
+            finally:
+                cloud_runner.HOME = old
+            n = subprocess.run(["git", "-C", str(bare), "rev-list", "--count", cloud_runner.STATE_BRANCH],
+                               capture_output=True, text=True).stdout.strip()
+            self.assertEqual(n, "1")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
 class CloudRunnerTests(unittest.TestCase):
     def test_active_campaigns_are_the_cleared_ones(self):
         import cloud_runner

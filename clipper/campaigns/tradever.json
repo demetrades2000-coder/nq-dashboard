@@ -24,7 +24,7 @@
   "clip": {
     "min": 12,
     "max": 55,
-    "count": 24,
+    "count": 16,
     "latest": 2,
     "layout": "auto",
     "title": true,

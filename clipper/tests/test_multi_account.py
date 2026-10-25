@@ -170,6 +170,30 @@ class CarouselTests(unittest.TestCase):
             zernio.upload_photos(imgs, "tiktok", "default", "t", "c", consent=False, http=api)
 
 
+class StatsTests(unittest.TestCase):
+    def test_views_come_from_zernio_analytics(self):
+        os.environ["ZERNIO_API_KEY"] = "zk"
+        zernio._STATS.clear()
+        calls = []
+
+        def http(method, url, data, headers, timeout=900):
+            calls.append(url)
+            page = 2 if "page=2" in url else 1
+            posts = ([{"platformPostUrl": "https://www.tiktok.com/@a/video/1?x=1",
+                       "analytics": {"views": 1500, "likes": 90}}] if page == 1 else
+                     [{"platformPostUrl": "https://www.tiktok.com/@a/video/2", "analytics": {"views": 7, "likes": 0}}])
+            return 200, json.dumps({"posts": posts, "pagination": {"page": page, "pages": 2}}).encode()
+        try:
+            self.assertEqual(zernio.post_stats("https://www.tiktok.com/@a/video/1", "tiktok", http=http),
+                             {"views": 1500, "likes": 90, "comments": None, "shares": None})
+            self.assertEqual(zernio.post_stats("https://www.tiktok.com/@A/video/2/", "tiktok", http=http)["views"], 7)
+            self.assertIsNone(zernio.post_stats("https://www.tiktok.com/@a/video/3", "tiktok", http=http))
+            self.assertEqual(len(calls), 2)       # two pages, fetched once and cached
+        finally:
+            zernio._STATS.clear()
+            os.environ.pop("ZERNIO_API_KEY", None)
+
+
 class TextTests(unittest.TestCase):
     def test_spelling_fixes_join_words_and_keep_punctuation(self):
         W = cl.Word

@@ -104,8 +104,13 @@ def save_state(message: str) -> None:
         log("state unchanged")
         return
     sh(["git", "commit", "-q", "-m", message], cwd=HOME)
+    # keep the branch to one commit: posted clips are deleted every run, and history would keep them forever
+    root = sh(["git", "rev-list", "--max-parents=0", "HEAD"], cwd=HOME, quiet=True).stdout.split()
+    if root and sh(["git", "rev-parse", "HEAD"], cwd=HOME, quiet=True).stdout.strip() != root[-1]:
+        sh(["git", "reset", "-q", "--soft", root[-1]], cwd=HOME)
+        sh(["git", "commit", "-q", "--amend", "-m", message], cwd=HOME)
     for i in range(4):
-        r = sh(["git", "push", "-q", "origin", f"HEAD:{STATE_BRANCH}"], cwd=HOME, check=False)
+        r = sh(["git", "push", "-q", "--force", "origin", f"HEAD:{STATE_BRANCH}"], cwd=HOME, check=False)
         if not r.returncode:
             log(f"state saved to branch {STATE_BRANCH}")
             return
@@ -256,6 +261,7 @@ def configure(ws, per_account: int) -> None:
     ws.set_setting("autopilot.via", "free")
     ws.set_setting("autopilot.platforms", ["tiktok"])
     ws.set_setting("autopilot.max_uploads_per_day", per_account)
+    ws.set_setting("autopilot.max_slides_per_day", 2)
     ws.set_setting("autopilot.privacy", "public")
     ws.set_setting("autopilot.campaigns", [str(c) for c in CAMPAIGNS])
     ws.set_setting("autopilot.every_hours", 4)
@@ -268,21 +274,126 @@ def configure(ws, per_account: int) -> None:
     ws.set_setting("zernio.tiktok_consent", True)
 
 
+def compute_supply(ws) -> dict:
+    """How much ready-to-post content is left and for how many days at the current posting pace."""
+    import pipeline as pl
+    n = {k: ws.q("SELECT COUNT(*) n FROM clips WHERE status='approved' AND COALESCE(kind,'video')=?", (k,))[0]["n"]
+         for k in ("video", "slideshow")}
+    decks = 0
+    try:
+        import slideshow
+        for f in CAMPAIGNS:
+            c = json.loads(f.read_text(encoding="utf-8"))
+            if not c.get("slideshows"):
+                continue
+            made = {r["text"] for r in ws.q("SELECT text FROM clips WHERE campaign=? AND kind='slideshow'", (c["name"],))}
+            decks += len([d for d in slideshow.decks_from_transcript(pl.campaign_transcript(ws, c["name"]), c)
+                          if d["id"] not in made])
+    except Exception:  # noqa: BLE001  (supply info never breaks a run)
+        pass
+    accounts = 0
+    for f in CAMPAIGNS:
+        c = json.loads(f.read_text(encoding="utf-8"))
+        accounts += len([a for a in pl.campaign_accounts(c, "tiktok", "free") if a != "default"])
+    per_day = max(1, accounts) * (int(ws.setting("autopilot.max_uploads_per_day", 2)) +
+                                  int(ws.setting("autopilot.max_slides_per_day", 2)))
+    total = n["video"] + n["slideshow"] + decks
+    out = {"videos": n["video"], "slideshows": n["slideshow"], "decks_available": decks, "per_day": per_day,
+           "days_left": round(total / per_day, 1)}
+    ws.set_setting("supply.decks_available", decks)
+    ws.set_setting("supply.days_left", out["days_left"])
+    ws.set_setting("supply.note", f"{n['video']} clips + {n['slideshow']} slideshows ready, {decks} more slideshow "
+                                  f"decks to make: about {out['days_left']} days at {per_day} posts a day. Drop new "
+                                  f"footage in the campaign's Drive folder to add more.")
+    return out
+
+
+def ntfy(topic: str, title: str, message: str, click: str = "", priority: str = "default", tags: str = "",
+         http=None) -> bool:
+    """One phone notification through ntfy.sh (free; subscribe to the topic in the ntfy app). Never raises."""
+    import urllib.request
+    headers = {"Title": title.encode("ascii", "ignore").decode(), "Priority": priority, "Tags": tags}
+    if click:
+        headers["Click"] = click
+    try:
+        if http:
+            return bool(http(topic, message, headers))
+        req = urllib.request.Request(f"https://ntfy.sh/{topic}", data=message.encode("utf-8"), headers=headers)
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return r.status == 200
+    except Exception as e:  # noqa: BLE001
+        log(f"notification failed: {e}")
+        return False
+
+
+def owner_alerts(ws, state: dict, supply: dict, key: bool, http=None, now_utc=None) -> list[str]:
+    """Phone notifications (needs the NTFY_TOPIC secret): a nightly 'N links to submit' note at 8 PM New York, and
+    one-off alerts when something needs the owner (campaign paused, content running low, posting key missing)."""
+    topic = os.environ.get("NTFY_TOPIC", "").strip()
+    if not topic:
+        return []
+    import pipeline as pl
+    repo = os.environ.get("GITHUB_REPOSITORY", "demetrades2000-coder/nq-dashboard")
+    click = f"https://raw.githack.com/{repo}/clipper-cloud/site/index.html#/submit"
+    t = pl.now_in_tz("America/New_York", now_utc)
+    day = t.strftime("%Y-%m-%d") if t else time.strftime("%Y-%m-%d")
+    sent, seen = [], state.setdefault("notified", {})
+
+    def once(k, title, msg, **kw):
+        if seen.get(k) != day:
+            if ntfy(topic, title, msg, click=click, http=http, **kw):
+                seen[k] = day
+                sent.append(title)
+    n = ws.q("SELECT COUNT(*) n FROM uploads WHERE url IS NOT NULL AND created > ?", (state.get("digest_ts", ""),))[0]["n"]
+    if t and t.hour >= 20 and seen.get("digest") != day and n:
+        if ntfy(topic, f"{n} new links to submit", "Open the dashboard, tap Copy next link, paste it on the campaign "
+                "page. 2 minutes.", click=click, tags="memo", http=http):
+            seen["digest"] = day
+            state["digest_ts"] = pl.now()
+            sent.append("digest")
+    for r in ws.q("SELECT key, value FROM settings WHERE key LIKE 'campaign_live.%'"):
+        try:
+            v = json.loads(r["value"])
+        except ValueError:
+            continue
+        name = r["key"].split(".", 1)[1]
+        if v.get("ok", True):
+            seen.pop(f"paused:{name}", None)
+        elif f"paused:{name}" not in seen:
+            if ntfy(topic, f"{name} paused", f"{v.get('reason')}. Posting moves to the other campaigns. Pick the next "
+                    "one in the dashboard's Leads.", click=click, priority="high", tags="warning", http=http):
+                seen[f"paused:{name}"] = day
+                sent.append(f"paused:{name}")
+    if supply and supply.get("days_left", 99) < 2:
+        once("supply", "Content running low", f"About {supply['days_left']} days of posts left. Add footage to the "
+             "campaign's Drive folder.", priority="high", tags="warning")
+    if not key and ws.q("SELECT COUNT(*) n FROM clips WHERE status='approved'")[0]["n"]:
+        once("nokey", "Posting is off", "Add the ZERNIO_API_KEY secret on GitHub and connect TikTok in Zernio.",
+             priority="high", tags="warning")
+    return sent
+
+
 def prune_posted(ws) -> int:
     """Delete rendered files of clips already live on every platform, to keep the state branch small."""
     n = 0
     for r in ws.q("SELECT c.id, c.ready_file FROM clips c WHERE c.ready_file IS NOT NULL AND "
                   "EXISTS(SELECT 1 FROM uploads u WHERE u.clip_id=c.id AND u.state IN ('live','processing'))"):
         p = Path(r["ready_file"])
-        if p.exists():
-            p.unlink()
-            n += 1
+        try:
+            if p.is_dir():   # a slideshow deck: its slide images
+                shutil.rmtree(p)
+                n += 1
+            elif p.exists():
+                p.unlink()
+                n += 1
+        except OSError:
+            pass
     return n
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--per-account", type=int, default=int(os.environ.get("CLIP_PER_ACCOUNT", "3")),
+    ap.add_argument("--per-account", type=int, default=int(os.environ.get("CLIP_PER_ACCOUNT", "2")),
                     help="posts per TikTok account per day (TikTok's own ceiling is 15)")
     ap.add_argument("--no-push", action="store_true", help="don't save the state branch (testing)")
     ap.add_argument("--no-drive", action="store_true")
@@ -331,6 +442,13 @@ def main(argv=None) -> int:
         log("ZERNIO_API_KEY is not set in this cloud environment: clipping and queueing only, no posting")
     rc = pl.autopilot_cycle(ws, argparse.Namespace(limit=None, preset="veryfast", cookies_from_browser=None))
     pruned = prune_posted(ws)
+    supply = compute_supply(ws)
+    try:
+        sent = owner_alerts(ws, state, supply, key)
+        if sent:
+            log(f"notified: {', '.join(sent)}")
+    except Exception as e:  # noqa: BLE001
+        log(f"notifications skipped: {e}")
     import dashboard
     site = HOME / "site"
     try:

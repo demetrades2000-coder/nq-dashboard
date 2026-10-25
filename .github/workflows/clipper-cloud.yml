@@ -31,6 +31,7 @@ jobs:
       PYTHONUTF8: "1"
       CLIP_CLOUD_DIR: ${{ github.workspace }}/../clip-cloud
       ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
+      NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}   # optional: phone notifications through the free ntfy app
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Wait for this run's slot
@@ -63,6 +64,12 @@ jobs:
         id: cycle
         continue-on-error: true
         run: python clipper/cloud_runner.py
+
+      - name: Tell the owner if the cycle failed
+        if: steps.cycle.outcome == 'failure' && env.NTFY_TOPIC != ''
+        run: |
+          curl -s -H "Title: Clip Engine run failed" -H "Priority: high" -H "Click: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+               -d "The cycle hit an error. Tap to see why; the next run still starts." "https://ntfy.sh/${NTFY_TOPIC}" || true
 
       - name: Dashboard link
         if: always()

@@ -270,6 +270,48 @@ def upload_photos(images: list, platform: str, account: str, title: str, caption
             "publish_id": str(pid) if pid else None}
 
 
+_STATS: dict[str, tuple[float, dict]] = {}
+
+
+def _norm_url(u: str) -> str:
+    return (u or "").split("?")[0].rstrip("/").lower()
+
+
+def analytics_posts(platform: str = "tiktok", days: int = 60, http=None, sleep=time.sleep) -> dict[str, dict]:
+    """{post url: {views, likes, comments, shares}} for recent posts, from Zernio's analytics (usage-based plans
+    include it). Reliable from datacenter IPs, unlike reading TikTok's public pages."""
+    import datetime as _dt
+    to = _dt.date.today()
+    frm = to - _dt.timedelta(days=days)
+    out: dict[str, dict] = {}
+    for page in range(1, 21):
+        st, body = _call("GET", f"{API}/analytics?platform={platform}&fromDate={frm.isoformat()}&toDate={to.isoformat()}"
+                                f"&limit=100&page={page}", headers=_auth(), http=http, sleep=sleep)
+        if st >= 400:
+            raise ZernioError(_explain(st, body))
+        for p in (body.get("posts") or []):
+            u, a = p.get("platformPostUrl"), p.get("analytics") or {}
+            if u:
+                out[_norm_url(u)] = {"views": a.get("views"), "likes": a.get("likes"), "comments": a.get("comments"),
+                                     "shares": a.get("shares")}
+        pg = body.get("pagination") or {}
+        if page >= int(pg.get("pages") or 1):
+            break
+    return out
+
+
+def post_stats(url: str, platform: str = "tiktok", http=None, sleep=time.sleep, ttl: float = 600) -> dict | None:
+    """Views/likes for one of our posts (analytics fetched once per process and platform, then cached)."""
+    now = time.time()
+    hit = _STATS.get(platform)
+    if not hit or now - hit[0] > ttl:
+        try:
+            _STATS[platform] = (now, analytics_posts(platform, http=http, sleep=sleep))
+        except ZernioError:
+            _STATS[platform] = (now, {})
+    return _STATS[platform][1].get(_norm_url(url))
+
+
 def post_url(post_id: str, platform: str, http=None, sleep=time.sleep) -> dict | None:
     """Look up a published post's platform link and status."""
     st, out = _call("GET", f"{API}/posts/{post_id}", headers=_auth(), http=http, sleep=sleep)

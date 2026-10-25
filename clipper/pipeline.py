@@ -529,7 +529,8 @@ def process_source(ws: WS, row: sqlite3.Row, a) -> None:
         ksh = shingles(k.text) if k.words else set()
         dup = False
         for src_id, s0, e0, sh in ex_sh:
-            if src_id == sid and min(k.e, e0) - max(k.s, s0) > 0.5 * (k.e - k.s):
+            # the same moment cut a few seconds earlier or later is a duplicate: overlap vs the SHORTER of the two
+            if src_id == sid and min(k.e, e0) - max(k.s, s0) > 0.4 * min(k.e - k.s, e0 - s0):
                 dup = True
             elif ksh and jaccard(ksh, sh) > 0.5:
                 dup = True
@@ -566,8 +567,15 @@ def process_source(ws: WS, row: sqlite3.Row, a) -> None:
     outdir.mkdir(parents=True, exist_ok=True)
     font = cl.pick_font(args.font)
     made = 0
+    made_windows: list = []
     for i, k in enumerate(chosen, 1):
         notes = extend_for_context(k, sents, args, punctuated) if k.words else []
+        # extending to finish a sentence can move the window onto a moment that is already a clip: check again
+        if any(src_id == sid and min(k.e, e0) - max(k.s, s0) > 0.4 * min(k.e - k.s, e0 - s0)
+               for src_id, s0, e0, _ in ex_sh + made_windows):
+            ws.event(f"job #{sid} clip {i}: skipped, after extending it repeats a moment already clipped", "info", sid)
+            continue
+        made_windows.append((sid, k.s, k.e, set()))
         cl.make_copy(k, meta, c)
         if k.title and INCOME_RE.search(k.title):
             k.title = f"“{k.title}”"  # quoted: it's the speaker's claim, not ours
@@ -1263,6 +1271,9 @@ class ZernioUploader:
         return self.z.post_url(post_id, self.platform)
 
     def public_stats(self, url):
+        st = self.z.post_stats(url, self.platform)   # Zernio's own numbers first: reliable from cloud runners
+        if st and st.get("views") is not None:
+            return {"views": st["views"], "likes": st.get("likes") or 0}
         v, l = tracker.fetch_stats(url)
         return {"views": v, "likes": l}
 
@@ -1347,20 +1358,27 @@ def autopilot_policy(ws: WS) -> dict:
     }
 
 
-def in_post_hours(hours, tz: str, now_utc=None) -> bool:
-    """True when the local hour in tz is inside [start, end) (end may pass midnight, e.g. [20, 2])."""
+def now_in_tz(tz: str, now_utc=None):
+    """Current time in tz (None when it can't be worked out: no tz database and not US Eastern)."""
     now_utc = now_utc or dt.datetime.now(dt.timezone.utc)
     try:
         from zoneinfo import ZoneInfo
-        t = now_utc.astimezone(ZoneInfo(tz))
+        return now_utc.astimezone(ZoneInfo(tz))
     except Exception:  # noqa: BLE001  (no tz database, e.g. Windows without tzdata)
         if tz != "America/New_York":
-            return True
+            return None
         # US Eastern without a database: DST from the 2nd Sunday of March to the 1st Sunday of November
         y = now_utc.year
         start = dt.datetime(y, 3, 8 + (6 - dt.date(y, 3, 8).weekday()) % 7, 7, tzinfo=dt.timezone.utc)
         end = dt.datetime(y, 11, 1 + (6 - dt.date(y, 11, 1).weekday()) % 7, 6, tzinfo=dt.timezone.utc)
-        t = now_utc + dt.timedelta(hours=-4 if start <= now_utc < end else -5)
+        return now_utc + dt.timedelta(hours=-4 if start <= now_utc < end else -5)
+
+
+def in_post_hours(hours, tz: str, now_utc=None) -> bool:
+    """True when the local hour in tz is inside [start, end) (end may pass midnight, e.g. [20, 2])."""
+    t = now_in_tz(tz, now_utc)
+    if t is None:
+        return True
     a, b = int(hours[0]), int(hours[1])
     return a <= t.hour < b if a <= b else (t.hour >= a or t.hour < b)
 
@@ -1627,7 +1645,9 @@ def autopilot_cycle(ws: WS, a, uploader=None, uploaders=None) -> int:
             try:
                 cc = load_campaign_checked(f)
                 if cc.get("slideshows") and cmp.automation_allowed(cc) is True and not campaign_paused(ws, cc["name"]):
-                    n = make_slideshows(ws, cc, f, limit=int(ws.setting("autopilot.slides_per_cycle", 6)))
+                    ready = ws.q("SELECT COUNT(*) n FROM clips WHERE campaign=? AND kind='slideshow' AND status='approved'",
+                                 (cc["name"],))[0]["n"]
+                    n = make_slideshows(ws, cc, f, limit=max(0, int(ws.setting("autopilot.slides_buffer", 10)) - ready))
                     if n:
                         rep["approved"].append(f"{n} new slideshow(s) for {cc['name']}")
             except Exception as e:  # noqa: BLE001  (slides never block video posting)

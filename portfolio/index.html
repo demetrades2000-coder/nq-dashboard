@@ -84,8 +84,9 @@ nav a.l:hover,nav a.l.on{color:var(--acc2)}
 /* hero */
 .hero{position:relative;min-height:100svh;display:flex;align-items:flex-end;padding:0 0 90px;overflow:hidden}
 #hv,.hero .poster{position:absolute;inset:-4% 0;width:100%;height:108%;object-fit:cover;opacity:0;transition:opacity 2s;z-index:0}
-#hv.on,.hero .poster.on{opacity:.55}
-.hero::before{content:"";position:absolute;inset:0;z-index:1;background:radial-gradient(ellipse at 30% 55%,rgba(5,5,5,.2),rgba(5,5,5,.78) 70%),linear-gradient(rgba(5,5,5,.7),transparent 30%,transparent 55%,var(--bg))}
+#hv.on,.hero .poster.on{opacity:.92}
+.hero::before{content:"";position:absolute;inset:0;z-index:1;background:radial-gradient(ellipse at 50% 35%,transparent 40%,rgba(5,5,5,.6) 100%),linear-gradient(rgba(5,5,5,.55),transparent 22%,transparent 50%,var(--bg) 92%)}
+@media(max-width:720px){#hv,.hero .poster{inset:auto;left:-26%;top:8%;width:152%;height:42%;object-fit:cover;-webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent)}}
 .hero .wrap{z-index:3;width:100%}
 .eyebrow{font:300 10.5px var(--mono);letter-spacing:.34em;text-transform:uppercase;color:var(--acc)}
 h1{font:300 clamp(54px,14vw,200px)/.92 var(--serif);letter-spacing:.14em;margin:22px 0 26px -.04em;color:var(--ink)}
@@ -314,7 +315,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
   <div class="links rv" id="links"></div>
 </div></section>
 </main>
-<footer><div class="wrap"><span>© <span id="yr"></span> ZLARIOR</span><span>All systems nominal</span></div></footer>
+<footer><div class="wrap"><span>© <span id="yr"></span> ZLARIOR</span><span id="credit">All systems nominal</span></div></footer>
 
 <script>
 /* ============ EDIT ME ============ */
@@ -467,6 +468,7 @@ if(reduce)$('#h1').textContent='ZLARIOR';
 fetch('media/clips.json').then(r=>r.ok?r.json():null).then(m=>{
   if(!m)return;
   const cn=navigator.connection||{},lite=cn.saveData||/^(slow-2g|2g|3g)$/.test(cn.effectiveType||'');
+  if(m.hero&&m.hero.credit){$('#credit').innerHTML=`Hero footage · <a href="${m.hero.source}" target="_blank" rel="noopener" style="text-decoration:underline">${m.hero.credit}</a> · ${m.hero.license}`}
   if(m.hero){const v=$('#hv'),p=$('#hp');
     if(m.hero.poster){p.src=m.hero.poster;p.onload=()=>p.classList.add('on')}
     if(lite)return;

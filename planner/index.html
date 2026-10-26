@@ -426,6 +426,15 @@ dialog[open]{animation:pop .16s ease-out}
   </form>
 </dialog>
 
+<dialog id="askDlg" aria-labelledby="askTitle">
+  <form class="dlg" id="askForm">
+    <div class="dlg-h"><h3 id="askTitle"></h3></div>
+    <div id="askMsg" style="font-size:13.5px;color:var(--ink2)"></div>
+    <div class="fld" id="askValWrap" hidden><input id="askVal" readonly aria-label="Link"></div>
+    <div class="dlg-f"><div></div><div><button type="button" class="btn" id="askNo">Cancel</button><button type="submit" class="btn primary" id="askYes">OK</button></div></div>
+  </form>
+</dialog>
+
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastMsg"></span><button id="toastBtn" hidden>Undo</button></div>
 
 <script>
@@ -665,8 +674,8 @@ async function connect(token, repo) {
   await syncNow();
   if (syncState === 'error') throw new Error(syncMsg);
 }
-function disconnect() {
-  if (!confirm('Disconnect this device? Your calendar stays here and in the data repo, but this device stops syncing.')) return;
+async function disconnect() {
+  if (!(await ask('Disconnect this device?', 'Your calendar stays here and in the data repo. This device stops syncing.', 'Disconnect', { danger: true }))) return;
   sync = null; botCache = {};
   try { localStorage.removeItem(SYNC_KEY); localStorage.removeItem(BOTS_KEY); } catch (e) { /* nothing to clear */ }
   setSync('off'); render();
@@ -709,6 +718,24 @@ function buildBotEvents() {
   botEvents = out;
 }
 const allEvents = () => (botEvents.length ? S.events.concat(botEvents) : S.events);
+
+// In-page confirm (native confirm/prompt look out of place in a home-screen app, and some viewers block them).
+function ask(title, msg, yes = 'OK', { danger = false, value = '', cancel = true } = {}) {
+  return new Promise((resolve) => {
+    const d = $('#askDlg');
+    $('#askTitle').textContent = title; $('#askMsg').textContent = msg;
+    $('#askYes').textContent = yes; $('#askYes').className = 'btn ' + (danger ? 'danger' : 'primary');
+    $('#askNo').hidden = !cancel;
+    $('#askValWrap').hidden = !value; $('#askVal').value = value;
+    let answer = false;
+    $('#askForm').onsubmit = (e) => { e.preventDefault(); answer = true; d.close(); };
+    $('#askNo').onclick = () => d.close();
+    d.onclose = () => resolve(answer);
+    d.showModal();
+    setTimeout(() => (value ? $('#askVal').select() : $('#askYes').focus()), 30);
+  });
+}
+const PREVIEW = !!window.PLANNER_PREVIEW;
 
 const cat = (id) => S.categories.find((c) => c.id === id) || { id, name: 'Other', color: '#64748b' };
 
@@ -1061,11 +1088,11 @@ function paintCatEd() {
   $('#catEd').innerHTML = catDraft.map((c, i) => `<li data-i="${i}"><input type="color" value="${c.color}" aria-label="Color"><input type="text" value="${esc(c.name)}" aria-label="Name" maxlength="40"><button type="button" class="ib" data-cdel title="Remove" aria-label="Remove ${esc(c.name)}"${catDraft.length < 2 ? ' disabled' : ''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></li>`).join('');
 }
 function openCats() { catDraft = S.categories.map((c) => ({ ...c })); paintCatEd(); catDlg.showModal(); }
-function saveCats() {
+async function saveCats() {
   const draft = catDraft.map((c) => ({ ...c, name: c.name.trim() || 'Untitled' }));
   const ids = new Set(draft.map((c) => c.id));
   const orphans = S.events.filter((e) => !ids.has(e.cat));
-  if (orphans.length && !confirm(`${orphans.length} event${orphans.length === 1 ? '' : 's'} use a removed type and will move to “${draft[0].name}”. Continue?`)) return;
+  if (orphans.length && !(await ask('Remove event types?', `${orphans.length} event${orphans.length === 1 ? '' : 's'} use a removed type and will move to “${draft[0].name}”.`, 'Move and save'))) return;
   snapshot();
   commit(() => { orphans.forEach((e) => { e.cat = draft[0].id; }); S.categories = draft; });
   S.hidden = S.hidden.filter((h) => ids.has(h));
@@ -1082,10 +1109,12 @@ function taskAction(id, fn) { const t = S.tasks.find((x) => x.id === id); if (t)
 
 // ---------- backup ----------
 function download(name, text, type) {
+  if (PREVIEW) { toast('Downloads work in the installed app, not in this preview.'); return false; }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([text], { type }));
   a.download = name; document.body.appendChild(a); a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  return true;
 }
 function toICS() {
   const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
@@ -1248,10 +1277,10 @@ $('#catAdd').onclick = () => {
 $('#catForm').onsubmit = (e) => { e.preventDefault(); saveCats(); };
 
 // backup wiring
-$('#exportBtn').onclick = () => { download(`planner-backup-${todayKey()}.json`, JSON.stringify(S, null, 1), 'application/json'); toast('Backup downloaded'); };
+$('#exportBtn').onclick = () => { if (download(`planner-backup-${todayKey()}.json`, JSON.stringify(S, null, 1), 'application/json')) toast('Backup downloaded'); };
 $('#icsBtn').onclick = () => {
   if (!allEvents().length) { toast('No events to export yet'); return; }
-  download(`planner-${todayKey()}.ics`, toICS(), 'text/calendar'); toast('Calendar file downloaded');
+  if (download(`planner-${todayKey()}.ics`, toICS(), 'text/calendar')) toast('Calendar file downloaded');
 };
 $('#importBtn').onclick = () => $('#importFile').click();
 $('#importFile').onchange = async (e) => {
@@ -1260,7 +1289,7 @@ $('#importFile').onchange = async (e) => {
   try {
     const data = JSON.parse(await f.text());
     if (!data || !Array.isArray(data.events)) throw new Error('not a planner backup');
-    if (!confirm(`Restore ${data.events.length} events and ${(data.tasks || []).length} tasks? This replaces your calendar${sync ? ' on every synced device' : ''}.`)) return;
+    if (!(await ask('Restore backup?', `${data.events.length} events and ${(data.tasks || []).length} tasks. This replaces your calendar${sync ? ' on every synced device' : ''}.`, 'Restore', { danger: true }))) return;
     const d = normalize(data);
     snapshot(); commit(() => { S.categories = d.categories; S.events = d.events; S.tasks = d.tasks; S.dismissed = d.dismissed; S.weekStart = d.weekStart; }); render(); toast('Backup restored', true);
   } catch (err) { toast('That file is not a Planner backup'); }
@@ -1296,6 +1325,7 @@ addEventListener('storage', (e) => { if (e.key === KEY) { S = load(); render(); 
 // sync wiring
 const syncDlg = $('#syncDlg');
 $('#syncBtn').onclick = () => {
+  if (PREVIEW) { toast('Sync turns on in the installed app. This preview keeps everything in this browser.'); return; }
   if (sync) { syncNow(); return; }
   $('#sToken').value = ''; $('#sRepo').value = DEFAULT_REPO; $('#sErr').hidden = true;
   syncDlg.showModal(); setTimeout(() => $('#sToken').focus(), 30);
@@ -1314,7 +1344,7 @@ $('#syncLink').onclick = async () => {
   try {
     if (navigator.share && /iPhone|iPad|Android/.test(UA)) await navigator.share({ title: 'Planner device link', text: note, url: link });
     else { await navigator.clipboard.writeText(link); toast('Device link copied. Open it on your phone. Keep it private.'); }
-  } catch (err) { if (err && err.name !== 'AbortError') prompt(note, link); }
+  } catch (err) { if (err && err.name !== 'AbortError') ask('Device link', note, 'Done', { value: link, cancel: false }); }
 };
 $('#tasks').addEventListener('focusout', () => setTimeout(() => {
   if (pendingRender && !(document.activeElement && document.activeElement.classList.contains('t-in'))) { pendingRender = false; render(); }

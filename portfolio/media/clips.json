@@ -1,0 +1,45 @@
+{
+ "hero": {
+  "file": "media/hero-night-1.mp4",
+  "fileMobile": "media/hero-night-1-m.mp4",
+  "poster": "media/hero-night-1.jpg",
+  "title": "Lamborghini Revuelto, after dark",
+  "source": "https://www.youtube.com/watch?v=0yPQS47FVpQ",
+  "license": "CC BY 3.0",
+  "credit": "The Pro Video"
+ },
+ "reel": [
+  {
+   "file": "media/reel1.mp4",
+   "poster": "media/reel1.jpg",
+   "title": "Night Grid",
+   "caption": "The city never sleeps. Neither do the systems.",
+   "source": "https://mixkit.co/free-stock-video/aerial-view-of-city-traffic-at-night-11/",
+   "license": "Mixkit Free License"
+  },
+  {
+   "file": "media/reel2.mp4",
+   "poster": "media/reel2.jpg",
+   "title": "Into The Tunnel",
+   "caption": "Some roads only go one direction.",
+   "source": "https://mixkit.co/free-stock-video/driving-in-a-dark-tunnel-2026/",
+   "license": "Mixkit Free License"
+  },
+  {
+   "file": "media/reel3.mp4",
+   "poster": "media/reel3.jpg",
+   "title": "Dusk Crossing",
+   "caption": "Momentum is a quiet thing.",
+   "source": "https://mixkit.co/free-stock-video/aerial-travel-above-a-highway-in-the-city-41540/",
+   "license": "Mixkit Free License"
+  },
+  {
+   "file": "media/reel4.mp4",
+   "poster": "media/reel4.jpg",
+   "title": "Ember",
+   "caption": "Details decide everything.",
+   "source": "https://mixkit.co/free-stock-video/close-up-of-red-sports-car-63/",
+   "license": "Mixkit Free License"
+  }
+ ]
+}

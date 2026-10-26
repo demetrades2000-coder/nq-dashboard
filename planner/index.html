@@ -131,6 +131,15 @@ main{overflow:auto;min-width:0;position:relative}
 .tools{display:flex;flex-direction:column;gap:8px}
 .tools .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .tools .btns{display:flex;flex-wrap:wrap;gap:6px}
+.sync-row{display:flex;align-items:center;gap:8px}
+.sdot{width:8px;height:8px;border-radius:50%;background:#d1d5db;flex:none}
+.sdot.ok{background:var(--ok)}.sdot.busy{background:#f59e0b;animation:pulse 1s infinite alternate}.sdot.error{background:#dc2626}.sdot.offline{background:#9ca3af}
+@keyframes pulse{to{opacity:.35}}
+#syncText{flex:1;font-size:12.5px;color:var(--ink2);font-weight:500;min-width:0}
+#syncText.error{color:#b91c1c}
+.steps{padding-left:18px;display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--ink2)}
+.steps a{color:var(--ink);font-weight:600}
+.by{font-weight:500;font-size:12px;color:var(--mute)}
 .keys{font-size:11.5px;color:var(--faint);line-height:1.7}
 kbd{font:500 10.5px var(--font);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;color:var(--mute);background:#fff}
 
@@ -363,7 +372,8 @@ dialog[open]{animation:pop .16s ease-out}
 
     <section class="card tools">
       <div class="row"><span class="sub" style="color:var(--ink2);font-weight:500">Week starts</span><div class="seg" id="wkStart"><button data-w="0">Sun</button><button data-w="1">Mon</button></div></div>
-      <div class="sub">Saved on this device. Back up to move it to another phone or computer.</div>
+      <div class="sync-row"><span class="sdot" id="syncDot"></span><span id="syncText">Only on this device</span><button class="btn sm" id="syncBtn">Connect</button></div>
+      <div class="btns" id="syncMore" hidden><button class="btn sm" id="syncLink" title="A private link that connects your phone or another computer in one tap">Link a device</button><button class="btn sm" id="syncOff">Disconnect</button></div>
       <div class="btns"><button class="btn sm" id="exportBtn">Back up</button><button class="btn sm" id="importBtn">Restore</button><button class="btn sm" id="icsBtn" title="Download a .ics file for Google / Apple / Outlook Calendar">Export .ics</button></div>
       <input type="file" id="importFile" accept="application/json,.json" hidden>
       <div class="keys"><kbd>N</kbd> new &nbsp;<kbd>T</kbd> today &nbsp;<kbd>←</kbd><kbd>→</kbd> move &nbsp;<kbd>M</kbd><kbd>W</kbd><kbd>D</kbd><kbd>A</kbd> views &nbsp;<kbd>/</kbd> search</div>
@@ -382,11 +392,27 @@ dialog[open]{animation:pop .16s ease-out}
     <div class="frow"><div class="fld"><label for="fRepeat">Repeats</label><select id="fRepeat"><option value="none">Does not repeat</option><option value="daily">Every day</option><option value="weekdays">Every weekday (Mon–Fri)</option><option value="weekly">Every week</option><option value="biweekly">Every 2 weeks</option><option value="monthly">Every month</option><option value="yearly">Every year</option></select></div><div class="fld" id="untilWrap" hidden><label for="fUntil">Until (optional)</label><input type="date" id="fUntil"></div></div>
     <div class="fld"><label for="fNotes">Notes</label><textarea id="fNotes" rows="3" placeholder="Agenda, links, targets…"></textarea></div>
     <div class="hint" id="seriesHint" hidden>Changes apply to every repeat of this event.</div>
+    <div class="hint" id="botNote" hidden></div>
     <div class="err" id="fErr" hidden></div>
     <div class="dlg-f">
       <div><button type="button" class="btn danger" id="fDelete">Delete</button><button type="button" class="btn danger" id="fDeleteOne" hidden>Delete this day only</button></div>
-      <div><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Save</button></div>
+      <div><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn" id="fDismiss" hidden>Dismiss</button><button type="submit" class="btn primary" id="fSave">Save</button></div>
     </div>
+  </form>
+</dialog>
+
+<dialog id="syncDlg" aria-labelledby="syncTitle">
+  <form class="dlg" id="syncForm" novalidate>
+    <div class="dlg-h"><h3 id="syncTitle">Sync phone, computer and bots</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <ol class="steps">
+      <li>Your calendar is kept in your <b>private</b> GitHub repo below. Every device and bot reads and writes it there.</li>
+      <li>Make a key once: <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub → New fine-grained token</a>. Repository access: <b>Only select repositories → planner-data</b>. Permissions: <b>Contents → Read and write</b>. Pick the longest expiration.</li>
+      <li>Paste the key here. On your other devices, tap <b>Link a device</b> instead of pasting again.</li>
+    </ol>
+    <div class="fld"><label for="sToken">Access key</label><input id="sToken" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…"></div>
+    <div class="fld"><label for="sRepo">Data repo</label><input id="sRepo" autocomplete="off" spellcheck="false"></div>
+    <div class="err" id="sErr" hidden></div>
+    <div class="dlg-f"><div></div><div><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary" id="sGo">Connect</button></div></div>
   </form>
 </dialog>
 
@@ -461,6 +487,9 @@ function normalize(s) {
     events: Array.isArray(s.events) ? s.events.filter((e) => e && e.id && e.date) : [],
     tasks: Array.isArray(s.tasks) ? s.tasks.filter((t) => t && t.id) : [],
     hidden: Array.isArray(s.hidden) ? s.hidden : [],
+    dismissed: Array.isArray(s.dismissed) ? s.dismissed.filter((d) => d && d.id) : [],
+    deleted: s.deleted && typeof s.deleted === 'object' ? s.deleted : {},
+    settingsU: s.settingsU || 0,
     view: VIEWS.includes(s.view) ? s.view : 'month',
     weekStart: s.weekStart === 1 ? 1 : 0,
     lastCat: s.lastCat || cats[0].id,
@@ -475,7 +504,211 @@ function save() {
   catch (e) { toast('Could not save on this device (storage blocked or full). Use Back up.'); }
 }
 function snapshot() { undoSnap = JSON.stringify(S); }
-function undo() { if (!undoSnap) return; S = normalize(JSON.parse(undoSnap)); undoSnap = null; save(); render(); toast('Restored'); }
+function undo() {
+  if (!undoSnap) return;
+  const snap = JSON.parse(undoSnap); undoSnap = null;
+  commit(() => { SYNCED.forEach((k) => { S[k] = snap[k] || []; }); S.weekStart = snap.weekStart; });
+  render(); toast('Restored');
+}
+
+// ---------- sync: a private GitHub repo holds planner.json (yours) and bots/*.json (one file per bot) ----------
+// Every synced item carries u (last change, ms). Merging keeps the newest copy of each item and drops
+// anything with a newer tombstone in `deleted`, so phone and computer can edit at the same time.
+const SYNC_KEY = 'planner.sync', BOTS_KEY = 'planner.bots', API = 'https://api.github.com';
+const DEFAULT_REPO = 'demetrades2000-coder/planner-data';
+const SYNCED = ['categories', 'events', 'tasks', 'dismissed'];
+const REPEATS = ['none', 'daily', 'weekdays', 'weekly', 'biweekly', 'monthly', 'yearly'];
+const HM = /^([01]\d|2[0-3]):[0-5]\d$/, YMD = /^\d{4}-\d{2}-\d{2}$/;
+const UA = navigator.userAgent;
+const DEVICE = /iPhone|iPad/.test(UA) ? 'iPhone' : /Android/.test(UA) ? 'Android' : /Mac/.test(UA) ? 'Mac' : /Windows/.test(UA) ? 'Windows PC' : 'browser';
+const readJSON = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
+let sync = (() => { const v = readJSON(SYNC_KEY); return v && v.token && v.repo ? v : null; })();
+let botCache = readJSON(BOTS_KEY) || {};
+let botEvents = [], syncing = false, syncAgain = false, syncTimer = null, syncState = sync ? 'busy' : 'off', syncMsg = '', lastSynced = 0, pendingRender = false;
+
+const canon = (o) => Array.isArray(o) ? '[' + o.map(canon).join(',') + ']'
+  : o && typeof o === 'object' ? '{' + Object.keys(o).filter((k) => o[k] !== undefined).sort().map((k) => JSON.stringify(k) + ':' + canon(o[k])).join(',') + '}'
+  : JSON.stringify(o ?? null);
+const b64e = (str) => { const b = new TextEncoder().encode(str); let bin = ''; for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(bin); };
+const b64d = (b) => new TextDecoder().decode(Uint8Array.from(atob(String(b).replace(/\s/g, '')), (c) => c.charCodeAt(0)));
+
+// Every change to synced data goes through commit(): it stamps what changed, tombstones what was removed, saves, and syncs.
+function commit(fn) {
+  const before = {};
+  SYNCED.forEach((k) => { before[k] = new Map(S[k].map((x) => [x.id, canon({ ...x, u: 0 })])); });
+  const ws = S.weekStart;
+  fn();
+  const now = Date.now();
+  SYNCED.forEach((k) => {
+    const seen = new Set();
+    S[k].forEach((x) => {
+      seen.add(x.id);
+      if (before[k].get(x.id) !== canon({ ...x, u: 0 })) { x.u = now; delete S.deleted[x.id]; }
+    });
+    before[k].forEach((_, id) => { if (!seen.has(id)) S.deleted[id] = now; });
+  });
+  if (S.weekStart !== ws) S.settingsU = now;
+  save();
+  scheduleSync();
+}
+const userDoc = () => ({ v: 2, categories: S.categories, events: S.events, tasks: S.tasks, dismissed: S.dismissed, deleted: S.deleted, settings: { weekStart: S.weekStart, u: S.settingsU || 0 } });
+function mergeDocs(a, b) {
+  const deleted = { ...(a.deleted || {}) };
+  for (const [id, t] of Object.entries(b.deleted || {})) if (!(deleted[id] >= t)) deleted[id] = t;
+  const cut = Date.now() - 180 * 864e5;
+  for (const id in deleted) if (deleted[id] < cut) delete deleted[id];
+  const ml = (x, y) => {
+    const m = new Map();
+    for (const it of [...(x || []), ...(y || [])]) { if (!it || !it.id) continue; const c = m.get(it.id); if (!c || (it.u || 0) > (c.u || 0)) m.set(it.id, it); }
+    return [...m.values()].filter((it) => !(deleted[it.id] >= (it.u || 0)));
+  };
+  const sa = a.settings || { u: 0 }, sb = b.settings || { u: 0 };
+  const cats = ml(a.categories, b.categories);
+  return { v: 2, categories: cats.length ? cats : (b.categories || []), events: ml(a.events, b.events), tasks: ml(a.tasks, b.tasks), dismissed: ml(a.dismissed, b.dismissed), deleted, settings: (sb.u || 0) > (sa.u || 0) ? sb : sa };
+}
+function applyDoc(d) {
+  if (Array.isArray(d.categories) && d.categories.length) S.categories = d.categories;
+  S.events = d.events || []; S.tasks = d.tasks || []; S.dismissed = d.dismissed || []; S.deleted = d.deleted || {};
+  if (d.settings && d.settings.weekStart != null && (d.settings.u || 0) >= (S.settingsU || 0)) { S.weekStart = d.settings.weekStart === 1 ? 1 : 0; S.settingsU = d.settings.u || 0; }
+  S.hidden = S.hidden.filter((h) => S.categories.some((c) => c.id === h));
+  save();
+}
+
+function gh(path, opts = {}, token = sync && sync.token) {
+  return fetch(API + path, { ...opts, cache: 'no-cache', headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', ...(opts.body ? { 'Content-Type': 'application/json' } : {}) } });
+}
+function ghError(r) {
+  const m = { 401: 'Sync key rejected (expired or revoked). Reconnect with a new key.', 403: 'Sync key cannot write to the data repo. Give it Contents: Read and write.', 404: 'Data repo not found for this key.' };
+  return new Error(m[r.status] || `GitHub error ${r.status}`);
+}
+function scheduleSync(ms = 1200) { if (!sync) return; clearTimeout(syncTimer); setSync('busy'); syncTimer = setTimeout(syncNow, ms); }
+function safeRender() {
+  if (document.activeElement && document.activeElement.classList.contains('t-in')) pendingRender = true; else render();
+}
+async function pullBots() {
+  const r = await gh(`/repos/${sync.repo}/contents/bots`);
+  let list = [];
+  if (r.status !== 404) { if (!r.ok) throw ghError(r); const j = await r.json(); list = Array.isArray(j) ? j.filter((f) => f.type === 'file' && /\.json$/.test(f.name)) : []; }
+  const next = {};
+  for (const f of list) {
+    if (botCache[f.name] && botCache[f.name].sha === f.sha) { next[f.name] = botCache[f.name]; continue; }
+    const fr = await gh(`/repos/${sync.repo}/contents/bots/${encodeURIComponent(f.name)}`);
+    if (!fr.ok) { if (botCache[f.name]) next[f.name] = botCache[f.name]; continue; }
+    let data = null;
+    try { data = JSON.parse(b64d((await fr.json()).content)); } catch (e) { /* a broken bot file shows nothing */ }
+    next[f.name] = { sha: f.sha, data };
+  }
+  const changed = canon(next) !== canon(botCache);
+  botCache = next;
+  try { localStorage.setItem(BOTS_KEY, JSON.stringify(botCache)); } catch (e) { /* cache only */ }
+  return changed;
+}
+async function syncNow() {
+  if (!sync) return;
+  if (syncing) { syncAgain = true; return; }
+  syncing = true; syncAgain = false; clearTimeout(syncTimer); setSync('busy');
+  try {
+    let changed = false;
+    for (let attempt = 0; ; attempt++) {
+      const r = await gh(`/repos/${sync.repo}/contents/planner.json`);
+      let remote = null, sha = null;
+      if (r.ok) { const j = await r.json(); sha = j.sha; remote = JSON.parse(b64d(j.content)); }
+      else if (r.status !== 404) throw ghError(r);
+      const local = userDoc(), merged = remote ? mergeDocs(remote, local) : local;
+      if (canon(merged) !== canon(local)) { applyDoc(merged); changed = true; }
+      if (remote && canon(merged) === canon(remote)) break;
+      const body = { message: `Planner: update from ${DEVICE}`, content: b64e(JSON.stringify(merged, null, 1) + '\n') };
+      if (sha) body.sha = sha;
+      const put = await gh(`/repos/${sync.repo}/contents/planner.json`, { method: 'PUT', body: JSON.stringify(body) });
+      if (put.ok) break;
+      if ((put.status === 409 || put.status === 422) && attempt < 4) continue; // another device wrote first: merge again
+      throw ghError(put);
+    }
+    if (await pullBots()) changed = true;
+    if (changed) safeRender();
+    setSync('ok');
+  } catch (e) {
+    setSync(!navigator.onLine || e instanceof TypeError ? 'offline' : 'error', e.message);
+  } finally {
+    syncing = false;
+    if (syncAgain) syncNow();
+  }
+}
+function setSync(state, msg) { syncState = state; syncMsg = msg || ''; if (state === 'ok') lastSynced = Date.now(); paintSync(); }
+function paintSync() {
+  const s = Math.round((Date.now() - lastSynced) / 1000);
+  const ago = s < 45 ? 'just now' : s < 3600 ? `${Math.round(s / 60)} min ago` : `${Math.round(s / 3600)} h ago`;
+  const text = !sync ? 'Only on this device'
+    : syncState === 'busy' ? 'Syncing…'
+    : syncState === 'ok' ? `Synced ${ago}`
+    : syncState === 'offline' ? 'Offline. Changes are saved and will sync.'
+    : syncMsg || 'Sync problem';
+  $('#syncDot').className = 'sdot ' + (sync ? syncState : '');
+  $('#syncText').textContent = text;
+  $('#syncText').className = sync && syncState === 'error' ? 'error' : '';
+  $('#syncText').title = sync ? `Data repo: ${sync.repo}` : 'Connect to see this calendar on your phone, computer and from your bots';
+  $('#syncBtn').textContent = sync ? 'Sync now' : 'Connect';
+  $('#syncMore').hidden = !sync;
+}
+async function connect(token, repo) {
+  token = String(token || '').trim();
+  repo = String(repo || '').trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').replace(/\/+$/, '');
+  if (!token) throw new Error('Paste the access key.');
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new Error('Data repo should look like owner/name.');
+  let r;
+  try { r = await gh(`/repos/${repo}`, {}, token); } catch (e) { throw new Error('Could not reach GitHub. Check the connection.'); }
+  if (r.status === 401) throw new Error('GitHub rejected that key. Copy it again.');
+  if (r.status === 403 || r.status === 404) throw new Error(`This key cannot see ${repo}. Add that repo to the key.`);
+  if (!r.ok) throw new Error(`GitHub error ${r.status}.`);
+  sync = { token, repo };
+  try { localStorage.setItem(SYNC_KEY, JSON.stringify(sync)); } catch (e) { throw new Error('This browser blocks storage, so it cannot stay connected.'); }
+  await syncNow();
+  if (syncState === 'error') throw new Error(syncMsg);
+}
+function disconnect() {
+  if (!confirm('Disconnect this device? Your calendar stays here and in the data repo, but this device stops syncing.')) return;
+  sync = null; botCache = {};
+  try { localStorage.removeItem(SYNC_KEY); localStorage.removeItem(BOTS_KEY); } catch (e) { /* nothing to clear */ }
+  setSync('off'); render();
+}
+function readConnectLink() {
+  const m = location.hash.match(/^#connect=(.+)$/);
+  if (!m) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  let v;
+  try { v = JSON.parse(atob(decodeURIComponent(m[1]))); } catch (e) { toast('That device link is broken. Make a new one.'); return; }
+  connect(v.t, v.r).then(() => toast('Connected. This device now syncs.')).catch((e) => toast(e.message));
+}
+
+// Bot files: { "bot": "Zlarior", "events": [{ "id", "title", "type", "date", "start", "end", "end_date", "repeat", "until", "skip", "notes" }] }
+function typeToCat(t) {
+  const v = String(t || '').toLowerCase().trim();
+  const c = S.categories.find((x) => x.id === v || x.name.toLowerCase() === v);
+  return c ? c.id : (S.categories.some((x) => x.id === 'bots') ? 'bots' : S.categories[0].id);
+}
+function buildBotEvents() {
+  const out = [], gone = new Set(S.dismissed.map((d) => d.id));
+  for (const [file, f] of Object.entries(botCache)) {
+    const d = f && f.data;
+    if (!d || !Array.isArray(d.events)) continue;
+    const slug = file.replace(/\.json$/, ''), bot = String(d.bot || slug).slice(0, 40);
+    for (const e of d.events) {
+      if (!e || !e.title || !YMD.test(e.date || '')) continue;
+      const id = `bot:${slug}:${e.id || e.date + ':' + e.title}`;
+      if (gone.has('d:' + id)) continue;
+      const timed = HM.test(e.start || '');
+      out.push({
+        id, bot, title: String(e.title).slice(0, 200), cat: typeToCat(e.type), date: e.date, allDay: !timed,
+        start: timed ? e.start : '', end: timed ? (HM.test(e.end || '') && e.end > e.start ? e.end : fromMin(Math.min(toMin(e.start) + 30, 1439))) : '',
+        endDate: !timed && YMD.test(e.end_date || '') && e.end_date > e.date ? e.end_date : '',
+        repeat: REPEATS.includes(e.repeat) ? e.repeat : 'none', until: YMD.test(e.until || '') ? e.until : '',
+        ex: Array.isArray(e.skip) ? e.skip.filter((x) => YMD.test(x)) : [], notes: String(e.notes || '').slice(0, 2000),
+      });
+    }
+  }
+  botEvents = out;
+}
+const allEvents = () => (botEvents.length ? S.events.concat(botEvents) : S.events);
 
 const cat = (id) => S.categories.find((c) => c.id === id) || { id, name: 'Other', color: '#64748b' };
 
@@ -502,7 +735,7 @@ function occStart(ev, k) {
 }
 function eventsOn(k, includeHidden) {
   const out = [];
-  for (const ev of S.events) {
+  for (const ev of allEvents()) {
     if (!includeHidden && S.hidden.includes(ev.cat)) continue;
     const s = occStart(ev, k);
     if (s) out.push({ ev, occ: s, cont: s !== k });
@@ -514,6 +747,7 @@ const overdue = () => S.tasks.filter((t) => !t.done && t.date && t.date < todayK
 
 // ---------- render ----------
 function render() {
+  buildBotEvents();
   renderHeader();
   renderMain();
   renderSide();
@@ -539,7 +773,7 @@ function renderHeader() {
 
 function chip(o) {
   const e = o.ev, c = cat(e.cat);
-  const tip = esc(`${fmtRange(e)} · ${e.title}`);
+  const tip = esc(`${fmtRange(e)} · ${e.title}${e.bot ? ' · from ' + e.bot : ''}`);
   if (e.allDay) return `<button class="chip ad${o.cont ? ' cont' : ''}" style="${cvars(c.color)}" data-ev="${e.id}" data-occ="${o.occ}" title="${tip}">${esc(e.title)}</button>`;
   return `<button class="chip" style="${cvars(c.color)}" data-ev="${e.id}" data-occ="${o.occ}" title="${tip}"><i></i><span class="t">${fmtTime(e.start)}</span><span class="n">${esc(e.title)}</span></button>`;
 }
@@ -610,7 +844,7 @@ function agendaRow(o, showDate) {
   const e = o.ev, c = cat(e.cat);
   const when = showDate ? `${longDate(o.occ)}${e.allDay ? '' : ' · ' + fmtTime(e.start)}` : fmtRange(e);
   const rep = e.repeat && e.repeat !== 'none' ? ' ↻' : '';
-  return `<button class="ag-ev" style="${cvars(c.color)}" data-ev="${e.id}" data-occ="${o.occ}"><span class="bar"></span><span class="tm">${esc(when)}${rep}</span><span class="tg2"><div class="tt">${esc(e.title)}</div>${e.notes ? `<div class="nt">${esc(e.notes.split('\n')[0])}</div>` : ''}</span><span class="tag">${esc(c.name)}</span></button>`;
+  return `<button class="ag-ev" style="${cvars(c.color)}" data-ev="${e.id}" data-occ="${o.occ}"><span class="bar"></span><span class="tm">${esc(when)}${rep}</span><span class="tg2"><div class="tt">${esc(e.title)}${e.bot ? ` <span class="by">· ${esc(e.bot)}</span>` : ''}</div>${e.notes ? `<div class="nt">${esc(e.notes.split('\n')[0])}</div>` : ''}</span><span class="tag">${esc(c.name)}</span></button>`;
 }
 
 function renderAgenda() {
@@ -629,7 +863,7 @@ function renderAgenda() {
 
 function renderSearch() {
   const q = query.toLowerCase();
-  const hits = S.events.filter((e) => (e.title + ' ' + (e.notes || '') + ' ' + cat(e.cat).name).toLowerCase().includes(q));
+  const hits = allEvents().filter((e) => (e.title + ' ' + (e.notes || '') + ' ' + cat(e.cat).name).toLowerCase().includes(q));
   const today = todayKey();
   // Each hit at its next occurrence from today (or its start date when it is all in the past).
   const rows = hits.map((e) => {
@@ -709,7 +943,7 @@ function renderSide() {
 
   // categories
   const counts = {};
-  S.events.forEach((e) => { counts[e.cat] = (counts[e.cat] || 0) + 1; });
+  allEvents().forEach((e) => { counts[e.cat] = (counts[e.cat] || 0) + 1; });
   $('#cats').innerHTML = S.categories.map((c) => `<li><button class="${S.hidden.includes(c.id) ? 'off' : ''}" style="--c:${c.color}" data-cat="${c.id}" aria-pressed="${!S.hidden.includes(c.id)}" title="${S.hidden.includes(c.id) ? 'Show' : 'Hide'} ${esc(c.name)}"><span class="sw"></span><span class="nm">${esc(c.name)}</span><span class="ct">${counts[c.id] || ''}</span></button></li>`).join('');
   $('#showAll').hidden = !S.hidden.length;
 }
@@ -769,6 +1003,14 @@ function openEditor(e, occ, isNew) {
   $('#fDeleteOne').hidden = !rec;
   $('#seriesHint').hidden = !rec;
   $('#fErr').hidden = true;
+  const ro = !!(ev && ev.bot);
+  dlg.querySelectorAll('#evForm input, #evForm select, #evForm textarea, #fCats button').forEach((i) => { i.disabled = ro; });
+  $('#botNote').hidden = !ro;
+  if (ro) {
+    $('#botNote').textContent = `Added by ${ev.bot}. The bot keeps it up to date. Dismiss hides it on every device.`;
+    $('#fDelete').hidden = $('#fDeleteOne').hidden = $('#seriesHint').hidden = true;
+  }
+  $('#fSave').hidden = ro; $('#fDismiss').hidden = !ro;
   syncForm();
   dlg.showModal();
   setTimeout(() => { if (!ev) $('#fTitle').focus(); }, 30);
@@ -796,14 +1038,13 @@ function saveEditor() {
     notes: $('#fNotes').value.trim(),
   };
   snapshot();
-  if (editing.id) {
-    const ev = S.events.find((e) => e.id === editing.id);
-    if (ev) { Object.assign(ev, data); if (repeat === 'none') ev.ex = []; }
-    toast('Event updated', true);
-  } else {
-    S.events.push({ id: uid(), ...data, ex: [], created: Date.now() });
-    toast(`Added to ${longDate(date)}`, true);
-  }
+  commit(() => {
+    if (editing.id) {
+      const ev = S.events.find((e) => e.id === editing.id);
+      if (ev) { Object.assign(ev, data); if (repeat === 'none') ev.ex = []; }
+    } else S.events.push({ id: uid(), ...data, ex: [], created: Date.now() });
+  });
+  toast(editing.id ? 'Event updated' : `Added to ${longDate(date)}`, true);
   S.lastCat = fCat;
   if (S.hidden.includes(fCat)) S.hidden = S.hidden.filter((h) => h !== fCat);
   save();
@@ -826,8 +1067,7 @@ function saveCats() {
   const orphans = S.events.filter((e) => !ids.has(e.cat));
   if (orphans.length && !confirm(`${orphans.length} event${orphans.length === 1 ? '' : 's'} use a removed type and will move to “${draft[0].name}”. Continue?`)) return;
   snapshot();
-  orphans.forEach((e) => { e.cat = draft[0].id; });
-  S.categories = draft;
+  commit(() => { orphans.forEach((e) => { e.cat = draft[0].id; }); S.categories = draft; });
   S.hidden = S.hidden.filter((h) => ids.has(h));
   if (!ids.has(S.lastCat)) S.lastCat = draft[0].id;
   save(); catDlg.close(); render(); toast('Event types saved', true);
@@ -835,10 +1075,10 @@ function saveCats() {
 
 // ---------- tasks ----------
 function addTask(title) {
-  S.tasks.push({ id: uid(), title, date: selected, done: false, p: 0, created: Date.now() });
-  save(); renderSide(); if (S.view === 'month' && !query) renderMain();
+  commit(() => { S.tasks.push({ id: uid(), title, date: selected, done: false, p: 0, created: Date.now() }); });
+  renderSide(); if (S.view === 'month' && !query) renderMain();
 }
-function taskAction(id, fn) { const t = S.tasks.find((x) => x.id === id); if (t) { fn(t); save(); renderSide(); if (S.view === 'month' && !query) renderMain(); } }
+function taskAction(id, fn) { const t = S.tasks.find((x) => x.id === id); if (t) { commit(() => fn(t)); renderSide(); if (S.view === 'month' && !query) renderMain(); } }
 
 // ---------- backup ----------
 function download(name, text, type) {
@@ -854,7 +1094,7 @@ function toICS() {
   const fold = (l) => { const out = []; while (l.length > 74) { out.push(l.slice(0, 74)); l = ' ' + l.slice(74); } out.push(l); return out.join('\r\n'); };
   const RR = { daily: 'FREQ=DAILY', weekdays: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR', weekly: 'FREQ=WEEKLY', biweekly: 'FREQ=WEEKLY;INTERVAL=2', monthly: 'FREQ=MONTHLY', yearly: 'FREQ=YEARLY' };
   const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Planner//EN', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Planner'];
-  for (const e of S.events) {
+  for (const e of allEvents()) {
     L.push('BEGIN:VEVENT', `UID:${e.id}@planner`, `DTSTAMP:${stamp}`, `SUMMARY:${ie(e.title)}`, `CATEGORIES:${ie(cat(e.cat).name)}`);
     if (e.allDay) L.push(`DTSTART;VALUE=DATE:${dt(e.date)}`, `DTEND;VALUE=DATE:${dt(addDays(e.endDate || e.date, 1))}`);
     else L.push(`DTSTART:${dt(e.date)}T${tm(e.start)}`, `DTEND:${dt(e.date)}T${tm(e.end)}`);
@@ -884,14 +1124,14 @@ $('#nextBtn').onclick = () => go(1);
 $('#newBtn').onclick = () => newEvent(selected);
 $('#planAdd').onclick = () => newEvent(selected);
 $('#views').onclick = (e) => { const b = e.target.closest('[data-v]'); if (b) setView(b.dataset.v); };
-$('#wkStart').onclick = (e) => { const b = e.target.closest('[data-w]'); if (b) { S.weekStart = +b.dataset.w; save(); render(); } };
+$('#wkStart').onclick = (e) => { const b = e.target.closest('[data-w]'); if (b) { commit(() => { S.weekStart = +b.dataset.w; }); render(); } };
 $('#q').oninput = (e) => { query = e.target.value.trim(); render(); };
 $('#q').onkeydown = (e) => { if (e.key === 'Escape') { e.target.value = ''; query = ''; render(); e.target.blur(); } };
 $('#miniPrev').onclick = () => { const [y, m] = miniMonth.split('-').map(Number); miniMonth = key(new Date(y, m - 2, 1)).slice(0, 7); renderSide(); };
 $('#miniNext').onclick = () => { const [y, m] = miniMonth.split('-').map(Number); miniMonth = key(new Date(y, m, 1)).slice(0, 7); renderSide(); };
 $('#toastBtn').onclick = undo;
 
-function openEvent(id, occ) { const ev = S.events.find((e) => e.id === id); if (ev) openEditor(ev, occ); }
+function openEvent(id, occ) { const ev = allEvents().find((e) => e.id === id); if (ev) openEditor(ev, occ); }
 
 $('#main').addEventListener('click', (e) => {
   const evb = e.target.closest('[data-ev]');
@@ -970,14 +1210,20 @@ $('#evForm').onsubmit = (e) => { e.preventDefault(); saveEditor(); };
 $('#evForm').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); saveEditor(); } });
 $('#fDelete').onclick = () => {
   snapshot();
-  S.events = S.events.filter((x) => x.id !== editing.id);
-  save(); dlg.close(); render(); toast('Event deleted', true);
+  commit(() => { S.events = S.events.filter((x) => x.id !== editing.id); });
+  dlg.close(); render(); toast('Event deleted', true);
+};
+$('#fDismiss').onclick = () => {
+  const id = 'd:' + editing.id;
+  snapshot();
+  commit(() => { if (!S.dismissed.some((d) => d.id === id)) S.dismissed.push({ id }); });
+  dlg.close(); render(); toast('Bot event dismissed', true);
 };
 $('#fDeleteOne').onclick = () => {
   const ev = S.events.find((x) => x.id === editing.id); if (!ev) return;
   snapshot();
-  ev.ex = [...(ev.ex || []), editing.occ];
-  save(); dlg.close(); render(); toast(`Removed ${longDate(editing.occ)} only`, true);
+  commit(() => { ev.ex = [...(ev.ex || []), editing.occ]; });
+  dlg.close(); render(); toast(`Removed ${longDate(editing.occ)} only`, true);
 };
 document.querySelectorAll('dialog').forEach((d) => {
   d.addEventListener('click', (e) => { if (e.target === d || e.target.closest('[data-close]')) d.close(); });
@@ -1004,7 +1250,7 @@ $('#catForm').onsubmit = (e) => { e.preventDefault(); saveCats(); };
 // backup wiring
 $('#exportBtn').onclick = () => { download(`planner-backup-${todayKey()}.json`, JSON.stringify(S, null, 1), 'application/json'); toast('Backup downloaded'); };
 $('#icsBtn').onclick = () => {
-  if (!S.events.length) { toast('No events to export yet'); return; }
+  if (!allEvents().length) { toast('No events to export yet'); return; }
   download(`planner-${todayKey()}.ics`, toICS(), 'text/calendar'); toast('Calendar file downloaded');
 };
 $('#importBtn').onclick = () => $('#importFile').click();
@@ -1014,8 +1260,9 @@ $('#importFile').onchange = async (e) => {
   try {
     const data = JSON.parse(await f.text());
     if (!data || !Array.isArray(data.events)) throw new Error('not a planner backup');
-    if (!confirm(`Restore ${data.events.length} events and ${(data.tasks || []).length} tasks? This replaces what is on this device.`)) return;
-    snapshot(); S = normalize(data); save(); render(); toast('Backup restored', true);
+    if (!confirm(`Restore ${data.events.length} events and ${(data.tasks || []).length} tasks? This replaces your calendar${sync ? ' on every synced device' : ''}.`)) return;
+    const d = normalize(data);
+    snapshot(); commit(() => { S.categories = d.categories; S.events = d.events; S.tasks = d.tasks; S.dismissed = d.dismissed; S.weekStart = d.weekStart; }); render(); toast('Backup restored', true);
   } catch (err) { toast('That file is not a Planner backup'); }
 };
 
@@ -1046,7 +1293,47 @@ let rz;
 addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (S.view === 'month' && !query) renderMain(); }, 150); });
 addEventListener('storage', (e) => { if (e.key === KEY) { S = load(); render(); } });
 
+// sync wiring
+const syncDlg = $('#syncDlg');
+$('#syncBtn').onclick = () => {
+  if (sync) { syncNow(); return; }
+  $('#sToken').value = ''; $('#sRepo').value = DEFAULT_REPO; $('#sErr').hidden = true;
+  syncDlg.showModal(); setTimeout(() => $('#sToken').focus(), 30);
+};
+$('#syncForm').onsubmit = async (e) => {
+  e.preventDefault();
+  $('#sGo').disabled = true; $('#sGo').textContent = 'Connecting…'; $('#sErr').hidden = true;
+  try { await connect($('#sToken').value, $('#sRepo').value); syncDlg.close(); toast('Connected. Everything now syncs.'); }
+  catch (err) { $('#sErr').textContent = err.message; $('#sErr').hidden = false; }
+  finally { $('#sGo').disabled = false; $('#sGo').textContent = 'Connect'; }
+};
+$('#syncOff').onclick = disconnect;
+$('#syncLink').onclick = async () => {
+  const link = location.href.split('#')[0] + '#connect=' + encodeURIComponent(btoa(JSON.stringify({ t: sync.token, r: sync.repo })));
+  const note = 'Open on your other device to connect it. Keep this link private: it carries your sync key.';
+  try {
+    if (navigator.share && /iPhone|iPad|Android/.test(UA)) await navigator.share({ title: 'Planner device link', text: note, url: link });
+    else { await navigator.clipboard.writeText(link); toast('Device link copied. Open it on your phone. Keep it private.'); }
+  } catch (err) { if (err && err.name !== 'AbortError') prompt(note, link); }
+};
+$('#tasks').addEventListener('focusout', () => setTimeout(() => {
+  if (pendingRender && !(document.activeElement && document.activeElement.classList.contains('t-in'))) { pendingRender = false; render(); }
+}, 0));
+let ticks = 0;
+setInterval(() => {
+  ticks++;
+  paintSync();
+  if (sync && document.visibilityState === 'visible' && !syncing && ticks % 2 === 0) syncNow();
+}, 30000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync) syncNow(); });
+addEventListener('online', () => { if (sync) syncNow(); });
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => null);
+
 render();
+paintSync();
+readConnectLink();
+addEventListener('hashchange', readConnectLink);
+if (sync) syncNow();
 })();
 </script>
 </body>

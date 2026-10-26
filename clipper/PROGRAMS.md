@@ -1,5 +1,12 @@
 # Paid clipping programs: research notes
 
+> **Status note (2026-10-26, QA pass).** This file is research from 2026-10-21 and is not the current plan. Two things changed:
+> **Alpha Futures** (the "pick" below) was later found to ban automated or AI clipping tools, so the autopilot skips it; the campaign
+> the cloud autopilot runs now is Tradever (see `START_HERE.md` and `LEADS.md`). And the payout timing quoted below (7-day earning
+> period plus a 3-day hold, so about 10 days from a post to money) is what third-party guides and Content Rewards' own terms suggest;
+> verify it on the campaign page, because each campaign and Content Rewards can change it. Dollar amounts anywhere in this project are
+> estimates, not income. See `FAQ.md`.
+
 **Checked: 2026-10-21.** Direct page fetches were blocked from the build
 environment. Every point below therefore comes from search-engine excerpts of
 the programs' own pages, linked inline, plus third-party guides where noted.

@@ -219,12 +219,10 @@ def ntfy(topic: str, title: str, message: str, click: str = "", priority: str = 
 
 def prune_posted(ws) -> int:
     """Delete rendered files of clips already live on every platform, to keep the state branch small. A post that
-    is only SCHEDULED for later keeps its file until it has published (it may have to be taken back)."""
+    Zernio has accepted (even one scheduled for later) has its media stored there, so the local file can go."""
     n = 0
-    soon = _utc_str()
     for r in ws.q("SELECT c.id, c.ready_file FROM clips c WHERE c.ready_file IS NOT NULL AND "
-                  "EXISTS(SELECT 1 FROM uploads u WHERE u.clip_id=c.id AND u.state IN ('live','processing') AND "
-                  "(u.url IS NOT NULL OR u.scheduled_for IS NULL OR u.scheduled_for <= ?))", (soon,)):
+                  "EXISTS(SELECT 1 FROM uploads u WHERE u.clip_id=c.id AND u.state IN ('live','processing'))"):
         p = Path(r["ready_file"])
         try:
             if p.is_dir():   # a slideshow deck: its slide images
@@ -262,7 +260,8 @@ def acquire_lock(run_id: str, now_utc) -> str:
                 runstate.clear_lock(HOME)
                 sh(["git", "reset", "-q", "--hard", f"origin/{STATE_BRANCH}"], cwd=HOME, check=False, quiet=True)
                 return "held"
-            log(f"lock not pushed ({err.strip()[-120:]}); carrying on without it")
+            import re
+            log("lock not pushed (" + re.sub(r"://[^/@\s]+@", "://***@", err.strip()[-120:]) + "); carrying on without it")
             return "skipped"
         return "ok"
     except Exception as e:  # noqa: BLE001
@@ -310,10 +309,10 @@ def _download_convert(gdown, fid: str, name: str, dest: Path) -> Path | None:
 
 def _gdown():
     try:
-        import gdown  # noqa: F401
+        import gdown
     except ImportError:
         sh([sys.executable, "-m", "pip", "install", "-q", "gdown"], check=False)
-    import gdown
+        import gdown
     return gdown
 
 
@@ -576,8 +575,6 @@ def owner_alerts(ws, state: dict, supply: dict, key: bool, http=None, now_utc=No
     import pipeline as pl
     repo = os.environ.get("GITHUB_REPOSITORY", "demetrades2000-coder/nq-dashboard")
     click = f"https://raw.githack.com/{repo}/clipper-cloud/site/index.html#/submit"
-    t = pl.now_in_tz("America/New_York", now_utc)
-    day = t.strftime("%Y-%m-%d") if t else time.strftime("%Y-%m-%d")
     seen = state.setdefault("notified", {})
     legacy = []
     for r in ws.q("SELECT key, value FROM settings WHERE key LIKE 'campaign_live.%'"):
@@ -836,7 +833,7 @@ def main(argv=None) -> int:
                                               ws.db.commit(), save_state(f"checkpoint {run_id}")))
         pruned = step("pruning posted media", prune_posted, ws) or 0
         import runstate
-        trim = step("trimming state", runstate.trim_state, ws, HOME, t0) or {}
+        step("trimming state", runstate.trim_state, ws, HOME, t0)
         step("performance", performance.analyze, ws, t0)
         supply = step("supply", compute_supply, ws) or {}
         chain = step("run heartbeat", runstate.chain_update, ws, t0) or {}

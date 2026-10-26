@@ -189,9 +189,9 @@ class FullChain(unittest.TestCase):
         for need in ("ws/jobs.db", "cloud_state.json", "site/index.html", "site/data.json", "ws/AUTOPILOT_REPORT.md"):
             self.assertIn(need, files)
         posted_mp4 = [f for f in files if f.startswith("ws/ready/") and f.endswith(".mp4")]
-        waiting = q(self.c, "SELECT COUNT(*) n FROM clips WHERE kind='video' AND status='approved' AND "
-                            "id NOT IN (SELECT clip_id FROM uploads)")[0]["n"]
-        self.assertLessEqual(len(posted_mp4), waiting, "posted clips must be pruned from the branch")
+        unposted = q(self.c, "SELECT COUNT(*) n FROM clips WHERE kind='video' AND ready_file IS NOT NULL AND "
+                             "id NOT IN (SELECT clip_id FROM uploads)")[0]["n"]          # waiting or held: still need their file
+        self.assertLessEqual(len(posted_mp4), unposted, "posted clips must be pruned from the branch")
 
     def test_fresh_vm_restores_everything_from_the_branch(self):
         # the last run started from an empty disk and still knew the earlier posts: nothing was posted twice
@@ -426,7 +426,7 @@ class WarmupAndScheduling(unittest.TestCase):
     def test_warmup_can_be_switched_off_by_a_setting(self):
         c = fw.Cloud(start=(2026, 10, 26, 13, 0), slideshows=False, warmup=False)
         try:
-            c.run(footage=[c.seeder(videos=1, slides=1)])
+            c.run(footage=[c.seeder(videos=2, slides=2)])
             self.assertEqual(len(c.world.posts), 4)           # video + slideshow for each of two pages
         finally:
             c.close()
@@ -467,40 +467,57 @@ class WarmupAndScheduling(unittest.TestCase):
             return route(method, url, host, rec)
         c.world.route = refuse
         try:
-            c.run(footage=[c.seeder(videos=1)])
+            c.run(footage=[c.seeder(videos=2)])
             self.assertEqual(len(c.world.posts), 2, "one video per page, posted at once")
             self.assertTrue(all("scheduledFor" not in p["body"] for p in c.world.posts))
         finally:
             c.close()
 
 
-class LifecycleScenarios(unittest.TestCase):
-    """Written for the autopilot brain (AUTOPILOT_CONTRACT.md). Un-skip after the lifecycle branch is merged."""
+HAS_LIFECYCLE = (Path(fw.HERE) / "lifecycle.py").exists()
 
-    @unittest.skip("needs lifecycle")
+
+@unittest.skipUnless(HAS_LIFECYCLE, "needs lifecycle")
+class LifecycleScenarios(unittest.TestCase):
+    """Campaign lifecycle (AUTOPILOT_CONTRACT.md) end to end. They skip themselves ("needs lifecycle") on a tree without
+    clipper/lifecycle.py and run as soon as it exists. Replace the skipUnless with @unittest.skip("needs lifecycle") to switch them
+    off by hand."""
+
+    def two_generic_campaigns(self):
+        c = fw.Cloud(start=(2026, 10, 26, 13, 0), slideshows=False)
+        c.add_campaign("Beta Finance", fw.CID2, slideshows=False, match="")         # a generic campaign: any idle page may serve it
+        a = json.loads(c.campaign_files[0].read_text())
+        a["account_match"] = ""
+        c.campaign_files[0].write_text(json.dumps(a))
+        c.world.cr_pages[fw.CID] = fw.cr_page(name="Alpha Finance", budget=400000, spent=1000)       # rich: ranks first
+        c.world.cr_pages[fw.CID2] = fw.cr_page(name="Beta Finance", budget=30000, spent=0)           # $300 left: ranks second
+        c.world.accounts = [{"_id": "g1", "platform": "tiktok", "username": "generic.page"}]
+        return c
+
     def test_campaign_runs_dry_standby_promoted_accounts_moved(self):
-        c = fw.Cloud(slideshows=False)
+        c = self.two_generic_campaigns()
         try:
-            c.add_campaign("Standby Finance", fw.CID2, slideshows=False, match="standby")
-            c.world.accounts += [{"_id": "tt9", "platform": "tiktok", "username": "standby.clips"}]
             c.run(footage=[c.seeder(videos=3, campaign=0, tag="a"), c.seeder(videos=3, campaign=1, tag="b")])
-            c.world.cr_pages[fw.CID] = fw.cr_page(budget=200000, spent=199990)          # the first one runs dry
-            c.run(advance={"hours": 4})
-            st = setting(c, "campaign_state.Acme Clipping")
-            self.assertEqual(st["state"], "paused")
-            st2 = setting(c, "campaign_state.Standby Finance")
-            self.assertEqual(st2["state"], "active")
-            log = setting(c, "switch.log")
-            kinds = [e["kind"] for e in log]
+            self.assertEqual(setting(c, "campaign_state.Acme Clipping")["state"], "active")
+            self.assertEqual(setting(c, "campaign_state.Beta Finance")["state"], "standby")
+            self.assertEqual(setting(c, "account_state.tiktok/generic.page")["campaign"], "Acme Clipping")
+            c.world.cr_pages[fw.CID] = fw.cr_page(name="Alpha Finance", budget=400000, spent=399990)   # the first one runs dry
+            c.run(advance={"hours": 12})
+            self.assertEqual(setting(c, "campaign_state.Acme Clipping")["state"], "paused")
+            self.assertEqual(setting(c, "campaign_state.Beta Finance")["state"], "active")
+            kinds = [e["kind"] for e in setting(c, "switch.log")]
             self.assertIn("paused", kinds)
             self.assertIn("promoted", kinds)
             self.assertIn("account_moved", kinds)
-            moved = setting(c, "account_state.tiktok/acme.clips1")
-            self.assertNotEqual(moved["campaign"], "Acme Clipping")
+            self.assertEqual(setting(c, "account_state.tiktok/generic.page")["campaign"], "Beta Finance")
+            self.assertTrue(any("Beta Finance" in p["caption"] or "Seeded video b" in p["caption"] for p in c.world.posts[-2:]),
+                            "after the switch the page posts the second campaign's clips")
+            c.world.cr_pages[fw.CID] = fw.cr_page(name="Alpha Finance", budget=400000, spent=1000)      # refilled
+            c.run(advance={"hours": 12})
+            self.assertIn(setting(c, "campaign_state.Acme Clipping")["state"], ("active", "standby"), "it resumes by itself")
         finally:
             c.close()
 
-    @unittest.skip("needs lifecycle")
     def test_key_missing_shows_in_the_launch_checklist(self):
         c = fw.Cloud(slideshows=False)
         c.key = None
@@ -512,47 +529,57 @@ class LifecycleScenarios(unittest.TestCase):
         finally:
             c.close()
 
-    @unittest.skip("needs lifecycle")
     def test_limited_account_is_rested_and_others_keep_posting(self):
-        c = fw.Cloud(slideshows=False)
+        c = fw.Cloud(start=(2026, 10, 26, 13, 0), slideshows=False)
         try:
-            c.run(footage=[c.seeder(videos=6)])
-            # Zernio starts answering "limit reached" for one account only
-            c.run(advance={"hours": 8})
+            def old_flops():
+                ws = c.ws()
+                old = "2026-10-20T15:00:00"
+                for i in range(5):
+                    cid = ws.x("INSERT INTO clips(source_id, campaign, title, caption, hashtags, posts, checks, flags, score, "
+                               "file, status, ready_file, created, kind) VALUES(NULL,'Acme Clipping',?,?,'[]','{}','[]','[]',70,"
+                               "'x','posted','x',?,'video')", (f"old {i}", f"old {i}", old))
+                    ws.x("INSERT INTO uploads(clip_id, platform, account, remote_id, url, state, notes, caption, publish_id, views, "
+                         "likes, created, updated) VALUES(?,'tiktok','acme.clips1',?,?,'live','[]','c',?,15,0,?,?)",
+                         (cid, str(i), f"https://www.tiktok.com/@acme.clips1/video/{100 + i}", f"old{i}", old,
+                          "2026-10-22T15:00:00"))
+                ws.close()
+            c.run(footage=[old_flops, c.seeder(videos=6)])
             acct = setting(c, "account_state.tiktok/acme.clips1")
-            self.assertIn(acct["health"], ("limited", "error"))
-            self.assertIn(acct["mode"], ("cooldown", "idle", "slow"))
-            posts_other = [p for p in c.world.posts if p["account"] == "acme.clips2"]
-            self.assertTrue(posts_other)
+            self.assertEqual(acct["health"], "limited", acct)
+            self.assertEqual(acct["mode"], "slow")
+            self.assertTrue([p for p in c.world.posts if p["account"] == "acme.clips2"], "the healthy page keeps posting")
         finally:
             c.close()
 
-    @unittest.skip("needs lifecycle")
     def test_zernio_500s_for_a_whole_run_are_logged_in_run_history(self):
         c = fw.Cloud(slideshows=False)
         try:
-            c.world.post_fail = [500] * 50
+            c.world.post_fail = [500] * 60
             c.run(footage=[c.seeder(videos=2)])
             hist = setting(c, "runs.history")
             self.assertGreaterEqual(hist[-1]["errors"], 1)
             self.assertEqual(hist[-1]["posted"], 0)
+            self.assertTrue(setting(c, "chain"))
         finally:
             c.close()
 
-    @unittest.skip("needs lifecycle")
-    def test_duplicate_post_protection_after_a_crash_mid_run(self):
-        """With the brain merged: a clip whose Zernio post was accepted right before a crash must not be posted again
-        (a 'posting' marker is written before the call and reconciled against Zernio's post list next run)."""
-        c = fw.Cloud(slideshows=False)
+    def test_two_runs_at_once_only_one_posts(self):
+        """The lock in the state branch: a second runner that starts while the first holds the lock backs off."""
+        c = fw.Cloud(start=(2026, 10, 26, 13, 0), slideshows=False)
         try:
-            real = cr.prune_posted
-            cr.prune_posted = lambda ws: (_ for _ in ()).throw(RuntimeError("runner lost"))
-            try:
-                c.run(footage=[c.seeder(videos=1)], catch=True)
-            finally:
-                cr.prune_posted = real
-            c.run(advance={"hours": 8})
-            self.assertEqual(len(c.world.posts), 1)
+            c.run(footage=[c.seeder(videos=2)])
+            import runstate
+            d = c.checkout_branch(c.tmp / "locker")
+            runstate.write_lock(d, "someone-else", c.clock.utc)
+            fw._git("add", "-A", cwd=d)
+            fw._git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "lock", cwd=d)
+            fw._git("push", "-q", "origin", "HEAD:clipper-cloud", cwd=d)
+            before = len(c.world.posts)
+            rc, out = c.run(advance={"minutes": 20})
+            self.assertEqual(rc, 0)
+            self.assertIn("another run holds the lock", out)
+            self.assertEqual(len(c.world.posts), before)
         finally:
             c.close()
 

@@ -1,5 +1,11 @@
 # Content Rewards leads (clipper, TikTok)
 
+> **How to use this list (QA note, 2026-10-26).** It is a shopping list, not a promise. To add a lead: join it (free), read its Rules tab,
+> and only if nothing bans automated or scheduled tools send Claude the link, the rules text, the footage link and the logo (steps in
+> `OWNER_GUIDE.md`, "Add a campaign"). The "Est. 3 wk" figures are guesses made from public averages; a clip under the campaign's minimum
+> earns $0, and payouts arrive about 10 days after a post, if approved (`FAQ.md` questions 13 to 21). The robot only posts a campaign
+> after its brief records that the rules allow tools.
+
 > **Read this first (added by the lead engineer, 2026-10-25).** The ranking below is by pay and fit only; rules are hidden
 > until you join. Two corrections:
 > - **TJR / Reach (#1 below): skip.** Earlier research found the Reach network's rules ban automated clipping tools. Treat it as

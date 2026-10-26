@@ -17,7 +17,6 @@ No network here except through the `lister` / `fetch` callables the caller passe
 from __future__ import annotations
 
 import datetime as dt
-import json
 import re
 from pathlib import Path
 
@@ -31,6 +30,7 @@ RESTOCK_COOLDOWN_DAYS = 7    # a source is not re-clipped more often than this
 RESTOCK_MAX_SOURCES = 2      # per campaign per run
 DECK_POOL = 120              # decks mined when restocking (normal runs: 40)
 NEWEST = 3
+LEDGER_KEEP = 500            # videos remembered per campaign
 
 
 def ledger(ws) -> dict:
@@ -105,6 +105,9 @@ def poll_youtube(ws, c: dict, now: dt.datetime, newest: int = NEWEST, lister=Non
                 out["blocked"].append(f"{url}: {why}")
                 continue
             out["urls"].append(url)
+    if len(seen) > LEDGER_KEEP:   # the ledger only has to remember what the channel's newest listing can still show
+        for k in sorted(seen, key=lambda k: seen[k].get("first_seen", ""))[:len(seen) - LEDGER_KEEP]:
+            del seen[k]
     save_ledger(ws, led)
     for msg in out["errors"]:
         ws.event(f"{c['name']}: could not list {msg}", "warn")

@@ -44,7 +44,7 @@ def idle_pages(ws) -> list[str]:
             v = json.loads(r["value"])
         except ValueError:
             continue
-        if v.get("mode") in ("idle", "cooldown"):
+        if v.get("connected", True) is not False and v.get("mode") in ("idle", "cooldown"):
             out.append(r["key"].split("/", 1)[-1] + (" (disconnected)" if v.get("mode") == "cooldown" else ""))
     return sorted(out)
 

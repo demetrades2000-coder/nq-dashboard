@@ -9,6 +9,13 @@ a schedule.
 Autopilot is opt-in. Until you enable it, clips wait for your review. Claude
 API spending stays off until you approve a monthly budget.
 
+> **Which document do I read?** This README describes the tool and its PC mode. The cloud autopilot (GitHub Actions, PC off, free) is
+> what runs now: see [START_HERE.md](START_HERE.md) for the setup, [OWNER_GUIDE.md](OWNER_GUIDE.md) for the daily chore and what to do
+> when something goes wrong, [FAQ.md](FAQ.md) for honest answers about earnings and payouts, and [RUNBOOK.md](RUNBOOK.md) for the
+> engineering side. Where this README says publishing or submitting is manual, that is still true for **submitting links on Content
+> Rewards**; the cloud autopilot posts to TikTok by itself through Zernio. Test counts and some option names below date from the
+> first version; the test commands themselves are current.
+
 - [PROGRAMS.md](PROGRAMS.md) covers which programs are real and active, their
   eligibility rules, payout terms, content licenses and sources, and the
   recommended starting point: **Whop Content Rewards + YouTube Shorts**.

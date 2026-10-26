@@ -162,6 +162,7 @@ class PathsCommandsKeys(unittest.TestCase):
     def test_every_python_command_is_valid(self):
         bad = []
         for doc, kind, text, line in Parsed.items:
+            text = re.sub(r"^(?:[A-Z_]+=\S+\s+)+", "", text)         # CLIP_CLOUD_DIR=/tmp/cc python ...
             if not re.match(r"python3?\s", text):
                 continue
             toks = text.replace("\\", " ").split()

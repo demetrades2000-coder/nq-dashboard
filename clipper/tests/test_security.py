@@ -137,7 +137,9 @@ class SecretsNeverLeak(unittest.TestCase):
         self.assertTrue(self.c.world.ntfy)
         for m in self.c.world.ntfy:
             click = m["headers"].get("click", "")
-            self.assertTrue(click.startswith("https://raw.githack.com/owner/repo/clipper-cloud/site/index.html"), click)
+            self.assertNotIn(fw.SENTINEL_TOPIC, click)
+            if click:
+                self.assertTrue(click.startswith("https://raw.githack.com/owner/repo/clipper-cloud/site/index.html"), click)
 
     def test_no_authorization_header_to_presigned_storage(self):
         for r in self.c.world.to(host="storage.fakezernio.test"):
@@ -174,7 +176,7 @@ class EchoedSecrets(unittest.TestCase):
 
     @unittest.expectedFailure
     def test_echoed_authorization_header_is_not_published(self):
-        """BUG 4 (qa.md): upload error text (zernio._explain -> rep['upload_errors']) is written to AUTOPILOT_REPORT.md,
+        """BUG 1 (qa.md): upload error text (zernio._explain -> rep['upload_errors']) is written to AUTOPILOT_REPORT.md,
         logs/autopilot.jsonl and site/data.json WITHOUT cl.redact, and redact() does not know 'Bearer ...' or the
         real key value. Fix: redact the exact values of ZERNIO_API_KEY / NTFY_TOPIC / GH_TOKEN everywhere text is stored."""
         self.assertEqual(grep_tree(self.checkout, [fw.SENTINEL_KEY]), [])
@@ -259,23 +261,49 @@ class StaticAudit(unittest.TestCase):
     def workflow(self, name):
         return (REPO / ".github" / "workflows" / name).read_text(encoding="utf-8")
 
+    @staticmethod
+    def run_blocks(y: str) -> list[tuple[int, str]]:
+        """(line number, text) of every shell script in a workflow (`run:` single line or block)."""
+        out, lines, i = [], y.splitlines(), 0
+        while i < len(lines):
+            m = re.match(r"(\s*)(?:- )?run:\s*(.*)$", lines[i])
+            if m:
+                indent, rest = len(m.group(1)), m.group(2)
+                if rest and rest not in ("|", ">", "|-", ">-"):
+                    out.append((i + 1, rest))
+                else:
+                    j = i + 1
+                    while j < len(lines) and (not lines[j].strip() or len(lines[j]) - len(lines[j].lstrip()) > indent):
+                        out.append((j + 1, lines[j]))
+                        j += 1
+                    i = j - 1
+            i += 1
+        return out
+
     def test_cloud_workflow_audit(self):
-        """Documents findings about clipper-cloud.yml (READ ONLY for this audit). The test passes; it fails only when a
-        NEW risky pattern shows up that qa.md does not mention."""
+        """Findings about clipper-cloud.yml (READ ONLY for this audit; editing it restarts the live chain). The test passes
+        as long as every finding is written up in docs/features/qa.md under its id (W1...). It fails when a NEW risky pattern
+        appears that the write-up does not mention."""
         y = self.workflow("clipper-cloud.yml")
-        qa = (CLIPPER / "docs" / "features" / "qa.md").read_text(encoding="utf-8") if (CLIPPER / "docs" / "features" / "qa.md").exists() else ""
+        qa_file = CLIPPER / "docs" / "features" / "qa.md"
+        qa = qa_file.read_text(encoding="utf-8") if qa_file.exists() else ""
         findings = []
-        for m in re.finditer(r"\$\{\{\s*(inputs\.[\w.]+|github\.event\.[\w.]+|github\.head_ref)\s*\}\}", y):
-            line = y[:m.start()].count("\n") + 1
-            findings.append(("W1 untrusted-input-in-run", m.group(1), line))
+        for ln, text in self.run_blocks(y):
+            for m in re.finditer(r"\$\{\{\s*((?:inputs|github\.event|github\.head_ref|github\.ref_name)[\w.]*)\s*\}\}", text):
+                findings.append(("W1", f"{m.group(1)} interpolated into a shell script (line {ln})"))
         if "pull_request_target" in y:
-            findings.append(("W2 pull_request_target", "", 0))
+            findings.append(("W2", "pull_request_target"))
         if re.search(r"^\s*-?\s*uses:\s*[^@\s]+@(?![0-9a-f]{40}\b)", y, re.M):
-            findings.append(("W3 actions pinned by tag, not commit SHA", "", 0))
+            findings.append(("W3", "actions pinned by tag, not by commit SHA"))
+        job_head = y.split("steps:", 1)[0].split("jobs:", 1)[-1]
+        if "secrets." in job_head:
+            findings.append(("W4", "secrets are job-level env: every step (pip install, apt, checkout) can read them"))
+        if "persist-credentials: false" not in y and "actions/checkout" in y:
+            findings.append(("W5", "checkout keeps the write token in .git/config for later steps"))
         self.assertIn("permissions:", y)
         self.assertNotIn("write-all", y)
-        for f in findings:
-            self.assertIn(f[0].split()[0], qa, f"workflow finding {f} is not documented in docs/features/qa.md")
+        for fid, what in findings:
+            self.assertRegex(qa, rf"(?m)^#+ .*\b{fid}\b|^\*\*{fid}\b|^- \*\*{fid}\b", f"workflow finding {fid} ({what}) is not in qa.md")
 
     def test_cloud_workflow_never_runs_on_pull_requests(self):
         y = self.workflow("clipper-cloud.yml")
@@ -426,7 +454,7 @@ class PathsAndFiles(unittest.TestCase):
 
     @unittest.expectedFailure
     def test_link_footage_does_not_create_folders_outside_the_campaign_dir(self):
-        """BUG 6 (qa.md): cloud_runner.link_footage() does `local = cf.parent / src; local.mkdir(parents=True)` with the brief's
+        """BUG 8 (qa.md): cloud_runner.link_footage() does `local = cf.parent / src; local.mkdir(parents=True)` with the brief's
         `sources` entry unchanged, so a brief with sources ['../../outside'] creates (and hard-links video into) a folder
         outside the campaigns directory. Briefs come from onboard.py (always footage/<slug>), so this needs a hand-edited
         or hostile brief: low risk, but one resolve()+is_relative_to() check closes it."""
@@ -479,7 +507,7 @@ class PathsAndFiles(unittest.TestCase):
 
     @unittest.expectedFailure
     def test_zernio_upload_url_must_be_on_an_expected_host(self):
-        """BUG 7 (qa.md, low): zernio.upload() PUTs the whole video to whatever `uploadUrl` the presign response names. A
+        """BUG 10 (qa.md): zernio.upload() PUTs the whole video to whatever `uploadUrl` the presign response names. A
         compromised or spoofed API could make the job upload footage to any host. The key is NOT sent there (tested above).
         Fix: refuse uploadUrl hosts that are not https and not under a short allow-list (zernio.com + the storage domain)."""
         import zernio
@@ -582,7 +610,7 @@ class DashboardLeaks(unittest.TestCase):
 
     @unittest.expectedFailure
     def test_no_absolute_paths_or_usernames_in_the_public_data(self):
-        """BUG 3 (qa.md): site/data.json (public) contains `workspace` (absolute path of the runner's disk) and `jobs[].input`
+        """BUG 6 (qa.md): site/data.json (public) contains `workspace` (absolute path of the runner's disk) and `jobs[].input`
         / `last_error` (absolute footage paths and exception text). Harmless today ('/home/runner/...') but it tells the world
         the OS user and layout, and `input` of a local PC run would name the owner's Windows user. Drop `workspace` from the
         public copy and show only Path(input).name."""
@@ -766,7 +794,7 @@ class XssInBrowser(unittest.TestCase):
 
     @unittest.expectedFailure
     def test_javascript_and_data_urls_are_never_rendered_as_links(self):
-        """BUG 8 (qa.md, medium): esc() stops HTML injection but not a dangerous URL SCHEME. An upload/lead/campaign `url` of
+        """BUG 4 (qa.md): esc() stops HTML injection but not a dangerous URL SCHEME. An upload/lead/campaign `url` of
         'javascript:...' is rendered as <a href="javascript:..."> and runs when the owner taps 'Open'. Today those URLs come
         from Zernio (always http(s)), from contentrewards ids and from hand-written briefs (campaign_url), so exploitation
         needs a hostile brief or API, but the page is the owner's money dashboard. Fix: in the page, add

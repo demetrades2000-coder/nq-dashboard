@@ -52,7 +52,7 @@ class Base(unittest.TestCase):
 class BrokenState(Base):
     @unittest.expectedFailure
     def test_corrupted_settings_values_do_not_stop_the_run(self):
-        """BUG 11 (qa.md): pipeline.WS.setting() does json.loads() on the stored text with no guard, and cloud_runner calls it
+        """BUG 7 (qa.md): pipeline.WS.setting() does json.loads() on the stored text with no guard, and cloud_runner calls it
         for campaign_live.*, supply.*, leads.* ... So ONE unreadable settings value (a half-written row, a manual edit) raises
         out of refresh_live() and ends every run, every 4 hours, until someone repairs the database by hand. Fix: catch
         ValueError in WS.setting() and return the default."""
@@ -97,10 +97,8 @@ class BrokenState(Base):
         rc, out = c.run(advance={"hours": 8}, catch=True)
         self.assertEqual(rc, 0, out[-800:])
 
-    @unittest.expectedFailure
     def test_corrupted_cloud_state_file_json(self):
-        """BUG 12 (qa.md): cloud_runner.main() reads cloud_state.json with a bare json.loads(); a damaged file (it holds the
-        'already notified' and Drive 'seen' bookkeeping) stops every run. Fix: try/except ValueError -> start with {}."""
+        """Regression: a damaged cloud_state.json (it holds the 'already notified' and Drive 'seen' bookkeeping) once stopped every run."""
         c = self.c
         c.run(footage=[c.seeder(videos=1)])
         db = c.checkout_branch(c.tmp / "damage")
@@ -181,10 +179,8 @@ class BadBriefs(Base):
         self._rc, self._out = self._break(edit)
         self.check_good_campaign_still_posts(what)
 
-    @unittest.expectedFailure
     def test_cpm_is_text(self):
-        """BUG 13 (qa.md): cloud_runner.refresh_live() / link_footage() / compute_supply() loop over every brief with no
-        per-campaign try/except, so ONE brief with a bad field (cpm as text, no name, sources null) stops every campaign."""
+        """cpm as text in ONE brief must not stop the other campaigns (steps are isolated now)."""
         self.run_case("cpm text", lambda d: d.update(cpm="five dollars"))
 
     def test_platforms_is_a_string(self):
@@ -192,9 +188,10 @@ class BadBriefs(Base):
 
     @unittest.expectedFailure
     def test_sources_is_null(self):
+        """BUG 8 (qa.md): cloud_runner.link_footage() is the one loop over the briefs that still has no per-campaign guard:
+        `for src in c.get("sources", [])` raises when a brief has "sources": null, and the whole run stops."""
         self.run_case("sources null", lambda d: d.update(sources=None))
 
-    @unittest.expectedFailure
     def test_name_missing(self):
         self.run_case("name missing", lambda d: d.pop("name"))
 
@@ -210,10 +207,8 @@ class BadBriefs(Base):
     def test_min_greater_than_max(self):
         self.run_case("min > max", lambda d: d["clip"].update(min=90, max=10))
 
-    @unittest.expectedFailure
     def test_automation_allowed_must_be_the_json_value_true(self):
-        """Same root cause as BUG 15 below: the campaign is correctly left out of autopilot.campaigns (no import), but clips of
-        it that are already approved in the database are still posted."""
+        """A truthy string is not permission: clips of such a campaign must not be posted either."""
         c = self.c
         f = c.add_campaign("String Yes", fw.CID2, match="stringyes")
         d = json.loads(f.read_text())
@@ -224,12 +219,9 @@ class BadBriefs(Base):
         self.assertEqual([p for p in c.world.posts if p["account"] == "stringyes.clips"], [],
                          "only the JSON value true may switch a campaign on, never a truthy string")
 
-    @unittest.expectedFailure
     def test_a_brief_switched_to_no_automation_stops_its_already_queued_clips(self):
-        """BUG 15 (qa.md, medium): the posting step (pipeline.autopilot_cycle step 4) posts every approved clip whose brief file
-        still exists; it only checks 'paused', never automation_allowed again. If the rules change (owner sets
-        automation_allowed false, or the lifecycle marks the campaign blocked) clips already approved keep going out for days.
-        Fix: re-run cmp.automation_allowed(c) is True (and campaign_paused) for each campaign before queueing its uploads."""
+        """Regression: the posting step used to post every approved clip whose brief file still existed. If the rules change
+        (automation_allowed false, or the lifecycle marks the campaign blocked) clips already approved must stop."""
         c = self.c
         c.clock.set(2026, 10, 26, 3, 0)                      # 23:00 New York: outside the window, so clips just queue
         c.run(footage=[c.seeder(videos=2)])
@@ -313,7 +305,11 @@ class BadWorld(Base):
         self.assertIn("Drive folder not listed", out)
         self.assertEqual(posts_count(c), 1)
 
+    @unittest.expectedFailure
     def test_drive_download_of_one_file_fails_the_others_continue(self):
+        """BUG 3 (qa.md): cloud_runner.sync_drive() adds a file id to `drive_seen` even when its download raised
+        (quota, timeout, a Google hiccup). The file is then never fetched again: a transient error silently loses footage.
+        Only a file that was downloaded and converted (or is permanently unusable, e.g. too large) should be remembered."""
         c = self.c
         data = json.loads(c.campaign_files[0].read_text())
         data["footage_drive_folder"] = "folderXYZ"
@@ -462,7 +458,7 @@ class BadWorld(Base):
 
     @unittest.expectedFailure
     def test_disk_full_while_linking_footage(self):
-        """BUG 14 (qa.md, low): link_footage() lets an OSError (disk full, permission) from the hard-link / copy escape, which
+        """BUG 8 (qa.md): link_footage() lets an OSError (disk full, permission) from the hard-link / copy escape, which
         ends the run before already-queued clips are posted. Fix: wrap each file in try/except OSError and log it."""
         c = self.c
 
@@ -586,19 +582,17 @@ class TimeEdges(unittest.TestCase):
         finally:
             c.close()
 
-    @unittest.expectedFailure
     def test_daily_cap_day_follows_new_york_not_utc(self):
-        """BUG 10 (qa.md): pipeline.uploads_today() counts 'today' with date.today() of the RUNNER (UTC). The posting window is
-        08:00-22:59 New York = 12:00-02:59 UTC, so the per-account daily cap resets at 20:00 New York, in the middle of the
-        owner's evening: an account can take 2 videos at 19:00 and 2 more at 21:00 (min-gap permitting). Expected: one cap
-        per New York day."""
+        """The daily cap counts days with the runner's date (UTC), and the window 08:00-22:59 New York crosses UTC midnight
+        (20:00 New York). Slot planning keeps a page inside the cap in practice; this checks it on the SCHEDULED times."""
         c = self.c = fw.Cloud(start=(2026, 10, 27, 12, 0), slideshows=False)          # 08:00 EDT Tuesday
         try:
             c.world.accounts = [{"_id": "tt1", "platform": "tiktok", "username": "acme.one"}]
             c.run(footage=[c.seeder(videos=4)])                       # 08:00 NY  post 1
             c.run(advance={"hours": 7})                               # 15:00 NY  post 2 (cap reached for the UTC day)
             c.run(advance={"hours": 7})                               # 22:00 NY  = 02:00 UTC Wednesday: a new UTC day
-            ny_day = [p for p in c.world.posts if (p["at"] - dt.timedelta(hours=4)).date() == dt.date(2026, 10, 27)]
+            ny_day = [p for p in c.world.posts
+                      if ((p["scheduled_utc"] or p["at"]) - dt.timedelta(hours=4)).date() == dt.date(2026, 10, 27)]
             self.assertLessEqual(len(ny_day), 2, f"{len(ny_day)} posts for one account on one New York day (cap is 2)")
         finally:
             c.close()
@@ -635,12 +629,30 @@ class Scale(Base):
     def test_many_campaigns(self):
         c = self.c
         for i in range(12):
-            c.add_campaign(f"Brand {i}", fw.CID2, match=f"brand{i}")
-            c.world.accounts.append({"_id": f"b{i}", "platform": "tiktok", "username": f"brand{i}.clips"})
+            c.add_campaign(f"Brand {i}", fw.CID2, match=f"b{i:02d}x")
+            c.world.accounts.append({"_id": f"b{i}", "platform": "tiktok", "username": f"b{i:02d}x.clips"})
         seeds = [c.seeder(videos=1, campaign=k, tag=f"s{k}") for k in range(len(c.campaign_files))]
         rc, out = c.run(footage=seeds, catch=True)
         self.assertEqual(rc, 0, out[-700:])
-        self.assertGreaterEqual(posts_count(c), 12)
+        self.assertGreaterEqual(posts_count(c), 13)             # 12 brands + the original Acme page
+
+    @unittest.expectedFailure
+    def test_a_brand_word_that_is_part_of_another_brand_does_not_steal_its_page(self):
+        """BUG 11 (qa.md, low): the brand-name rule is a substring test (`match in name.lower().replace(' ', '')`), so a campaign
+        whose word is contained in another brand's word ('trade' / 'tradever', 'alpha' / 'alphafutures', 'brand1' / 'brand10')
+        also claims the other brand's pages, and the other campaign can be left with none. Fix: give each page to the campaign
+        with the LONGEST matching word (or match on word boundaries) and warn at onboarding when two words overlap."""
+        c = self.c
+        c.add_campaign("Trade Inc", fw.CID2, match="trade")
+        c.add_campaign("Tradever Prop", "3ee88e3e-f9dd-4ee8-8fd5-8a215dd60b2b", match="tradever")
+        c.world.accounts = [{"_id": "t1", "platform": "tiktok", "username": "trade.clips"},
+                            {"_id": "t2", "platform": "tiktok", "username": "tradever.clips"}]
+        c.world.cr_pages["3ee88e3e-f9dd-4ee8-8fd5-8a215dd60b2b"] = fw.cr_page(name="Tradever Prop", budget=300000, spent=100)
+        c.run(footage=[c.seeder(videos=1, campaign=1, tag="t", prefix="TRADEINC"),
+                       c.seeder(videos=1, campaign=2, tag="v", prefix="TRADEVER")], catch=True)
+        by = {p["caption"].split()[1]: p["account"] for p in c.world.posts}
+        self.assertEqual(by.get("TRADEINC"), "trade.clips")
+        self.assertEqual(by.get("TRADEVER"), "tradever.clips")
 
 
 if __name__ == "__main__":

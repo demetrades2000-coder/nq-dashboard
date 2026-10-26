@@ -1641,8 +1641,8 @@ def _brain(ws: WS, name: str, fn, *args, default=None, **kw):
 
 def cancel_scheduled(ws: WS, now_utc, delete=None) -> list[str]:
     """Posts scheduled on Zernio for a LATER time whose campaign has since paused / ended / been blocked are taken
-    back (Zernio keeps the post until it publishes): the clip returns to the queue, nothing goes out for a campaign
-    that is not active. `delete(publish_id) -> bool` is Zernio's delete-post call (injected for tests)."""
+    back (Zernio keeps the post until it publishes): nothing goes out for a campaign that is not active. The clip
+    returns to the queue if its file is still there (otherwise it is dropped and can be clipped again). `delete(publish_id) -> bool` is Zernio's delete-post call (injected for tests)."""
     import accountmodes as am
     if delete is None:
         import zernio
@@ -1662,8 +1662,17 @@ def cancel_scheduled(ws: WS, now_utc, delete=None) -> list[str]:
         if gone:
             ws.x("UPDATE uploads SET state='failed', notes=?, updated=? WHERE id=?",
                  (json.dumps([f"cancelled before it published: {why}"]), now(), u["id"]))
-            ws.x("UPDATE clips SET status='approved' WHERE id=?", (u["clip_id"],))
-            out.append(f"{u['campaign']}: scheduled post for {u['account']} at {u['scheduled_for']} cancelled ({why})")
+            row = ws.q("SELECT ready_file FROM clips WHERE id=?", (u["clip_id"],))[0]
+            if row["ready_file"] and Path(row["ready_file"]).exists():
+                ws.x("UPDATE clips SET status='approved' WHERE id=?", (u["clip_id"],))        # back in the queue
+                left = "back in the queue"
+            else:   # Zernio had the media, so the local file was already cleared: the moment can be clipped again
+                ws.x("UPDATE clips SET status='render_failed', held_reason=? WHERE id=?",
+                     ("cancelled before it published and its file was already removed; the source can be clipped again",
+                      u["clip_id"]))
+                left = "its file was already removed"
+            out.append(f"{u['campaign']}: scheduled post for {u['account']} at {u['scheduled_for']} cancelled "
+                       f"({why}; {left})")
     return out
 
 
@@ -1848,7 +1857,7 @@ def _upload_step(ws: WS, pol: dict, rep: dict, uploaders, pool: "UploaderPool", 
         base = vcap if kind != "slideshow" else scap
         cap = min(base, PLATFORM_DAILY_CEILING.get(p, base))   # TikTok counts videos and photo posts separately
         allow = {a_: am.allowance(ws, p, a_) for a_ in accts}
-        room, gap_ok = {}, {}
+        room = {}
         for a_ in accts:
             al = allow[a_]
             acap = max(1, int(round(cap * al["cap_factor"]))) if al["cap_factor"] < 1 else cap

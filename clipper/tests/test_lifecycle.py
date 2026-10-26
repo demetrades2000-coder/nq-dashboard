@@ -698,7 +698,7 @@ class RunStateTests(WsCase):
         runstate.chain_update(self.ws, NOW)
         c = runstate.chain_update(self.ws, NOW + dt.timedelta(hours=4))
         self.assertIsNone(c["stalled_hours"])
-        self.assertEqual(c["stale_after"], "2026-10-26T27:00:00Z".replace("26T27", "27T03"))   # 2.5 cadences after the run
+        self.assertEqual(c["stale_after"], "2026-10-27T03:00:00Z")      # 2.5 cadences (10 h) after the run at 17:00Z
         c = runstate.chain_update(self.ws, NOW + dt.timedelta(hours=4 + 31))
         self.assertEqual(c["stalled_hours"], 31.0)
         self.assertEqual(len(c["gaps"]), 1)
@@ -906,6 +906,16 @@ class FootageTests(WsCase):
         self.assertEqual(out["urls"], [])
         self.assertIn("not in this campaign's allowed_sources", out["blocked"][0])
 
+    def test_the_ledger_stays_bounded(self):
+        c = self.camp()
+        for i in range(footage.LEDGER_KEEP + 30):
+            footage.poll_youtube(self.ws, c, NOW + dt.timedelta(minutes=i), 1,
+                                 lambda u, n, i=i: [{"id": f"v{i:05d}", "url": f"https://www.youtube.com/watch?v=v{i:05d}"}])
+        seen = footage.ledger(self.ws)["youtube"]["Yt Co"]
+        self.assertEqual(len(seen), footage.LEDGER_KEEP)
+        self.assertIn(f"v{footage.LEDGER_KEEP + 29:05d}", seen)
+        self.assertNotIn("v00000", seen)
+
     def test_a_failing_listing_is_recorded_not_raised(self):
         out = footage.poll_youtube(self.ws, self.camp(), NOW, 2, lambda u, n: (_ for _ in ()).throw(RuntimeError("blocked by YouTube")))
         self.assertEqual(out["urls"], [])
@@ -1111,7 +1121,7 @@ class PostingLoopTests(WsCase):
         return up
 
     def posted(self):
-        return [(r["name"] if False else r["campaign"], r["account"]) for r in self.ws.q(
+        return [(r["campaign"], r["account"]) for r in self.ws.q(
             "SELECT c.campaign, u.account FROM uploads u JOIN clips c ON c.id=u.clip_id")]
 
     def last_rep(self):
@@ -1299,6 +1309,7 @@ class PostingLoopTests(WsCase):
         self.assertIn("Acme: scheduled post for x.one", notes[0])
         self.assertEqual(self.ws.q("SELECT state FROM uploads WHERE clip_id=?", (a,))[0]["state"], "failed")
         self.assertEqual(self.ws.q("SELECT status FROM clips WHERE id=?", (a,))[0]["status"], "approved")   # back in the queue
+        self.assertIn("back in the queue", notes[0])
         self.assertEqual(self.ws.q("SELECT state FROM uploads WHERE clip_id=?", (b,))[0]["state"], "processing")
         # Zernio unreachable: nothing is lost, it is tried again next run
         self.ws.x("UPDATE uploads SET state='processing' WHERE clip_id=?", (a,))
@@ -1308,15 +1319,18 @@ class PostingLoopTests(WsCase):
         self.ws.x("UPDATE uploads SET scheduled_for=?", ((dt.datetime.now(UTC) - dt.timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M:%SZ"),))
         self.assertEqual(pl.cancel_scheduled(self.ws, dt.datetime.now(UTC), delete=lambda pid: True), [])
 
-    def test_a_scheduled_clip_keeps_its_file_until_it_has_published(self):
+    def test_a_cancelled_clip_whose_file_was_already_pruned_is_dropped_so_it_can_be_clipped_again(self):
         a = self.clip("Acme")
         later = (dt.datetime.now(UTC) + dt.timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%SZ")
         self.ws.x("INSERT INTO uploads(clip_id, platform, account, state, publish_id, created, updated, scheduled_for) "
                   "VALUES(?,?,?,?,?,?,?,?)", (a, "tiktok", "x.one", "processing", "p1", pl.now(), pl.now(), later))
-        self.assertEqual(cr.prune_posted(self.ws), 0)
-        self.assertTrue(Path(self.ws.q("SELECT ready_file FROM clips WHERE id=?", (a,))[0]["ready_file"]).exists())
-        self.ws.x("UPDATE uploads SET url='https://t/1', state='live'")
-        self.assertEqual(cr.prune_posted(self.ws), 1)
+        self.assertEqual(cr.prune_posted(self.ws), 1)                 # Zernio has the media: the local file goes at once
+        self.state("Acme", "paused")
+        notes = pl.cancel_scheduled(self.ws, dt.datetime.now(UTC), delete=lambda pid: True)
+        self.assertIn("its file was already removed", notes[0])
+        row = self.ws.q("SELECT status, held_reason FROM clips WHERE id=?", (a,))[0]
+        self.assertEqual(row["status"], "render_failed")
+        self.assertIn("clipped again", row["held_reason"])
 
     def test_uploaders_that_are_not_zernio_are_called_the_old_way(self):
         class Plain:

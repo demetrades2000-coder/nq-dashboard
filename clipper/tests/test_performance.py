@@ -77,9 +77,8 @@ class AnalysisTests(PerfCase):
         self.post(500, hours_ago=48)
         self.post(500, hours_ago=10, measured=True)            # too fresh: views still moving
         self.post(500, hours_ago=48, measured=False)           # views never measured: could be a zero from a failed refresh
-        self.post(500, hours_ago=48, sched_hour_et=None).__class__
         p = self.analyze()
-        self.assertEqual(p["settled_posts"], 2)
+        self.assertEqual(p["settled_posts"], 1)
 
     def test_a_post_scheduled_for_later_is_not_settled_until_it_has_been_up_a_day(self):
         self.post(500, hours_ago=48, sched_hour_et=10)          # scheduled 10:15 ET two days ago: settled

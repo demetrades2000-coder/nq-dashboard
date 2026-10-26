@@ -49,7 +49,9 @@ world in `fakeworld.py` (fake Content Rewards + Zernio + ntfy + a bare git repo 
     - `lifecycle.assess`, `lifecycle.run` - `L test_blocked_when_rules...`, `L test_a_newly_added_blocked_campaign...`
 13. **New campaigns start at once**: `--onboard` builds the brief, and the same run's lifecycle makes it active/standby
     (blocked with the reason when the rules are unclear). `account_match` is now `""` when the rules need no dedicated page.
-    - `cloud_runner.main`, `onboard.build/parse_brief` - `L WholeRunTests.test_a_campaign_added...`, `A OnboardAccountMatchTests`
+    A brand campaign that has no page yet waits as standby and the owner is told the exact page name to create (once, and in
+    the digest until it exists).
+    - `cloud_runner.main`, `onboard.build/parse_brief` - `L WholeRunTests.test_a_campaign_added...`, `A OnboardAccountMatchTests`, `L test_a_campaign_waiting_for_its_page...`
 14. **Runway forecast**: budget history per campaign -> days until it is gone at the current speed; a campaign that will be dry
     within 3 days loses priority before it actually stops.
     - `lifecycle.runway` - `L test_runway_is_estimated...`
@@ -120,8 +122,9 @@ world in `fakeworld.py` (fake Content Rewards + Zernio + ntfy + a bare git repo 
     Zernio returns the original post for 24 h), the post id is written to the `uploads` table the instant Zernio answers, a
     409 "already exists" is treated as success, and the state is checkpointed right after posting.
     - `pipeline._idem_key/_provisional`, `zernio._create_post`, `cloud_runner.main` - `P test_a_duplicate_409...`, `L test_crash_after_posting...`
-32. **Scheduled posts of a campaign that stops are taken back** (Zernio delete-post) and the clip returns to the queue; a
-    scheduled clip keeps its file until it has published.
+32. **Scheduled posts of a campaign that stops are taken back** (Zernio delete-post). The clip returns to the queue if its file
+    is still there; Zernio already has the media, so the local file is normally gone (kept state small) and the clip is then
+    dropped and can be clipped again from its source (restock).
     - `pipeline.cancel_scheduled`, `cloud_runner.prune_posted` - `L test_scheduled_posts_of_a_campaign_that_paused...`
 
 ## 6. Performance loop
@@ -208,7 +211,7 @@ world in `fakeworld.py` (fake Content Rewards + Zernio + ntfy + a bare git repo 
 
 Everything that talks to Zernio, Content Rewards, Google Drive, YouTube or ntfy is tested against fakes only. Specifically:
 
-* **Zernio scheduling**: that a TikTok video / photo post accepts `scheduledFor` + `timezone` ten minutes ahead with
+* **Zernio scheduling**: that a TikTok video / photo post accepts `scheduledFor` + `timezone` twenty minutes ahead with
   `tiktokSettings`, what the scheduled post looks like in `GET /v1/posts/{id}` (we treat "no link yet" as `processing` and pick
   the link up later), and that `DELETE /v1/posts/{id}` / `POST /v1/posts/{id}/retry` behave as documented.
 * **Idempotency-Key** and the 409 duplicate answer are implemented from the docs (https://docs.zernio.com) only.
@@ -222,8 +225,8 @@ Everything that talks to Zernio, Content Rewards, Google Drive, YouTube or ntfy 
 * **The runner lock** relies on `git push` (no force) being refused when the branch moved; verified against a local bare repo.
 * **Warm-up thresholds, "limited" = median under 100 views on 4+ posts, 2x demotion ratio, 7-day end rule** are judgement
   calls, not measured against real TikTok behaviour. They are constants at the top of `accountmodes.py` / `lifecycle.py`.
-* **First live runs**: the existing end-to-end tests that expect a fresh page to post 2 clips on day one now see warm-up (1 per
-  page per day) and planned times; see the report.
+* **First live runs**: the existing end-to-end tests (`test_e2e_cloud.FullChain`) that expect a fresh page to post 4 clips on day one now see warm-up (1 per
+  page per day; run them with `CLIP_WARMUP=0` or update the expectations) and planned times.
 
 ## Keys written (beyond docs/AUTOPILOT_CONTRACT.md)
 

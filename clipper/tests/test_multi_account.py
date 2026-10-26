@@ -142,6 +142,31 @@ class RotationTests(unittest.TestCase):
         self.assertEqual(pl.campaign_account({"accounts": {"tiktok": "*"}}, "tiktok"), "default")
 
 
+class AllocationOverrideTests(unittest.TestCase):
+    """The lifecycle's allocation (campaign_state.<name>.accounts) beats the "every matching account" rule."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="clipper-alloc-"))
+        self.ws = pl.WS(str(self.tmp / "ws"))
+        pl._ZERNIO_NAMES.clear()
+        pl._ZERNIO_NAMES["tiktok"] = ["acme.one", "acme.two", "other"]
+
+    def tearDown(self):
+        pl._ZERNIO_NAMES.clear()
+        self.ws.close()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_allocated_accounts_win_and_without_a_record_nothing_changes(self):
+        c = {"name": "Acme", "accounts": {"tiktok": "*"}, "account_match": "acme"}
+        self.assertEqual(pl.campaign_accounts(c, "tiktok", "free", self.ws), ["acme.one", "acme.two"])   # no record yet
+        self.ws.set_setting("campaign_state.Acme", {"state": "active", "accounts": ["tiktok/acme.two"]})
+        self.assertEqual(pl.campaign_accounts(c, "tiktok", "free", self.ws), ["acme.two"])
+        self.assertEqual(pl.campaign_accounts(c, "tiktok", "free"), ["acme.one", "acme.two"])           # old callers: same as ever
+        self.ws.set_setting("campaign_state.Acme", {"state": "standby", "accounts": []})
+        self.assertEqual(pl.campaign_accounts(c, "tiktok", "free", self.ws), [])
+        self.assertEqual(pl.campaign_accounts({"name": "Acme", "accounts": {"tiktok": ["x"]}}, "youtube", "free", self.ws), ["default"])
+
+
 class PostHoursTests(unittest.TestCase):
     def test_window(self):
         utc = dt.timezone.utc

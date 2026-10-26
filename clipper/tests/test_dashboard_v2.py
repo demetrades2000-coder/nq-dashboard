@@ -201,7 +201,7 @@ class ContractDemoTests(unittest.TestCase):
         self.assertIn(d["stats"]["best_platform"], ("tiktok", "instagram", "youtube"))
         self.assertAlmostEqual(d["stats"]["avg_views"], d["stats"]["views"] / d["stats"]["posts"], delta=1)
         self.assertTrue(0 < d["stats"]["engagement"] < 0.1)
-        self.assertEqual(d["autopilot"]["every_hours"], 6)
+        self.assertEqual(d["autopilot"]["every_hours"], 4)
         self.assertIsNotNone(d["autopilot"]["next_run"])
         self.assertTrue(d["autopilot"]["enabled"])
         self.assertEqual(d["autopilot"]["via"], "free")

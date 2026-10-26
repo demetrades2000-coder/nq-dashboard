@@ -1,0 +1,10 @@
+{
+  "note": "Organisations whose campaign rules ban automated / AI clipping tools (or that the owner decided to skip). The autopilot never suggests their campaigns as leads. Matching ignores case. 'org' entries match the organisation name as a whole word; 'any' entries match the organisation OR the campaign name. Add a line here when a campaign's rules turn out to ban tools.",
+  "orgs": [
+    {"match": "Reach", "mode": "org", "why": "rules ban automated tools"},
+    {"match": "TJR", "mode": "any", "why": "rules ban automated tools"},
+    {"match": "Alpha Futures", "mode": "any", "why": "rules ban automated tools"},
+    {"match": "Alpha Capital", "mode": "any", "why": "rules ban automated tools"},
+    {"match": "Clipping.net", "mode": "any", "why": "rules ban automated tools"}
+  ]
+}

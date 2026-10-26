@@ -18,6 +18,11 @@ approved content are left. `--stale` makes the autopilot's last cycle ~20 h old 
 Then it builds dashboard.html. `--preview` also writes a hosted-style copy (index.html, data.json,
 thumbs/...) with the "sample data" banner on into <workspace>/site/.
 
+`--empty` builds a brand-new setup instead: three campaign briefs, no clips, no posts, the launch checklist two items
+in, to see every empty state. Every v4 key of the autopilot brain (docs/AUTOPILOT_CONTRACT.md) is filled with sample
+values of the same shapes: a campaign-switch story (AiXfunded paused, BILF promoted), account modes, a thin bench, 18 runs,
+the launch checklist.
+
 Output is deterministic for a given seed and day: timestamps are relative to now.
 """
 
@@ -226,7 +231,180 @@ def make_slides(out: Path, bases: list[Path], n: int = 6) -> list[Path]:
 LIMITED_ACCOUNT = "tradever.daily"   # the demo's shadow-limited page: its posts older than a day got < 100 views
 
 
-def build(home: Path, days: int = 30, seed: int = 7, stale: bool = False) -> pl.WS:
+def utc(t: dt.datetime) -> str:
+    """The cloud runner stores UTC 'Z' timestamps."""
+    return t.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+SECRETS = "https://github.com/demetrades2000-coder/nq-dashboard/settings/secrets/actions/new"
+BILF = "BILF Clipping (finance)"      # a campaign the autopilot knows (promoted after AiXfunded paused) with no brief file here
+OLD = "Old Futures Challenge"         # ended for good: it ran out of budget more than a week ago
+
+
+def checklist(done: set) -> list:
+    """launch.checklist as the preflight writes it (docs/AUTOPILOT_CONTRACT.md); `done` = ids that pass."""
+    spec = [
+        ("zernio_key", "Zernio API key added", False,
+         "Create a key in Zernio (Settings, API) and save it in GitHub as the secret ZERNIO_API_KEY: " + SECRETS,
+         "Key found and used by the last run."),
+        ("zernio_accounts", "TikTok accounts connected in Zernio", False,
+         "Create the TikTok account, then in Zernio press Connect account and sign in to it.", "3 accounts connected."),
+        ("account_matches_campaign", "Every campaign has an account named for it", False,
+         "Create a TikTok account whose username contains 'bilf', for example 'bilf.clips', and connect it in Zernio.",
+         "No connected account has 'bilf' in its name yet."),
+        ("campaign_joined", "Joined the campaign on Content Rewards", True,
+         "Open the campaign page, press Join, then tell Claude: I joined <name>: here are its rules.", ""),
+        ("rules_checked", "Rules checked for each campaign", True,
+         "Open the campaign's Rules tab and search for: AI, automat, tool, repurpos. If nothing bans tools, tick this.", ""),
+        ("first_post", "First post went out", False, "Nothing to do: it happens on the next run.", "5 posts so far."),
+        ("links_submitted", "Pasted your first links on the campaign page", True,
+         "Open the Submit tab, tap Copy next link, paste it in the campaign's submit box.", ""),
+        ("ntfy_topic", "Phone alerts (optional)", False,
+         "Optional: choose a private topic name such as 'clipengine-7xk2' and add it as the secret NTFY_TOPIC.", ""),
+        ("dashboard_homescreen", "Dashboard on your Home Screen", True,
+         "On your iPhone open this page in Safari, tap Share, then Add to Home Screen.", ""),
+        ("drive_footage", "Footage folder shared", False, "Share the Google Drive folder with the autopilot.",
+         "12 videos found."),
+        ("state_branch", "Memory is being saved", False, "Nothing to do: the run saves itself to the clipper-cloud branch.",
+         "Last save a few hours ago."),
+    ]
+    return [{"id": i, "label": l, "done": i in done, "manual": m, "how": h, "detail": d if i in done else ""} for i, l, m, h, d in spec]
+
+
+def seed_empty(ws, camps: list, now: dt.datetime) -> None:
+    """--empty: a brand-new setup, nothing posted. The checklist is two items in; everything else is an empty state."""
+    for k, v in {"autopilot.enabled": True, "autopilot.via": "free", "autopilot.platforms": ["tiktok"],
+                 "autopilot.max_uploads_per_day": 3, "autopilot.max_per_day": 3, "autopilot.min_score": 55,
+                 "autopilot.privacy": "public", "autopilot.every_hours": 4, "autopilot.runner": "cloud",
+                 "autopilot.campaigns": [c["file"] for c in camps if c["auto"]]}.items():
+        ws.set_setting(k, v)
+    ws.set_setting("launch.checklist", checklist({"campaign_joined", "dashboard_homescreen"}))
+    ws.set_setting("leads.discovered", DISCOVERED)
+    ws.set_setting("campaign_state.Tradever (prop firm)",
+                   {"state": "standby", "reason": "waiting for its first account: create tradever.clips and connect it",
+                    "since": utc(now - dt.timedelta(hours=3)), "priority": 7.3, "rank": 1, "accounts": [], "supply_days": None,
+                    "left": 1937.49, "budget": 2000.0, "cpm": 5.0, "checked": utc(now - dt.timedelta(hours=1))})
+
+
+def seed_brain(ws, camps: list, now: dt.datetime, live: list, clip_rows: list, newest, every: int, lag: int) -> None:
+    """Fill every key the autopilot brain writes (docs/AUTOPILOT_CONTRACT.md) with sample values of the same shapes:
+    Tradever active, AiXfunded paused (budget gone) and BILF promoted in its place, account modes, a thin bench, runs."""
+    t_ago = lambda **kw: utc(now - dt.timedelta(**kw))   # noqa: E731
+    trad, aix = camps[1], camps[0]
+    tname, aname = trad["name"], aix["name"]
+    supply_days = 2.0
+    # ---- campaign lifecycle
+    live_t = ws.setting(f"campaign_live.{tname}") or {}
+    live_a = ws.setting(f"campaign_live.{aname}") or {}
+    # budget history (UTC points) so the page can project "days of budget left at the current pace"
+    live_t["history"] = [[t_ago(days=6), 2000.0], [t_ago(days=4), 1990.0], [t_ago(days=2), 1962.0], [t_ago(hours=1, minutes=12), 1937.49]]
+    live_a["history"] = [[t_ago(days=6), 1180.0], [t_ago(days=4), 640.0], [t_ago(days=2), 150.0], [t_ago(hours=1, minutes=12), 12.4]]
+    ws.set_setting(f"campaign_live.{tname}", live_t)
+    ws.set_setting(f"campaign_live.{aname}", live_a)
+    ws.set_setting(f"campaign_state.{tname}",
+                   {"state": "active", "reason": "best rate among the cleared campaigns: promoted", "since": t_ago(days=2),
+                    "priority": 7.3, "rank": 1, "accounts": ["tiktok/tradever.clips", "tiktok/tradever.daily"],
+                    "supply_days": supply_days, "left": 1937.49, "budget": 2000.0, "cpm": 5.0, "checked": t_ago(hours=1, minutes=12)})
+    ws.set_setting(f"campaign_state.{aname}",
+                   {"state": "paused", "reason": "budget almost gone ($12.40 left)", "since": t_ago(hours=1, minutes=12),
+                    "priority": 3.1, "rank": 3, "accounts": ["tiktok/aixfunded", "instagram/aixfunded"], "supply_days": 0.0,
+                    "left": 12.4, "budget": 2000.0, "cpm": 4.0, "checked": t_ago(hours=1, minutes=12)})
+    ws.set_setting(f"campaign_state.{camps[2]['name']}",
+                   {"state": "blocked", "reason": "rules do not clearly allow automated tools: needs a human to confirm",
+                    "since": t_ago(days=9), "priority": 1.2, "rank": None, "accounts": [], "supply_days": None,
+                    "left": None, "budget": None, "cpm": 1.25, "checked": t_ago(hours=1, minutes=12)})
+    ws.set_setting(f"campaign_state.{BILF}",
+                   {"state": "standby", "reason": "promoted after AiXfunded paused: waiting for an account named bilf",
+                    "since": t_ago(hours=1, minutes=11), "priority": 6.4, "rank": 2, "accounts": [], "supply_days": 6.5,
+                    "left": 640.0, "budget": 1000.0, "cpm": 3.0, "checked": t_ago(hours=1, minutes=12),
+                    "history": [[t_ago(days=3), 1000.0], [t_ago(days=2), 880.0], [t_ago(days=1), 760.0], [t_ago(hours=1), 640.0]]})
+    ws.set_setting(f"campaign_state.{OLD}",
+                   {"state": "ended", "reason": "budget gone for more than 7 days", "since": t_ago(days=8), "priority": 0.0,
+                    "rank": None, "accounts": [], "supply_days": 0.0, "left": 0.0, "budget": 1500.0, "cpm": 2.0,
+                    "checked": t_ago(days=1)})
+    ws.set_setting("switch.log", [
+        {"ts": t_ago(days=8), "kind": "ended", "campaign": OLD, "from": "paused", "to": "ended", "reason": "budget gone for more than 7 days"},
+        {"ts": t_ago(days=2, minutes=3), "kind": "promoted", "campaign": tname, "from": "standby", "to": "active",
+         "reason": "best rate among the cleared campaigns"},
+        {"ts": t_ago(days=2), "kind": "account_moved", "campaign": "@tradever.daily", "from": aname, "to": tname,
+         "reason": "AiXfunded had no spare clips"},
+        {"ts": t_ago(hours=1, minutes=12), "kind": "paused", "campaign": aname, "from": "active", "to": "paused",
+         "reason": "budget almost gone ($12.40 left)"},
+        {"ts": t_ago(hours=1, minutes=11), "kind": "promoted", "campaign": BILF, "from": "standby", "to": "standby",
+         "reason": "next best rate; needs an account named bilf"},
+        {"ts": t_ago(hours=1, minutes=11), "kind": "account_idle", "campaign": "@aixfunded", "from": "", "to": "",
+         "reason": "its campaign is paused"}])
+    # ---- accounts
+    ws.set_setting("account_state.tiktok/tradever.clips",
+                   {"campaign": tname, "mode": "normal", "reason": "healthy: 3 posts a day", "since": t_ago(days=20),
+                    "posts_total": 41, "posts_7d": 18, "median_views_recent": 2150, "health": "ok"})
+    ws.set_setting("account_state.tiktok/tradever.daily",
+                   {"campaign": tname, "mode": "slow", "reason": "views stayed flat: slowed to 1 post a day while TikTok decides",
+                    "since": t_ago(days=3), "posts_total": 22, "posts_7d": 6, "median_views_recent": 61, "health": "limited"})
+    ws.set_setting("account_state.tiktok/tradever.trades",
+                   {"campaign": tname, "mode": "warmup", "reason": "day 2 of 5 warm-up: 1 post a day", "since": t_ago(days=1, hours=6),
+                    "posts_total": 2, "posts_7d": 2, "median_views_recent": 90, "health": "new"})
+    ws.set_setting("account_state.tiktok/aixfunded",
+                   {"campaign": None, "mode": "idle", "reason": "its campaign is paused: waiting for a new campaign",
+                    "since": t_ago(hours=1, minutes=11), "posts_total": 15, "posts_7d": 9, "median_views_recent": 880, "health": "ok"})
+    ws.set_setting("account_state.instagram/aixfunded",
+                   {"campaign": None, "mode": "cooldown", "reason": "pausing after an upload error: Zernio lost the login",
+                    "since": t_ago(hours=2), "posts_total": 12, "posts_7d": 5, "median_views_recent": 410, "health": "error"})
+    # ---- the bench: one healthy campaign, two wanted
+    join = []
+    for i, d in enumerate(DISCOVERED[:3]):
+        join.append(dict(d, rank=i + 1))
+    ws.set_setting("bench", {"healthy": 1, "min": 2, "need_more": True,
+                             "reason": "Only Tradever is posting and BILF is waiting for an account: join one more campaign so a pause never stops posting.",
+                             "join_next": join})
+    # ---- run history: one run every `every` hours, newest ~2 h ago
+    fins = [now - dt.timedelta(hours=2 + every * k + lag) for k in range(17, -1, -1)]
+    midnight = dt.datetime.combine(now.date(), dt.time())
+    rr = random.Random(11)
+    # AiXfunded / PB Blake posts: spread the newest ones over the runs, as the runs that posted them (Tradever's stay as they are:
+    # its rules checks and today's caps depend on their times)
+    pre = [f for f in fins if f < midnight]
+    mine = sorted((x for x in live if x[2]["spec"]["key"] != "tradever" and x[0] < midnight), key=lambda x: x[0], reverse=True)[:len(pre) * 2]
+    for i, (ut, uid, *_rest) in enumerate(mine):
+        fin = pre[-1 - (i // 2) % len(pre)]
+        ws.x("UPDATE uploads SET created=? WHERE id=?", (iso(fin - dt.timedelta(minutes=rr.randint(2, 8))), uid))
+    ups = sorted([(dt.datetime.fromisoformat(r["created"]),) for r in ws.q("SELECT created FROM uploads WHERE state='live'")])
+    approved_v = ws.q("SELECT COUNT(*) n FROM clips WHERE status='approved' AND COALESCE(NULLIF(kind,''),'video')='video'")[0]["n"]
+    approved_s = ws.q("SELECT COUNT(*) n FROM clips WHERE status='approved' AND kind='slideshow'")[0]["n"]
+    runs = []
+    for k in range(17, -1, -1):
+        fin = now - dt.timedelta(hours=2 + every * k + lag)
+        st = fin - dt.timedelta(minutes=9 + (k * 7) % 14)
+        n = sum(1 for ut, *_ in ups if st - dt.timedelta(minutes=5) <= ut <= fin + dt.timedelta(minutes=5))
+        notes = []
+        if k == 0:
+            notes = ["AiXfunded paused: budget almost gone ($12.40 left)", "BILF promoted: waiting for an account named bilf",
+                     "instagram/aixfunded: Zernio lost the login: reconnect it"]
+        elif k == 5:
+            notes = ["new footage found: 3 videos clipped"]
+        runs.append({"ts": utc(fin), "duration_s": int((fin - st).total_seconds()), "posted": n,
+                     "errors": 1 if k == 0 else 0, "queued_videos": approved_v + k % 3, "queued_slideshows": approved_s + (k + 1) % 2,
+                     "switches": 2 if k == 0 else 0, "notes": notes, "key": True})
+    ws.set_setting("runs.history", runs)
+    # ---- launch checklist (the "account named for BILF" step is the real next action)
+    ws.set_setting("launch.checklist", checklist({"zernio_key", "zernio_accounts", "campaign_joined", "rules_checked",
+                                                  "first_post", "dashboard_homescreen", "drive_footage", "state_branch"}))
+    ws.set_setting("supply.decks_available", 7)
+    ws.set_setting("supply.note", "Sample data: the real supply note appears here.")
+    # ---- insights written from the sample's own numbers (never invented)
+    rows = ws.q("SELECT COALESCE(NULLIF(c.kind,''),'video') k, COUNT(*) n, AVG(u.views) v FROM uploads u JOIN clips c ON c.id=u.clip_id "
+                "WHERE u.state='live' GROUP BY k")
+    by = {r["k"]: r for r in rows}
+    notes = []
+    if "video" in by and "slideshow" in by:
+        notes.append(f"Videos average {int(by['video']['v']):,} views, slideshows {int(by['slideshow']['v']):,}: "
+                     f"{'more videos' if by['video']['v'] > by['slideshow']['v'] else 'more slideshows'} tonight.")
+    notes.append("tradever.daily got a median of 61 views on its last 4 posts: it is slowed to 1 post a day.")
+    notes.append("Only 1 campaign is posting: a second one protects the schedule when one runs dry.")
+    ws.set_setting("insights", notes)
+
+
+def build(home: Path, days: int = 30, seed: int = 7, stale: bool = False, empty: bool = False) -> pl.WS:
     home = Path(home).expanduser().resolve()
     if home.exists() and any(home.iterdir()) and not (home / MARK).exists():
         raise SystemExit(f"{home} isn't empty and isn't a demo workspace; pick a new folder")
@@ -280,6 +458,9 @@ def build(home: Path, days: int = 30, seed: int = 7, stale: bool = False) -> pl.
         f.write_text(json.dumps(brief, indent=2), encoding="utf-8")
         camps.append({**spec, "file": str(f.resolve()), "c": cmp.load(str(f))})
     trad = next(c for c in camps if c["key"] == "tradever")
+    if empty:
+        seed_empty(ws, camps, now)
+        return ws
 
     # sources (jobs)
     src_by_camp: dict[str, list] = {}
@@ -490,12 +671,6 @@ def build(home: Path, days: int = 30, seed: int = 7, stale: bool = False) -> pl.
                  "VALUES(?,?,?,?,?,?,?,?)", (newest["id"], "instagram", newest["spec"]["handle"], "failed",
                                              json.dumps(["Instagram: media processing timed out"]), newest["caption"],
                                              iso(now - dt.timedelta(hours=2)), iso(now - dt.timedelta(hours=2))))
-    # supply: about two days of approved content behind the autopilot's pace of the last 3 days
-    recent = ws.q("SELECT COUNT(DISTINCT clip_id) n FROM uploads WHERE state!='failed' AND created>=?",
-                  (iso(now - dt.timedelta(days=3)),))[0]["n"]
-    have = ws.q("SELECT COUNT(*) n FROM clips WHERE status='approved' AND campaign=?", (trad["name"],))[0]["n"]
-    for j in range(max(0, round(2 * recent / 3) - have)):
-        add_clip(now - dt.timedelta(minutes=140 + 20 * j), trad, "approved", "slideshow" if j % 2 else "video")
     tracker_db = {"posts": posts}
     (home / "earnings.json").write_text(json.dumps(tracker_db, indent=2), encoding="utf-8")
 
@@ -518,12 +693,12 @@ def build(home: Path, days: int = 30, seed: int = 7, stale: bool = False) -> pl.
     for t, level, sid, cid, msg in sorted(ev, key=lambda e: e[0]):
         ws.x("INSERT INTO events(ts, level, source_id, clip_id, message) VALUES(?,?,?,?,?)", (iso(t), level, sid, cid, msg))
 
-    # autopilot cycles: every 6 h over the last 3 days, the last one ~2 h ago, run by the cloud autopilot
-    every = 6
+    # autopilot cycles: every 4 h over the last 3 days, the last one ~2 h ago, run by the cloud autopilot
+    every = 4
     lag = 20 if stale else 0   # --stale: the last cycle finished ~20 h ago, the autopilot is stuck
     log = home / "logs" / "autopilot.jsonl"
     with log.open("w", encoding="utf-8") as fh:
-        for k in range(11, -1, -1):
+        for k in range(17, -1, -1):
             st = now - dt.timedelta(hours=2 + every * k + lag, minutes=rng.randint(5, 14))
             fin = st + dt.timedelta(minutes=rng.randint(6, 22))
             up = [f"#{c['id']} {p}/{acct}" for ut, uid, c, p, acct in live
@@ -555,6 +730,13 @@ def build(home: Path, days: int = 30, seed: int = 7, stale: bool = False) -> pl.
          (iso(now - dt.timedelta(hours=1, minutes=12)), "warn", "AiXfunded (prop firm) paused automatically: budget almost "
           "gone ($12.40 left). Posting moved to the other campaigns."))
     ws.set_setting("leads.discovered", DISCOVERED)
+    seed_brain(ws, camps, now, live, clip_rows, newest, every, lag)
+    # supply: about two days of approved content behind the autopilot's pace of the last 3 days
+    recent = ws.q("SELECT COUNT(DISTINCT clip_id) n FROM uploads WHERE state!='failed' AND created>=?",
+                  (iso(now - dt.timedelta(days=3)),))[0]["n"]
+    have = ws.q("SELECT COUNT(*) n FROM clips WHERE status='approved' AND campaign=?", (trad["name"],))[0]["n"]
+    for j in range(max(0, round(2 * recent / 3) - have)):
+        add_clip(now - dt.timedelta(minutes=140 + 20 * j), trad, "approved", "slideshow" if j % 2 else "video")
 
     # settings + a little AI spend
     for k, v in {"autopilot.enabled": True, "autopilot.enabled_at": iso(start), "autopilot.via": "free",
@@ -579,10 +761,12 @@ def main(argv=None) -> int:
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--stale", action="store_true",
                     help="a stuck autopilot: the last cycle finished ~20 h ago (the dashboard shows the red restart strip)")
+    ap.add_argument("--empty", action="store_true",
+                    help="a brand-new setup: no clips, no posts, the launch checklist two items in (every empty state)")
     ap.add_argument("--preview", action="store_true",
                     help="also write a hosted-style copy with the sample-data banner into <workspace>/site/")
     a = ap.parse_args(argv)
-    ws = build(Path(a.workspace), a.days, a.seed, stale=a.stale)
+    ws = build(Path(a.workspace), a.days, a.seed, stale=a.stale, empty=a.empty)
     try:
         out = dashboard.write(ws)
         print(f"Demo workspace: {ws.home}\nDashboard: {out}")

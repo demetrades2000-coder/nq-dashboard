@@ -89,9 +89,11 @@ class WS:
             self.db.execute("ALTER TABLE uploads ADD COLUMN account TEXT DEFAULT 'default'")
         have = {r[1] for r in self.db.execute("PRAGMA table_info(clips)")}
         for col in ("submitted_at TEXT", "upload_notes TEXT", "video_id TEXT", "held_reason TEXT", "reasons TEXT",
-                    "kind TEXT DEFAULT 'video'"):
+                    "kind TEXT DEFAULT 'video'", "requeues INTEGER DEFAULT 0"):
             if col.split()[0] not in have:
                 self.db.execute(f"ALTER TABLE clips ADD COLUMN {col}")
+        if "scheduled_for" not in {r[1] for r in self.db.execute("PRAGMA table_info(uploads)")}:
+            self.db.execute("ALTER TABLE uploads ADD COLUMN scheduled_for TEXT")
         self.db.commit()
         self.lock = threading.Lock()
 
@@ -411,7 +413,7 @@ def cmd_import(ws: WS, a) -> int:
         dup = status == "queued" and ws.q("SELECT id, status FROM sources WHERE campaign=? AND canonical=? AND status NOT IN ('failed','blocked')",
                    (c["name"], canon))
         if dup and not a.force:
-            if not from_campaign:
+            if not from_campaign and not getattr(a, "quiet", False):
                 print(f"duplicate: {src} is already job #{dup[0]['id']} ({dup[0]['status']}); use --force to re-import")
             continue
         sid = ws.x("""INSERT INTO sources(campaign, campaign_file, input, canonical, transcript, title, uploader, status,
@@ -1260,15 +1262,20 @@ class ZernioUploader:
         import zernio
         self.z, self.platform, self.account, self.consent = zernio, platform, account, consent
 
-    def upload(self, path, title, description, tags, privacy, paid):
+    def upload(self, path, title, description, tags, privacy, paid, ctx=None):
+        """ctx (optional): {"schedule": {...}, "idempotency_key": str, "on_created": callable} (see zernio.upload)."""
+        ctx = ctx or {}
         if Path(path).is_dir():   # a slideshow deck folder: post its images as a TikTok photo carousel
             imgs = sorted(Path(path).glob("slide_*.jpg")) or sorted(Path(path).glob("slide_*.png"))
             return self.z.upload_photos(imgs, self.platform, self.account, title, description, paid, privacy,
-                                        self.consent)
-        return self.z.upload(Path(path), self.platform, self.account, description, paid, privacy, self.consent)
+                                        self.consent, **ctx)
+        return self.z.upload(Path(path), self.platform, self.account, description, paid, privacy, self.consent, **ctx)
 
     def lookup(self, post_id):
         return self.z.post_url(post_id, self.platform)
+
+    def retry(self, post_id):
+        return self.z.retry_post(post_id)
 
     def public_stats(self, url):
         st = self.z.post_stats(url, self.platform)   # Zernio's own numbers first: reliable from cloud runners
@@ -1356,6 +1363,8 @@ def autopilot_policy(ws: WS) -> dict:
         "hold_income_claims": bool(ws.setting("autopilot.hold_income_claims", False)),
         "platforms": ws.setting("autopilot.platforms", ["youtube"]),
         "via": ws.setting("autopilot.via", "native"),
+        # post at a planned time later today (Zernio scheduledFor) instead of the minute the run happens to reach it
+        "schedule": bool(ws.setting("autopilot.schedule", False)),
     }
 
 
@@ -1485,9 +1494,18 @@ def campaign_account(c: dict, platform: str) -> str:
 _ZERNIO_NAMES: dict[str, list[str]] = {}
 
 
-def campaign_accounts(c: dict, platform: str, via: str = "native") -> list[str]:
+def campaign_accounts(c: dict, platform: str, via: str = "native", ws: "WS | None" = None) -> list[str]:
     """Every account a campaign posts to on a platform. A list rotates; "*" means every account of that platform
-    connected in Zernio (free route). Each clip still goes to exactly ONE of them (no reposting across accounts)."""
+    connected in Zernio (free route). Each clip still goes to exactly ONE of them (no reposting across accounts).
+    With `ws`, the lifecycle's allocation wins when there is one: an account serves one campaign at a time."""
+    if ws is not None and platform == "tiktok":
+        try:
+            import lifecycle
+            alloc = lifecycle.accounts_for(ws, c["name"], platform)
+        except Exception:  # noqa: BLE001
+            alloc = None
+        if alloc is not None:
+            return alloc
     v = (c.get("accounts") or {}).get(platform)
     match = str(c.get("account_match") or "").lower().strip()
     if v == "*":
@@ -1512,9 +1530,9 @@ def campaign_accounts(c: dict, platform: str, via: str = "native") -> list[str]:
 
 def record_upload(ws: WS, clip_row, platform: str, res: dict, caption: str, account: str = "default") -> None:
     ws.x("""INSERT OR REPLACE INTO uploads(clip_id, platform, account, remote_id, url, state, notes, caption, publish_id,
-            created, updated, views, likes) VALUES(?,?,?,?,?,?,?,?,?,?,?,0,0)""",
+            created, updated, views, likes, scheduled_for) VALUES(?,?,?,?,?,?,?,?,?,?,?,0,0,?)""",
          (clip_row["id"], platform, account, res["remote_id"], res["url"], res["state"], json.dumps(res["notes"]),
-          caption, res.get("publish_id"), now(), now()))
+          caption, res.get("publish_id"), now(), now(), res.get("scheduled_for")))
     first = clip_row["status"] != "posted"
     if first:
         ws.x("UPDATE clips SET status='posted', posted_at=? WHERE id=?", (now(), clip_row["id"]))
@@ -1552,27 +1570,38 @@ def campaign_transcript(ws: WS, campaign_name: str) -> str:
 
 
 def campaign_paused(ws: WS, name: str) -> str | None:
-    """Why a campaign is paused (set by the cloud runner's live budget check), or None."""
+    """Why a campaign may not be clipped or posted for right now, or None. Two sources: the live budget check
+    (`campaign_live`) and the lifecycle's state (`campaign_state`: paused / ended / blocked). A standby campaign
+    is still clipped (so it can start at once) but has no account yet, so nothing is posted for it."""
     st = ws.setting(f"campaign_live.{name}", None) or {}
-    return None if st.get("ok", True) else (st.get("reason") or "paused")
+    if not st.get("ok", True):
+        return st.get("reason") or "paused"
+    try:
+        import lifecycle
+        return lifecycle.campaign_block(ws, name, for_import=True)
+    except Exception:  # noqa: BLE001  (the lifecycle must never be a reason to stop)
+        return None
 
 
-def make_slideshows(ws: WS, c: dict, campaign_file: str, limit: int | None = None) -> int:
-    """Render new photo-carousel decks (slideshow.py) as approved 'slideshow' clips. Returns how many were added."""
+def make_slideshows(ws: WS, c: dict, campaign_file: str, limit: int | None = None, mine: int = 40) -> int:
+    """Render new photo-carousel decks (slideshow.py) as approved 'slideshow' clips. Returns how many were added.
+    `mine` is how many automatically mined decks to consider (a restock asks for a bigger pool)."""
+    import performance
     import slideshow
     from PIL import Image
     src = ws.q("SELECT id FROM sources WHERE campaign=? ORDER BY id DESC LIMIT 1", (c["name"],))
     if not src:
         return 0
-    decks = slideshow.decks_from_transcript(campaign_transcript(ws, c["name"]), c)
+    decks = slideshow.decks_from_transcript(campaign_transcript(ws, c["name"]), c, mine=mine)
     have = {r["text"] for r in ws.q("SELECT text FROM clips WHERE campaign=? AND kind='slideshow'", (c["name"],))}
+    paused_angles = performance.retired_angles(ws, dt.datetime.now(dt.timezone.utc))
     logo_rel = (c.get("on_screen") or {}).get("logo") or ""
     logo = Path(campaign_file).parent / logo_rel
     if not logo.is_file():
         raise RuntimeError(f"campaign logo missing: {logo}")
     made = 0
     for d in decks:
-        if d["id"] in have:
+        if d["id"] in have or d.get("angle") in paused_angles:   # an angle with 3 posts under 100 views rests two weeks
             continue
         if limit is not None and made >= limit:
             break
@@ -1597,6 +1626,376 @@ def make_slideshows(ws: WS, c: dict, campaign_file: str, limit: int | None = Non
     return made
 
 
+def _brain(ws: WS, name: str, fn, *args, default=None, **kw):
+    """Run one of the autopilot's helper brains (lifecycle, gate, scheduling, performance ...). A bug or a bad input
+    in a helper is recorded and skipped; it must never stop clips from being made or posted."""
+    try:
+        return fn(*args, **kw)
+    except Exception as e:  # noqa: BLE001
+        try:
+            ws.event(f"{name} skipped: {type(e).__name__}: {cl.redact(str(e))[:200]}", "warn")
+        except Exception:  # noqa: BLE001
+            pass
+        return default
+
+
+def cancel_scheduled(ws: WS, now_utc, delete=None) -> list[str]:
+    """Posts scheduled on Zernio for a LATER time whose campaign has since paused / ended / been blocked are taken
+    back (Zernio keeps the post until it publishes): the clip returns to the queue, nothing goes out for a campaign
+    that is not active. `delete(publish_id) -> bool` is Zernio's delete-post call (injected for tests)."""
+    import accountmodes as am
+    if delete is None:
+        import zernio
+        delete = zernio.delete_post
+    out = []
+    for u in ws.q("SELECT u.id, u.clip_id, u.publish_id, u.scheduled_for, u.account, c.campaign FROM uploads u "
+                  "JOIN clips c ON c.id=u.clip_id WHERE u.scheduled_for IS NOT NULL AND u.url IS NULL "
+                  "AND u.state='processing' AND u.publish_id IS NOT NULL"):
+        when = am.parse_ts(u["scheduled_for"])
+        why = campaign_paused(ws, u["campaign"])
+        if not when or when <= now_utc or not why:
+            continue
+        try:
+            gone = delete(u["publish_id"])
+        except Exception:  # noqa: BLE001  (could not reach Zernio: tried again next run)
+            gone = False
+        if gone:
+            ws.x("UPDATE uploads SET state='failed', notes=?, updated=? WHERE id=?",
+                 (json.dumps([f"cancelled before it published: {why}"]), now(), u["id"]))
+            ws.x("UPDATE clips SET status='approved' WHERE id=?", (u["clip_id"],))
+            out.append(f"{u['campaign']}: scheduled post for {u['account']} at {u['scheduled_for']} cancelled ({why})")
+    return out
+
+
+def _final_caption(r, c: dict, platform: str) -> tuple[str, str]:
+    """(title, caption) exactly as they will be posted for a clip row."""
+    post = json.loads(r["posts"] or "{}")
+    if platform == "youtube":
+        yp = post.get("youtube") or {"title": r["title"], "description": r["caption"]}
+        return yp["title"], yp["description"]
+    tp = post.get(platform) or cmp.platform_posts(c, r["title"], r["caption"],
+                                                  json.loads(r["hashtags"] or "[]")).get(platform) or {"caption": r["caption"]}
+    return r["title"], tp["caption"]
+
+
+def _probe_seconds(path) -> float | None:
+    try:
+        d = cl.probe(Path(path)).duration
+        return d if d and d > 0 else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _gate_for(ws: WS, r, c: dict, platform: str, account: str | None = None, allowed: list | None = None) -> dict:
+    import gate
+    title, caption = _final_caption(r, c, platform)
+    state = ws.setting(f"campaign_state.{c['name']}", None)
+    return gate.recheck(ws, c, r, caption, account, state, allowed, _probe_seconds, platform)
+
+
+def _import_step(ws: WS, a, rep: dict, now_utc) -> None:
+    """1. import newest permitted sources for every autopilot campaign (one failing campaign never stops the others)."""
+    import footage
+    for f in ws.setting("autopilot.campaigns", []):
+        try:
+            cc = load_campaign_checked(f)
+        except Exception as e:  # noqa: BLE001
+            rep["skipped_campaigns"].append(f"{f}: {e}")
+            continue
+        if cmp.automation_allowed(cc) is not True:
+            rep["skipped_campaigns"].append(f"{cc['name']}: rules don't allow automated clipping tools "
+                                            "(or it isn't confirmed)")
+            continue
+        paused = campaign_paused(ws, cc["name"])
+        if paused:
+            rep["skipped_campaigns"].append(f"{cc['name']}: paused ({paused})")
+            continue
+        try:
+            explicit = _brain(ws, "footage poll", footage.explicit_sources, ws, cc, now_utc)
+            if explicit is not None and not explicit:
+                continue   # channels polled: nothing new, no local folder to read
+            ns = argparse.Namespace(campaign=f, sources=explicit or [], transcript=None, latest=None,
+                                    cookies_from_browser=getattr(a, "cookies_from_browser", None), force=False,
+                                    quiet=explicit is not None)
+            cmd_import(ws, ns)
+        except Exception as e:  # noqa: BLE001
+            rep["skipped_campaigns"].append(f"{f}: import failed: {classify(e)[1]}")
+
+
+def _approve_step(ws: WS, pol: dict, rep: dict) -> None:
+    """3. auto-approve by policy; a clip held by the last-look gate is checked again and released when it now passes."""
+    import footage
+    import gate
+    for r in ws.q("SELECT * FROM clips WHERE status='pending_review' ORDER BY score DESC"):
+        floor = _brain(ws, "restock threshold", footage.lowered_min_score, ws, r, pol["min_score"], default=pol["min_score"])
+        why = hold_reason(r, dict(pol, min_score=floor))
+        if not why and (r["held_reason"] or "").startswith(gate.HOLD_PREFIX):
+            def recheck(r=r):
+                row = ws.q("SELECT s.campaign_file FROM sources s WHERE s.id=?", (r["source_id"],))
+                c = cmp.load(row[0]["campaign_file"])
+                hold = _gate_for(ws, r, c, "tiktok")["hold"]
+                return gate.HOLD_PREFIX + "; ".join(hold) if hold else None
+            why = _brain(ws, "gate recheck", recheck)
+        if why:
+            if r["held_reason"] != why:
+                ws.x("UPDATE clips SET held_reason=? WHERE id=?", (why, r["id"]))
+            rep["held"].append(f"#{r['id']} {r['title'][:60]}: {why}")
+            continue
+        ok, msg = approve_clip(ws, r["id"], "auto-approved by autopilot policy")
+        if ok and r["held_reason"]:
+            ws.x("UPDATE clips SET held_reason=NULL WHERE id=?", (r["id"],))
+        (rep["approved"] if ok else rep["held"]).append(f"#{r['id']} {r['title'][:60]}" + ("" if ok else f": {msg}"))
+
+
+def _slides_step(ws: WS, rep: dict) -> None:
+    """3b. photo-carousel slideshows for campaigns that want them (self-checked decks are approved directly)."""
+    for f in ws.setting("autopilot.campaigns", []):
+        try:
+            cc = load_campaign_checked(f)
+            if cc.get("slideshows") and cmp.automation_allowed(cc) is True and not campaign_paused(ws, cc["name"]):
+                ready = ws.q("SELECT COUNT(*) n FROM clips WHERE campaign=? AND kind='slideshow' AND status='approved'",
+                             (cc["name"],))[0]["n"]
+                n = make_slideshows(ws, cc, f, limit=max(0, int(ws.setting("autopilot.slides_buffer", 10)) - ready),
+                                    mine=int(ws.setting("autopilot.deck_pool", 40)))
+                if n:
+                    rep["approved"].append(f"{n} new slideshow(s) for {cc['name']}")
+        except Exception as e:  # noqa: BLE001  (slides never block video posting)
+            rep["notes"].append(f"slideshows not made: {classify(e)[1]}")
+
+
+def _effective_times(ws: WS, platform: str) -> list[tuple]:
+    """(account, kind, when) of every post this system made or scheduled: scheduled time if it has one, else created."""
+    import accountmodes as am
+    out = []
+    for u in ws.q("SELECT COALESCE(u.account,'default') account, COALESCE(c.kind,'video') k, u.created, u.scheduled_for "
+                  "FROM uploads u JOIN clips c ON c.id=u.clip_id WHERE u.platform=? AND u.state != 'failed'", (platform,)):
+        t = am.parse_ts(u["scheduled_for"]) or am.parse_ts(u["created"])
+        if t:
+            out.append((u["account"], u["k"], t))
+    return out
+
+
+def _idem_key(r, platform: str, acct: str) -> str:
+    """One stable key per logical post: if a crashed run's state is lost and the post is tried again, Zernio hands
+    back the original post instead of creating a second one. Content is in the key so a reused clip id cannot collide."""
+    import uuid
+    blob = f"{r['id']}|{platform}|{acct}|{r['requeues'] or 0}|{r['title']}|{(r['text'] or '')[:120]}|{Path(r['ready_file'] or '').name}"
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, "clip-engine:" + hashlib.sha1(blob.encode()).hexdigest()))
+
+
+_TRANSIENT = ("quota", "limit", "too many", "network", "retried next", "zernio error 5", "timed out", "temporar", "plan")
+
+
+def _upload_step(ws: WS, pol: dict, rep: dict, uploaders, pool: "UploaderPool", now_utc) -> None:
+    """4. upload each approved clip to every platform its campaign pays on, using the campaign's account for that
+    platform, inside the daily caps, the account's mode (warm-up / slow / cooldown), the campaign's state, the
+    last-look gate, and (cloud) at a planned time later today."""
+    import accountmodes as am
+    import gate
+    import performance
+    import scheduling
+    todo = ws.q("SELECT c.*, s.campaign_file FROM clips c JOIN sources s ON s.id=c.source_id "
+                "WHERE c.status IN ('approved','posted') AND c.ready_file IS NOT NULL ORDER BY c.score DESC")
+    need: dict[tuple, list] = {}
+    camps: dict[str, dict] = {}
+    prefs = _brain(ws, "performance prefs", performance.preferences, ws)
+    noted: set = set()
+    for r in todo:
+        try:
+            c = camps.setdefault(r["campaign_file"], cmp.load(r["campaign_file"]))
+        except Exception:
+            continue
+        if campaign_paused(ws, c["name"]):
+            continue   # out of budget / closed / blocked: its queue waits (or is dropped if it never reopens)
+        camp_platforms = [p.lower() for p in c.get("platforms", [])]
+        done = {u["platform"] for u in ws.q("SELECT platform FROM uploads WHERE clip_id=? AND state != 'failed'", (r["id"],))}
+        kind = r["kind"] or "video"
+        if kind == "slideshow" and not done and _brain(ws, "angle check", performance.angle_paused, ws,
+                                                      performance.angle_of(r["reasons"]), now_utc, default=False):
+            if "angle" not in noted:
+                rep["notes"].append("a slideshow angle with 3 posts under 100 views is paused for two weeks; "
+                                    "its decks wait")
+                noted.add("angle")
+            continue
+        for p in pol["platforms"]:
+            if p in camp_platforms and p not in done:
+                if kind == "slideshow" and p != "tiktok":
+                    continue   # photo carousels go to TikTok only
+                if (r["requeues"] or 0) >= 2:
+                    continue   # failed twice: held for a human (see held_reason)
+                need.setdefault((p, tuple(campaign_accounts(c, p, pol["via"], ws)), kind), []).append(r)
+    if pol["post_hours"] and not in_post_hours(pol["post_hours"], pol["post_tz"]):
+        rep["notes"].append(f"outside posting hours {pol['post_hours'][0]}:00-{pol['post_hours'][1]}:00 "
+                            f"({pol['post_tz']}): {sum(len(v) for v in need.values())} post(s) wait for the next run")
+        need = {}
+    vcap, scap = pol["max_uploads_per_day"], pol["max_slides_per_day"]
+    if prefs and prefs.get("kind_weights"):
+        vcap, scap = performance.split_caps(vcap, scap, prefs["kind_weights"])
+    best_hours = (prefs or {}).get("best_hours")
+    taken = [t for (_a, _k, t) in _effective_times(ws, "tiktok") if t > now_utc - dt.timedelta(hours=1)] \
+        if pol.get("schedule") else []
+    # TikTok caps posts made through any app at ~15/day per account (shared across apps): never exceed it
+    def post_group(p, accts, kind, rows):
+        c0 = camps[rows[0]["campaign_file"]]
+        if not accts:
+            st = ws.setting(f"campaign_state.{c0['name']}", None)
+            if st and st.get("state") == "standby":
+                rep["notes"].append(f"{c0['name']}: {st.get('reason')}; {len(rows)} post(s) wait")
+            else:
+                rep["notes"].append(f"{c0['name']}: no {p} account connected with '{c0.get('account_match')}' in its "
+                                    f"name; {len(rows)} post(s) wait (connect one in Zernio)")
+            return
+        base = vcap if kind != "slideshow" else scap
+        cap = min(base, PLATFORM_DAILY_CEILING.get(p, base))   # TikTok counts videos and photo posts separately
+        allow = {a_: am.allowance(ws, p, a_) for a_ in accts}
+        room, gap_ok = {}, {}
+        for a_ in accts:
+            al = allow[a_]
+            acap = max(1, int(round(cap * al["cap_factor"]))) if al["cap_factor"] < 1 else cap
+            room[a_] = acap - uploads_today(ws, p, a_, kind)
+            if al["max_per_day"] is not None:   # warm-up: a few posts a day in total, whatever the kind
+                room[a_] = min(room[a_], al["max_per_day"] - uploads_today(ws, p, a_))
+            if al["blocked"]:
+                room[a_] = 0
+                rep["notes"].append(f"{p}/{a_}: {al['mode']} - {al['reason']}")
+        if pol["per_run"]:
+            room = {a_: min(v, pol["per_run"]) for a_, v in room.items()}
+        if pol["min_gap_hours"]:   # keep an account's posts of one kind apart (looks natural, spreads the day)
+            for a_ in accts:
+                last = ws.q("SELECT MAX(u.created) m FROM uploads u JOIN clips c ON c.id=u.clip_id WHERE u.platform=? "
+                            "AND COALESCE(u.account,'default')=? AND COALESCE(c.kind,'video')=? AND u.state != 'failed'",
+                            (p, a_, kind))[0]["m"]
+                try:
+                    age_h = (dt.datetime.now() - dt.datetime.fromisoformat(last)).total_seconds() / 3600 if last else 1e9
+                except ValueError:
+                    age_h = 1e9
+                if age_h < pol["min_gap_hours"] * allow[a_]["gap_factor"]:
+                    room[a_] = 0
+        total = {a_: ws.q("SELECT COUNT(*) n FROM uploads WHERE platform=? AND COALESCE(account,'default')=?",
+                          (p, a_))[0]["n"] for a_ in accts}
+        rows = _brain(ws, "clip order", performance.order_rows, rows, prefs,
+                      f"{now_utc.date()}|{c0['name']}|{kind}", default=rows)
+        scores = sorted((x["score"] or 0) for x in rows)
+        median_score = scores[len(scores) // 2] if scores else 0
+        dead: set = set()
+        for r in rows:
+            c = camps[r["campaign_file"]]
+            live = [a_ for a_ in accts if room[a_] > 0 and a_ not in dead
+                    and (not allow[a_]["best_only"] or kind == "slideshow" or (r["score"] or 0) >= median_score)]
+            if not live:
+                rep["notes"].append(f"{p}/{'+'.join(accts)}: daily upload cap ({cap} per account) reached; "
+                                    f"{len(rows) - rows.index(r)} clip(s) wait")
+                break
+            acct = max(live, key=lambda a_: (room[a_], -total[a_]))   # rotate: most room, then fewest posts
+            up = pool.get(p, acct)
+            if up is None:
+                dead.add(acct)
+                continue
+            if not Path(r["ready_file"]).exists():
+                ws.x("UPDATE clips SET status='render_failed', held_reason=? WHERE id=?",
+                     ("the rendered file is gone (already pruned); clip it again", r["id"]))
+                rep["notes"].append(f"#{r['id']}: rendered file missing, dropped")
+                continue
+            if ws.q("SELECT 1 FROM uploads WHERE clip_id=? AND platform=? AND state != 'failed'", (r["id"], p)):
+                continue   # never the same clip twice (re-checked right before the call)
+            verdict = _brain(ws, "gate", _gate_for, ws, r, c, p, acct, _allocated(ws, c, p), default=None)
+            if verdict and verdict["hold"]:
+                why = gate.HOLD_PREFIX + "; ".join(verdict["hold"])
+                ws.x("UPDATE clips SET status='pending_review', held_reason=? WHERE id=?", (why, r["id"]))
+                rep["held"].append(f"#{r['id']} {r['title'][:60]}: {why}")
+                continue
+            if verdict and verdict["skip"]:
+                dead.add(acct)
+                rep["notes"].append(f"#{r['id']} not posted to {p}/{acct}: {'; '.join(verdict['skip'])}")
+                continue
+            title, desc = _final_caption(r, c, p)
+            paid = bool((c.get("disclosure") or {}).get("caption") or (c.get("disclosure") or {}).get("on_screen"))
+            kw, slot = {}, None
+            if pol.get("schedule") and getattr(up, "kind", "") == "zernio":
+                past = [(k, t) for (a2, k, t) in _effective_times(ws, p) if a2 == acct]
+                same = [t for k, t in past if k == kind]
+                slot = _brain(ws, "scheduling", scheduling.plan_slot, now_utc, pol["post_tz"], pol["post_hours"] or [0, 24],
+                              acct, kind, taken, max(same) if same else None, max([t for _k, t in past]) if past else None,
+                              pol["min_gap_hours"] * allow[acct]["gap_factor"], best_hours, "cycle", default=None)
+                if slot is None:
+                    dead.add(acct)
+                    rep["notes"].append(f"{p}/{acct}: no free posting slot left today for the next {kind}; it waits")
+                    continue
+                kw = {"ctx": {"schedule": {"scheduledFor": slot["scheduledFor"], "timezone": slot["timezone"]},
+                              "idempotency_key": _idem_key(r, p, acct),
+                              "on_created": _provisional(ws, r, p, acct, desc, slot)}}
+            def attempt(kw):
+                raw = up.upload(r["ready_file"], title, desc, json.loads(r["hashtags"] or "[]"), pol["privacy"], paid, **kw)
+                res = normalize_result(raw, pol["privacy"])
+                res["scheduled_for"] = (slot["utc"].strftime("%Y-%m-%dT%H:%M:%SZ") if slot else raw.get("scheduled_for"))
+                return res
+            try:
+                try:
+                    res = attempt(kw)
+                except Exception as e1:  # noqa: BLE001
+                    if not (slot and "schedul" in str(e1).lower()):
+                        raise
+                    # Zernio refused to schedule this post: remember it (the runner posts at once for a week) and
+                    # post this clip now, so a scheduling quirk can never stop posting altogether
+                    ws.set_setting("schedule.refused", {"ts": now(), "msg": classify(e1)[1][:160]})
+                    rep["notes"].append(f"Zernio refused to schedule a post ({classify(e1)[1][:100]}): posting at once")
+                    slot = None
+                    res = attempt({})
+            except Exception as e:  # noqa: BLE001
+                msg = classify(e)[1]
+                rep["upload_errors"].append(f"{p}/{acct} #{r['id']}: {msg}")
+                low = msg.lower()
+                if am.is_auth_error(msg):
+                    _brain(ws, "account error", am.note_error, ws, p, acct, msg, now())
+                    dead.add(acct)
+                elif any(k in low for k in ("quota", "limit", "too many", "expired", "login")):
+                    dead.add(acct)   # this account is done for now; the others keep posting
+                if "rejected the post" in low or "rejected the carousel" in low:
+                    n_fail = (r["requeues"] or 0) + 1   # the platform refused this clip itself: one more try, then a human
+                    ws.x("UPDATE clips SET requeues=? WHERE id=?", (n_fail, r["id"]))
+                    if n_fail >= 2:
+                        ws.x("UPDATE clips SET status='pending_review', held_reason=? WHERE id=?",
+                             (f"Posting failed twice, the platform said: {msg[:160]}", r["id"]))
+                        rep["held"].append(f"#{r['id']} {r['title'][:60]}: posting failed twice")
+                continue
+            room[acct] -= 1
+            total[acct] += 1
+            if slot:
+                taken.append(slot["utc"])
+            _brain(ws, "account error", am.clear_error, ws, p, acct)
+            record_upload(ws, ws.q("SELECT * FROM clips WHERE id=?", (r["id"],))[0], p, res, desc, acct)
+            rep["uploaded"].append(f"{p}/{acct} #{r['id']} {res['url'] or res['state']}"
+                                   + (" — " + "; ".join(res["notes"]) if res["notes"] else ""))
+            ws.event(f"clip #{r['id']} uploaded to {p}/{acct}: {res['url'] or res['state']}", "ok", clip_id=r["id"])
+
+    for (p, accts, kind), rows in need.items():
+        try:   # one campaign's problem (a bad file, a crash in a helper) never stops the other campaigns' posts
+            post_group(p, accts, kind, rows)
+        except Exception as e:  # noqa: BLE001
+            msg = f"{rows[0]['campaign']} ({kind}): {type(e).__name__}: {cl.redact(str(e))[:160]}"
+            rep["notes"].append("posting step failed for " + msg)
+            rep.setdefault("step_errors", []).append("posting failed for " + msg)
+            ws.event("posting failed for " + msg, "error")
+
+
+def _allocated(ws: WS, c: dict, platform: str) -> list[str] | None:
+    import lifecycle
+    return lifecycle.accounts_for(ws, c["name"], platform) if platform == "tiktok" else None
+
+
+def _provisional(ws: WS, r, platform: str, acct: str, caption: str, slot: dict):
+    """Callback for the moment Zernio accepts a post: write its id into the uploads table at once, so nothing that
+    fails afterwards can make this run (or the next) post the clip again."""
+    def go(publish_id: str) -> None:
+        ws.x("""INSERT OR REPLACE INTO uploads(clip_id, platform, account, state, notes, caption, publish_id, created,
+                updated, views, likes, scheduled_for) VALUES(?,?,?,?,?,?,?,?,?,0,0,?)""",
+             (r["id"], platform, acct, "processing", json.dumps(["accepted by Zernio; details follow"]), caption,
+              publish_id, now(), now(), slot["utc"].strftime("%Y-%m-%dT%H:%M:%SZ") if slot else None))
+    return go
+
+
+
+
 def autopilot_cycle(ws: WS, a, uploader=None, uploaders=None) -> int:
     if not ws.setting("autopilot.enabled", False):
         print("Autopilot is off. Turn it on with: python pipeline.py autopilot enable")
@@ -1606,142 +2005,30 @@ def autopilot_cycle(ws: WS, a, uploader=None, uploaders=None) -> int:
         uploaders = {"youtube": uploader}
     rep = {"started": now(), "skipped_campaigns": [], "approved": [], "held": [], "uploaded": [], "upload_errors": [],
            "notes": []}
+    now_utc = dt.datetime.now(dt.timezone.utc)
+
+    def step(name, fn, *args):
+        """One failing step is recorded and the next one still runs (a crash in clipping must not stop posting)."""
+        try:
+            return fn(*args)
+        except Exception as e:  # noqa: BLE001
+            msg = f"{name} failed: {classify(e)[1]}"
+            rep["notes"].append(msg)
+            rep.setdefault("step_errors", []).append(msg)
+            ws.event(msg, "error")
+            return None
+
     with RunLock(ws):
-        # 1. import newest permitted sources for every autopilot campaign
-        for f in ws.setting("autopilot.campaigns", []):
-            try:
-                cc = load_campaign_checked(f)
-            except Exception as e:  # noqa: BLE001
-                rep["skipped_campaigns"].append(f"{f}: {e}")
-                continue
-            if cmp.automation_allowed(cc) is not True:
-                rep["skipped_campaigns"].append(f"{cc['name']}: rules don't allow automated clipping tools "
-                                                "(or it isn't confirmed)")
-                continue
-            paused = campaign_paused(ws, cc["name"])
-            if paused:
-                rep["skipped_campaigns"].append(f"{cc['name']}: paused ({paused})")
-                continue
-            ns = argparse.Namespace(campaign=f, sources=[], transcript=None, latest=None,
-                                    cookies_from_browser=getattr(a, "cookies_from_browser", None), force=False)
-            try:
-                cmd_import(ws, ns)
-            except Exception as e:  # noqa: BLE001
-                rep["skipped_campaigns"].append(f"{f}: import failed: {classify(e)[1]}")
+        if pol.get("schedule") and uploaders is None:   # posts planned for later whose campaign has stopped since
+            rep["notes"] += step("cancelling scheduled posts", cancel_scheduled, ws, now_utc) or []
+        step("importing footage", _import_step, ws, a, rep, now_utc)
         # 2. process queued jobs (includes retries that are due)
-        cmd_run(ws, argparse.Namespace(limit=getattr(a, "limit", None), preset=getattr(a, "preset", None), model=None,
-                                       cookies_from_browser=getattr(a, "cookies_from_browser", None)))
-        # 3. auto-approve by policy
-        for r in ws.q("SELECT * FROM clips WHERE status='pending_review' ORDER BY score DESC"):
-            why = hold_reason(r, pol)
-            if why:
-                if r["held_reason"] != why:
-                    ws.x("UPDATE clips SET held_reason=? WHERE id=?", (why, r["id"]))
-                rep["held"].append(f"#{r['id']} {r['title'][:60]}: {why}")
-                continue
-            ok, msg = approve_clip(ws, r["id"], "auto-approved by autopilot policy")
-            (rep["approved"] if ok else rep["held"]).append(f"#{r['id']} {r['title'][:60]}" + ("" if ok else f": {msg}"))
-        # 3b. photo-carousel slideshows for campaigns that want them (self-checked decks are approved directly)
-        for f in ws.setting("autopilot.campaigns", []):
-            try:
-                cc = load_campaign_checked(f)
-                if cc.get("slideshows") and cmp.automation_allowed(cc) is True and not campaign_paused(ws, cc["name"]):
-                    ready = ws.q("SELECT COUNT(*) n FROM clips WHERE campaign=? AND kind='slideshow' AND status='approved'",
-                                 (cc["name"],))[0]["n"]
-                    n = make_slideshows(ws, cc, f, limit=max(0, int(ws.setting("autopilot.slides_buffer", 10)) - ready))
-                    if n:
-                        rep["approved"].append(f"{n} new slideshow(s) for {cc['name']}")
-            except Exception as e:  # noqa: BLE001  (slides never block video posting)
-                rep["notes"].append(f"slideshows not made: {classify(e)[1]}")
-        # 4. upload each approved clip to every platform its campaign pays on, using the campaign's account
-        #    for that platform, within a daily cap per platform account
-        todo = ws.q("SELECT c.*, s.campaign_file FROM clips c JOIN sources s ON s.id=c.source_id "
-                    "WHERE c.status IN ('approved','posted') AND c.ready_file IS NOT NULL ORDER BY c.score DESC")
-        need: dict[tuple, list] = {}
-        camps: dict[str, dict] = {}
-        for r in todo:
-            try:
-                c = camps.setdefault(r["campaign_file"], cmp.load(r["campaign_file"]))
-            except Exception:
-                continue
-            if campaign_paused(ws, c["name"]):
-                continue   # out of budget / closed: its queue waits (or is dropped if it never reopens)
-            camp_platforms = [p.lower() for p in c.get("platforms", [])]
-            done = {u["platform"] for u in ws.q("SELECT platform FROM uploads WHERE clip_id=? AND state != 'failed'",
-                                                (r["id"],))}
-            for p in pol["platforms"]:
-                if p in camp_platforms and p not in done:
-                    kind = r["kind"] or "video"
-                    if kind == "slideshow" and p != "tiktok":
-                        continue   # photo carousels go to TikTok only
-                    need.setdefault((p, tuple(campaign_accounts(c, p, pol["via"])), kind), []).append(r)
+        step("clipping", cmd_run, ws, argparse.Namespace(limit=getattr(a, "limit", None), preset=getattr(a, "preset", None),
+                                                          model=None, cookies_from_browser=getattr(a, "cookies_from_browser", None)))
+        step("approving clips", _approve_step, ws, pol, rep)
+        step("making slideshows", _slides_step, ws, rep)
         pool = UploaderPool(rep, uploaders, pol["via"], ws)
-        if pol["post_hours"] and not in_post_hours(pol["post_hours"], pol["post_tz"]):
-            rep["notes"].append(f"outside posting hours {pol['post_hours'][0]}:00-{pol['post_hours'][1]}:00 "
-                                f"({pol['post_tz']}): {sum(len(v) for v in need.values())} post(s) wait for the next run")
-            need = {}
-        # TikTok caps posts made through any app at ~15/day per account (shared across apps): never exceed it
-        for (p, accts, kind), rows in need.items():
-            if not accts:
-                c0 = camps[rows[0]["campaign_file"]]
-                rep["notes"].append(f"{c0['name']}: no {p} account connected with '{c0.get('account_match')}' in its "
-                                    f"name; {len(rows)} post(s) wait (connect one in Zernio)")
-                continue
-            per = pol["max_slides_per_day"] if kind == "slideshow" else pol["max_uploads_per_day"]
-            cap = min(per, PLATFORM_DAILY_CEILING.get(p, per))   # TikTok counts videos and photo posts separately
-            room = {a_: cap - uploads_today(ws, p, a_, kind) for a_ in accts}
-            if pol["per_run"]:
-                room = {a_: min(v, pol["per_run"]) for a_, v in room.items()}
-            if pol["min_gap_hours"]:   # keep an account's posts of one kind apart (looks natural, spreads the day)
-                for a_ in accts:
-                    last = ws.q("SELECT MAX(u.created) m FROM uploads u JOIN clips c ON c.id=u.clip_id WHERE u.platform=? "
-                                "AND COALESCE(u.account,'default')=? AND COALESCE(c.kind,'video')=? AND u.state != 'failed'",
-                                (p, a_, kind))[0]["m"]
-                    try:
-                        age_h = (dt.datetime.now() - dt.datetime.fromisoformat(last)).total_seconds() / 3600 if last else 1e9
-                    except ValueError:
-                        age_h = 1e9
-                    if age_h < pol["min_gap_hours"]:
-                        room[a_] = 0
-            total = {a_: ws.q("SELECT COUNT(*) n FROM uploads WHERE platform=? AND COALESCE(account,'default')=?",
-                              (p, a_))[0]["n"] for a_ in accts}
-            dead: set = set()
-            for r in rows:
-                live = [a_ for a_ in accts if room[a_] > 0 and a_ not in dead]
-                if not live:
-                    rep["notes"].append(f"{p}/{'+'.join(accts)}: daily upload cap ({cap} per account) reached; "
-                                        f"{len(rows) - rows.index(r)} clip(s) wait")
-                    break
-                acct = max(live, key=lambda a_: (room[a_], -total[a_]))   # rotate: most room, then fewest posts
-                up = pool.get(p, acct)
-                if up is None:
-                    dead.add(acct)
-                    continue
-                c = camps[r["campaign_file"]]
-                post = json.loads(r["posts"] or "{}")
-                if p == "youtube":
-                    yp = post.get("youtube") or {"title": r["title"], "description": r["caption"]}
-                    title, desc = yp["title"], yp["description"]
-                else:
-                    tp = post.get(p) or cmp.platform_posts(c, r["title"], r["caption"],
-                                                           json.loads(r["hashtags"] or "[]")).get(p) or {"caption": r["caption"]}
-                    title, desc = r["title"], tp["caption"]
-                paid = bool((c.get("disclosure") or {}).get("caption") or (c.get("disclosure") or {}).get("on_screen"))
-                try:
-                    res = normalize_result(up.upload(r["ready_file"], title, desc, json.loads(r["hashtags"] or "[]"),
-                                                     pol["privacy"], paid), pol["privacy"])
-                except Exception as e:  # noqa: BLE001
-                    msg = classify(e)[1]
-                    rep["upload_errors"].append(f"{p}/{acct} #{r['id']}: {msg}")
-                    if any(k in msg.lower() for k in ("quota", "limit", "too many", "expired", "login")):
-                        dead.add(acct)   # this account is done for now; the others keep posting
-                    continue
-                room[acct] -= 1
-                total[acct] += 1
-                record_upload(ws, ws.q("SELECT * FROM clips WHERE id=?", (r["id"],))[0], p, res, desc, acct)
-                rep["uploaded"].append(f"{p}/{acct} #{r['id']} {res['url'] or res['state']}"
-                                       + (" — " + "; ".join(res["notes"]) if res["notes"] else ""))
-                ws.event(f"clip #{r['id']} uploaded to {p}/{acct}: {res['url'] or res['state']}", "ok", clip_id=r["id"])
+        step("posting", _upload_step, ws, pol, rep, uploaders, pool, now_utc)
         # make sure stats are refreshed for every account that has uploads, not just ones used this cycle
         if uploaders is None:
             for row in ws.q("SELECT DISTINCT platform, COALESCE(account,'default') account FROM uploads"):
@@ -1788,8 +2075,21 @@ def refresh_platform_stats(ws: WS, pool: "UploaderPool", rep: dict) -> None:
                 except Exception:
                     got = None
                 if got and got.get("failed"):
+                    n_fail = (ws.q("SELECT requeues FROM clips WHERE id=?", (r["clip_id"],)) or [{"requeues": 0}])[0]["requeues"] or 0
+                    if n_fail < 1 and hasattr(up, "retry") and _brain(ws, "retry", up.retry, r["publish_id"], default=False):
+                        # the post failed on the platform: Zernio still has the media, so ask it to publish again (once)
+                        ws.x("UPDATE clips SET requeues=? WHERE id=?", (n_fail + 1, r["clip_id"]))
+                        ws.x("UPDATE uploads SET notes=?, updated=? WHERE id=?",
+                             (json.dumps([f"failed once ({str(got['failed'])[:120]}); Zernio asked to publish it again"]),
+                              now(), r["id"]))
+                        rep["notes"].append(f"{platform} #{r['clip_id']} failed ({str(got['failed'])[:100]}): retried once")
+                        continue
                     ws.x("UPDATE uploads SET state='failed', notes=?, updated=? WHERE id=?",
                          (json.dumps([str(got["failed"])]), now(), r["id"]))
+                    ws.x("UPDATE clips SET requeues=? WHERE id=?", (n_fail + 1, r["clip_id"]))
+                    if n_fail + 1 >= 2:   # failed twice: a human decides (shown as held in the dashboard)
+                        ws.x("UPDATE clips SET status='pending_review', held_reason=? WHERE id=?",
+                             (f"Posting failed twice, the platform said: {str(got['failed'])[:160]}", r["clip_id"]))
                     rep["upload_errors"].append(f"{platform} #{r['clip_id']}: {got['failed']}")
                     continue
                 if got and got.get("url"):

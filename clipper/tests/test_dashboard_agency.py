@@ -178,7 +178,7 @@ class DemoAgency(unittest.TestCase):
         self.assertIn("budget almost gone", x["live"]["reason"])
         a = d["agency"]
         self.assertEqual((a["campaigns"], a["active"], a["paused"], a["budget_left"]), (2, 1, 1, 1937.49))
-        self.assertEqual(set(a["accounts"]), {"tiktok/tradever.clips", "tiktok/tradever.daily"})
+        self.assertEqual(set(a["accounts"]), {"tiktok/tradever.clips", "tiktok/tradever.daily", "tiktok/tradever.trades"})
         self.assertGreaterEqual(len(d["leads_discovered"]), 6)
         scores = [l["score"] for l in d["leads_discovered"]]
         self.assertEqual(scores, sorted(scores, reverse=True))

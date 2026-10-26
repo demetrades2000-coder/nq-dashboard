@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import math
 import os
 import re
 import shutil
@@ -515,30 +516,10 @@ def leads_discovered(ws, joined_urls: set) -> list[dict]:
     raw = ws.setting("leads.discovered", [])
     out = []
     for r in raw if isinstance(raw, list) else []:
-        if not isinstance(r, dict) or not (r.get("name") or r.get("url")):
+        row = lead_row(r)
+        if not row or (row["url"] and row["url"].rstrip("/") in joined_urls):
             continue
-        url = str(r.get("url") or "")
-        url = url if re.match(r"https?://", url) else ""
-        if url and url.rstrip("/") in joined_urls:
-            continue
-        rates = {}
-        for p, v in (r.get("rates") or {}).items() if isinstance(r.get("rates"), dict) else []:
-            if isinstance(v, dict):
-                rates[str(p).lower()] = {"cpm": _num(v.get("cpm")), "min": _num(v.get("min")), "max": _num(v.get("max"))}
-        tk = rates.get("tiktok") or (next(iter(rates.values())) if rates else {})
-        left, budget = _num(r.get("left")), _num(r.get("budget"))
-        out.append({"id": str(r.get("id") or ""), "name": str(r.get("name") or url)[:160],
-                    "org": str(r.get("org") or ""), "url": url, "rates": rates,
-                    "platforms": list(rates), "cpm": tk.get("cpm"), "min": tk.get("min"), "max": tk.get("max"),
-                    "left": left, "budget": budget,
-                    "spent_frac": round(min(1.0, max(0.0, (budget - left) / budget)), 4)
-                    if left is not None and budget else None,
-                    "creators": _int(r.get("creators")), "views": _int(r.get("views")),
-                    "categories": _names(r.get("categories")), "types": _names(r.get("types")),
-                    "content_rules": _int(r.get("content_rules")), "requirements": _int(r.get("requirements")),
-                    "requires_application": r.get("requires_application") if isinstance(r.get("requires_application"),
-                                                                                      bool) else None,
-                    "score": _num(r.get("score"), 0.0) or 0.0})
+        out.append(row)
     out.sort(key=lambda x: (-x["score"], -(x["cpm"] or 0), x["name"]))
     for i, x in enumerate(out):
         x["rank"] = i + 1
@@ -694,6 +675,10 @@ def accounts_detail(ws, uploads: list, camps: dict, auto_files: set, eposts_by_u
                     "net_7d": round(float(sum(u["net"] for u in mine if u["_t"] and u["_t"] >= t7)), 2),
                     "slideshows": sum(1 for u in mine if u.get("c_kind") == "slideshow"),
                     "daily_views": [int(x) for x in daily], "status": status, "status_note": note,
+                    "posts_today": [{"clip_id": u["clip_id"], "title": u["title"], "created": u["created"], "url": u.get("url") or "",
+                                     "kind": u.get("c_kind", "video"), "state": u.get("state")}
+                                    for u in sorted(tried, key=lambda u: u["created"] or "") if (u["created"] or "")[:10] == today
+                                    and u.get("state") != "failed"][:8],
                     "health": account_health(mine, posts_7d, bool(hist), int(v7), now_dt)})
     out.sort(key=lambda x: (-x["views_7d"], -x["views"], x["platform"], x["name"]))
     return out
@@ -839,15 +824,30 @@ def _reason(level, code, text, page=None, action=None) -> dict:
     return {"level": level, "code": code, "text": text, "page": page, "action": action}
 
 
+def _note(code, text, page=None, action=None) -> dict:
+    return {"level": "info", "code": code, "text": text, "page": page, "action": action}
+
+
 def status_light(now_dt: dt.datetime, enabled: bool, last: dict, every: int, accounts: list, acc_detail: list,
-                 campaigns: list, supply: dict, uploads: list, pol: dict, in_hours: bool) -> dict:
+                 campaigns: list, supply: dict, uploads: list, pol: dict, in_hours: bool, ext: dict | None = None) -> dict:
     """Traffic light for the top of Today and Submit: green 'Everything is running', amber / red with every reason (worst
-    first). The run-age reason depends on the clock: the page re-evaluates `run` live; everything else is as built."""
-    reasons = []
+    first). The run-age reason depends on the clock: the page re-evaluates `run` live; everything else is as built.
+    `ext` carries the autopilot brain's blocks (lifecycle, bench, launch, runs): each adds reasons only when the key
+    exists. `notes` are FYI lines (a campaign switched, a warm-up) that never change the light."""
+    ext = ext or {}
+    reasons, notes = [], []
     fin = _parse(last.get("finished"))
     stale_after = round(every * STALE_FACTOR, 2)
     age_h = round((now_dt - fin).total_seconds() / 3600, 2) if fin else None
     go = {"label": "Open GitHub Actions", "url": ACTIONS_URL}
+    launch, runs = ext.get("launch") or {}, ext.get("runs") or {}
+    lc, bench = ext.get("lifecycle") or {}, ext.get("bench") or {}
+    zk = next((i for i in launch.get("items", []) if i["id"] == "zernio_key"), None)
+    last_key = (runs.get("summary") or {}).get("last_key")
+    key_missing = bool((zk and not zk["done"]) or last_key is False)
+    if key_missing:
+        reasons.append(_reason("red", "key_missing", "The Zernio key is missing: nothing can be posted", "jobs",
+                               {"label": "Add the key in GitHub", "url": SECRETS_URL}))
     if enabled and age_h is not None and age_h > stale_after:
         reasons.append(_reason("red", "stale_run", f"Autopilot hasn't run for {round(age_h)}h — restart", "jobs", go))
     elif enabled and age_h is None:
@@ -858,7 +858,7 @@ def status_light(now_dt: dt.datetime, enabled: bool, last: dict, every: int, acc
     t24 = now_dt - dt.timedelta(hours=24)
     posted_24h = [u for u in uploads if u.get("state") != "failed" and u["_t"] and u["_t"] >= t24]
     no_acc = not any(a["connected"] for a in accounts) and not posted_24h
-    if no_acc:
+    if no_acc and not key_missing:
         reasons.append(_reason("red", "no_accounts", "No posting account is connected — nothing can be posted", "accounts"))
     if enabled and not no_acc and supply["total"] > 0 and not posted_24h and in_hours:
         reasons.append(_reason("red", "no_uploads_24h", "Nothing posted in the last 24 hours, but clips are waiting",
@@ -885,17 +885,975 @@ def status_light(now_dt: dt.datetime, enabled: bool, last: dict, every: int, acc
         if n:
             reasons.append(_reason("amber", "upload_errors", f"Last run had {n} upload error{'s' if n != 1 else ''}",
                                    "activity"))
+    # the autopilot brain's keys: each only when it exists
+    mg = [(a, a.get("manager") or {}) for a in acc_detail]
+    reconnect = [a["name"] for a, m in mg if m.get("health") == "error"]
+    if reconnect:
+        reasons.append(_reason("amber", "account_reconnect", f"Reconnect {', '.join('@' + n for n in reconnect[:3])} in Zernio",
+                               "accounts", {"label": "Open Zernio", "url": ZERNIO_URL}))
+    idle = [a["name"] for a, m in mg if m.get("mode") == "idle" and m.get("campaign")]
+    if idle:
+        reasons.append(_reason("amber", "account_idle", f"{len(idle)} account{'s' if len(idle) != 1 else ''} idle: "
+                               f"{', '.join('@' + n for n in idle[:3])}", "accounts"))
+    warm = [(a["name"], m) for a, m in mg if m.get("mode") == "warmup"]
+    if warm:
+        n, m = warm[0]
+        day = f"day {m['warmup_day']} of {m['warmup_total']}" if m.get("warmup_day") else "warming up"
+        notes.append(_note("account_warmup", f"@{n} is {day} of its warm-up: very few posts a day is on purpose", "accounts"))
+    if lc.get("present"):
+        cs = [x for x in (lc.get("campaigns") or []) if x["known"]]
+        if enabled and cs and not any(x["state"] == "active" for x in cs):
+            standby = any(x["state"] == "standby" for x in cs)
+            reasons.append(_reason("amber" if standby else "red", "no_campaign_active",
+                                   "No campaign is posting right now" + (" — one is waiting for an account" if standby else ""),
+                                   "campaigns"))
+        blocked = [x["name"] for x in cs if x["state"] == "blocked"]
+        if blocked:
+            reasons.append(_reason("amber", "campaign_blocked", f"{len(blocked)} campaign{'s' if len(blocked) != 1 else ''} blocked "
+                                   f"by the rules (needs you): {', '.join(blocked[:2])}", "campaigns"))
+        ls = lc.get("last_switch")
+        lt = _parse(ls["ts"]) if ls else None
+        if ls and lt and lt >= now_dt - dt.timedelta(hours=24):
+            notes.append(_note("campaign_switched", ls["text"], "campaigns"))
+    if bench.get("present") and bench.get("need_more"):
+        mn = bench.get("min")
+        reasons.append(_reason("amber", "bench_thin", f"Only {bench.get('healthy', 0)} healthy campaign"
+                               f"{'s' if bench.get('healthy') != 1 else ''}" + (f" (want {mn})" if mn else "") + ": join another",
+                               "campaigns"))
+    if launch.get("present") and not launch.get("complete"):
+        if launch.get("auto_left"):
+            first = next((i for i in launch["items"] if not i["done"] and not i["manual"] and not i["optional"]), None)
+            reasons.append(_reason("amber", "launch_blocked", f"Setup: {launch['auto_left']} step"
+                                   f"{'s' if launch['auto_left'] != 1 else ''} left ({first['label'] if first else ''})", "today"))
+        elif launch.get("manual_left"):
+            notes.append(_note("launch_todo", f"Setup: {launch['manual_left']} step{'s' if launch['manual_left'] != 1 else ''} "
+                               "for you to tick off", "today"))
     reasons.sort(key=lambda r: 0 if r["level"] == "red" else 1)
     level = "red" if any(r["level"] == "red" for r in reasons) else "amber" if reasons else "green"
     head = "Everything is running" if not reasons else reasons[0]["text"]
-    return {"level": level, "headline": head, "reasons": reasons,
+    return {"level": level, "headline": head, "reasons": reasons, "notes": notes,
             "run": {"finished": fin.isoformat(timespec="seconds") if fin else None, "every_hours": every,
                     "stale_after_hours": stale_after, "age_hours": age_h, "enabled": enabled, "actions_url": ACTIONS_URL}}
 
 
-EMPTY_STATUS = {"level": "green", "headline": "Everything is running", "reasons": [],
+EMPTY_STATUS = {"level": "green", "headline": "Everything is running", "reasons": [], "notes": [],
                 "run": {"finished": None, "every_hours": 6, "stale_after_hours": 9, "age_hours": None, "enabled": False,
                         "actions_url": ACTIONS_URL}}
+
+
+# ---------------------------------------------------------------- v4: the autopilot brain's keys (docs/AUTOPILOT_CONTRACT.md)
+# Every key may be absent: each builder returns a complete, empty-but-valid object and the page says "not reported yet".
+
+CONTRACT = 4
+CAMP_STATES = {"active": "Posting now", "standby": "Ready, waiting its turn", "paused": "Paused",
+               "ended": "Ended", "blocked": "Blocked: needs you"}
+ACC_MODES = {"warmup": "Warm-up", "normal": "Normal", "slow": "Slowed down", "cooldown": "Cooling down", "idle": "Idle",
+             "unknown": "Not reported yet"}
+ACC_HEALTH = ("ok", "limited", "new", "error")
+WARMUP_DAYS = 5
+EARN_DAYS, HOLD_DAYS = 7, 3          # Content Rewards: views count for 7 days, then a 3-day hold
+PAYOUT_LAG_DAYS = EARN_DAYS + HOLD_DAYS
+RULES_WORDS = ["AI", "automat", "tool", "repurpos"]
+STATE_LIMIT_BYTES = 1_000_000_000
+SECRETS_URL = "https://github.com/demetrades2000-coder/nq-dashboard/settings/secrets/actions/new"
+ZERNIO_URL = "https://zernio.com"
+RUN_LIMIT, SWITCH_LIMIT, ERRORS_LIMIT, MONEY_ROWS = 100, 60, 20, 400
+SWITCH_GROUP_MIN = 20                # switch-log lines within 20 minutes read as one story
+
+CHANGELOG = [
+    {"id": "command-center", "title": "Command center", "text": "Today now shows what happened, what is next, and the money picture on one screen."},
+    {"id": "lifecycle", "title": "Campaign lifecycle", "text": "Each campaign shows its state, why, budget burn and the switch log; the bench shows who to join next."},
+    {"id": "launch", "title": "Setup checklist", "text": "A progress ring walks you through setup with copy buttons for every name and link."},
+    {"id": "library", "title": "Content library", "text": "Filter and search every clip, see why it was held in plain words and exactly what posts next."},
+    {"id": "insights", "title": "Insights and weekly report", "text": "Plain-sentence insights with an honest confidence label, an A/B view and a printable weekly report."},
+    {"id": "payouts", "title": "Payout log", "text": "Type what Content Rewards actually paid and compare it to the estimates; export CSV."},
+    {"id": "tools", "title": "Faster to use", "text": "Command palette (press / or Ctrl+K), swipe between tabs, light theme, Help page."},
+]
+
+ERROR_HELP = [   # (pattern, title, plain words, what to do, extra action)
+    (r"403|forbidden|members[- ]only|private video|sign in to confirm", "A source video is not public",
+     "The video is private, members-only or age-gated, so it cannot be downloaded.",
+     "Nothing to do: that video is skipped and the others keep going.", None),
+    (r"401|unauthori[sz]ed|invalid (api )?key|api key|invalid token|token (expired|invalid)|expired token|no api key|missing key",
+     "The Zernio key is missing or no longer works",
+     "Zernio refused our key, so nothing can be posted until it is fixed.",
+     "Create a new key in Zernio and save it in GitHub as the secret ZERNIO_API_KEY.", "key"),
+    (r"account.*(not found|not connected|disconnected|expired)|reconnect|no (tiktok|instagram|youtube) account|not authori[sz]ed",
+     "An account needs reconnecting",
+     "Zernio lost the login for one of the accounts.",
+     "Open Zernio, press Reconnect on that account, then run the autopilot again.", "zernio"),
+    (r"timed? ?out|timeout|processing|connection (reset|aborted)|temporar|try again|5\d\d\b|bad gateway|unavailable",
+     "A temporary problem",
+     "The service was slow or briefly down. This usually fixes itself.",
+     "Nothing to do: it is retried on the next run.", None),
+    (r"429|rate.?limit|too many|quota", "A rate limit was hit",
+     "We asked for too much too fast and the service asked us to slow down.",
+     "Nothing to do: the autopilot waits and tries again.", None),
+    (r"daily (upload )?cap|cap \(\d+\) reached", "A daily cap was reached",
+     "That account already posted the most it is allowed today.",
+     "Nothing to do: the rest wait for tomorrow.", None),
+    (r"budget|out of money|closed|not funded|paused automatically", "A campaign ran low on budget",
+     "The campaign has little or no money left, so posting moved elsewhere.",
+     "Nothing to do. If you want it back, wait for the brand to refill it.", None),
+    (r"disk|no space|space left", "Storage is almost full",
+     "There is not enough room to store more clips.", "Open Jobs & health and clear old renders.", None),
+    (r"ffmpeg", "The video tool is missing", "ffmpeg is needed to cut and render clips.",
+     "Install ffmpeg, or let the cloud runner do the cutting.", None),
+    (r"rules don.?t allow|automat(ed|ion).*(ban|not allowed)|not confirmed", "A campaign's rules do not allow tools",
+     "The campaign bans or does not clearly allow automated clipping, so it is skipped on purpose.",
+     "Nothing to do. Only you can decide to clip it by hand.", None),
+]
+
+
+def explain_error(text) -> dict:
+    """Plain-words explanation of an error line: {title, plain, fix, action}. Unknown text gets a calm generic answer."""
+    t = str(text or "")
+    for pat, title, plain, fix, act in ERROR_HELP:
+        if re.search(pat, t, re.I):
+            action = ({"label": "Add the key in GitHub", "url": SECRETS_URL} if act == "key" else
+                      {"label": "Open Zernio", "url": ZERNIO_URL} if act == "zernio" else None)
+            return {"title": title, "plain": plain, "fix": fix, "action": action}
+    return {"title": "Something went wrong", "plain": "The autopilot hit a problem it does not have a name for.",
+            "fix": "If it keeps coming back on every run, copy the line and send it to Claude.", "action": None}
+
+
+def _dict_setting(ws, key):
+    try:
+        v = ws.setting(key, None)
+    except Exception:
+        return None
+    return v if isinstance(v, dict) and v else None
+
+
+def _list_setting(ws, key) -> list:
+    try:
+        v = ws.setting(key, None)
+    except Exception:
+        return []
+    return v if isinstance(v, list) else []
+
+
+def _str(v, n=200) -> str:
+    return str(v).strip()[:n] if v not in (None, "") else ""
+
+
+def _days_txt(d) -> str:
+    return f"{d:.0f}" if d >= 10 else f"{d:.1f}".rstrip("0").rstrip(".")
+
+
+def _strs(v, n=8) -> list:
+    return [str(x) for x in v if x not in (None, "")][:n] if isinstance(v, (list, tuple)) else _names(v)[:n]
+
+
+def confidence(n: int) -> dict:
+    """An honest label for how much a number can be trusted."""
+    n = int(n or 0)
+    if n < 5:
+        return {"level": "low", "n": n, "label": f"only {n} post{'s' if n != 1 else ''} so far: too early to trust"}
+    if n < 15:
+        return {"level": "early", "n": n, "label": f"early signal ({n} posts)"}
+    if n < 40:
+        return {"level": "fair", "n": n, "label": f"fair sample ({n} posts)"}
+    return {"level": "solid", "n": n, "label": f"solid sample ({n} posts)"}
+
+
+# ---- campaign lifecycle
+
+def burn_projection(left, hist, budget=None) -> dict:
+    """How fast a campaign's budget is going, from [ts, left] history points (a list or {ts,left} dicts)."""
+    pts = []
+    for h in hist if isinstance(hist, list) else []:
+        try:
+            t, v = (_parse(h.get("ts")), _num(h.get("left"))) if isinstance(h, dict) else (_parse(h[0]), _num(h[1]))
+        except Exception:
+            continue
+        if t and v is not None:
+            pts.append((t, v))
+    pts.sort(key=lambda x: x[0])
+    out = {"per_day": None, "days_left": None, "source": "none", "points": len(pts),
+           "note": "Not enough history yet to project the budget."}
+    if len(pts) < 2:
+        return out
+    span = (pts[-1][0] - pts[0][0]).total_seconds() / 86400
+    used = pts[0][1] - pts[-1][1]
+    if span < 0.25:
+        return out
+    if used <= 0:
+        return dict(out, source="history", note="The budget has not moved recently.")
+    per = used / span
+    now_left = left if left is not None else pts[-1][1]
+    dl = now_left / per if per else None
+    return {"per_day": round(per, 2), "days_left": round(dl, 1) if dl is not None else None, "source": "history",
+            "points": len(pts),
+            "note": (f"~{_days_txt(dl)} days of budget left at the current pace" if dl is not None else "")}
+
+
+def campaign_lifecycle(ws, c: dict) -> dict:
+    """State of one campaign row (`c` is the built campaigns[] entry) from setting campaign_state.<name>; without it the
+    state is derived from what the dashboard already knows and `known` is false."""
+    name = c["name"]
+    raw = _dict_setting(ws, f"campaign_state.{name}") or {}
+    live = c.get("live") or {}
+    live_raw = _dict_setting(ws, f"campaign_live.{name}") or {}
+    st = str(raw.get("state") or "").lower()
+    known = st in CAMP_STATES
+    if not known:
+        if c.get("automation_allowed") is False:
+            st, why = "blocked", "The rules ban automated tools."
+        elif live.get("state") == "paused":
+            st, why = "paused", live.get("reason") or "Budget low or closed."
+        elif c.get("auto") and not c.get("problems"):
+            st, why = "active", "On autopilot."
+        else:
+            st, why = "standby", "Not on autopilot yet." if not c.get("auto") else "Needs setup."
+        why = "The autopilot has not reported this yet. " + why
+    else:
+        why = _str(raw.get("reason"))
+    left = _num(raw.get("left"), live.get("left"))
+    budget = _num(raw.get("budget"), live.get("budget"))
+    frac = round(min(1.0, max(0.0, (budget - left) / budget)), 4) if left is not None and budget else live.get("spent_frac")
+    hist = raw.get("history") if isinstance(raw.get("history"), list) else live_raw.get("history")
+    return {"name": name, "known": known, "state": st, "state_label": CAMP_STATES[st], "reason": why,
+            "since": _local_iso(raw.get("since")), "priority": _num(raw.get("priority")),
+            "rank": _int(raw.get("rank")), "accounts": _strs(raw.get("accounts")),
+            "supply_days": _num(raw.get("supply_days")), "left": left, "budget": budget,
+            "cpm": _num(raw.get("cpm"), live.get("cpm")), "spent_frac": frac,
+            "checked": _local_iso(raw.get("checked")) or live.get("checked"),
+            "burn": burn_projection(left, hist, budget)}
+
+
+def empty_lifecycle(name: str) -> dict:
+    return {"name": name, "known": False, "state": "standby", "state_label": CAMP_STATES["standby"], "reason": "",
+            "since": None, "priority": None, "rank": None, "accounts": [], "supply_days": None, "left": None,
+            "budget": None, "cpm": None, "spent_frac": None, "checked": None,
+            "burn": {"per_day": None, "days_left": None, "source": "none", "points": 0,
+                     "note": "Not enough history yet to project the budget."}}
+
+
+def _switch_text(r: dict) -> str:
+    kind, camp, frm, to, why = r["kind"], r["campaign"], r["from"], r["to"], r["reason"].rstrip(".")
+    tail = f": {why}" if why else ""
+    if kind in ("paused", "resumed", "promoted", "demoted", "ended"):
+        return f"{camp or 'A campaign'} {kind}{tail}"
+    if kind == "account_moved":
+        who = camp or "An account"
+        move = (f" from {frm}" if frm else "") + (f" to {to}" if to else "")
+        return f"{who} moved{move}{tail}"
+    if kind == "account_idle":
+        return f"{camp or 'An account'} went idle{tail}"
+    return f"{camp or 'Autopilot'} {kind.replace('_', ' ') or 'changed'}{tail}"
+
+
+def switch_log(ws, limit: int = SWITCH_LIMIT) -> tuple[list, list]:
+    """(flat entries newest first, grouped stories newest first). Lines within 20 minutes of each other are one story:
+    "Tradever paused: budget almost gone -> BILF promoted"."""
+    rows = []
+    for r in _list_setting(ws, "switch.log")[-200:]:
+        if not isinstance(r, dict):
+            continue
+        row = {"ts": _local_iso(r.get("ts")), "kind": _str(r.get("kind"), 40).lower(), "campaign": _str(r.get("campaign")),
+               "from": _str(r.get("from")), "to": _str(r.get("to")), "reason": _str(r.get("reason"), 240)}
+        row["text"] = _switch_text(row)
+        rows.append(row)
+    rows.sort(key=lambda r: r["ts"] or "")
+    groups = []
+    for r in rows:
+        t = _parse(r["ts"])
+        g = groups[-1] if groups else None
+        if g and t and g["_t"] and (t - g["_t"]).total_seconds() <= SWITCH_GROUP_MIN * 60:
+            g["items"].append(r)
+            g["_t"] = t
+            g["ts"] = r["ts"]
+        else:
+            groups.append({"ts": r["ts"], "_t": t, "items": [r]})
+    out_groups = [{"ts": g["ts"], "text": " → ".join(i["text"] for i in g["items"]),
+                   "kinds": [i["kind"] for i in g["items"]], "campaigns": [i["campaign"] for i in g["items"] if i["campaign"]],
+                   "count": len(g["items"])} for g in groups]
+    return list(reversed(rows))[:limit], list(reversed(out_groups))[:limit]
+
+
+def lifecycle_block(ws, campaigns: list, now_dt: dt.datetime) -> dict:
+    names = {c["name"] for c in campaigns}
+    cs = [c["lifecycle"] for c in campaigns]
+    extra = []
+    try:
+        for r in ws.q("SELECT key, value FROM settings WHERE key LIKE 'campaign_state.%'"):
+            nm = r["key"][len("campaign_state."):]
+            if nm in names:
+                continue
+            stub = {"name": nm, "auto": False, "live": dict(EMPTY_LIVE), "problems": [], "automation_allowed": None}
+            extra.append(campaign_lifecycle(ws, stub))
+    except Exception:
+        extra = []
+    weight = {"active": 0, "standby": 1, "paused": 2, "blocked": 3, "ended": 4}
+    allc = cs + extra
+    allc.sort(key=lambda x: (weight.get(x["state"], 9), x["rank"] if x["rank"] is not None else 999,
+                             -(x["priority"] or 0), x["name"]))
+    counts = {k: sum(1 for x in allc if x["state"] == k) for k in CAMP_STATES}
+    flat, groups = switch_log(ws)
+    return {"present": any(x["known"] for x in allc), "campaigns": allc, "order": [x["name"] for x in allc], "counts": counts,
+            "extra": extra, "switch_log": flat, "switch_groups": groups,
+            "last_switch": groups[0] if groups else None}
+
+
+EMPTY_LIFECYCLE = {"present": False, "campaigns": [], "order": [], "counts": {k: 0 for k in CAMP_STATES}, "extra": [], "switch_log": [],
+                   "switch_groups": [], "last_switch": None}
+
+
+# ---- the bench (campaigns to join next)
+
+def lead_row(r: dict) -> dict | None:
+    """One discovered campaign normalised (shared by leads_discovered and bench.join_next)."""
+    if not isinstance(r, dict) or not (r.get("name") or r.get("url")):
+        return None
+    url = str(r.get("url") or "")
+    url = url if re.match(r"https?://", url) else ""
+    rates = {}
+    for p, v in (r.get("rates") or {}).items() if isinstance(r.get("rates"), dict) else []:
+        if isinstance(v, dict):
+            rates[str(p).lower()] = {"cpm": _num(v.get("cpm")), "min": _num(v.get("min")), "max": _num(v.get("max"))}
+    tk = rates.get("tiktok") or (next(iter(rates.values())) if rates else {})
+    left, budget = _num(r.get("left")), _num(r.get("budget"))
+    return {"id": str(r.get("id") or ""), "name": str(r.get("name") or url)[:160], "org": str(r.get("org") or ""),
+            "url": url, "rates": rates, "platforms": list(rates), "cpm": tk.get("cpm"), "min": tk.get("min"),
+            "max": tk.get("max"), "left": left, "budget": budget,
+            "spent_frac": round(min(1.0, max(0.0, (budget - left) / budget)), 4) if left is not None and budget else None,
+            "creators": _int(r.get("creators")), "views": _int(r.get("views")),
+            "categories": _names(r.get("categories")), "types": _names(r.get("types")),
+            "content_rules": _int(r.get("content_rules")), "requirements": _int(r.get("requirements")),
+            "requires_application": r.get("requires_application") if isinstance(r.get("requires_application"), bool) else None,
+            "score": _num(r.get("score"), 0.0) or 0.0}
+
+
+def bench_block(ws, campaigns: list) -> dict:
+    raw = _dict_setting(ws, "bench")
+    healthy_now = sum(1 for c in campaigns if c["lifecycle"]["state"] in ("active", "standby") and
+                      (c["lifecycle"]["budget"] is None or (c["lifecycle"]["left"] or 0) > 0))
+    if not raw:
+        return {"present": False, "healthy": healthy_now, "min": None, "need_more": False, "reason": "", "join_next": []}
+    join = []
+    for i, r in enumerate(raw.get("join_next") if isinstance(raw.get("join_next"), list) else []):
+        lead = lead_row(r)
+        if not lead:
+            continue
+        lead["rank"] = _int(r.get("rank")) or i + 1
+        lead["join_message"] = f"I joined {lead['name']}: here are its rules"
+        lead["rules_words"] = list(RULES_WORDS)
+        join.append(lead)
+        if len(join) >= 5:
+            break
+    mn = _int(raw.get("min"))
+    healthy = _int(raw.get("healthy"))
+    healthy = healthy if healthy is not None else healthy_now
+    need = raw.get("need_more")
+    need = bool(need) if isinstance(need, bool) else bool(mn is not None and healthy < mn)
+    return {"present": True, "healthy": healthy, "min": mn, "need_more": need, "reason": _str(raw.get("reason"), 300),
+            "join_next": join}
+
+
+# ---- accounts (account manager)
+
+def account_manager(ws, platform: str, name: str, acc: dict, now_dt: dt.datetime) -> dict:
+    raw = _dict_setting(ws, f"account_state.{platform}/{name}") or {}
+    mode = str(raw.get("mode") or "").lower()
+    known = mode in ACC_MODES and mode != "unknown"
+    if not known:
+        mode = "unknown"
+    reason = _str(raw.get("reason"), 240)
+    since = _local_iso(raw.get("since"))
+    health = str(raw.get("health") or "").lower()
+    health = health if health in ACC_HEALTH else ""
+    wd, wt = None, WARMUP_DAYS
+    if mode == "warmup":
+        m = re.search(r"day\s+(\d+)\s+of\s+(\d+)", reason, re.I)
+        if m:
+            wd, wt = int(m.group(1)), int(m.group(2))
+        else:
+            s = _parse(since)
+            wd = min(WARMUP_DAYS, max(1, (now_dt - s).days + 1)) if s else None
+    median = _int(raw.get("median_views_recent"))
+    own = (acc.get("health") or {}).get("state")
+    status = acc.get("status")
+    score = account_score(health or {"ok": "ok", "early": "new", "no_posts": "new", "limited": "limited"}.get(own, ""),
+                          median, _int(raw.get("posts_7d")) if raw.get("posts_7d") is not None else acc.get("posts_7d"),
+                          status, mode)
+    return {"known": known, "mode": mode, "mode_label": ACC_MODES[mode], "reason": reason, "since": since,
+            "campaign": raw.get("campaign") if isinstance(raw.get("campaign"), str) and raw.get("campaign") else None,
+            "posts_total": _int(raw.get("posts_total")), "posts_7d": _int(raw.get("posts_7d")),
+            "median_views_recent": median, "health": health or None, "warmup_day": wd, "warmup_total": wt,
+            "score": score, "score_label": "good" if score is None else "good" if score >= 70 else "fair" if score >= 45 else "poor"}
+
+
+def account_score(health, median, posts_7d, status, mode):
+    """A rough 0-100 guide to how an account is doing (None when there is nothing to judge)."""
+    base = {"ok": 80, "new": 55, "limited": 30, "error": 10}.get(health)
+    if base is None:
+        return None
+    if median:
+        base += min(15, int(math.log10(max(median, 1)) * 5))
+    if not posts_7d and mode not in ("warmup", "cooldown", "idle"):
+        base -= 10
+    if status == "error":
+        base = min(base, 25)
+    return max(0, min(100, base))
+
+
+def _empty_account(platform: str, name: str, campaign=None) -> dict:
+    return {"platform": platform, "name": name, "campaigns": [campaign] if campaign else [], "today": 0, "cap": 0,
+            "posts": 0, "posts_7d": 0, "views": 0, "views_7d": 0, "avg_views": 0, "likes": 0, "engagement": 0.0,
+            "last_post": None, "net": 0.0, "net_7d": 0.0, "slideshows": 0, "daily_views": [0] * 14, "status": "idle",
+            "status_note": "nothing posted yet", "posts_today": [],
+            "health": {"state": "no_posts", "median_last4": None,
+                       "note": "Connected, but nothing posted yet. The next run should post here."}}
+
+
+def attach_managers(ws, acc_detail: list, now_dt: dt.datetime, cap_setting: int) -> list:
+    have = {(a["platform"], a["name"]) for a in acc_detail}
+    try:
+        for r in ws.q("SELECT key FROM settings WHERE key LIKE 'account_state.%'"):
+            k = r["key"][len("account_state."):]
+            if "/" not in k:
+                continue
+            p, n = k.split("/", 1)
+            if (p, n) not in have:
+                raw = _dict_setting(ws, r["key"]) or {}
+                row = _empty_account(p, n, raw.get("campaign") if isinstance(raw.get("campaign"), str) else None)
+                row["cap"] = min(cap_setting, platform_ceiling(p, cap_setting))
+                acc_detail.append(row)
+                have.add((p, n))
+    except Exception:
+        pass
+    for a in acc_detail:
+        a.setdefault("posts_today", [])
+        a["manager"] = _safe(lambda a=a: account_manager(ws, a["platform"], a["name"], a, now_dt), empty_manager())
+    return acc_detail
+
+
+def empty_manager() -> dict:
+    return {"known": False, "mode": "unknown", "mode_label": ACC_MODES["unknown"], "reason": "", "since": None,
+            "campaign": None, "posts_total": None, "posts_7d": None, "median_views_recent": None, "health": None,
+            "warmup_day": None, "warmup_total": WARMUP_DAYS, "score": None, "score_label": "good"}
+
+
+def account_help(campaigns: list, acc_detail: list) -> dict:
+    naming = []
+    for c in campaigns:
+        lc = c["lifecycle"]
+        if lc["state"] in ("ended", "blocked"):
+            continue
+        m = c.get("account_match") or ""
+        has = [a for a in acc_detail if c["name"] in (a.get("campaigns") or [])]
+        naming.append({"campaign": c["name"], "match": m, "state": lc["state"],
+                       "rule": (f"The TikTok username must contain “{m}”." if m else
+                                "Any connected account works; name it in the campaign file."),
+                       "examples": [f"{m}.clips", f"{m}.daily", f"{m}.trades"] if m else [],
+                       "has_account": bool(has), "accounts": [a["name"] for a in has][:6]})
+    return {"zernio_url": ZERNIO_URL, "naming": naming,
+            "steps": ["Create the TikTok account in the TikTok app, with the brand word in the username.",
+                      "In Zernio press Connect account, choose TikTok and sign in to that account.",
+                      "Wait for the next autopilot run: it finds the account by itself and starts a 5-day warm-up."],
+            "reconnect": ["Open Zernio and find the account with the red mark.",
+                          "Press Reconnect and sign in to TikTok again.",
+                          "Run the autopilot (Run workflow) or wait for the next run."]}
+
+
+# ---- runs
+
+def _runs_from_log(ws) -> list:
+    log = ws.home / "logs" / "autopilot.jsonl"
+    out = []
+    try:
+        for ln in log.read_text(encoding="utf-8").splitlines()[-RUN_LIMIT:]:
+            try:
+                r = json.loads(ln)
+            except Exception:
+                continue
+            if not isinstance(r, dict):
+                continue
+            st, fin = _parse(r.get("started")), _parse(r.get("finished"))
+            up = r.get("uploaded")
+            errs = r.get("upload_errors")
+            out.append({"ts": r.get("finished") or r.get("started"),
+                        "duration_s": int((fin - st).total_seconds()) if st and fin else None,
+                        "posted": len(up) if isinstance(up, list) else _int(up) or 0,
+                        "errors": len(errs) if isinstance(errs, list) else _int(errs) or 0,
+                        "queued_videos": None, "queued_slideshows": None, "switches": None,
+                        "notes": [str(x) for x in (r.get("notes") or [])][:6] + [str(x) for x in (errs if isinstance(errs, list) else [])][:3],
+                        "key": None})
+    except OSError:
+        pass
+    return out
+
+
+def runs_block(ws, uploads: list, now_dt: dt.datetime) -> dict:
+    raw = [r for r in _list_setting(ws, "runs.history") if isinstance(r, dict)]
+    source = "runs.history" if raw else "autopilot.jsonl"
+    if not raw:
+        raw = _runs_from_log(ws)
+    if not raw:
+        source = "none"
+    rows = []
+    for r in raw[-RUN_LIMIT:]:
+        ts = _local_iso(r.get("ts"))
+        if not ts:
+            continue
+        dur = _int(r.get("duration_s"))
+        t = _parse(ts)
+        w = dt.timedelta(seconds=(dur or 0) + 300)
+        items = []
+        for u in sorted(uploads, key=lambda u: u["_t"] or dt.datetime.min):
+            if u.get("state") in ("failed", "draft") or not u["_t"] or not (t - w <= u["_t"] <= t + dt.timedelta(minutes=5)):
+                continue
+            items.append({"clip_id": u["clip_id"], "title": u["title"], "platform": u["platform"], "account": u["account"],
+                          "kind": u.get("c_kind", "video")})
+        notes = [str(x)[:200] for x in (r.get("notes") or []) if x][:6] if isinstance(r.get("notes"), list) else []
+        errs = _int(r.get("errors")) or 0
+        posted = _int(r.get("posted"))
+        posted = posted if posted is not None else len(items)
+        key = r.get("key") if isinstance(r.get("key"), bool) else None
+        level = "bad" if errs or key is False else "ok" if posted else "info"
+        what = (f"Posted {posted} clip{'s' if posted != 1 else ''}" if posted else "Nothing to post this time") + \
+               (f", {errs} error{'s' if errs != 1 else ''}" if errs else "") + \
+               (f", {_int(r.get('switches'))} campaign switch{'es' if _int(r.get('switches')) != 1 else ''}" if _int(r.get("switches")) else "")
+        rows.append({"ts": ts, "duration_s": dur, "posted": posted, "errors": errs,
+                     "queued_videos": _int(r.get("queued_videos")), "queued_slideshows": _int(r.get("queued_slideshows")),
+                     "switches": _int(r.get("switches")), "notes": notes, "key": key, "level": level, "what": what,
+                     "items": items[:6]})
+    rows.sort(key=lambda r: r["ts"])
+    rows = rows[-RUN_LIMIT:]
+    rows.reverse()
+    d1, d7 = now_dt - dt.timedelta(hours=24), now_dt - dt.timedelta(days=7)
+    in1 = [r for r in rows if _parse(r["ts"]) and _parse(r["ts"]) >= d1]
+    in7 = [r for r in rows if _parse(r["ts"]) and _parse(r["ts"]) >= d7]
+    durs = [r["duration_s"] for r in rows if r["duration_s"]]
+    summary = {"runs_24h": len(in1), "posted_24h": sum(r["posted"] for r in in1), "posted_7d": sum(r["posted"] for r in in7),
+               "errors_7d": sum(r["errors"] for r in in7), "runs_7d": len(in7),
+               "avg_duration_s": round(sum(durs) / len(durs)) if durs else None,
+               "clean_rate": round(sum(1 for r in in7 if not r["errors"]) / len(in7), 3) if in7 else None,
+               "last_ts": rows[0]["ts"] if rows else None, "last_key": rows[0]["key"] if rows else None,
+               "queued_videos": rows[0]["queued_videos"] if rows else None,
+               "queued_slideshows": rows[0]["queued_slideshows"] if rows else None}
+    return {"present": bool(rows), "source": source, "history": rows, "summary": summary}
+
+
+EMPTY_RUNS = {"present": False, "source": "none", "history": [],
+              "summary": {"runs_24h": 0, "posted_24h": 0, "posted_7d": 0, "errors_7d": 0, "runs_7d": 0,
+                          "avg_duration_s": None, "clean_rate": None, "last_ts": None, "last_key": None,
+                          "queued_videos": None, "queued_slideshows": None}}
+
+
+# ---- launch / setup checklist
+
+def _copy_items(item_id: str, how: str, detail: str, campaigns: list, acc_detail: list) -> list:
+    out = []
+    text = f"{how} {detail}"
+    for u in re.findall(r"https?://[^\s)\]>\"']+", text):
+        out.append({"label": "Link", "value": u.rstrip(".,;")})
+    for v in re.findall(r"[`“\"']([A-Za-z0-9_.@/\-]{3,60})[`”\"']", text):
+        if re.search(r"[A-Z_]{4,}|@|\.|/", v) and v not in [o["value"] for o in out]:
+            out.append({"label": "Name", "value": v})
+    if item_id == "zernio_key" and not any(o["value"] == "ZERNIO_API_KEY" for o in out):
+        out.insert(0, {"label": "Secret name", "value": "ZERNIO_API_KEY"})
+    if item_id == "zernio_key" and not any("secrets" in o["value"] for o in out):
+        out.append({"label": "Where to add it", "value": SECRETS_URL})
+    if item_id in ("zernio_accounts", "account_matches_campaign"):
+        for c in campaigns:
+            m = c.get("account_match")
+            if m and c["lifecycle"]["state"] not in ("ended", "blocked") and not any(c["name"] in (a.get("campaigns") or []) and a["posts"] for a in acc_detail):
+                out.append({"label": f"Username for {c['name']}", "value": f"{m}.clips"})
+    if item_id == "campaign_joined":
+        for c in campaigns:
+            if c.get("url") and c["auto"]:
+                out.append({"label": f"Join {c['name']}", "value": c["url"]})
+    seen, uniq = set(), []
+    for o in out:
+        if o["value"] not in seen:
+            seen.add(o["value"])
+            uniq.append(o)
+    return uniq[:5]
+
+
+def launch_block(ws, campaigns: list, acc_detail: list) -> dict:
+    raw = _list_setting(ws, "launch.checklist")
+    items = []
+    for r in raw:
+        if not isinstance(r, dict) or not (r.get("id") or r.get("label")):
+            continue
+        iid = _str(r.get("id"), 60) or re.sub(r"\W+", "_", _str(r.get("label"), 40).lower())
+        optional = iid == "ntfy_topic" or r.get("optional") is True
+        how, detail = _str(r.get("how"), 400), _str(r.get("detail"), 300)
+        items.append({"id": iid, "label": _str(r.get("label"), 120) or iid, "done": bool(r.get("done")),
+                      "manual": bool(r.get("manual")), "optional": optional, "how": how, "detail": detail,
+                      "copy": _safe(lambda: _copy_items(iid, how, detail, campaigns, acc_detail), [])})
+    req = [i for i in items if not i["optional"]]
+    done = sum(1 for i in items if i["done"])
+    return {"present": bool(items), "items": items, "done": done, "total": len(items),
+            "required_done": sum(1 for i in req if i["done"]), "required_total": len(req),
+            "complete": bool(items) and all(i["done"] for i in req),
+            "auto_left": sum(1 for i in req if not i["done"] and not i["manual"]),
+            "manual_left": sum(1 for i in req if not i["done"] and i["manual"])}
+
+
+EMPTY_LAUNCH = {"present": False, "items": [], "done": 0, "total": 0, "required_done": 0, "required_total": 0,
+                "complete": False, "auto_left": 0, "manual_left": 0}
+
+
+# ---- money picture (estimates, never promises)
+
+def _upload_money_row(u: dict, c: dict, now_dt: dt.datetime) -> dict:
+    views = int(u["views"] or 0)
+    pot_cfg = dict(c, min_payout=0, min_views=0)
+    pot = round(cmp.payout(pot_cfg, views)[1], 2) if c.get("cpm") else 0.0
+    net = round(float(u.get("net") or 0), 2)
+    need = campaign_payout(c, [])["views_to_min"] if c else 0
+    sub = _local_iso(u.get("submitted_at"))
+    return {"key": u["url"], "clip_id": u["clip_id"], "title": u["title"], "campaign": u["campaign"] or "",
+            "platform": u["platform"], "account": u["account"], "created": _local_iso(u["created"]),
+            "submitted_at": sub, "views": views, "net": net, "potential": pot, "needs_views": need,
+            "over_min": net > 0}
+
+
+def money_stage(row: dict, now_dt: dt.datetime, submitted_at=None) -> str:
+    """at_risk (under the minimum) | waiting (over it, link not pasted) | earning (days 0-7 after pasting) |
+    hold (days 7-10) | due (10+ days: should have been paid)."""
+    if not row["over_min"]:
+        return "at_risk"
+    s = _parse(submitted_at if submitted_at is not None else row["submitted_at"])
+    if not s:
+        return "waiting"
+    age = (now_dt - s).total_seconds() / 86400
+    return "earning" if age < EARN_DAYS else "hold" if age < PAYOUT_LAG_DAYS else "due"
+
+
+def money_summary(rows: list, now_dt: dt.datetime, ticks: dict | None = None) -> dict:
+    """Estimated pending / approved / at-risk and the payout calendar. `ticks` {url: iso} = links marked pasted on a
+    device (the page passes them; the build uses the database's submitted_at only)."""
+    ticks = ticks or {}
+    buckets = {k: 0.0 for k in ("waiting", "earning", "hold", "due", "at_risk")}
+    counts = {k: 0 for k in buckets}
+    batches: dict[str, dict] = {}
+    for r in rows:
+        sub = r["submitted_at"] or ticks.get(r["key"])
+        st = money_stage(r, now_dt, sub)
+        if st == "at_risk":
+            buckets[st] += r["potential"]
+        else:
+            buckets[st] += r["net"]
+        counts[st] += 1
+        if st in ("earning", "hold", "due"):
+            day = (_parse(sub) + dt.timedelta(days=PAYOUT_LAG_DAYS)).date().isoformat()
+            b = batches.setdefault(day, {"date": day, "amount": 0.0, "posts": 0, "campaigns": set(), "stage": st})
+            b["amount"] = round(b["amount"] + r["net"], 2)
+            b["posts"] += 1
+            b["campaigns"].add(r["campaign"])
+    out_b = [dict(b, campaigns=sorted(b["campaigns"])) for b in sorted(batches.values(), key=lambda b: b["date"])]
+    for b in out_b:
+        b["stage"] = "due" if b["date"] <= now_dt.date().isoformat() else "coming"
+    r2 = {k: round(v, 2) for k, v in buckets.items()}
+    return {"pending": round(r2["waiting"] + r2["earning"], 2), "approved": round(r2["hold"] + r2["due"], 2),
+            "at_risk": r2["at_risk"], "buckets": r2, "counts": counts, "batches": out_b}
+
+
+def money_block(uploads: list, camps: dict, now_dt: dt.datetime) -> dict:
+    rows = []
+    for u in uploads:
+        if not u.get("url") or u.get("state") in ("failed", "draft"):
+            continue
+        rows.append(_upload_money_row(u, camps.get(u["campaign"]) or {}, now_dt))
+        if len(rows) >= MONEY_ROWS:
+            break
+    s = money_summary(rows, now_dt)
+    return {"rows": rows, "estimates": {"pending": s["pending"], "approved": s["approved"], "at_risk": s["at_risk"]},
+            "buckets": s["buckets"], "counts": s["counts"], "batches": s["batches"],
+            "rules": {"earn_days": EARN_DAYS, "hold_days": HOLD_DAYS, "lag_days": PAYOUT_LAG_DAYS,
+                      "text": (f"Views count for {EARN_DAYS} days after you paste the link, then there is a {HOLD_DAYS}-day hold, "
+                               f"so a post usually pays about {PAYOUT_LAG_DAYS} days after you submit it. These are estimates, "
+                               "not promises: a campaign can reject a post or run out of budget.")}}
+
+
+EMPTY_MONEY = {"rows": [], "estimates": {"pending": 0.0, "approved": 0.0, "at_risk": 0.0},
+               "buckets": {"waiting": 0.0, "earning": 0.0, "hold": 0.0, "due": 0.0, "at_risk": 0.0},
+               "counts": {"waiting": 0, "earning": 0, "hold": 0, "due": 0, "at_risk": 0}, "batches": [],
+               "rules": {"earn_days": EARN_DAYS, "hold_days": HOLD_DAYS, "lag_days": PAYOUT_LAG_DAYS, "text": ""}}
+
+
+# ---- insights, A/B and the weekly report
+
+HOUR_BLOCKS = [("night", "Late night", 22, 5), ("early", "Early morning", 5, 9), ("morning", "Morning", 9, 12),
+               ("afternoon", "Afternoon", 12, 17), ("evening", "Evening", 17, 22)]
+
+
+def _hour_block(h: int) -> str:
+    for k, _l, a, b in HOUR_BLOCKS:
+        if (a <= h < b) if a < b else (h >= a or h < b):
+            return k
+    return "night"
+
+
+def _avg(vals: list) -> float:
+    return sum(vals) / len(vals) if vals else 0.0
+
+
+def _fmtk(v) -> str:
+    v = float(v or 0)
+    return f"{v / 1e6:.1f}M" if v >= 1e6 else f"{v / 1e3:.1f}K".replace(".0K", "K") if v >= 1e4 else f"{v:,.0f}"
+
+
+def _compare(title: str, a_label: str, b_label: str, a: list, b: list, why: str) -> dict:
+    """A vs B on average views a post. A winner only when both sides have 3+ posts and one is 15% better."""
+    av, bv = _avg(a), _avg(b)
+    n = len(a) + len(b)
+    winner, lift = None, None
+    if len(a) >= 3 and len(b) >= 3 and min(av, bv) > 0:
+        lift = round(max(av, bv) / min(av, bv) - 1, 3)
+        winner = "tie" if lift < 0.15 else ("a" if av > bv else "b")
+    conf = confidence(min(len(a), len(b)) * 2 if winner is None else n)
+    if winner in ("a", "b"):
+        w, l = (a_label, b_label) if winner == "a" else (b_label, a_label)
+        sentence = f"{w} averages {_fmtk(max(av, bv))} views a post against {_fmtk(min(av, bv))} for {l}: {lift * 100:.0f}% more."
+    elif winner == "tie":
+        sentence = f"{a_label} and {b_label} are about the same ({_fmtk(av)} vs {_fmtk(bv)} views a post)."
+    else:
+        sentence = f"Not enough posts on both sides yet ({len(a)} {a_label.lower()}, {len(b)} {b_label.lower()})."
+    return {"id": re.sub(r"\W+", "-", title.lower()).strip("-"), "title": title, "why": why,
+            "a": {"label": a_label, "posts": len(a), "avg_views": round(av)},
+            "b": {"label": b_label, "posts": len(b), "avg_views": round(bv)},
+            "winner": winner, "lift": lift, "sentence": sentence, "confidence": conf}
+
+
+def insights_block(ws, uploads: list, now_dt: dt.datetime, acc_detail: list, campaigns: list) -> dict:
+    live = [u for u in uploads if u.get("state") != "failed" and u.get("url")]
+    # let a post settle for a day before it judges anything
+    seasoned = [u for u in live if u["_t"] and u["_t"] <= now_dt - dt.timedelta(hours=20)] or live
+    notes = [str(x)[:240] for x in _list_setting(ws, "insights") if x][:12]
+    overall = _avg([int(u["views"] or 0) for u in seasoned])
+    cards = []
+
+    def add(kind, title, sentence, n, detail=""):
+        cards.append({"id": f"{kind}-{len(cards)}", "kind": kind, "title": title, "sentence": sentence, "detail": detail,
+                      "n": n, "confidence": confidence(n)})
+    if seasoned:
+        by_block: dict[str, list] = {}
+        for u in seasoned:
+            if u["_t"]:
+                by_block.setdefault(_hour_block(u["_t"].hour), []).append(int(u["views"] or 0))
+        ranked = sorted(((_avg(v), k, len(v)) for k, v in by_block.items() if len(v) >= 2), reverse=True)
+        if len(ranked) >= 2:
+            av, k, n = ranked[0]
+            lab, a, b = next((l, a, b) for kk, l, a, b in HOUR_BLOCKS if kk == k)
+            add("time", "Best time to post", f"{lab} posts ({a:02d}:00–{b:02d}:00) average {_fmtk(av)} views, "
+                f"{av / overall:.1f}x your overall {_fmtk(overall)}." if overall else f"{lab} posts do best.", n,
+                "Hours use the clock of the machine that posts.")
+        by_day: dict[int, list] = {}
+        for u in seasoned:
+            if u["_t"]:
+                by_day.setdefault(u["_t"].weekday(), []).append(int(u["views"] or 0))
+        dr = sorted(((_avg(v), d, len(v)) for d, v in by_day.items() if len(v) >= 2), reverse=True)
+        if len(dr) >= 2:
+            names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+            add("weekday", "Best day", f"{names[dr[0][1]]} posts average {_fmtk(dr[0][0])} views; {names[dr[-1][1]]} is the quietest "
+                f"at {_fmtk(dr[-1][0])}.", dr[0][2])
+        lb = []
+        for label, lo, hi in LENGTH_BUCKETS:
+            vs = [int(u["views"] or 0) for u in seasoned if lo <= max(0.0, (u["c_end"] or 0) - (u["c_start"] or 0)) < hi]
+            if len(vs) >= 2:
+                lb.append((_avg(vs), label, len(vs)))
+        lb.sort(reverse=True)
+        if len(lb) >= 2:
+            add("length", "Best length", f"{lb[0][1]} clips do best at {_fmtk(lb[0][0])} views a post; {lb[-1][1]} gets {_fmtk(lb[-1][0])}.", lb[0][2])
+        fs = format_split(seasoned)
+        if fs[0]["posts"] and fs[1]["posts"]:
+            hi_, lo_ = (fs[1], fs[0]) if fs[1]["avg_views"] > fs[0]["avg_views"] else (fs[0], fs[1])
+            add("format", "Video or slideshow", f"{hi_['kind'].capitalize()}s average {_fmtk(hi_['avg_views'])} views, "
+                f"{lo_['kind']}s {_fmtk(lo_['avg_views'])}.", min(fs[0]["posts"], fs[1]["posts"]) * 2)
+        accs: dict[str, list] = {}
+        for u in seasoned:
+            accs.setdefault(f"@{u['account']}", []).append(int(u["views"] or 0))
+        ar = sorted(((_avg(v), k, len(v)) for k, v in accs.items() if len(v) >= 3), reverse=True)
+        if len(ar) >= 2:
+            add("account", "Best account", f"{ar[0][1]} averages {_fmtk(ar[0][0])} views a post; {ar[-1][1]} averages {_fmtk(ar[-1][0])}.", ar[0][2])
+        cm: dict[str, list] = {}
+        for u in seasoned:
+            cm.setdefault(u["campaign"] or "Other", []).append(int(u["views"] or 0))
+        cr = sorted(((_avg(v), k, len(v)) for k, v in cm.items() if len(v) >= 3), reverse=True)
+        if len(cr) >= 2:
+            add("campaign", "Best campaign", f"{cr[0][1]} gets the most views a post ({_fmtk(cr[0][0])}); {cr[-1][1]} the fewest ({_fmtk(cr[-1][0])}).", cr[0][2])
+        words: dict[str, list] = {}
+        for u in seasoned:
+            for w in set(re.findall(r"[a-z][a-z']{2,}", first_sentence(u.get("c_text") or "").lower())):
+                w = w.strip("'")
+                if w not in STOPWORDS and len(w) >= 3:
+                    words.setdefault(w, []).append(int(u["views"] or 0))
+        wr = sorted(((_avg(v), w, len(v)) for w, v in words.items() if len(v) >= 3), reverse=True)
+        if wr:
+            add("hook", "Hook word", f"Hooks with “{wr[0][1]}” average {_fmtk(wr[0][0])} views a post ({wr[0][2]} posts).", wr[0][2])
+    short = [int(u["views"] or 0) for u in seasoned if (u["c_end"] or 0) - (u["c_start"] or 0) < 30]
+    long_ = [int(u["views"] or 0) for u in seasoned if (u["c_end"] or 0) - (u["c_start"] or 0) >= 30]
+    day = [int(u["views"] or 0) for u in seasoned if u["_t"] and 6 <= u["_t"].hour < 18]
+    eve = [int(u["views"] or 0) for u in seasoned if u["_t"] and not 6 <= u["_t"].hour < 18]
+    vid = [int(u["views"] or 0) for u in seasoned if u.get("c_kind") != "slideshow"]
+    sli = [int(u["views"] or 0) for u in seasoned if u.get("c_kind") == "slideshow"]
+    ab = [_compare("Video vs slideshow", "Videos", "Slideshows", vid, sli, "Which format earns more views a post?"),
+          _compare("Short vs long", "Under 30 s", "30 s or longer", short, long_, "Do shorter clips travel further?"),
+          _compare("Daytime vs evening", "06:00–18:00", "18:00–06:00", day, eve, "Does posting time matter?")]
+    # the weekly report: last 7 days against the 7 before
+    w1, w0 = now_dt - dt.timedelta(days=7), now_dt - dt.timedelta(days=14)
+    this = [u for u in live if u["_t"] and u["_t"] >= w1]
+    prev = [u for u in live if u["_t"] and w0 <= u["_t"] < w1]
+    best = max(this, key=lambda u: int(u["views"] or 0), default=None)
+    tries = []
+    for c in ab:
+        if c["winner"] in ("a", "b"):
+            tries.append(f"Do more of: {(c['a'] if c['winner'] == 'a' else c['b'])['label'].lower()} ({c['title'].lower()}).")
+    low = [a for a in acc_detail if (a.get("health") or {}).get("state") == "limited"]
+    if low:
+        tries.append(f"Give @{low[0]['name']} a rest or check it in the TikTok app: it may be limited.")
+    if not tries:
+        tries.append("Keep posting: a few more days of posts makes the insights trustworthy.")
+    weekly = {"label": f"{w1.strftime('%b')} {w1.day} – {now_dt.strftime('%b')} {now_dt.day}", "from": w1.date().isoformat(),
+              "to": now_dt.date().isoformat(), "posts": len(this), "posts_prev": len(prev),
+              "views": sum(int(u["views"] or 0) for u in this), "views_prev": sum(int(u["views"] or 0) for u in prev),
+              "est_net": round(float(sum(u["net"] for u in this)), 2), "est_net_prev": round(float(sum(u["net"] for u in prev)), 2),
+              "best": ({"clip_id": best["clip_id"], "title": best["title"], "views": int(best["views"] or 0), "url": best["url"],
+                        "platform": best["platform"], "account": best["account"]} if best else None),
+              "try": tries[:3], "confidence": confidence(len(this))}
+    return {"notes": notes, "cards": cards, "ab": ab, "weekly": weekly, "overall_avg_views": round(overall),
+            "sample": len(seasoned), "confidence": confidence(len(seasoned))}
+
+
+EMPTY_INSIGHTS = {"notes": [], "cards": [], "ab": [], "overall_avg_views": 0, "sample": 0, "confidence": confidence(0),
+                  "weekly": {"label": "", "from": None, "to": None, "posts": 0, "posts_prev": 0, "views": 0, "views_prev": 0,
+                             "est_net": 0.0, "est_net_prev": 0.0, "best": None, "try": [], "confidence": confidence(0)}}
+
+
+# ---- system: state size, keys, error explainer, schedule
+
+def _dir_bytes(root: Path, limit_files: int = 40000) -> tuple[int, bool]:
+    total, n, trunc = 0, 0, False
+    stack = [root]
+    while stack:
+        d = stack.pop()
+        try:
+            with os.scandir(d) as it:
+                for e in it:
+                    if e.name == ".git":
+                        continue
+                    try:
+                        if e.is_dir(follow_symlinks=False):
+                            stack.append(e.path)
+                        elif e.is_file(follow_symlinks=False):
+                            total += e.stat(follow_symlinks=False).st_size
+                            n += 1
+                            if n >= limit_files:
+                                return total, True
+                    except OSError:
+                        continue
+        except OSError:
+            continue
+    return total, trunc
+
+
+def system_block(ws, launch: dict, runs: dict, uploads: list) -> dict:
+    root = ws.home.parent if ws.home.name == "ws" else ws.home
+    size, trunc = _dir_bytes(root)
+    try:
+        db = (ws.home / "jobs.db").stat().st_size
+    except OSError:
+        db = None
+    by = {i["id"]: i for i in launch.get("items", [])}
+    last_key = runs["summary"].get("last_key")
+
+    def key(iid, label, how):
+        i = by.get(iid)
+        okv = i["done"] if i else None
+        if iid == "zernio_key" and last_key is not None:
+            okv = bool(last_key) if okv is None else (okv and bool(last_key))
+        return {"id": iid, "label": label, "ok": okv, "detail": (i or {}).get("detail", ""), "how": (i or {}).get("how") or how}
+    keys = [key("zernio_key", "Zernio API key", "Save the key as the GitHub secret ZERNIO_API_KEY."),
+            key("zernio_accounts", "Zernio accounts connected", "Connect the TikTok accounts in Zernio."),
+            key("drive_footage", "Footage folder", "Share the Drive folder with the autopilot."),
+            key("state_branch", "State is being saved", "The run saves its memory to the clipper-cloud branch."),
+            key("ntfy_topic", "Phone alerts (optional)", "Optional: add an ntfy topic to get alerts on your phone.")]
+    return {"state_bytes": size, "state_truncated": trunc, "db_bytes": db, "limit_bytes": STATE_LIMIT_BYTES,
+            "state_frac": round(min(1.0, size / STATE_LIMIT_BYTES), 4), "keys": keys,
+            "restart": {"url": ACTIONS_URL,
+                        "steps": ["Open the GitHub Actions page with the button below.",
+                                  "Press Run workflow (top right of the run list), keep the branch, press the green Run workflow.",
+                                  "Wait about 5 minutes and pull down to refresh here. The status light turns green."]}}
+
+
+def errors_block(ws, last: dict, runs: dict, jobs: list, events: list) -> list:
+    out, seen = [], set()
+
+    def add(source, text, ts=None, level="bad"):
+        t = _str(text, 300)
+        k = re.sub(r"\d+", "#", t.lower())[:90]
+        if not t or k in seen:
+            return
+        seen.add(k)
+        out.append(dict({"source": source, "text": t, "ts": _local_iso(ts) if ts else None, "level": level}, **explain_error(t)))
+    for e in (last.get("upload_errors") or []) if isinstance(last.get("upload_errors"), list) else []:
+        add("autopilot", e, last.get("finished"))
+    for r in runs.get("history", [])[:6]:
+        for n in r["notes"]:
+            if re.search(r"error|fail|refus|denied|invalid|missing|not connected|expired|timeout|timed out", n, re.I):
+                add("run", n, r["ts"])
+    for e in events:
+        if e.get("level") in ("error", "warn"):
+            add("event", e.get("message"), e.get("ts"), "bad" if e.get("level") == "error" else "warn")
+    for j in jobs:
+        if j.get("last_error"):
+            add("job", f"{j.get('title') or j.get('input') or 'job'}: {j['last_error']}", j.get("updated"),
+                "bad" if j.get("status") in ("failed", "blocked") else "warn")
+    out.sort(key=lambda r: r["ts"] or "", reverse=True)
+    return out[:ERRORS_LIMIT]
+
+
+def schedule_block(a_next: str | None, every: int, enabled: bool, queue: list, now_dt: dt.datetime) -> dict:
+    """The next 24 hours: when each run is due and what the queue hands it (estimate)."""
+    nxt = _parse(a_next)
+    runs = []
+    if enabled and nxt:
+        t = nxt
+        queue_now = [q for q in queue if q.get("slot") != "tomorrow"]
+        later = [q for q in queue if q.get("slot") == "tomorrow"]
+        midnight = dt.datetime.combine(now_dt.date() + dt.timedelta(days=1), dt.time())
+        given_later = False
+        while t <= now_dt + dt.timedelta(hours=24) and len(runs) < 12:
+            items, note = [], "keeps the queue moving"
+            if not runs:
+                items, note = queue_now, ("due now" if t <= now_dt else "next run")
+            elif not given_later and t >= midnight and later:
+                items, given_later, note = later, True, "after midnight the daily caps reset"
+            runs.append({"at": t.isoformat(timespec="seconds"), "in_hours": round((t - now_dt).total_seconds() / 3600, 1),
+                         "note": note,
+                         "items": [{"clip_id": q["clip_id"], "title": q["title"], "account": q["account"],
+                                    "platform": q["platform"], "kind": q["kind"], "thumb": q.get("thumb")} for q in items][:8],
+                         "expected": len(items) if items else None})
+            t = t + dt.timedelta(hours=every)
+    return {"runs": runs, "horizon_hours": 24, "every_hours": every, "queue_total": len(queue),
+            "note": "Estimate: runs are about every %d hours and each hands the queue to the accounts with room." % every}
+
+
+EMPTY_SCHEDULE = {"runs": [], "horizon_hours": 24, "every_hours": 4, "queue_total": 0, "note": ""}
+
+
+def held_plain(reason) -> str:
+    """The autopilot's held-back reason in plain words."""
+    r = str(reason or "").lower()
+    if not r:
+        return ""
+    if "below" in r and "minimum" in r or re.search(r"score \d+", r):
+        return "Its quality score was under the bar the autopilot needs, so it waits for you instead of posting by itself."
+    if "context" in r:
+        return "It starts mid-thought (like 'so…'), which may confuse viewers who did not see the earlier part."
+    if "claim" in r or "earnings" in r:
+        return "It makes an earnings or results claim, which the campaign rules treat carefully."
+    if "length" in r or "short" in r or "long" in r:
+        return "Its length is outside what the campaign allows."
+    if "logo" in r or "caption" in r or "tag" in r:
+        return "It is missing something the campaign requires (logo or tags)."
+    return "The autopilot was not sure about this clip, so it left the decision to you."
 
 
 def build_data(ws) -> dict:
@@ -973,6 +1931,8 @@ def build_data(ws) -> dict:
                           "posting_accounts": [],
                           "live": _safe(lambda: campaign_live(ws, c), dict(EMPTY_LIVE))})
     campaigns.sort(key=lambda x: (not x["auto"], bool(x["problems"]), x["name"]))
+    for c in campaigns:
+        c["lifecycle"] = _safe(lambda c=c: campaign_lifecycle(ws, c), empty_lifecycle(c["name"]))
 
     leads = []
     for c in campaigns:
@@ -1032,6 +1992,15 @@ def build_data(ws) -> dict:
                 eposts_by_url[p["url"]] = _post_points(p)
     except Exception:
         pass
+    for c in clips:   # library fields: accounts posted to, a views sparkline from the tracker's history, plain held reason
+        c["accounts"] = sorted({u["account"] for u in c["uploads"]})
+        c["held_plain"] = held_plain(c["held"]) if c["held"] else ""
+        c["angle"] = c["title"] if c["kind"] == "slideshow" else ""
+        c["spark"] = []
+        c["queue"] = None
+        best_u = max((u for u in c["uploads"] if u.get("url") and u["url"] in eposts_by_url), key=lambda u: u["views"] or 0, default=None)
+        if best_u and c["id"] >= (clips[min(len(clips), THUMB_LIMIT) - 1]["id"] if clips else 0):
+            c["spark"] = [int(v) for _t, v in eposts_by_url[best_u["url"]][1]][-14:]
     views_history = []
     for i in range(29, -1, -1):
         d = today - dt.timedelta(days=i)
@@ -1138,9 +2107,17 @@ def build_data(ws) -> dict:
     queue_next = _safe(lambda: up_next(ws, clips, uploads, camps, acc_detail,
                                        [str(x).lower() for x in pol.get("platforms") or []], autopilot_files,
                                        paused=paused), [])
+    acc_detail = _safe(lambda: attach_managers(ws, acc_detail, now_dt, cap_setting), acc_detail)
     for c in campaigns:
         c["posting_accounts"] = sorted({f"{a['platform']}/{a['name']}" for a in acc_detail
                                         if c["name"] in (a.get("campaigns") or [])})
+        if not c["lifecycle"]["known"] and not c["lifecycle"]["accounts"]:
+            c["lifecycle"]["accounts"] = list(c["posting_accounts"])
+    pos = {}
+    for i, q in enumerate(queue_next):
+        pos.setdefault(q["clip_id"], {"pos": i + 1, "slot": q["slot"], "account": q["account"], "platform": q["platform"]})
+    for c in clips:
+        c["queue"] = pos.get(c["id"])
     agency = _safe(lambda: agency_summary(campaigns, acc_detail), json.loads(json.dumps(EMPTY_AGENCY)))
     joined = {str(c["url"]).rstrip("/") for c in campaigns if c.get("url")}
     discovered = _safe(lambda: leads_discovered(ws, joined), [])
@@ -1151,13 +2128,30 @@ def build_data(ws) -> dict:
         in_hours = (not pol.get("post_hours")) or bool(pl.in_post_hours(pol["post_hours"], pol["post_tz"]))
     except Exception:
         in_hours = True
+    jobs = _rows(ws, "SELECT id, status, attempts, title, input, last_error, updated FROM sources ORDER BY id DESC LIMIT 60")
+    lifecycle = _safe(lambda: lifecycle_block(ws, campaigns, now_dt), json.loads(json.dumps(EMPTY_LIFECYCLE)))
+    bench = _safe(lambda: bench_block(ws, campaigns), {"present": False, "healthy": 0, "min": None, "need_more": False,
+                                                       "reason": "", "join_next": []})
+    runs = _safe(lambda: runs_block(ws, uploads, now_dt), json.loads(json.dumps(EMPTY_RUNS)))
+    launch = _safe(lambda: launch_block(ws, campaigns, acc_detail), json.loads(json.dumps(EMPTY_LAUNCH)))
+    ext = {"lifecycle": lifecycle, "bench": bench, "runs": runs, "launch": launch}
     status = _safe(lambda: status_light(now_dt, enabled, last, every, accounts, acc_detail, campaigns, supply, uploads,
-                                        pol, in_hours), json.loads(json.dumps(EMPTY_STATUS)))
+                                        pol, in_hours, ext), json.loads(json.dumps(EMPTY_STATUS)))
+    money = _safe(lambda: money_block(uploads, camps, now_dt), json.loads(json.dumps(EMPTY_MONEY)))
+    insights = _safe(lambda: insights_block(ws, uploads, now_dt, acc_detail, campaigns), json.loads(json.dumps(EMPTY_INSIGHTS)))
+    system = _safe(lambda: system_block(ws, launch, runs, uploads), {"state_bytes": 0, "state_truncated": False, "db_bytes": None,
+                                                                   "limit_bytes": STATE_LIMIT_BYTES, "state_frac": 0.0, "keys": [],
+                                                                   "restart": {"url": ACTIONS_URL, "steps": []}})
+    errors = _safe(lambda: errors_block(ws, last, runs, jobs, recent_events), [])
+    schedule = _safe(lambda: schedule_block(next_run, every, enabled, queue_next, now_dt),
+                     dict(EMPTY_SCHEDULE, every_hours=every))
+    acc_help = _safe(lambda: account_help(campaigns, acc_detail), {"zernio_url": ZERNIO_URL, "naming": [], "steps": [], "reconnect": []})
     return {
         "version": VERSION,
         "generated": now_dt.isoformat(timespec="seconds"),
         "workspace": str(ws.home),
         "preview": False,
+        "sample": (ws.home / ".clipper-demo").exists(),   # a demo.py workspace: the page says "sample data"
         "hide_money": False,
         "autopilot": {"enabled": enabled, "via": pol["via"],
                       "platforms": pol["platforms"], "cap": pol["max_uploads_per_day"], "min_score": pol["min_score"],
@@ -1208,7 +2202,11 @@ def build_data(ws) -> dict:
         "supply": supply,
         "status": status,
         "leads_discovered": discovered,
-        "jobs": _rows(ws, "SELECT id, status, attempts, title, input, last_error, updated FROM sources ORDER BY id DESC LIMIT 60"),
+        "contract": CONTRACT,
+        "lifecycle": lifecycle, "bench": bench, "runs": runs, "launch": launch, "money": money, "insights": insights,
+        "system": system, "errors_help": errors, "schedule": schedule, "account_help": acc_help,
+        "whatsnew": {"version": CONTRACT, "items": CHANGELOG},
+        "jobs": jobs,
         "events": _rows(ws, "SELECT ts, level, message FROM events ORDER BY id DESC LIMIT 60"),
         "spend": {"month": round(g.month_spent(), 4), "cap": float(ws.setting("spend.monthly_cap_usd", 0) or 0)},
     }
@@ -1259,6 +2257,17 @@ def hide_money(data: dict) -> dict:
             r["net"] = None
     d["spend"] = {"month": None, "cap": None}
     d["goals"] = {"month_target": None}
+    m = d.get("money") or {}
+    for r in m.get("rows") or []:
+        r["net"] = None
+        r["potential"] = None
+    for k in ("estimates", "buckets"):
+        m[k] = {kk: None for kk in (m.get(k) or {})}
+    for b in m.get("batches") or []:
+        b["amount"] = None
+    w = (d.get("insights") or {}).get("weekly") or {}
+    w["est_net"] = None
+    w["est_net_prev"] = None
     return d
 
 
@@ -1271,7 +2280,7 @@ MANIFEST = {
     "icons": [{"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
               {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
               {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}],
-    "shortcuts": [{"name": n, "url": f"./#/{n.lower()}"} for n in ("Submit", "Today", "Clips", "Campaigns", "Earnings", "Jobs")],
+    "shortcuts": [{"name": n, "url": f"./#/{n.lower()}"} for n in ("Submit", "Today", "Clips", "Insights", "Campaigns", "Payouts")],
 }
 
 

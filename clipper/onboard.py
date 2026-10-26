@@ -542,6 +542,11 @@ def parse_brief(text: str) -> dict:
             out["page_word"] = m.group(1).strip(".")
             break
 
+    # a dedicated page is required (even without a name word): then the brand word must be in the page name
+    out["dedicated_page"] = bool(next((s for s in sents if re.search(
+        r"\b(?:dedicated|separate|brand[- ]new|new|own|clip(?:ping)?|fan|theme)\b[^.]{0,30}\b(?:accounts?|pages?|profiles?)\b", s, re.I)
+        and MUST.search(s) and not NEG.search(s) and not NOREQ.search(s)), None))
+
     # posting pace
     ppw = None
     for s in sents:
@@ -819,7 +824,9 @@ def build(campaign_link: str, links: list[str], campaigns_dir: Path = HERE / "ca
         "platforms": ["tiktok"], "sources": sources,
         "automation_allowed": allowed,
         "accounts": {"tiktok": "*"},
-        "account_match": (rules.get("page_word") or brand.split()[0]).lower(),
+        # the word a page's name must contain; "" = the rules need no dedicated page, so any free page may post
+        "account_match": (rules.get("page_word") or (brand.split()[0] if rules.get("dedicated_page") or not rules_text
+                                                      else "")).lower(),
         "disclosure": {"caption": rules.get("disclosure") or "#ad", "on_screen": rules.get("disclosure") or "#ad"},
         "banned_phrases": list(dict.fromkeys(BANNED + PROFANITY)),
         "cloud": True, "slideshows": False,
@@ -909,7 +916,8 @@ def summary(path: Path) -> str:
     found.append(f"clip length {c['clip']['min']}-{c['clip']['max']}s")
     if r.get("page_word"):
         found.append(f"page name must include '{r['page_word']}'")
-    found.append(f"posts only from accounts with '{c['account_match']}' in the name")
+    found.append(f"posts only from accounts with '{c['account_match']}' in the name" if c["account_match"]
+                 else "no dedicated page needed: posts from any free TikTok page")
     for k, label in (("posts_per_week", "posts a week"), ("min_engagement", "engagement floor"), ("min_views", "min views"),
                      ("keep_live_days", "days kept live"), ("language", "language")):
         if c.get(k) or r.get(k):

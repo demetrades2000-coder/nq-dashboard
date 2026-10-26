@@ -40,6 +40,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import campaign as cmp  # noqa: E402
+import audiofx  # noqa: E402
+import captions as capt  # noqa: E402
+import hooks  # noqa: E402
+import hygiene  # noqa: E402
+import scoring  # noqa: E402
 
 VERSION = "1.1.0"
 OUT_W, OUT_H, FPS = 1080, 1920, 30
@@ -420,6 +425,49 @@ def wav_samples(wav: Path):
     return data.astype(np.float32) / 32768.0
 
 
+# Rough speed of faster-whisper int8 on 4 vCPUs, in x real time (audio seconds per wall second), with VAD on.
+# HEURISTIC from published faster-whisper benchmarks scaled to a 4-core runner; measure on the real runner and
+# adjust (env CLIPPER_WHISPER_SPEED="small,5=2.5;small,1=3.6" overrides).
+WHISPER_SPEED = {("small", 5): 3.0, ("small", 1): 4.2, ("base", 1): 8.0, ("tiny", 1): 14.0}
+
+
+def whisper_plan(duration_s: float, cores: int | None = None, budget_s: float = 600.0, model: str = "small",
+                 quality: str = "auto") -> dict:
+    """Pick (model, beam) so transcription fits `budget_s` (default 10 min of a ~15 min total for a 33 min podcast).
+    quality: best = small / beam 5 always, fast = small / beam 1 always, auto = best that fits the budget,
+    stepping down to small beam 1, base, tiny. Only the default model ('small') is ever swapped."""
+    cores = cores or os.cpu_count() or 4
+    speed = dict(WHISPER_SPEED)
+    for part in (os.environ.get("CLIPPER_WHISPER_SPEED") or "").split(";"):
+        try:
+            k, v = part.split("=")
+            m, b = k.split(",")
+            speed[(m.strip(), int(b))] = float(v)
+        except ValueError:
+            pass
+    scale = min(cores, 8) / 4.0
+
+    def est(m, b):
+        return duration_s / max(speed.get((m, b), 3.0) * scale, 0.1)
+    if model != "small" or quality == "best":
+        return {"model": model, "beam": 5, "est_s": round(est(model, 5)), "reason": "as requested"}
+    if quality == "fast":
+        return {"model": "small", "beam": 1, "est_s": round(est("small", 1)), "reason": "fast quality"}
+    for m, b in (("small", 5), ("small", 1), ("base", 1), ("tiny", 1)):
+        if est(m, b) <= budget_s:
+            return {"model": m, "beam": b, "est_s": round(est(m, b)),
+                    "reason": "fits the time budget" if (m, b) != ("small", 5) else "best quality fits"}
+    return {"model": "tiny", "beam": 1, "est_s": round(est("tiny", 1)), "reason": "very long audio"}
+
+
+def audio_seconds(audio: Path) -> float:
+    try:
+        with wave.open(str(audio), "rb") as wf:
+            return wf.getnframes() / float(wf.getframerate() or 16000)
+    except Exception:  # noqa: BLE001
+        return 0.0
+
+
 def whisper_faster(audio: Path, args) -> list[Word]:
     fw = try_import("faster_whisper", "faster-whisper", not args.no_install)
     if not fw:
@@ -430,10 +478,13 @@ def whisper_faster(audio: Path, args) -> list[Word]:
         # Windows PCs with an NVIDIA card but without the cuBLAS/cuDNN DLLs load the model on cuda and then fail
         # (or abort the whole process) once transcription starts; CPU is reliable. Opt in: CLIPPER_WHISPER_DEVICE=cuda
         devices = devices[1:]
+    plan = whisper_plan(audio_seconds(audio), model=args.model, quality=getattr(args, "whisper_quality", None) or "auto")
+    args._beam = plan["beam"]
     for device, ctype in devices:
         try:
-            model = fw.WhisperModel(args.model, device=device, compute_type=ctype)
-            log(f"whisper '{args.model}' on {device}")
+            kw = {"cpu_threads": os.cpu_count() or 4} if device == "cpu" else {}
+            model = fw.WhisperModel(plan["model"], device=device, compute_type=ctype, **kw)
+            log(f"whisper '{plan['model']}' beam {plan['beam']} on {device} (est {plan['est_s'] // 60} min, {plan['reason']})")
             return _whisper_words(model, audio, args)
         except Exception as e:  # noqa: BLE001  (cuda failures retry on cpu)
             last = e
@@ -443,8 +494,12 @@ def whisper_faster(audio: Path, args) -> list[Word]:
 def _whisper_words(model, audio: Path, args) -> list[Word]:
     # Pass samples, not a path: decoding a path goes through PyAV, and PyAV 15 removed an argument
     # faster-whisper still passes (open(..., metadata_errors=...)), which breaks fresh installs on Windows.
+    # VAD drops silence and music-only stretches before they reach the decoder (the biggest CPU saving on podcasts);
+    # condition_on_previous_text=False stops a hallucination loop from spreading and is a little faster.
     segs, info = model.transcribe(wav_samples(audio), language=args.lang or None, word_timestamps=True,
-                                  vad_filter=True, beam_size=5,
+                                  vad_filter=True, beam_size=int(getattr(args, "_beam", 5) or 5),
+                                  vad_parameters={"min_silence_duration_ms": 400, "speech_pad_ms": 150},
+                                  condition_on_previous_text=False,
                                   initial_prompt=getattr(args, "prompt", None) or None)
     words, last_print = [], 0.0
     total = getattr(info, "duration", 0) or 1
@@ -554,7 +609,8 @@ def energy_curve(wav: Path | None, hop: float = 0.5):
         db = 20 * np.log10(rms + 1e-6)
         voiced = db[db > np.percentile(db, 20)]
         mu, sd = float(voiced.mean()), float(voiced.std() or 1)
-        return {"hop": hop, "z": ((db - mu) / sd).tolist()}
+        return {"hop": hop, "z": ((db - mu) / sd).tolist(),
+                "fine_hop": 0.1, "db_fine": audiofx.fine_db(data, sr, 0.1)}   # fine levels: music-under-speech check
     except Exception as e:  # noqa: BLE001
         log(f"energy analysis skipped: {e}", "warn")
         return None
@@ -572,80 +628,7 @@ def energy_stats(curve, s: float, e: float) -> tuple[float, float]:
 
 # ---------------------------------------------------------------- scoring
 
-MONEY = set("""money cash rich wealth wealthy millionaire millionaires billionaire billionaires million millions
-billion billions revenue profit profits profitable income salary paycheck broke debt invest investing investment
-investments investor investors stock stocks market markets crypto bitcoin btc ethereum business businesses
-entrepreneur entrepreneurs entrepreneurship company companies sales sell selling sold client clients customer
-customers offer offers price pricing margin margins equity passive dividend dividends portfolio trading trade
-trades trader traders leverage scale scaling agency ecommerce dropshipping hustle startup funding valuation deal
-deals tax taxes bank banks loan loans credit mortgage rent property properties dollars dollar bucks grand figures
-roi cashflow cash-flow networth assets liabilities inflation recession economy real-estate realestate options
-forex futures nasdaq spy fund funds hedge capital raise acquisition exit buyout franchise affiliate brand
-marketing ads leads closer closing commission commissions retire retirement savings budget spend spending
-expensive cheap afford luxury lambo ferrari rolex mansion jet""".split())
-
-EMOTION = set("""crazy insane shocking shocked hate love fired quit lost lose losing failed fail failure scam scams
-lie lies lying liar wrong stupid dumb poor worst best never everyone nobody truth honest honestly brutal
-controversial regret afraid fear scared war destroy destroyed dangerous secret secrets mistake mistakes biggest
-huge massive unbelievable ridiculous disgusting angry pissed embarrassing cried crying died dead kill killed
-genius addicted obsessed""".split())
-
-HOOKS = [
-    r"\bthe (real )?reason\b", r"\bhere'?s (how|why|what|the)\b", r"\bnobody\b", r"\bno one\b",
-    r"\bmost people\b", r"\bthe truth\b", r"\bsecret\b", r"\b(biggest|worst|#1|number one) (mistake|lesson|regret)",
-    r"\bmistake\b", r"\bif you\b", r"\byou (need|have) to\b", r"\bstop\b", r"\bnever\b", r"\bwhy\b",
-    r"\bhow (i|to|we)\b", r"\bi (made|lost|went from|turned|built|quit|got fired)\b", r"\bthe only\b",
-    r"\blet me tell you\b", r"\bwhat if\b", r"\bimagine\b", r"\bthe problem\b", r"\b(rich|poor|broke) people\b",
-    r"\bthe difference\b", r"\bunpopular opinion\b", r"\bi guarantee\b", r"\bthe fastest\b", r"\bdon'?t\b",
-    r"\bwould you rather\b", r"\bhot take\b", r"\bhere'?s the thing\b", r"\bpeople don'?t (realize|understand)\b",
-]
-BAD_START = {"and", "um", "uh", "like", "yeah", "but", "or", "because", "cause", "mm", "hmm", "okay", "ok",
-             "right", "anyway", "also", "which", "that"}
-NUM_RE = re.compile(r"(\$\s?\d|\d+\s?(k|m|b|%|x)\b|\d[\d,.]*|\b(hundred|thousand|million|billion|percent)\b)", re.I)
-TOPICS = {
-    "crypto": ({"crypto", "bitcoin", "btc", "ethereum", "coin", "coins", "blockchain"}, ["#crypto", "#bitcoin"]),
-    "trading": ({"trading", "trade", "trader", "forex", "futures", "options", "nasdaq", "spy", "chart"},
-                ["#trading", "#daytrading", "#stockmarket"]),
-    "realestate": ({"realestate", "real-estate", "property", "properties", "rent", "mortgage", "house", "houses"},
-                   ["#realestate", "#investing"]),
-    "sales": ({"sales", "sell", "selling", "closer", "closing", "client", "clients", "offer", "leads"},
-              ["#sales", "#salestips"]),
-    "business": ({"business", "company", "startup", "agency", "ecommerce", "brand", "marketing", "scale"},
-                 ["#business", "#entrepreneur", "#smallbusiness"]),
-    "investing": ({"invest", "investing", "stocks", "stock", "portfolio", "dividend", "fund", "etf"},
-                  ["#investing", "#stocks", "#personalfinance"]),
-    "mindset": ({"discipline", "mindset", "motivation", "success", "work", "grind", "habits"},
-                ["#mindset", "#motivation", "#discipline"]),
-}
-
-
-def norm(w: str) -> str:
-    return re.sub(r"[^a-z0-9$%'-]", "", w.lower())
-
-
-@dataclass
-class Sentence:
-    words: list
-    s: float
-    e: float
-
-    @property
-    def text(self) -> str:
-        return " ".join(w.w for w in self.words)
-
-
-def sentences(words: list[Word]) -> list[Sentence]:
-    out, cur = [], []
-    for i, w in enumerate(words):
-        cur.append(w)
-        gap = words[i + 1].s - w.e if i + 1 < len(words) else 9
-        if re.search(r"[.?!]$", w.w) or gap > 0.7 or len(cur) >= 30:
-            out.append(Sentence(cur, cur[0].s, cur[-1].e))
-            cur = []
-    if cur:
-        out.append(Sentence(cur, cur[0].s, cur[-1].e))
-    return out
-
+from vocab import (MONEY, EMOTION, HOOKS, BAD_START, NUM_RE, TOPICS, norm, Sentence, sentences)  # noqa: E402,F401
 
 @dataclass
 class Clip:
@@ -665,57 +648,17 @@ class Clip:
 
 
 def score_clip(c: Clip, curve, args) -> None:
-    toks = [norm(w.w) for w in c.words]
-    n = max(len(toks), 1)
+    """Score one window (scoring.py has the features, weights and penalties; every one is plain English in c.reasons)."""
     dur = c.e - c.s
-    text = c.text.lower()
-    first = " ".join(w.w for w in c.words if w.s < c.s + 4).lower()
-    reasons = []
-
-    hook = sum(1 for p in HOOKS if re.search(p, first))
-    hook += 1.5 * bool(NUM_RE.search(first)) + 1.0 * ("?" in first)
-    hook += 0.7 * sum(t in MONEY for t in first.split())
-    hook_s = min(hook / 3.0, 1.0)
-    if hook_s >= 0.6:
-        reasons.append("strong hook")
-
-    money_hits = sum(t in MONEY or t.replace("-", "") in MONEY for t in toks)
-    money_hits += text.count("real estate") + text.count("net worth") + text.count("side hustle")
-    money_s = min(money_hits / n * 12, 1.0)
-    if money_s > 0.5:
-        reasons.append("money-dense")
-
-    spec_s = min(len(NUM_RE.findall(c.text)) / 3.0, 1.0)
-    if spec_s > 0.6:
-        reasons.append("specific numbers")
-    emo_s = min(sum(t in EMOTION for t in toks) / n * 20, 1.0)
-    if emo_s > 0.5:
-        reasons.append("emotional/controversial")
-
-    payoff_s = 0.0
-    if c.words and re.search(r"[.!?]$", c.words[-1].w):
-        payoff_s += 0.6
-    last = " ".join(w.w for w in c.words if w.s > c.e - 6).lower()
-    payoff_s += 0.4 * min(sum(t in MONEY or t in EMOTION for t in last.split()) / 2, 1)
-
     mean_e, peak_e = energy_stats(curve, c.s, c.e)
-    energy_s = max(0.0, min((mean_e + 0.5 * peak_e + 0.5) / 2.5, 1.0)) if curve else 0.5
-    if curve and peak_e > 1.5:
-        reasons.append("energy spike")
-
-    wps = n / max(dur, 1)
-    pace_s = max(0.0, 1 - abs(wps - 3.2) / 2.0)
-    spoken = sum(w.e - w.s for w in c.words)
-    dead_air = 1 - min(spoken / max(dur, 1), 1)
-
-    target = (args.min + args.max) / 2
-    len_s = max(0.0, 1 - abs(dur - target) / max(args.max - args.min, 1))
-
-    start_pen = 0.15 if toks and toks[0] in BAD_START else 0.0
-    c.score = 100 * (0.24 * hook_s + 0.20 * money_s + 0.10 * spec_s + 0.10 * emo_s + 0.10 * payoff_s
-                     + 0.12 * energy_s + 0.07 * pace_s + 0.07 * len_s) - 100 * start_pen - 10 * max(dead_air - 0.4, 0)
-    c.reasons = reasons
+    energy = (mean_e, peak_e) if curve else (None, None)
+    music, gap_db = False, None
+    if curve and curve.get("db_fine") and c.words:
+        music, gap_db = audiofx.music_suspect(curve["db_fine"], curve["fine_hop"], c.words, c.s, c.e)
+    c.score, c.reasons, c.features = scoring.score(c.words, dur, args, energy, getattr(args, "camp", None), music)  # type: ignore[attr-defined]
+    toks = [norm(w.w) for w in c.words]
     c.topics = [k for k, (vocab, _) in TOPICS.items() if sum(t in vocab for t in toks) >= 2]
+    c.music_gap_db = gap_db  # type: ignore[attr-defined]
 
 
 def candidates_from_words(words: list[Word], args) -> list[Clip]:
@@ -756,55 +699,16 @@ def candidates_from_energy(curve, duration: float, args) -> list[Clip]:
 
 
 def pick(cands: list[Clip], k: int, gap: float = 3.0) -> list[Clip]:
-    chosen: list[Clip] = []
-    for c in sorted(cands, key=lambda c: c.score, reverse=True):
-        if all(c.e + gap <= o.s or c.s >= o.e + gap for o in chosen):
-            chosen.append(c)
-            if len(chosen) >= k:
-                break
-    return chosen
+    """Top-k windows that do not overlap, do not repeat each other's speech and do not all cover one topic."""
+    return scoring.select(cands, k, gap)
+
+
+select = scoring.select
 
 
 # ---------------------------------------------------------------- packaging copy
 
-DANGLE_END = {"or", "and", "but", "so", "the", "a", "an", "to", "with", "of", "for", "in", "on", "at", "that",
-              "because", "if", "like", "my", "your", "is", "was", "are", "you", "i", "we", "it", "this", "then",
-              "probably", "come", "can", "could", "would", "should", "will", "just", "really", "actually", "about",
-              "from", "as", "when", "which", "who", "what", "how", "why", "where", "also", "even", "still", "very",
-              "been", "being", "get", "got", "go", "going", "gonna", "wanna", "have", "had", "has", "do", "did", "does",
-              "be", "were", "their", "our", "his", "her", "its", "there", "into", "onto", "than", "not", "whenever",
-              "while", "until", "unless", "since", "whether", "would"}
-
-
-def _headline(text: str, max_words: int = 11, strict: bool = False) -> str:
-    """A complete-looking headline: the clause that fits, never ending on a dangling word.
-    strict: return "" for a headline that is only a setup ("If you are coming in as a newbie")."""
-    t = text.strip()
-    for _ in range(3):   # "So, then, honestly..." openers add nothing to a headline
-        t = re.sub(r"^(so|and|but|okay|ok|yeah|um|uh|like|well|then|now|also|honestly|basically|anyway|right)\b[, ]*",
-                   "", t, flags=re.I).strip()
-    words = t.split()
-    if re.match(r"(if|when|once)\b", t, re.I) and len(words) <= max_words + 10:
-        max_words += 8   # "If you..., you will..." needs both halves to land
-    if len(words) > max_words + 3:   # a sentence a few words over the limit stays whole
-        parts = re.split(r"(?<=[,;:])\s+", t)
-        acc = []
-        for part in parts:
-            if len((" ".join(acc + [part])).split()) > max_words:
-                break
-            acc.append(part)
-        if acc:
-            words = " ".join(acc).split()
-        else:  # no clause fits: cut before the last joining word inside the limit ("... and then I put")
-            joins = [i for i, w in enumerate(words[:max_words + 5]) if i >= 4 and
-                     re.sub(r"[^a-z]", "", w.lower()) in ("and", "but", "so", "then", "because", "or", "which", "where")]
-            words = words[:joins[-1]] if joins else (words if len(words) <= 18 else words[:max_words])
-    while len(words) > 3 and re.sub(r"[^a-z']", "", words[-1].lower()) in DANGLE_END:
-        words.pop()
-    out = " ".join(words).rstrip(",;:-")
-    if strict and re.match(r"(if|when|once|whenever)\b", out, re.I) and "," not in out:
-        return ""   # a condition without its payoff is not a hook
-    return out[:1].upper() + out[1:]
+from hooks import DANGLE_END, _headline  # noqa: E402,F401  (moved to hooks.py, kept importable from here)
 
 
 def best_line(c: Clip) -> str:
@@ -824,14 +728,23 @@ def best_line(c: Clip) -> str:
     return _headline(ranked[0].text)
 
 
-def make_copy(c: Clip, meta: dict, camp: dict | None = None) -> None:
+def make_copy(c: Clip, meta: dict, camp: dict | None = None, history=None) -> None:
+    """Title (file name / review list), the on-screen hook (c.hook, verbatim words only), the post caption body and
+    3-5 rotated hashtags. `history` = the account's earlier captions (see captions.post_caption) so consecutive
+    posts differ; without it the choice is still varied per clip (seeded by its text)."""
     if not c.title:
         line = best_line(c)
         c.title = (line.rstrip(".") if line else f"Moment at {hms(c.s)}").strip()
+    if getattr(c, "hook", None) is None and c.words:
+        c.hook = hooks.make_hook(c.words, camp, fallback=True)  # type: ignore[attr-defined]
+    pool = ((camp or {}).get("caption") or {}).get("hashtags") or []
+    if pool and c.words and not c.caption and not c.hashtags:
+        info = capt.post_caption_info(c, camp, history)
+        c.caption, c.hashtags = info["body"], info["hashtags"]
+        c.angle = info["angle"]  # type: ignore[attr-defined]
     if not c.caption:
         who = meta.get("uploader") or ""
         c.caption = f"{c.title} {'— ' + who if who else ''}".strip()
-    pool = ((camp or {}).get("caption") or {}).get("hashtags") or []
     if not c.hashtags and pool:   # the campaign's own niche tags beat the generic topic tags
         c.hashtags = [t if t.startswith("#") else "#" + t for t in pool][:6]
     if not c.hashtags:
@@ -1014,11 +927,16 @@ def ass_color(hex_rgb: str) -> str:
     return f"&H00{h[4:6]}{h[2:4]}{h[0:2]}".upper()
 
 
+FONTS_DIR = Path(__file__).resolve().parent / "fonts"
+BUNDLED_FONT = "Inter Display"     # fonts/InterDisplay-ExtraBold.otf: the same look on every machine
+# TikTok keeps its own UI over the top ~220 px, the bottom ~420 px and the right ~140 px.
+SAFE_TOP, SAFE_BOTTOM, SAFE_SIDE = 220, 420, 140
+
+
 def pick_font(user_font: str | None) -> str:
     if user_font:
         return user_font
-    prefs = ["Montserrat Black", "Montserrat ExtraBold", "Montserrat", "Anton", "Arial Black", "Inter", "Arial",
-             "DejaVu Sans"]
+    prefs = ["Montserrat Black", "Montserrat ExtraBold", "Montserrat", "Anton", "Arial Black"]
     fc = shutil.which("fc-list")
     if fc:
         try:
@@ -1028,7 +946,17 @@ def pick_font(user_font: str | None) -> str:
                     return f
         except Exception:
             pass
+    if (FONTS_DIR / "InterDisplay-ExtraBold.otf").is_file():
+        return BUNDLED_FONT   # libass finds it through fontsdir (see fonts_arg), no system install needed
     return "Arial Black" if sys.platform in ("win32", "darwin") else "DejaVu Sans"
+
+
+def fonts_arg() -> str:
+    """ass filter option that points libass at the bundled fonts (colon / backslash escaped for filtergraphs)."""
+    if not FONTS_DIR.is_dir():
+        return ""
+    p = str(FONTS_DIR.resolve()).replace("\\", "/").replace(":", "\\:")
+    return f":fontsdir={p}"
 
 
 def ass_escape(s: str) -> str:
@@ -1048,9 +976,56 @@ def wrap(text: str, width: int) -> str:
     return "\\N".join(lines[:3])
 
 
-def write_ass(path: Path, words: list[Word], dur: float, title: str, font: str, args) -> None:
-    hi, money, white = ass_color(args.highlight), ass_color("#39FF14"), ass_color("#FFFFFF")
-    cap_y = int(OUT_H * 0.27)
+def _ass_ts(t: float) -> str:
+    t = max(0.0, t)
+    return f"{int(t // 3600)}:{int(t % 3600 // 60):02d}:{t % 60:05.2f}"
+
+
+def hook_layout(text: str, avail_w: int = 820) -> tuple[int, list[str]]:
+    """(font size, lines) for the big hook title: the largest size whose balanced wrap fits in <= 3 lines."""
+    for fs in (112, 102, 92, 84, 76, 68):
+        per_line = max(6, int(avail_w / (0.60 * fs)))
+        lines = hooks.hook_lines(text, per_line=per_line, max_lines=3)
+        if len(lines) <= 3 and max(len(x) for x in lines) <= per_line + 1:
+            return fs, lines
+    lines = hooks.hook_lines(text, per_line=22, max_lines=3)
+    return max(44, min(64, int(avail_w / (0.60 * max(len(x) for x in lines))))), lines
+
+
+def caption_size(base: int, chars: int, avail_w: int = OUT_W - 2 * SAFE_SIDE) -> int:
+    """Caption font size by length: shrinks so one line never runs into the TikTok side buttons."""
+    return max(54, min(base, int(avail_w / (0.62 * max(chars, 1)))))
+
+
+def caption_chunks(words: list[Word], per: int) -> list[list[Word]]:
+    chunks, cur = [], []
+    for i, w in enumerate(words):
+        cur.append(w)
+        gap = words[i + 1].s - w.e if i + 1 < len(words) else 9
+        chars = sum(len(x.w) + 1 for x in cur)
+        if len(cur) >= per or chars > 16 or gap > 0.45 or re.search(r"[.?!,]$", w.w):
+            chunks.append(cur)
+            cur = []
+    if cur:
+        chunks.append(cur)
+    return chunks
+
+
+def write_ass(path: Path, words: list[Word], dur: float, title: str, font: str, args, top: int | None = None,
+              hook_kind: str = "") -> None:
+    """Caption file: the hook title for the first ~2.5 s, rolling karaoke captions, the disclosure and the tag.
+    Layout (1080x1920): logo and disclosure under the TikTok top bar, the hook title below them, captions
+    above the bottom 420 px. `top` = y just under the logo (default: the safe top)."""
+    camp = getattr(args, "camp", None)
+    st = capt.style_for(args, camp)
+    hi, money, neg, white = (ass_color(st["highlight"]), ass_color(st["money"]), ass_color(st["negation"]),
+                             ass_color("#FFFFFF"))
+    bold = -1 if st.get("bold", True) else 0
+    top = top if top is not None else SAFE_TOP + 12
+    cap_y = SAFE_BOTTOM + 100                       # caption baseline margin: clear of the bottom UI
+    base_size = int(st.get("font_size") or getattr(args, "font_size", 84))
+    side = SAFE_SIDE
+    hook_bg = ass_color(st.get("hook_bg", "#000000"))
     hdr = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {OUT_W}
@@ -1060,44 +1035,55 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,{font},{args.font_size},{white},{white},&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,7,3,2,60,60,{cap_y},1
-Style: Title,{font},62,&H00000000,&H00000000,&H00FFFFFF,&H00FFFFFF,-1,0,0,0,100,100,0,0,3,16,0,8,70,70,190,1
-Style: Disclose,{font},40,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,3,8,0,7,40,40,60,1
-Style: Tag,{font},46,&H30FFFFFF,&H30FFFFFF,&H90000000,&H00000000,-1,0,0,0,100,100,0,0,1,3,0,2,60,60,330,1
+Style: Cap,{font},{base_size},{white},{white},&H00000000,&H80000000,{bold},0,0,0,100,100,0,0,1,7,3,2,{side},{side},{cap_y},1
+Style: Hook,{font},100,{white},{white},{hook_bg.replace('&H00', '&H30')},&H00000000,-1,0,0,0,100,100,0,0,3,22,0,8,100,100,{top + 78},1
+Style: Disclose,{font},40,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,3,8,0,7,60,60,{top + 8},1
+Style: Tag,{font},44,&H30FFFFFF,&H30FFFFFF,&H90000000,&H00000000,-1,0,0,0,100,100,0,0,1,3,0,9,60,{side},{top + 8},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
-
-    def ts(t: float) -> str:
-        t = max(0.0, t)
-        return f"{int(t // 3600)}:{int(t % 3600 // 60):02d}:{t % 60:05.2f}"
-
     lines = []
     if getattr(args, "disclosure", None):
-        lines.append(f"Dialogue: 2,{ts(0)},{ts(dur)},Disclose,,0,0,0,,{ass_escape(args.disclosure)}")
+        lines.append(f"Dialogue: 2,{_ass_ts(0)},{_ass_ts(dur)},Disclose,,0,0,0,,{ass_escape(args.disclosure)}")
     if getattr(args, "watermark", None):
-        lines.append(f"Dialogue: 2,{ts(0)},{ts(dur)},Tag,,0,0,0,,{ass_escape(args.watermark)}")
-    if title and not args.no_title:
-        lines.append(f"Dialogue: 1,{ts(0)},{ts(dur)},Title,,0,0,0,,{wrap(ass_escape(title.upper()), 24)}")
+        lines.append(f"Dialogue: 2,{_ass_ts(0)},{_ass_ts(dur)},Tag,,0,0,0,,{ass_escape(args.watermark)}")
+    if title and not getattr(args, "no_title", False):
+        secs = float(st.get("hook_seconds") or 0)
+        end = min(dur - 0.2, secs) if secs > 0 else dur
+        txt = title.upper()
+        fs, hl = hook_layout(txt)
+        emph = hooks.emphasis(title)
+        gi, parts = 0, []
+        for line in hl:
+            toks = []
+            for w in line.split():
+                toks.append(f"{{\\c{hi}}}{ass_escape(w)}{{\\c{white}}}" if gi in emph else ass_escape(w))
+                gi += 1
+            parts.append(" ".join(toks))
+        anim = f"{{\\fs{fs}\\fad(110,230)\\fscx88\\fscy88\\t(0,170,\\fscx100\\fscy100)}}"
+        lines.append(f"Dialogue: 1,{_ass_ts(0)},{_ass_ts(end)},Hook,,0,0,0,,{anim}{(chr(92) + 'N').join(parts)}")
 
-    # Short 1-3 word chunks with the spoken word highlighted: the standard retention caption style.
-    chunks, cur = [], []
-    for i, w in enumerate(words):
-        cur.append(w)
-        gap = words[i + 1].s - w.e if i + 1 < len(words) else 9
-        chars = sum(len(x.w) + 1 for x in cur)
-        if len(cur) >= args.words_per_caption or chars > 16 or gap > 0.45 or re.search(r"[.?!,]$", w.w):
-            chunks.append(cur)
-            cur = []
-    if cur:
-        chunks.append(cur)
-
-    for ci, ch in enumerate(chunks):
+    mask = bool(st.get("mask_profanity", True))
+    extra_mask = st.get("mask_words") or []
+    for ci, ch in enumerate(chunks := caption_chunks(words, getattr(args, "words_per_caption", 3))):
         chunk_end = ch[-1].e
         nxt = chunks[ci + 1][0].s if ci + 1 < len(chunks) else dur
         if nxt - chunk_end < 0.6:
             chunk_end = nxt
+        shown = [capt.mask_word(x.w) if (mask and capt.is_profane(x.w, extra_mask)) else x.w for x in ch]
+        plain = [re.sub(r"[,.;:]+$", "", t).upper() for t in shown]
+        total_chars = sum(len(t) for t in plain) + len(plain) - 1
+        two_lines = total_chars > 22 and len(plain) > 1       # at most 2 lines, split near the middle
+        brk = -1
+        if two_lines:
+            run_, best = 0, 1e9
+            for k in range(len(plain) - 1):
+                run_ += len(plain[k]) + 1
+                if abs(run_ - total_chars / 2) < best:
+                    best, brk = abs(run_ - total_chars / 2), k
+        longest = max(len(" ".join(plain[:brk + 1])), len(" ".join(plain[brk + 1:]))) if two_lines else total_chars
+        fs = caption_size(base_size, longest)
         for wi, w in enumerate(ch):
             s = w.s
             e = ch[wi + 1].s if wi + 1 < len(ch) else chunk_end
@@ -1105,36 +1091,99 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 continue
             parts = []
             for k, x in enumerate(ch):
-                txt = ass_escape(re.sub(r"[,.;:]+$", "", x.w).upper())
-                is_money = norm(x.w) in MONEY or bool(NUM_RE.search(x.w))
+                txt = ass_escape(plain[k])
+                nm = norm(x.w)
                 if k == wi:
                     parts.append(f"{{\\c{hi}\\fscx112\\fscy112}}{txt}{{\\c{white}\\fscx100\\fscy100}}")
-                elif is_money:
+                elif nm in hooks.NEGATION:
+                    parts.append(f"{{\\c{neg}}}{txt}{{\\c{white}}}")
+                elif nm in MONEY or NUM_RE.search(x.w):
                     parts.append(f"{{\\c{money}}}{txt}{{\\c{white}}}")
                 else:
                     parts.append(txt)
-            lines.append(f"Dialogue: 0,{ts(s)},{ts(min(e, dur))},Cap,,0,0,0,,{' '.join(parts)}")
+                if two_lines and k == brk:
+                    parts.append("\\N")
+            body = " ".join(parts).replace(" \\N ", "\\N")
+            lines.append(f"Dialogue: 0,{_ass_ts(s)},{_ass_ts(min(e, dur))},Cap,,0,0,0,,{{\\fs{fs}}}{body}")
     path.write_text(hdr + "\n".join(lines) + "\n", encoding="utf-8")
+
+
+# ---------------------------------------------------------------- planning one clip
+
+def prepare_clip(c: Clip, args, st: dict | None = None) -> dict:
+    """Decide, before rendering, what the viewer will see and hear (pure, no ffmpeg):
+      start/end   the window after dropping host chatter / "okay so" at the very start (cold_open trim|teaser)
+      words       the transcript without um / uh sounds (they are also cut from the audio)
+      fillers     the removed filler Words (jump cuts avoid their audio)
+      teaser      {"s","e","text"} the punchy late sentence played first (cold_open teaser only) or None
+      hook        {"text","kind",...} the on-screen hook title (verbatim words only) or None
+    """
+    camp = getattr(args, "camp", None)
+    st = st or capt.style_for(args, camp)
+    mode = st.get("cold_open") or "trim"
+    words = list(c.words)
+    start, trimmed = c.s, 0
+    if words and mode in ("trim", "teaser"):
+        n = hooks.lead_in_trim(words, min_keep=max(8.0, 0.6 * float(getattr(args, "min", 15) or 15)))
+        if n:
+            trimmed = n
+            words = words[n:]
+            start = max(c.s, words[0].s - 0.12)
+    clean, fillers = hooks.drop_fillers(words)
+    teaser = hooks.cold_open_plan(clean, camp) if mode == "teaser" else None
+    hook = getattr(c, "hook", None)
+    if hook is None and clean:
+        hook = hooks.make_hook(clean, camp, fallback=True)
+    if hook is None and c.title and clean and hooks.grounded(c.title, clean, (camp or {}).get("spelling")):
+        hook = {"text": c.title, "kind": hooks.hook_kind(c.title), "start": clean[0].s, "score": 0.0}
+    return {"start": start, "end": c.e, "words": clean, "fillers": fillers, "teaser": teaser, "hook": hook,
+            "trimmed_words": trimmed, "mode": mode}
 
 
 # ---------------------------------------------------------------- rendering
 
-def keep_intervals(c: Clip, jumpcut: bool) -> list[tuple[float, float]]:
-    if not jumpcut or not c.words:
-        return [(c.s, c.e)]
-    for max_gap in (0.45, 0.8, 1.5, 3.0):
+LEAD, TAIL = 0.06, 0.14           # seconds kept before / after each spoken word at a jump cut
+MAX_SEGMENTS = 80
+MAX_SILENCE = 1.2                 # no silence longer than this stays in a clip unless the speaker meant it
+
+
+def keep_intervals(c: Clip, jumpcut: bool, plan: dict | None = None) -> list[tuple[float, float]]:
+    """Source intervals to keep, in order. Jump cuts remove dead air (gaps > 0.45 s keep ~0.2 s), um / uh sounds
+    and anything the plan trimmed; the teaser (if any) comes first. Never keeps a silence over MAX_SILENCE."""
+    words = plan["words"] if plan else c.words
+    start = plan["start"] if plan else c.s
+    fills = plan["fillers"] if plan else []
+    teaser = plan.get("teaser") if plan else None
+    head = [(teaser["s"], teaser["e"])] if teaser else []
+    if not jumpcut or not words:
+        return head + [(start, c.e)]
+    spans = [(f.s, f.e) for f in fills]
+
+    def blocked(a_end: float, b_start: float) -> bool:
+        return any(a_end - 0.02 <= fs_ and fe_ <= b_start + 0.02 for fs_, fe_ in spans)
+
+    for max_gap in (0.45, 0.7, 1.0, MAX_SILENCE):
         iv: list[list[float]] = []
-        for w in c.words:
-            s, e = max(c.s - 0.1, w.s - 0.08), min(c.e + 0.25, w.e + 0.15)
-            if iv and s - iv[-1][1] <= max_gap:
+        prev_w = None
+        for w in words:
+            s, e = max(start - 0.1, w.s - LEAD), min(c.e + 0.25, w.e + TAIL)
+            for fs_, fe_ in spans:                  # keep the filler sound itself out of the pad
+                if fe_ <= w.s + 0.01 and fe_ > s:
+                    s = fe_ + 0.005
+                if fs_ >= w.e - 0.01 and fs_ < e:
+                    e = fs_ - 0.005
+            if e - s < 0.05:
+                continue
+            if iv and s - iv[-1][1] <= max_gap and not blocked(prev_w.e, w.s):
                 iv[-1][1] = max(iv[-1][1], e)
             else:
                 iv.append([s, e])
+            prev_w = w
         iv = [x for x in iv if x[1] - x[0] > 0.12]
-        if len(iv) <= 40 and iv:
+        if iv and len(iv) <= MAX_SEGMENTS:
             iv[-1][1] = min(iv[-1][1] + 0.3, c.e + 0.5)
-            return [(a, b) for a, b in iv]
-    return [(c.s, c.e)]
+            return head + [(a, b) for a, b in iv]
+    return head + [(start, c.e)]
 
 
 def remap(words: list[Word], iv: list[tuple[float, float]]) -> list[Word]:
@@ -1142,36 +1191,69 @@ def remap(words: list[Word], iv: list[tuple[float, float]]) -> list[Word]:
     for a, b in iv:
         for w in words:
             if a <= w.s < b:
-                out.append(Word(w.w, offset + w.s - a, offset + min(w.e, b) - a))
+                out.append(Word(w.w, offset + w.s - a, offset + min(w.e, b) - a, w.p))
         offset += b - a
     return out
 
 
+def pacing_report(words: list[Word], dur: float) -> dict:
+    """Longest silence between spoken words in the output timeline (the first/last word to the clip edges included)."""
+    if not words:
+        return {"max_silence": dur, "ok": True}
+    gaps = [words[0].s] + [b.s - a.e for a, b in zip(words, words[1:])] + [dur - words[-1].e]
+    m = max(gaps)
+    return {"max_silence": round(m, 2), "ok": m <= MAX_SILENCE + 0.05}
+
+
+_FILTERS: dict = {}
+
+
+def has_filter(name: str) -> bool:
+    """Does this ffmpeg build have the filter? (a static build without afftdn must not break renders)"""
+    if name not in _FILTERS:
+        try:
+            out = run([Tools.ffmpeg, "-hide_banner", "-filters"], timeout=30).stdout
+            _FILTERS.update({n: bool(re.search(rf"\s{n}\s", out)) for n in
+                             ("afftdn", "highpass", "acompressor", "equalizer", "loudnorm", "ass")})
+        except Exception:  # noqa: BLE001
+            _FILTERS.update({n: False for n in ("afftdn", "highpass", "acompressor", "equalizer")})
+        _FILTERS.setdefault(name, False)
+    return _FILTERS.get(name, False)
+
+
 def build_graph(iv_rel, layout, info: MediaInfo, centers, captions: str | None, loudnorm: bool,
-                logo: dict | None = None):
+                logo: dict | None = None, mutes: list[tuple[float, float]] | None = None,
+                punch: bool = False, clarity: bool = False):
     parts, labels = [], []
+    n = len(iv_rel)
     for i, (a, b) in enumerate(iv_rel):
         trim = f"trim=start={a:.3f}:end={b:.3f},setpts=PTS-STARTPTS"
         if layout == "crop" and info.width and info.height:
             cw = min(info.width, int(info.height * 9 / 16) // 2 * 2)
             cx = (centers[i] if centers else 0.5) * info.width
             x = int(max(0, min(info.width - cw, cx - cw / 2))) // 2 * 2
-            parts.append(f"[0:v]{trim},crop={cw}:{info.height // 2 * 2}:{x}:0,"
-                         f"scale={OUT_W}:{OUT_H},setsar=1[v{i}]")
+            seg = (f"[0:v]{trim},crop={cw}:{info.height // 2 * 2}:{x}:0,"
+                   f"scale={OUT_W}:{OUT_H},setsar=1")
         elif layout == "fit":
-            parts.append(f"[0:v]{trim},scale={OUT_W}:{OUT_H}:force_original_aspect_ratio=decrease,"
-                         f"pad={OUT_W}:{OUT_H}:(ow-iw)/2:(oh-ih)/2:black,setsar=1[v{i}]")
+            seg = (f"[0:v]{trim},scale={OUT_W}:{OUT_H}:force_original_aspect_ratio=decrease,"
+                   f"pad={OUT_W}:{OUT_H}:(ow-iw)/2:(oh-ih)/2:black,setsar=1")
         else:  # blur: full frame centered over a blurred, zoomed copy of itself
-            parts.append(f"[0:v]{trim},split=2[bg{i}][fg{i}];"
-                         f"[bg{i}]scale=270:480:force_original_aspect_ratio=increase,crop=270:480,"
-                         f"boxblur=8:2,eq=brightness=-0.10,scale={OUT_W}:{OUT_H}[bb{i}];"
-                         f"[fg{i}]scale={OUT_W}:{OUT_H}:force_original_aspect_ratio=decrease[fs{i}];"
-                         f"[bb{i}][fs{i}]overlay=(W-w)/2:(H-h)/2,setsar=1[v{i}]")
+            seg = (f"[0:v]{trim},split=2[bg{i}][fg{i}];"
+                   f"[bg{i}]scale=270:480:force_original_aspect_ratio=increase,crop=270:480,"
+                   f"boxblur=8:2,eq=brightness=-0.10,scale={OUT_W}:{OUT_H}[bb{i}];"
+                   f"[fg{i}]scale={OUT_W}:{OUT_H}:force_original_aspect_ratio=decrease[fs{i}];"
+                   f"[bb{i}][fs{i}]overlay=(W-w)/2:(H-h)/2,setsar=1")
+        # punch-in on every second cut: the picture "moves" at each jump cut like a second camera (7% crop)
+        if punch and n > 1 and i % 2 == 1 and layout != "fit" and (b - a) >= 0.7:
+            seg += (f",crop=w=floor(iw/1.07/2)*2:h=floor(ih/1.07/2)*2:x=(in_w-out_w)/2:y=(in_h-out_h)*0.3,"
+                    f"scale={OUT_W}:{OUT_H},setsar=1")
+        parts.append(seg + f"[v{i}]")
         labels.append(f"[v{i}]")
         if info.has_audio:
-            parts.append(f"[0:a]atrim=start={a:.3f}:end={b:.3f},asetpts=PTS-STARTPTS[a{i}]")
+            fd = min(0.012, (b - a) / 4)
+            parts.append(f"[0:a]atrim=start={a:.3f}:end={b:.3f},asetpts=PTS-STARTPTS,"
+                         f"afade=t=in:d={fd:.3f},afade=t=out:st={b - a - fd:.3f}:d={fd:.3f}[a{i}]")
             labels.append(f"[a{i}]")
-    n = len(iv_rel)
     if info.has_audio:
         parts.append(f"{''.join(labels)}concat=n={n}:v=1:a=1[vc][ac]")
     else:
@@ -1184,22 +1266,46 @@ def build_graph(iv_rel, layout, info: MediaInfo, centers, captions: str | None, 
     else:
         vf = f"[vc]fps={FPS},format=yuv420p"
     if captions:
-        vf += f",ass={captions}"
+        vf += f",ass={captions}{fonts_arg()}"
     parts.append(vf + "[vo]")
     if info.has_audio:
         af = "[ac]aresample=48000"
+        for a, b in (mutes or []):                       # profanity: silence the word, not the whole line
+            af += f",volume=enable='between(t,{a:.3f},{b:.3f})':volume=0"
+        if clarity:
+            ch = audiofx.clarity_chain(has_filter)
+            if ch:
+                af += "," + ch
         if loudnorm:
             af += ",loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000"
         parts.append(af + "[ao]")
     return ";".join(parts)
 
 
-def render(video: Path, info: MediaInfo, c: Clip, idx: int, outdir: Path, font: str, args) -> Path | None:
+def logo_height(path, width: int) -> int:
+    try:
+        from PIL import Image
+        with Image.open(path) as im:
+            return int(im.height * width / max(im.width, 1))
+    except Exception:  # noqa: BLE001
+        return int(width * 0.25)
+
+
+def render(video: Path, info: MediaInfo, c: Clip, idx: int, outdir: Path, font: str, args,
+           threads: int | None = None) -> Path | None:
     name = f"clip_{idx:02d}_{slugify(c.title, 40)}.mp4"
     out = outdir / name
     ass_name = f"captions_{idx:02d}.ass"
+    camp = getattr(args, "camp", None)
+    st = capt.style_for(args, camp)
+    plan = prepare_clip(c, args, st)
+    c.hook = plan["hook"]  # type: ignore[attr-defined]
+    c.plan_notes = [n for n in (  # type: ignore[attr-defined]
+        f"dropped {plan['trimmed_words']} lead-in words" if plan["trimmed_words"] else "",
+        f"cut {len(plan['fillers'])} filler sounds" if plan["fillers"] else "",
+        "teaser cold open" if plan["teaser"] else "") if n]
 
-    jump_iv = keep_intervals(c, not args.no_jumpcuts)
+    jump_iv = keep_intervals(c, not args.no_jumpcuts, plan)
     plain_iv = [(c.s, c.e)]
 
     layout = args.layout
@@ -1229,36 +1335,65 @@ def render(video: Path, info: MediaInfo, c: Clip, idx: int, outdir: Path, font: 
         if key in seen:
             continue
         seen.add(key)
-        seek = max(0.0, iv[0][0] - 1.0)
-        span = iv[-1][1] - seek + 0.5
+        seek = max(0.0, min(a for a, _ in iv) - 1.0)      # a teaser interval can lie after the main one
+        span = max(b for _, b in iv) - seek + 0.5
         iv_rel = [(a - seek, b - seek) for a, b in iv]
         total = sum(b - a for a, b in iv)
         ass_arg = None
+        mutes = []
+        rw = remap(plan["words"], iv)
+        if st.get("mask_profanity", True):
+            mutes = [(max(0.0, w.s - 0.03), w.e + 0.06) for w in rw if capt.is_profane(w.w, st.get("mask_words") or [])]
+        logo = None
+        top_y = SAFE_TOP + 12
+        if getattr(args, "logo", None):
+            lw = int(getattr(args, "logo_width", 300) or 300)
+            lh = logo_height(Path(args.logo).expanduser(), lw)
+            safe = bool(st.get("logo_safe"))   # style.logo_safe: keep the logo out of TikTok's top / bottom UI zones
+            if getattr(args, "logo_position", "top") == "top":
+                y = SAFE_TOP + 12 if safe else 40   # legacy: y=40 in the top bar
+                top_y = max(SAFE_TOP + 12, y + lh + 14)
+            else:
+                y = OUT_H - SAFE_BOTTOM - lh - 20 if safe else OUT_H - 420   # legacy: y = H - 420
+            logo = {"w": lw, "y": y}
         if captions and (c.words or getattr(args, "watermark", None) or getattr(args, "disclosure", None)):
-            write_ass(outdir / ass_name, remap(c.words, iv), total, c.title if c.words else "", font, args)
+            hook_txt = (plan["hook"] or {}).get("text") if plan["hook"] else ""
+            write_ass(outdir / ass_name, rw, total, hook_txt if c.words else "", font, args, top_y,
+                      (plan["hook"] or {}).get("kind", ""))
             ass_arg = ass_name
         centers = centers_for(iv)[0] if lay == "crop" else None
-        logo = None
-        if getattr(args, "logo", None):
-            # top: in the upper black bar; bottom: in the lower bar, clear of the platform UI
-            logo = {"w": int(getattr(args, "logo_width", 300) or 300),
-                    "y": 40 if getattr(args, "logo_position", "top") == "top" else OUT_H - 420}
-        graph = build_graph(iv_rel, lay, info, centers, ass_arg, loud, logo)
+        graph = build_graph(iv_rel, lay, info, centers, ass_arg, loud, logo, mutes,
+                            punch=len(iv) > 1 and not getattr(args, "no_punch", False),
+                            clarity=loud and not getattr(args, "no_clarity", False))
         cmd = [Tools.ffmpeg, "-y", "-v", "error", "-ss", f"{seek:.3f}", "-t", f"{span:.3f}",
                "-i", str(video.resolve())]
         if logo:
             cmd += ["-i", str(Path(args.logo).expanduser().resolve())]
         cmd += ["-filter_complex", graph, "-map", "[vo]"]
         if info.has_audio:
-            cmd += ["-map", "[ao]", "-c:a", "aac", "-b:a", "160k"]
-        cmd += ["-c:v", "libx264", "-preset", args.preset, "-crf", str(args.crf), "-pix_fmt", "yuv420p",
-                "-movflags", "+faststart", name]
+            cmd += ["-map", "[ao]"]
+        cmd += hygiene.encode_args(total, args.preset, args.crf, info.has_audio,
+                                   float(getattr(args, "cap_mb", 0) or hygiene.CAP_MB_PER_30S), threads)
+        cmd += [name]
         try:
             r = run(cmd, cwd=outdir, timeout=1800)
             ok = r.returncode == 0 and out.exists() and out.stat().st_size > 10_000
         except subprocess.TimeoutExpired:
             ok, r = False, None
         if ok:
+            report = None
+            if not getattr(args, "no_validate", False):
+                cap_b = int(float(getattr(args, "cap_mb", 0) or hygiene.CAP_MB_PER_30S) * 1024 * 1024 * max(total, 30) / 30)
+                if out.stat().st_size > cap_b * 1.1:
+                    hygiene.shrink_to_cap(out, cap_b, ffmpeg=Tools.ffmpeg, preset=args.preset)
+                report = hygiene.validate_output(out, ffmpeg=Tools.ffmpeg, ffprobe=Tools.ffprobe or "ffprobe",
+                                                 expect_audio=info.has_audio, min_dur=3.0,
+                                                 cap_mb_per_30s=float(getattr(args, "cap_mb", 0) or hygiene.CAP_MB_PER_30S))
+                if not report["ok"]:
+                    log(f"clip {idx:02d} rejected by output checks: {'; '.join(report['problems'])}", "err")
+                    out.unlink(missing_ok=True)
+                    c.hygiene = report  # type: ignore[attr-defined]
+                    break
             desc = f"{lay}, {'jump-cut' if len(iv) > 1 else 'straight cut'}, " \
                    f"{'captions' if ass_arg else 'no captions'}"
             log(f"clip {idx:02d} rendered ({total:.0f}s, {desc}) -> {name}", "ok")
@@ -1266,6 +1401,11 @@ def render(video: Path, info: MediaInfo, c: Clip, idx: int, outdir: Path, font: 
             c.tagged = bool(ass_arg)  # overlays (tag/disclosure) are in the caption file  # type: ignore[attr-defined]
             c.logo_on = bool(logo)  # type: ignore[attr-defined]
             c.out_duration = total  # type: ignore[attr-defined]
+            c.hygiene = report  # type: ignore[attr-defined]
+            c.mutes = mutes  # type: ignore[attr-defined]
+            c.pacing = pacing_report(rw, total)  # type: ignore[attr-defined]
+            if report and report["warnings"]:
+                log(f"clip {idx:02d} notes: {'; '.join(report['warnings'])[:200]}", "warn")
             if not args.keep_ass:
                 (outdir / ass_name).unlink(missing_ok=True)
             return out
@@ -1275,6 +1415,30 @@ def render(video: Path, info: MediaInfo, c: Clip, idx: int, outdir: Path, font: 
         out.unlink(missing_ok=True)
     log(f"clip {idx:02d} could not be rendered", "err")
     return None
+
+
+def render_parallel(video: Path, info: MediaInfo, clips: list[Clip], outdir: Path, font: str, args,
+                    workers: int | None = None) -> list[Path | None]:
+    """Render several clips at once (safe: every clip has its own file names, nothing is shared but the source).
+    On 4 vCPUs 2 workers x 2 x264 threads is about 1.4x faster than one render at a time (x264 does not scale
+    linearly with cores on 1080x1920). workers=1 is the old sequential behaviour."""
+    from concurrent.futures import ThreadPoolExecutor
+    cores = os.cpu_count() or 2
+    workers = workers or int(getattr(args, "render_workers", 0) or 0) or (2 if cores >= 4 else 1)
+    workers = max(1, min(workers, len(clips) or 1))
+    threads = max(1, cores // workers)
+
+    def one(pair):
+        i, c = pair
+        try:
+            return render(video, info, c, i, outdir, font, args, threads if workers > 1 else None)
+        except Exception as e:  # noqa: BLE001
+            log(f"clip {i} crashed: {e}", "err")
+            return None
+    if workers == 1:
+        return [one(p) for p in enumerate(clips, 1)]
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        return list(ex.map(one, enumerate(clips, 1)))
 
 
 # ---------------------------------------------------------------- report
@@ -1381,17 +1545,9 @@ def process(source: str, args) -> int:
     outdir.mkdir(parents=True, exist_ok=True)
     font = pick_font(args.font)
     log(f"rendering {len(chosen)} clips -> {outdir}", "step")
-    paths = []
     for i, c in enumerate(chosen, 1):
         log(f"#{i} {hms(c.s)}-{hms(c.e)} score {c.score:.0f}: {c.title}")
-        if args.dry_run:
-            paths.append(None)
-            continue
-        try:
-            paths.append(render(video, info, c, i, outdir, font, args))
-        except Exception as e:  # noqa: BLE001
-            log(f"clip {i} crashed: {e}", "err")
-            paths.append(None)
+    paths = [None] * len(chosen) if args.dry_run else render_parallel(video, info, chosen, outdir, font, args)
     write_report(outdir, meta, chosen, paths, tsrc, camp)
     made = sum(p is not None for p in paths)
     log(f"done: {made}/{len(chosen)} clips in {outdir}  (posting copy: CLIPS.md)", "ok")
@@ -1496,6 +1652,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--logo-position", choices=["top", "bottom"], default="top")
     p.add_argument("--logo-width", type=int, default=300)
     p.add_argument("--no-jumpcuts", action="store_true", help="keep pauses instead of cutting dead air")
+    p.add_argument("--cold-open", choices=["off", "trim", "teaser"], default=None,
+                   help="trim = drop host chatter at the start; teaser = also play the punchiest late line first")
+    p.add_argument("--hook-seconds", type=float, default=None, help="how long the big hook title stays (0 = whole clip)")
+    p.add_argument("--no-punch", action="store_true", help="no punch-in zoom on every second jump cut")
+    p.add_argument("--no-clarity", action="store_true", help="skip the speech clean-up filters (denoise / compressor)")
+    p.add_argument("--no-validate", action="store_true", help="skip the ffprobe / black-frame / silence checks")
+    p.add_argument("--cap-mb", type=float, default=0, help="file size target per 30 s of video (default 8)")
+    p.add_argument("--whisper-quality", choices=["auto", "best", "fast"], default="auto",
+                   help="auto = best model/beam that transcribes within ~10 min (long podcasts get beam 1)")
+    p.add_argument("--render-workers", type=int, default=0, help="clips rendered at once (default: 2 on 4+ cores)")
     p.add_argument("--no-title", action="store_true", help="no hook title bar")
     p.add_argument("--font", help="caption font family")
     p.add_argument("--font-size", type=int, default=84)

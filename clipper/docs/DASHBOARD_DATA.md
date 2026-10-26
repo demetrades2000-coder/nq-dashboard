@@ -233,3 +233,84 @@ status strip (`status`) and shows the content supply meter (`supply`), which Acc
 `views_to_min`): a post only counts once it passes the minimum on its own. `python demo.py <dir> --stale` builds a stuck autopilot.
 
 New sections are computed defensively: an error in one leaves it empty instead of breaking the page.
+
+
+## v4: the autopilot brain's keys and what the dashboard computes from them
+
+Source of the keys: `docs/AUTOPILOT_CONTRACT.md` (workspace settings written by the cloud runner). **Every key may be absent**:
+each block below is then complete but empty (`present: false`, `known: false`, `null` numbers), and the page says "not reported yet".
+`contract` is 4; `sample` is true for a `demo.py` workspace (the page shows "Sample data"). `hide_money` nulls every dollar field named below.
+
+```jsonc
+{
+  "campaigns": [{ ...,
+    "lifecycle": {                      // setting campaign_state.<name>; derived from the live check when absent (known: false)
+      "name": "...", "known": true, "state": "active",   // active | standby | paused | ended | blocked
+      "state_label": "Posting now", "reason": "plain words (why it is in that state)", "since": "ISO local" | null,
+      "priority": 7.3 | null, "rank": 1 | null, "accounts": ["tiktok/tradever.clips"], "supply_days": 5.2 | null,
+      "left": 1937.49 | null, "budget": 2000.0 | null, "cpm": 5.0 | null, "spent_frac": 0.03 | null, "checked": "ISO" | null,
+      "burn": {"per_day": 100.0 | null, "days_left": 10.0 | null, "source": "history" | "none", "points": 4,
+               "note": "~10 days of budget left at the current pace"}   // from `history` ([[ts, left], ...] or {ts, left}) in
+                                        // campaign_state.<name> or campaign_live.<name>; null until 2 points 6+ hours apart
+    }}],
+  "lifecycle": {"present": true, "campaigns": [all lifecycle rows, best state first, then rank],
+                "order": ["names"], "counts": {"active": 1, "standby": 1, "paused": 1, "ended": 0, "blocked": 1},
+                "extra": [lifecycle rows of campaigns the autopilot knows that have no brief file here],
+                "switch_log": [{"ts", "kind", "campaign", "from", "to", "reason", "text"}],   // setting switch.log, newest FIRST, max 60
+                "switch_groups": [{"ts", "text": "Tradever paused: budget almost gone → BILF promoted: best rate", "kinds": [], "campaigns": [], "count": 2}],
+                "last_switch": {...} | null},      // lines within 20 minutes of each other are one story
+  "bench": {"present": true, "healthy": 1, "min": 2, "need_more": true, "reason": "...",
+            "join_next": [{...a leads_discovered row..., "rank", "join_message": "I joined <name>: here are its rules",
+                           "rules_words": ["AI", "automat", "tool", "repurpos"]}]},   // at most 5
+  "accounts_detail": [{ ...,                // + one row per account_state.<platform>/<account> not seen posting (zero stats)
+    "posts_today": [{"clip_id", "title", "created", "url", "kind", "state"}],
+    "manager": {"known": true, "mode": "warmup", "mode_label": "Warm-up", "reason": "day 2 of 5 warm-up: 1 post a day",
+                "since", "campaign": "..." | null, "posts_total", "posts_7d", "median_views_recent", "health": "ok|limited|new|error" | null,
+                "warmup_day": 2 | null, "warmup_total": 5, "score": 0-100 | null, "score_label": "good|fair|poor"}}],
+                // mode: warmup | normal | slow | cooldown | idle | unknown (not reported). score: a rough guide from health, median views, posts
+  "account_help": {"zernio_url", "steps": [...], "reconnect": [...], "naming": [{"campaign", "match", "state", "rule", "examples", "has_account", "accounts"}]},
+  "runs": {"present": true, "source": "runs.history" | "autopilot.jsonl" | "none",
+           "history": [{"ts", "duration_s", "posted", "errors", "queued_videos", "queued_slideshows", "switches", "notes", "key",
+                        "level": "ok|bad|info", "what": "Posted 2 clips, 1 error", "items": [{"clip_id", "title", "platform", "account", "kind"}]}],   // newest first, max 100
+           "summary": {"runs_24h", "posted_24h", "posted_7d", "errors_7d", "runs_7d", "avg_duration_s", "clean_rate", "last_ts", "last_key", ...}},
+  "launch": {"present": true, "items": [{"id", "label", "done", "manual", "optional", "how", "detail", "copy": [{"label", "value"}]}],
+             "done", "total", "required_done", "required_total", "complete", "auto_left", "manual_left"},   // optional = ntfy_topic
+  "money": {"rows": [{"key": url, "clip_id", "title", "campaign", "platform", "account", "created", "submitted_at", "views",
+                      "net", "potential", "needs_views", "over_min"}],        // money: null when hide_money; max 400
+            "estimates": {"pending", "approved", "at_risk"}, "buckets": {"waiting", "earning", "hold", "due", "at_risk"},
+            "counts": {...}, "batches": [{"date", "amount", "posts", "campaigns", "stage": "due|coming"}],
+            "rules": {"earn_days": 7, "hold_days": 3, "lag_days": 10, "text": "..."}},
+  "insights": {"notes": ["the autopilot's own sentences"], "cards": [{"id", "kind", "title", "sentence", "detail", "n", "confidence"}],
+               "ab": [{"id", "title", "why", "a": {label, posts, avg_views}, "b": {...}, "winner": "a|b|tie|null", "lift", "sentence", "confidence"}],
+               "weekly": {"label", "from", "to", "posts", "posts_prev", "views", "views_prev", "est_net", "est_net_prev", "best", "try": [], "confidence"},
+               "overall_avg_views", "sample", "confidence"},
+  "system": {"state_bytes", "state_truncated", "db_bytes", "limit_bytes", "state_frac", "keys": [{"id", "label", "ok": true|false|null, "detail", "how"}],
+             "restart": {"url", "steps": []}},
+  "errors_help": [{"source", "text", "ts", "level", "title", "plain", "fix", "action": {"label", "url"} | null}],   // max 20, deduplicated
+  "schedule": {"runs": [{"at", "in_hours", "note", "expected", "items": [{"clip_id", "title", "account", "platform", "kind", "thumb"}]}],
+               "horizon_hours": 24, "every_hours", "queue_total", "note"},
+  "status": { ..., "notes": [{"level": "info", "code", "text", "page", "action"}] },   // FYI lines: never change the light
+  "clips": [{ ..., "accounts": [], "held_plain": "", "angle": "", "spark": [views readings], "queue": {"pos", "slot", "account", "platform"} | null}],
+  "whatsnew": {"version": 4, "items": [{"id", "title", "text"}]}
+}
+```
+
+**Money picture** (estimates, never promises). A post pays about **10 days after its link is pasted**: views count 7 days, then a 3-day hold.
+Stages: `at_risk` (net 0: under its campaign's minimum payout; `potential` is what it would earn), `waiting` (over the minimum, link not
+pasted), `earning` (0-7 days), `hold` (7-10 days), `due` (10+ days: should have paid). `pending = waiting + earning`, `approved = hold + due`.
+The build only knows the database's `submitted_at`; the page also counts links ticked on the device (`localStorage` `ce.submitted`) as pasted at
+tick time, using the same rule (`dashboard.money_stage` / `moneyPic()` in the page).
+
+**New status reason codes**: `key_missing` (red; also hides `no_accounts`), `no_campaign_active` (red, amber when one waits on an account),
+`campaign_blocked`, `bench_thin`, `account_reconnect`, `account_idle`, `launch_blocked` (amber: a required automatic step is undone). Notes:
+`campaign_switched` (switch in the last 24 h), `account_warmup`, `launch_todo` (only manual steps left).
+
+**Local-only state (per device, `localStorage`, key prefix `ce.`)**: `submitted` (pasted-link ticks), `launchTicks` (manual checklist steps),
+`payouts` (the payout log `[{id, date, amount, campaign, note}]`), `theme` (dark | light | auto), `accent`, `goal`, `hideMoney`, `tour`, `newsSeen`,
+view and filter choices. Settings → Backup copies them as one text to move to another phone.
+
+**Pages (v4)**: Submit (sticky "Copy next link", share per link), Today (command center: status light with reasons and notes, setup checklist,
+reel hero, money picture, timeline of runs, today's posts per account, next 24 hours), Clips (content library: filters, search, sort, gallery /
+list / queue order), Insights (weekly report, insight cards with confidence, A/B, best hours) and Charts, Money (Earnings with the money
+picture, Payouts log with CSV, Campaigns with lifecycle + bench + switch log, Accounts with the manager), System (Runs & health, Jobs, Activity,
+Help FAQ, printable Report, Settings). `/` or Ctrl+K opens the global search; `g` then `s t c i m p a r h` jumps between pages.

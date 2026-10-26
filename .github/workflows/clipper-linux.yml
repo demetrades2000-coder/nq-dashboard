@@ -1,0 +1,96 @@
+name: clipper-linux
+
+# Tests for the Clip Engine on Ubuntu (the same OS the cloud autopilot runs on). This workflow is SEPARATE from the
+# autopilot chain (clipper-cloud.yml):
+#   * it never runs on the `clipper-cloud` state branch (pushes there happen every 4 hours and carry no code),
+#   * it does not trigger on edits to clipper-cloud.yml (editing that file restarts the live chain; this one never does),
+#   * it has read-only permissions, no secrets, and nothing in it posts, pushes or starts another workflow.
+# The Windows twin is clipper-windows.yml (launcher, Task Scheduler, Credential Manager).
+#
+# What runs: the whole clipper/tests suite (unit, integration, security audit, fake-world end-to-end, resilience) on Python
+# 3.12 with real ffmpeg, then the browser XSS probe in headless Chromium (job `browser`). Typical time: 15-25 minutes.
+on:
+  push:
+    branches-ignore: [clipper-cloud]
+    paths: ["clipper/**", ".github/workflows/clipper-linux.yml"]
+  pull_request:
+    paths: ["clipper/**", ".github/workflows/clipper-linux.yml"]
+  workflow_dispatch:
+
+# a newer push to the same branch / PR replaces a run that is still going
+concurrency:
+  group: clipper-linux-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PYTHONUTF8: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: clipper/requirements.txt
+
+      - name: Install ffmpeg
+        run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+
+      - name: Install Python packages
+        run: python -m pip install -q -r clipper/requirements.txt gdown pyflakes
+
+      - name: Compile and lint (syntax errors and undefined names fail the build)
+        working-directory: clipper
+        run: |
+          python -m compileall -q .
+          python -m pyflakes *.py | tee "$RUNNER_TEMP/pyflakes.txt" || true
+          # only real mistakes fail the job: undefined names / syntax. Unused imports are reported, not fatal.
+          if grep -E "undefined name|syntax error|invalid syntax" "$RUNNER_TEMP/pyflakes.txt"; then exit 1; fi
+
+      - name: Unit, integration, security, end-to-end and resilience tests
+        # the browser XSS tests skip themselves here (no Chromium in this job); the `browser` job runs them
+        timeout-minutes: 35
+        run: timeout 33m python -m unittest discover -s clipper/tests -p "test_*.py" -v
+
+  browser:
+    # Renders the dashboard in headless Chromium with hostile strings in every field and proves nothing executes.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONUTF8: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: clipper/requirements.txt
+
+      - name: Install ffmpeg
+        run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+
+      - name: Install Python packages
+        run: python -m pip install -q -r clipper/requirements.txt gdown
+
+      - name: Install Playwright and Chromium
+        run: |
+          mkdir -p "$RUNNER_TEMP/pw" && cd "$RUNNER_TEMP/pw"
+          npm init -y >/dev/null
+          npm install --silent playwright@1.56.1
+          npx playwright install --with-deps chromium
+
+      - name: Dashboard XSS probe
+        env:
+          PW_MODULE: ${{ runner.temp }}/pw/node_modules/playwright/index.mjs
+          PW_USE_DEFAULT_BROWSER: "1"
+        run: timeout 20m python -m unittest discover -s clipper/tests -p "test_security.py" -k XssInBrowser -v

@@ -130,8 +130,26 @@ def wrap(toks, fnt, max_w) -> list[list[tuple[str, bool]]]:
     return lines
 
 
+def balance(toks, f, max_w, lines):
+    """Narrowest wrap width that keeps the same line count: lines come out even, no one-word orphan on the last line.
+    Pure typography: same words, same size, only the break points move (the widest line never grows)."""
+    n = len(lines)
+    if n < 2:
+        return lines
+    lo, hi, best = max_w * 0.5, max_w, lines
+    for _ in range(9):
+        mid = (lo + hi) / 2
+        cand = wrap(toks, f, mid)
+        if len(cand) <= n and max((line_width(l, f) for l in cand), default=0) <= max_w:
+            best, hi = cand, mid
+        else:
+            lo = mid
+    return best
+
+
 def fit(text, role, max_w, max_h, max_size, min_size=36, lh=1.1):
-    """Largest font size whose wrapped text fits (max_w, max_h). Returns (font, lines, line_h, height)."""
+    """Largest font size whose wrapped text fits (max_w, max_h). Returns (font, lines, line_h, height).
+    Multi-line text is balanced (see balance)."""
     toks = tokens(text)
     size = max_size
     max_w = max_w - 6                                   # ink can overhang the advance width by a pixel or two
@@ -142,7 +160,7 @@ def fit(text, role, max_w, max_h, max_size, min_size=36, lh=1.1):
         widest = max((line_width(l, f) for l in lines), default=0)
         height = line_h * len(lines)
         if (height <= max_h and widest <= max_w) or size <= min_size:
-            return f, lines, line_h, height
+            return f, balance(toks, f, max_w, lines), line_h, height
         size -= 2
 
 
@@ -283,6 +301,71 @@ def paste_logo(img, logo, width, x, y, center=False):
     return (px, int(y), px + int(width), int(y) + h)
 
 
+def paste_portrait(img, path, size, x, y, th):
+    """Round, accent-ringed crop of a still (square-cropped around the middle-upper part where faces sit)."""
+    im = Image.open(path).convert("RGB")
+    side = min(im.size)
+    left = (im.width - side) // 2
+    top = max(0, int((im.height - side) * 0.25))
+    im = im.crop((left, top, left + side, top + side)).resize((size, size), Image.LANCZOS)
+    mask = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(mask).ellipse((0, 0, size - 1, size - 1), fill=255)
+    ring = Image.new("RGBA", (size + 8, size + 8), (0, 0, 0, 0))
+    ImageDraw.Draw(ring).ellipse((0, 0, size + 7, size + 7), outline=th["accent"] + (255,), width=4)
+    img.alpha_composite(ring, (int(x) - 4, int(y) - 4))
+    img.paste(im, (int(x), int(y)), mask)
+    return (int(x) - 4, int(y) - 4, int(x) + size + 4, int(y) + size + 4)
+
+
+def portrait_from_video(video, out_png, ffmpeg: str = "ffmpeg", min_face_frac: float = 0.006):
+    """A clean still of the speaker for CEO-quote decks, or None when there is no clean frame (no face found, blurry,
+    dark). Picks the best cover frame of the video (covers.best_cover_ms), then requires a face covering at least
+    `min_face_frac` of the frame; crops a square around it. Needs opencv; without it returns None (no portrait)."""
+    try:
+        import cv2
+        import covers
+    except Exception:  # noqa: BLE001
+        return None
+    import subprocess
+    ms, rep = covers.best_cover_ms(video, ffmpeg, skip_title_s=0.0)
+    if not rep.get("has_face") or rep.get("sharp", 0) < 0.5 or rep.get("expo", 0) < 0.8:
+        return None
+    tmp = Path(str(out_png)).with_suffix(".full.png")
+    subprocess.run([ffmpeg, "-y", "-v", "error", "-ss", f"{ms / 1000:.3f}", "-i", str(video), "-frames:v", "1", str(tmp)],
+                   capture_output=True, timeout=120)
+    img = cv2.imread(str(tmp))
+    tmp.unlink(missing_ok=True)
+    if img is None:
+        return None
+    casc = cv2.CascadeClassifier(__import__("os").path.join(cv2.data.haarcascades, "haarcascade_frontalface_default.xml"))
+    g = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    faces = casc.detectMultiScale(g, 1.15, 5, minSize=(60, 60))
+    if not len(faces):
+        return None
+    x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
+    if (w * h) / float(img.shape[0] * img.shape[1]) < min_face_frac:
+        return None
+    side = int(max(w, h) * 2.2)
+    cx, cy = x + w // 2, y + h // 2
+    x0_ = max(0, min(img.shape[1] - side, cx - side // 2))
+    y0_ = max(0, min(img.shape[0] - side, cy - side // 2))
+    crop = img[y0_:y0_ + side, x0_:x0_ + side]
+    if crop.size == 0:
+        return None
+    cv2.imwrite(str(out_png), crop)
+    return Path(out_png)
+
+
+def attach_portrait(deck: dict, png) -> dict:
+    """Put the portrait on the quote slides of a CEO-quote deck (only angle ceo_quote; other decks are left alone)."""
+    if deck.get("angle") == "ceo_quote" and png and Path(str(png)).is_file():
+        for sl in deck["slides"]:
+            if sl["kind"] == "quote":
+                sl["portrait"] = str(png)
+    return deck
+
+
+
 def pill(img, text, x, y, theme, filled=False, size=30, center=False):
     """Rounded label. Translucent parts are drawn on their own layer and composited (RGBA-safe)."""
     f = font("body", size)
@@ -318,6 +401,164 @@ def dots(img, index, total, theme, y):
         x += w + gap
     img.alpha_composite(ov)
     return (int((SAFE[0] + SAFE[2]) / 2 - tw / 2), y - r, int((SAFE[0] + SAFE[2]) / 2 + tw / 2), y + r)
+
+
+
+# ----------------------------------------------------------------------------------------------- layouts
+# A slide keeps its kind (hook / point / quote / cta); "layout" only changes how a hook or point slide is drawn.
+#   number   one big figure as the hero ("$121,000", "9"), the rest of the sentence small around it
+#   fact     the sentence on a bordered card
+#   split    two cards, "left" vs "right" ({"label","text"} each), e.g. myth vs reality
+#   list     numbered checklist, slide["items"] = up to 4 short lines under the slide text
+# Every layout draws inside SAFE and reports its boxes; text is only ever what the slide dict contains.
+_HERO_NUM = re.compile(r"\d")
+
+
+def _hero_index(toks) -> tuple[int, int] | None:
+    """(start, length) of the figure to blow up: the best flagged token with a digit ($ and % beat plain numbers,
+    later beats earlier), plus one flagged unit word after it ("15 years")."""
+    best = None
+    for i, (w, hi) in enumerate(toks):
+        if hi and _HERO_NUM.search(w):
+            rank = (2 if re.search(r"[$%]", w) else 1, i)
+            if best is None or rank >= best[0]:
+                best = (rank, i)
+    if best is None:
+        return None
+    i = best[1]
+    n = 1
+    if i + 1 < len(toks) and toks[i + 1][1] and not _HERO_NUM.search(toks[i + 1][0]) and toks[i + 1][0].isalpha():
+        n = 2
+    return i, n
+
+
+def _layout_number(img, glow, th, slide, boxes, area):
+    x0, top, x1, bottom = area
+    bw = x1 - x0
+    toks = tokens(slide["text"])
+    pos = _hero_index(toks)
+    if pos is None or len(toks) > 16:
+        return False
+    i, n = pos
+    lead, hero, tail = toks[:i], toks[i:i + n], toks[i + n:]
+    hero = [(w.rstrip(".,!?:;"), True) for w, _ in hero]
+    tail_punct = ""
+    sub = slide.get("sub") or ""
+    blocks = []                                           # (kind, font, lines, line_h, h)
+    if lead:
+        f, ln, lh, h = fit(" ".join(("*" + w + "*") if hi else w for w, hi in lead), "display", bw, 220, 66, 22, 1.12)
+        blocks.append(("lead", f, ln, lh, h))
+    f, ln, lh, h = fit(" ".join("*" + w + "*" for w, _ in hero), "display", bw, 340, 300, 60, 1.0)
+    blocks.append(("hero", f, ln, lh, h))
+    if tail:
+        f, ln, lh, h = fit(" ".join(("*" + w + "*") if hi else w for w, hi in tail), "display", bw, 240, 66, 22, 1.12)
+        blocks.append(("tail", f, ln, lh, h))
+    if sub:
+        f, ln, lh, h = fit(sub, "body", bw, 200, 44, 22, 1.3)
+        blocks.append(("sub", f, ln, lh, h))
+    gap = 34
+    total = sum(b[4] for b in blocks) + gap * (len(blocks) - 1) + 50
+    y = top + max(0, (bottom - top - total) * 9 // 20)
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle((x0, y, x0 + 110, y + 10), 5, fill=th["accent"])
+    boxes["bar"] = (x0, y, x0 + 110, y + 10)
+    y += 50
+    for kind_, f, ln, lh, h in blocks:
+        col = th["muted"] if kind_ == "sub" else th["text"]
+        boxes[kind_ if kind_ != "hero" else "text"] = draw_lines(img, glow, ln, f, x0, y, lh, col, th["accent"])
+        y += h + gap
+    return True
+
+
+def _panel(img, box, th, accent=False, radius=34):
+    ov = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    dd = ImageDraw.Draw(ov)
+    if accent:
+        dd.rounded_rectangle(box, radius, fill=th["accent"] + (26,), outline=th["accent"] + (200,), width=3)
+    else:
+        dd.rounded_rectangle(box, radius, fill=(255, 255, 255, 14), outline=(255, 255, 255, 60), width=2)
+    img.alpha_composite(ov)
+    return box
+
+
+def _layout_fact(img, glow, th, slide, boxes, area):
+    x0, top, x1, bottom = area
+    bw = x1 - x0
+    pad = 46
+    sub = slide.get("sub") or ""
+    sub_h = 0
+    if sub:
+        fs, sl, slh, sub_h = fit(sub, "body", bw - 2 * pad, 200, 44, 22, 1.3)
+    avail = bottom - top - 2 * pad - (sub_h + 40 if sub else 0) - 40
+    f, lines, lh, h = fit(slide["text"], "display", bw - 2 * pad - 24, avail, 96, 22, 1.08)
+    ph = h + 2 * pad + (sub_h + 40 if sub else 0)
+    y = top + max(0, (bottom - top - ph) * 9 // 20)
+    boxes["panel"] = _panel(img, (x0, y, x1, y + ph), th, accent=True)
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle((x0 + 22, y + pad, x0 + 32, y + pad + h), 5, fill=th["accent"])
+    boxes["text"] = draw_lines(img, glow, lines, f, x0 + pad + 24, y + pad, lh, th["text"], th["accent"])
+    if sub:
+        boxes["sub"] = draw_lines(img, glow, sl, fs, x0 + pad + 24, boxes["text"][3] + 40, slh, th["muted"], th["accent"])
+    return True
+
+
+def _layout_split(img, glow, th, slide, boxes, area):
+    x0, top, x1, bottom = area
+    bw = x1 - x0
+    left, right = slide.get("left"), slide.get("right")
+    if not (left and right):
+        return False
+    head_h = 0
+    y = top
+    if slide.get("text"):
+        f, ln, lh, head_h = fit(slide["text"], "display", bw, 220, 76, 24, 1.1)
+        boxes["text"] = draw_lines(img, glow, ln, f, x0, y, lh, th["text"], th["accent"])
+        y += head_h + 40
+    free = bottom - y - 20
+    ph = (free - 70) // 2
+    pad = 36
+    for k, (side, acc) in enumerate(((left, False), (right, True))):
+        py = y + k * (ph + 70)
+        boxes[("left", "right")[k]] = _panel(img, (x0, py, x1, py + ph), th, accent=acc)
+        lab = pill(img, str(side.get("label", "")).upper(), x0 + pad, py + pad, th, filled=acc, size=26)
+        fs_, ln_, lh_, h_ = fit(side["text"], "display", bw - 2 * pad, ph - 2 * pad - 70, 70, 22, 1.1)
+        boxes[("left_text", "right_text")[k]] = draw_lines(img, glow, ln_, fs_, x0 + pad, lab[3] + 24, lh_,
+                                                            th["muted"] if not acc else th["text"], th["accent"])
+    cy = y + ph + 35
+    d = ImageDraw.Draw(img)
+    fv = font("body", 30)
+    d.ellipse((x0 + bw // 2 - 34, cy - 34, x0 + bw // 2 + 34, cy + 34), fill=(12, 16, 16), outline=th["accent"], width=3)
+    d.text((x0 + bw // 2, cy), "VS", font=fv, fill=th["accent"], anchor="mm")
+    boxes["vs"] = (x0 + bw // 2 - 34, cy - 34, x0 + bw // 2 + 34, cy + 34)
+    return True
+
+
+def _layout_list(img, glow, th, slide, boxes, area):
+    x0, top, x1, bottom = area
+    bw = x1 - x0
+    items = [str(i) for i in (slide.get("items") or []) if str(i).strip()][:4]
+    if len(items) < 2:
+        return False
+    y = top
+    f, ln, lh, h = fit(slide["text"], "display", bw, 240, 80, 24, 1.1)
+    boxes["text"] = draw_lines(img, glow, ln, f, x0, y, lh, th["text"], th["accent"])
+    y += h + 50
+    free = bottom - y - 10
+    row = min(250, free // len(items))
+    d = ImageDraw.Draw(img)
+    fn = font("display", 52)
+    for k, it in enumerate(items):
+        ry = y + k * row
+        cx, cy = x0 + 48, ry + 48
+        d.ellipse((cx - 44, cy - 44, cx + 44, cy + 44), fill=th["accent"])
+        d.text((cx, cy), str(k + 1), font=fn, fill=(4, 12, 6), anchor="mm")
+        fi, li, lhi, hi_ = fit(it, "display", bw - 130, row - 24, 62, 22, 1.1)
+        b = draw_lines(img, glow, li, fi, x0 + 120, ry + max(0, 48 - hi_ // 2), lhi, th["text"], th["accent"])
+        boxes[f"item{k + 1}"] = (x0, ry + 4, max(b[2], x0 + 92), max(b[3], ry + 92))
+    return True
+
+
+LAYOUTS = {"number": _layout_number, "fact": _layout_fact, "split": _layout_split, "list": _layout_list}
 
 
 # ----------------------------------------------------------------------------------------------- slides
@@ -379,10 +620,16 @@ def render_slide(slide: dict, index: int, total: int, logo_path, theme=None):
         bottom = y1 - 110                                  # room for dots
         sub = slide.get("sub") or ""
 
-        if kind == "quote":
+        laid = False
+        if slide.get("layout") in LAYOUTS and kind in ("hook", "point"):
+            laid = LAYOUTS[slide["layout"]](img, glow, th, slide, boxes, (x0, top, x1, bottom))
+        if laid:
+            pass
+        elif kind == "quote":
             # block = big quote mark (+ context to its right) / quote / attribution, centred in the free space
             fq = font("display", 300)
-            mark_h, attr_h = 190, 46
+            portrait = slide.get("portrait") if slide.get("portrait") and Path(str(slide["portrait"])).is_file() else None
+            mark_h, attr_h = 190, (130 if portrait else 46)
             avail = bottom - top - mark_h - 50 - attr_h
             f, lines, lh, h = fit(slide["text"], "display", bw, avail, 96, lh=1.16)
             qy = top + max(0, (avail - h) * 2 // 5) - 40
@@ -396,8 +643,12 @@ def render_slide(slide: dict, index: int, total: int, logo_path, theme=None):
             boxes["text"] = draw_lines(img, glow, lines, f, x0, qy + mark_h + 10, lh, th["text"], th["accent"])
             ay = boxes["text"][3] + 50
             fa = font("body", 42)
-            d.text((x0, ay + 23), "\u2014 " + th["ceo"], font=fa, fill=th["accent"], anchor="lm")
-            boxes["attribution"] = (x0, ay, int(x0 + fa.getlength("\u2014 " + th["ceo"])), ay + attr_h)
+            ax = x0
+            if portrait:                                  # round crop of the CEO from the footage, next to the name
+                boxes["portrait"] = paste_portrait(img, portrait, 120, x0 + 4, ay + 5, th)
+                ax = x0 + 4 + 120 + 28
+            d.text((ax, ay + (65 if portrait else 23)), "\u2014 " + th["ceo"], font=fa, fill=th["accent"], anchor="lm")
+            boxes["attribution"] = (x0, ay, int(ax + fa.getlength("\u2014 " + th["ceo"])), ay + attr_h)
         else:
             max_size = 150 if kind == "hook" else 112
             sub_h = 0
@@ -685,6 +936,33 @@ BUILTIN_DECKS = [
      ]},
 ]
 
+BUILTIN_DECKS += [
+    {"id": "rule-intraday-vs-eod-split", "angle": "rule_breakdown",
+     "title": "Two kinds of drawdown: which one is your account?",
+     "caption": "Rule breakdown: intraday trailing vs end-of-day drawdown side by side. Check your account's rules.",
+     "slides": [
+         (HK, "*Two* kinds of drawdown. Which one is yours?", "Read this before you pick a prop firm."),
+         (P, "Same name. Different rules.", "",
+          {"layout": "split", "left": {"label": "Intraday", "text": "Follows your *open profit*, tick by tick."},
+           "right": {"label": "End-of-day", "text": "Updates once, at the *close*."}}),
+         (P, "Swings during the session don't move an *EOD* limit.", "Tradever uses EOD drawdown. Read your account's full rules.",
+          {"layout": "fact"}),
+         (P, "Know it *before* you buy.", "The rules page is the first page to read."),
+     ]},
+    {"id": "myth-checklist-before-you-buy", "angle": "myth_buster",
+     "title": "Your prop firm checklist: 3 questions before you buy",
+     "caption": "Before you buy a prop account, check these three rules. Save this one.",
+     "slides": [
+         (HK, "Your prop firm *checklist*.", "Three questions most traders skip."),
+         (P, "Check these before you buy.", "",
+          {"layout": "list", "items": ["How often does it *pay out*?", "Is there a *consistency rule*?",
+                                       "Intraday or *end-of-day* drawdown?"]}),
+         (P, "Tradever: *weekly payouts*, *EOD drawdown*.", "No consistency rule once funded, on select accounts. Check the rules of yours.",
+          {"layout": "fact"}),
+         (P, "Read the rules page *first*.", "Then decide."),
+     ]},
+]
+
 HASHTAGS = {
     "ceo_quote": "#tradever #propfirm #daytrading #futurestrading",
     "payout_story": "#tradever #propfirm #payout #futurestrading",
@@ -710,10 +988,13 @@ def _caption(spec, campaign) -> str:
 
 def _slides(spec) -> list[dict]:
     out = []
-    for kind, text, sub in spec["slides"]:
+    for item in spec["slides"]:
+        kind, text, sub = item[:3]
         s = {"kind": kind, "text": text}
         if sub:
             s["sub"] = sub
+        if len(item) > 3:
+            s.update(item[3])                       # layout / items / left / right
         if kind == "point":
             s["tag"] = TAG_FOR_ANGLE.get(spec["angle"], "")
         if kind == "hook":
@@ -741,8 +1022,15 @@ def verify_deck(deck, campaign, transcript_text=None, from_transcript=False) -> 
         probs.append("caption must end with " + " ".join(mentions))
     if len(deck["title"]) > 90:
         probs.append("title too long")
-    blob = " ".join([deck["title"], deck["caption"]] + [plain(s.get("text", "")) + " " + plain(s.get("sub", ""))
-                                                         for s in slides]).lower()
+    for s_ in slides:
+        if s_.get("layout") and s_["layout"] not in LAYOUTS:
+            probs.append(f"unknown layout {s_['layout']}")
+        if len(s_.get("items") or []) > 4:
+            probs.append("list slide with more than 4 items")
+    blob = " ".join([deck["title"], deck["caption"]] + [
+        plain(s.get("text", "")) + " " + plain(s.get("sub", "")) + " " + " ".join(plain(i) for i in s.get("items") or [])
+        + " " + " ".join(plain(str((s.get(k) or {}).get("text", "")) + " " + str((s.get(k) or {}).get("label", "")))
+                         for k in ("left", "right")) for s in slides]).lower()
     for b in banned_list(campaign):
         if b in blob:
             probs.append(f"banned phrase: {b}")
@@ -759,6 +1047,57 @@ def verify_deck(deck, campaign, transcript_text=None, from_transcript=False) -> 
     return probs
 
 
+# ----------------------------------------------------------------------------------------------- variety + quality
+def hookiness(deck: dict) -> float:
+    """How hooky the first slide is, 0-6: a figure, a question, contrast, "you", a 4-10 word length. Heuristic."""
+    hk = plain(deck["slides"][0].get("text", ""))
+    n = len(hk.split())
+    sc = 0.0
+    sc += 2.0 if re.search(r"\d|\$", hk) else 0.0
+    sc += 1.5 if hk.rstrip().endswith("?") else 0.0
+    sc += 1.0 if re.search(r"\b(but|not|never|instead|only|nobody|stop|don't|doesn't)\b", hk, re.I) else 0.0
+    sc += 0.8 if re.search(r"\byou(r)?\b", hk, re.I) else 0.0
+    sc += 1.2 if 4 <= n <= 10 else (0.4 if n <= 14 else 0.0)
+    return sc
+
+
+def alt_texts(deck: dict) -> list[str]:
+    """Plain-language description of every slide, for the TikTok photo-mode alt text / accessibility field."""
+    n = len(deck["slides"])
+    out = []
+    for i, s in enumerate(deck["slides"]):
+        bits = [plain(s.get("text", ""))]
+        if s.get("sub"):
+            bits.append(plain(s["sub"]))
+        for k in ("left", "right"):
+            if s.get(k):
+                bits.append(f"{s[k].get('label', '')}: {plain(s[k].get('text', ''))}")
+        if s.get("items"):
+            bits.append("; ".join(f"{j + 1}. {plain(x)}" for j, x in enumerate(s["items"])))
+        kind = {"hook": "Title slide", "quote": "Quote slide", "cta": "Call to action"}.get(s["kind"], "Slide")
+        out.append(f"{kind} {i + 1} of {n}: " + " ".join(b for b in bits if b))
+    return out
+
+
+def enhance_deck(deck: dict) -> dict:
+    """Layout variety, deterministic and idempotent: a hook or point with one clear figure becomes a big-number
+    slide, rule-breakdown points become fact cards. Slides that already name a layout keep it. Adds alt texts.
+    Never changes any text, so quote / number verification is unaffected."""
+    figs = 0
+    for s in deck["slides"][:-1]:
+        if s.get("layout") or s["kind"] not in ("hook", "point"):
+            continue
+        toks = tokens(s["text"])
+        pos = _hero_index(toks)
+        if pos and len(toks) <= 14 and figs < 2 and not (s["kind"] == "point" and len(toks) > 10):
+            s["layout"] = "number"
+            figs += 1
+        elif s["kind"] == "point" and deck.get("angle") == "rule_breakdown" and len(toks) <= 16:
+            s["layout"] = "fact"
+    deck["alt"] = alt_texts(deck)
+    return deck
+
+
 def decks_from_transcript(transcript_text: str, campaign: dict, mine: int = 40, existing_ids=()) -> list[dict]:
     """All decks whose quotes/numbers check out against the transcript, plus the built-in rule decks.
     Order rotates hook angles (ceo quote, myth buster, rule breakdown, payout story...). The hand-written decks come
@@ -771,7 +1110,7 @@ def decks_from_transcript(transcript_text: str, campaign: dict, mine: int = 40, 
             continue
         if verify_deck(deck, campaign, transcript_text, from_transcript=from_tx):
             continue
-        decks.append(deck)
+        decks.append(enhance_deck(deck))
     # rotate angles so --limit N gives a mix
     buckets: dict[str, list] = {}
     for d in decks:
@@ -1381,9 +1720,18 @@ def mine_decks(transcript_text, campaign, existing_ids=(), limit=40) -> list[dic
         if len(decks) >= max(limit or 0, 40):
             break
     # rotate angles so any prefix is a mix; inside an angle the best passage first
+    # rank by passage quality + how hooky the first slide is; a 4th deck on a theme an angle already covered 3 times
+    # moves behind the others (still returned: the cap only re-orders, so a long run never runs dry)
     buckets: dict = {a: [] for a in ANGLE_ORDER}
-    for d, sc in sorted(decks, key=lambda x: (-x[1], x[0]["id"])):
-        buckets[d["angle"]].append(d)
+    later: dict = {a: [] for a in ANGLE_ORDER}
+    seen_theme: dict = {}
+    for d, sc in sorted(decks, key=lambda x: (-(x[1] + 0.35 * hookiness(x[0])), x[0]["id"])):
+        blob = plain(d["slides"][0].get("text", "")) + " " + " ".join(plain(x.get("text", "")) for x in d["slides"][1:3])
+        theme = (d["angle"], min(_topics(blob), default=""))
+        seen_theme[theme] = seen_theme.get(theme, 0) + 1
+        (buckets if seen_theme[theme] <= 3 or not theme[1] else later)[d["angle"]].append(d)
+    for a in ANGLE_ORDER:
+        buckets[a] += later[a]
     skip = set(existing_ids or ())
     out = []
     while any(buckets.values()):
@@ -1391,7 +1739,7 @@ def mine_decks(transcript_text, campaign, existing_ids=(), limit=40) -> list[dic
             if buckets[a]:
                 d = buckets[a].pop(0)
                 if d["id"] not in skip:
-                    out.append(d)
+                    out.append(enhance_deck(d))
     return out[:limit] if limit else out
 
 

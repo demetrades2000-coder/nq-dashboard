@@ -72,12 +72,33 @@ def delete_key() -> None:
             pass
 
 
+RATE: dict = {}          # last X-RateLimit-* headers seen: {"limit", "remaining", "reset", "ts"}
+_RETRY_AFTER: list = [None]
+
+
+def _note_headers(h) -> None:
+    """Remember Zernio's rate-limit headers (free plan: 60 requests a minute) so callers can see their headroom."""
+    get = getattr(h, "get", None)
+    if not get:
+        return
+    try:
+        if get("X-RateLimit-Remaining") is not None:
+            RATE.update(limit=int(get("X-RateLimit-Limit") or 0), remaining=int(get("X-RateLimit-Remaining")),
+                        reset=int(get("X-RateLimit-Reset") or 0), ts=time.time())
+        ra = get("Retry-After")
+        _RETRY_AFTER[0] = int(float(ra)) if ra not in (None, "") else None
+    except (TypeError, ValueError):
+        pass
+
+
 def _http(method: str, url: str, data: bytes | None, headers: dict, timeout: int = 900):
     req = urllib.request.Request(url, data=data, method=method, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
+            _note_headers(getattr(r, "headers", None))
             return r.status, r.read()
     except urllib.error.HTTPError as e:
+        _note_headers(getattr(e, "headers", None))
         return e.code, e.read()
 
 
@@ -90,6 +111,7 @@ def _call(method: str, url: str, body=None, headers=None, http=None, sleep=time.
         headers["Content-Type"] = "application/json"
     last = None
     for i in range(tries):
+        _RETRY_AFTER[0] = None
         try:
             status, out = http(method, url, data, headers)
         except (urllib.error.URLError, ConnectionError, TimeoutError, OSError) as e:
@@ -98,13 +120,20 @@ def _call(method: str, url: str, body=None, headers=None, http=None, sleep=time.
                 sleep(2 ** (i + 1))
                 continue
             raise ZernioError(f"network error talking to Zernio: {e}") from e
+        retry_after = _RETRY_AFTER[0]
         if status in (429, 500, 502, 503, 504) and i < tries - 1:
-            sleep(2 ** (i + 1) * (3 if status == 429 else 1))
+            wait = 2 ** (i + 1) * (3 if status == 429 else 1)
+            if retry_after:
+                wait = max(wait, min(retry_after, 120))   # Zernio says how long to wait: respect it (capped)
+            sleep(wait)
             continue
         try:
             parsed = json.loads(out.decode() or "{}") if out else {}
         except Exception:
             parsed = {"raw": out[:300].decode("utf-8", "replace") if isinstance(out, bytes) else str(out)}
+        if status == 409 and isinstance(parsed, dict) and parsed.get("code") == "idempotency_conflict" and i < tries - 1:
+            sleep(min(retry_after or 2, 30))   # the first request with this key is still being processed
+            continue
         return status, parsed
     raise ZernioError(f"Zernio request failed: {last}")
 
@@ -180,9 +209,67 @@ def _platform_entry(post: dict, platform: str) -> dict:
     return {}
 
 
+def _create_post(body: dict, auth: dict, platform: str, schedule: dict | None, idempotency_key: str | None,
+                 on_created, http, sleep) -> dict:
+    """POST /v1/posts (now, or at a scheduled time) and read the answer.
+
+    * idempotency_key: Zernio returns the ORIGINAL post when the same key is sent again within 24 hours, so a run
+      that crashed after Zernio accepted a post cannot create it twice when the next run tries again.
+    * a 409 with details.existingPostId means Zernio already has this exact post: that is success, not an error.
+    * on_created(publish_id) is called the moment Zernio answers, before anything else can fail, so the caller can
+      record the post id first.
+    """
+    headers = dict(auth)
+    if idempotency_key:
+        headers["Idempotency-Key"] = idempotency_key[:255]
+    if schedule:
+        body.pop("publishNow", None)
+        body["scheduledFor"] = schedule["scheduledFor"]
+        body["timezone"] = schedule.get("timezone") or "UTC"
+    st, out = _call("POST", f"{API}/posts", body, headers, http, sleep)
+    if st == 409 and isinstance(out, dict) and (out.get("details") or {}).get("existingPostId"):
+        pid = str(out["details"]["existingPostId"])
+        if on_created:
+            on_created(pid)
+        return {"remote_id": None, "url": None, "state": "processing", "publish_id": pid,
+                "notes": ["Zernio already had this exact post; its link is picked up on the next check"],
+                "scheduled_for": None}
+    if st >= 400:
+        raise ZernioError(_explain(st, out))
+    post = out.get("post") if isinstance(out.get("post"), dict) else out
+    pid = post.get("_id") or post.get("id")
+    if pid and on_created:
+        on_created(str(pid))
+    pe = _platform_entry(post, platform)
+    if str(pe.get("status", "")).lower() in ("failed", "error"):
+        raise ZernioError(f"{platform} rejected the post: {pe.get('errorMessage') or pe.get('error') or pe}")
+    url = _find_url(pe) or _find_url(post)
+    when = post.get("scheduledFor") if schedule else None
+    notes = []
+    if schedule and not url:
+        notes.append(f"scheduled on Zernio for {schedule['scheduledFor']} ({schedule.get('timezone') or 'UTC'}); "
+                     "the link is picked up after it publishes")
+    elif not url:
+        notes.append("published; link not returned yet (checked again next cycle)")
+    return {"remote_id": pe.get("platformPostId"), "url": url, "state": "live" if url else "processing",
+            "notes": notes, "publish_id": str(pid) if pid else None, "scheduled_for": when or
+            (schedule["scheduledFor"] if schedule else None)}
+
+
+def _tiktok_video_settings(privacy: str, paid: bool) -> dict:
+    tts = {"privacy_level": "PUBLIC_TO_EVERYONE" if privacy == "public" else "SELF_ONLY",
+           "allow_comment": True, "allow_duet": True, "allow_stitch": True,
+           "content_preview_confirmed": True, "express_consent_given": True}
+    if paid:   # a paid campaign post is a paid partnership (TikTok's "branded content" label)
+        tts["commercialContentType"] = "brand_content"
+    return tts
+
+
 def upload(path: Path, platform: str, account: str, caption: str, paid: bool = False, privacy: str = "public",
-           consent: bool = False, http=None, sleep=time.sleep) -> dict:
-    """Publish one clip now. Returns {remote_id, url, state, notes, publish_id}."""
+           consent: bool = False, http=None, sleep=time.sleep, schedule: dict | None = None,
+           idempotency_key: str | None = None, on_created=None) -> dict:
+    """Publish one clip now (or at `schedule` = {"scheduledFor": "2026-10-26T18:41:00", "timezone": "America/New_York"}).
+    Returns {remote_id, url, state, notes, publish_id, scheduled_for}."""
     if platform == "tiktok" and not consent:
         raise ZernioError("TikTok requires your consent for automated posts: run `pipeline.py zernio auth` and accept")
     auth = _auth()
@@ -202,30 +289,16 @@ def upload(path: Path, platform: str, account: str, caption: str, paid: bool = F
     body = {"content": caption, "mediaItems": [{"type": "video", "url": pre["publicUrl"]}],
             "platforms": [entry], "publishNow": True}
     if platform == "tiktok":
-        tts = {"privacy_level": "PUBLIC_TO_EVERYONE" if privacy == "public" else "SELF_ONLY",
-               "allow_comment": True, "allow_duet": True, "allow_stitch": True,
-               "content_preview_confirmed": True, "express_consent_given": True}
-        if paid:   # a paid campaign post is a paid partnership (TikTok's "branded content" label)
-            tts["commercialContentType"] = "brand_content"
+        tts = _tiktok_video_settings(privacy, paid)
         body["tiktokSettings"] = tts  # docs show both placements; send both
         entry["platformSpecificData"] = {"tiktokSettings": tts}
-    st, out = _call("POST", f"{API}/posts", body, auth, http, sleep)
-    if st >= 400:
-        raise ZernioError(_explain(st, out))
-    post = out.get("post") if isinstance(out.get("post"), dict) else out
-    pe = _platform_entry(post, platform)
-    if str(pe.get("status", "")).lower() in ("failed", "error"):
-        raise ZernioError(f"{platform} rejected the post: {pe.get('errorMessage') or pe.get('error') or pe}")
-    url = _find_url(pe) or _find_url(post)
-    pid = post.get("_id") or post.get("id")
-    notes = [] if url else ["published; link not returned yet (checked again next cycle)"]
-    return {"remote_id": pe.get("platformPostId"), "url": url, "state": "live" if url else "processing",
-            "notes": notes, "publish_id": str(pid) if pid else None}
+    return _create_post(body, auth, platform, schedule, idempotency_key, on_created, http, sleep)
 
 
 def upload_photos(images: list, platform: str, account: str, title: str, caption: str, paid: bool = False,
-                  privacy: str = "public", consent: bool = False, http=None, sleep=time.sleep) -> dict:
-    """Publish a photo carousel (TikTok slideshow) now: each image is presigned and uploaded, then one post."""
+                  privacy: str = "public", consent: bool = False, http=None, sleep=time.sleep,
+                  schedule: dict | None = None, idempotency_key: str | None = None, on_created=None) -> dict:
+    """Publish a photo carousel (TikTok slideshow) now or at `schedule`: each image is presigned and uploaded, then one post."""
     if platform != "tiktok":
         raise ZernioError("photo carousels are only set up for TikTok")
     if not consent:
@@ -256,18 +329,36 @@ def upload_photos(images: list, platform: str, account: str, title: str, caption
     entry = {"platform": platform, "accountId": acct_id, "platformSpecificData": {"tiktokSettings": tts}}
     body = {"content": (title or "")[:90], "mediaItems": items, "platforms": [entry], "publishNow": True,
             "tiktokSettings": tts}
-    st, out = _call("POST", f"{API}/posts", body, auth, http, sleep)
+    return _create_post(body, auth, platform, schedule, idempotency_key, on_created, http, sleep)
+
+
+def accounts_health(http=None, sleep=time.sleep) -> dict[str, dict]:
+    """{accountId or username: {"can_post", "needs_reconnect", "status", "issues"}} from GET /v1/accounts/health.
+    Fields Zernio leaves out are left out here too (callers treat missing as 'no problem reported')."""
+    st, body = _call("GET", f"{API}/accounts/health", headers=_auth(), http=http, sleep=sleep)
     if st >= 400:
-        raise ZernioError(_explain(st, out))
-    post = out.get("post") if isinstance(out.get("post"), dict) else out
-    pe = _platform_entry(post, platform)
-    if str(pe.get("status", "")).lower() in ("failed", "error"):
-        raise ZernioError(f"{platform} rejected the carousel: {pe.get('errorMessage') or pe.get('error') or pe}")
-    url = _find_url(pe) or _find_url(post)
-    pid = post.get("_id") or post.get("id")
-    return {"remote_id": pe.get("platformPostId"), "url": url, "state": "live" if url else "processing",
-            "notes": [] if url else ["published; link not returned yet (checked again next cycle)"],
-            "publish_id": str(pid) if pid else None}
+        raise ZernioError(_explain(st, body))
+    out = {}
+    for a in (body.get("accounts") if isinstance(body, dict) else None) or []:
+        if not isinstance(a, dict):
+            continue
+        info = {k: a[k] for k in ("canPost", "needsReconnect", "status", "tokenValid", "issues") if k in a}
+        for key in (a.get("accountId"), a.get("_id"), a.get("id"), a.get("username")):
+            if key:
+                out[str(key)] = info
+    return out
+
+
+def delete_post(post_id: str, http=None, sleep=time.sleep) -> bool:
+    """Remove a not-yet-published (scheduled) post from Zernio. True when it is gone."""
+    st, _ = _call("DELETE", f"{API}/posts/{post_id}", headers=_auth(), http=http, sleep=sleep)
+    return st < 400 or st == 404
+
+
+def retry_post(post_id: str, http=None, sleep=time.sleep) -> bool:
+    """Ask Zernio to publish a failed post again (its media is already stored there). True when accepted."""
+    st, _ = _call("POST", f"{API}/posts/{post_id}/retry", {}, _auth(), http, sleep)
+    return st < 400
 
 
 _STATS: dict[str, tuple[float, dict]] = {}

@@ -255,7 +255,7 @@ class EmptyAndDemoTests(unittest.TestCase):
             d = dashboard.build_data(ws)
             ws.close()
             trad = {a["name"]: a for a in d["accounts_detail"] if "Tradever (prop firm)" in a["campaigns"]}
-            self.assertEqual(set(trad), {"tradever.clips", "tradever.daily"})
+            self.assertEqual(set(trad), {"tradever.clips", "tradever.daily", "tradever.trades"})
             self.assertTrue(all(a["platform"] == "tiktok" for a in trad.values()))
             self.assertEqual(trad["tradever.clips"]["status"], "at_cap")
             self.assertLess(trad["tradever.daily"]["today"], trad["tradever.daily"]["cap"])

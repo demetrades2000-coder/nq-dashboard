@@ -14,6 +14,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+import urllib.error
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -289,6 +290,204 @@ class CloudRunnerTests(unittest.TestCase):
         self.assertNotIn("alpha-futures.json", names)      # bans tools
         self.assertNotIn("aixfunded.json", names)          # not confirmed
         self.assertNotIn("_template.json", names)
+
+
+U = ["%08x-0000-4000-8000-%012x" % (i, i) for i in range(1, 12)]
+
+
+class CatalogueTests(unittest.TestCase):
+    def listing(self, pages):
+        """A fake `get`: url suffix -> list of ids (or an Exception)."""
+        def get(url):
+            key = url.split("/c/", 1)[1]
+            if key.startswith("campaigns/"):
+                return page(name=f"Camp {key[10:18]}")
+            v = pages.get(key)
+            if isinstance(v, Exception):
+                raise v
+            if v is None:
+                raise urllib.error.HTTPError(url, 404, "nf", {}, None)
+            return " ".join(f'<a href="/c/campaigns/{i}">x</a>' for i in v)
+        return get
+
+    def test_paginated_listings_are_followed_until_a_page_adds_nothing_new(self):
+        get = self.listing({"discover": U[0:2], "discover/clipping?page=1": U[2:4], "discover/clipping?page=2": U[4:5],
+                            "discover/clipping?page=3": U[4:5], "discover/clipping?page=4": U[9:10],
+                            "discover/ugc?page=1": U[5:6]})
+        self.assertEqual(crw.catalogue_ids(get), sorted(U[0:6]))        # page 4 is never read: page 3 had nothing new
+
+    def test_one_broken_listing_does_not_lose_the_others(self):
+        get = self.listing({"discover": RuntimeError("boom"), "discover/clipping?page=1": U[0:2],
+                            "discover/ugc?page=1": U[2:3], "discover/ugc?page=2": RuntimeError("500")})
+        self.assertEqual(crw.catalogue_ids(get), sorted(U[0:3]))
+
+    def test_discover_parses_every_campaign_and_skips_known_useless_ones(self):
+        get = self.listing({"discover": U[0:3]})
+        got = crw.discover(get, workers=2)
+        self.assertEqual(sorted(c["id"] for c in got), sorted(U[0:3]))
+        got = crw.discover(get, workers=2, skip_ids=[U[0]])
+        self.assertEqual(sorted(c["id"] for c in got), sorted(U[1:3]))
+        self.assertEqual(len(crw.discover(get, workers=2, pages=False)), 3)
+
+
+class LeadFilterTests(unittest.TestCase):
+    def lead(self, **kw):
+        c = crw.parse_campaign(page(**{k: v for k, v in kw.items() if k in ("name", "org", "budget", "spent", "types", "app",
+                                                                           "accepting", "status", "cats")}), U[0])
+        return c
+
+    def test_filters(self):
+        ok = lambda **kw: crw.lead_ok(self.lead(**kw))                                   # noqa: E731
+        self.assertEqual(ok(), (True, ""))
+        self.assertIn("application", ok(app=True)[1])
+        self.assertIn("clipping", ok(types=("UGC (With Face)",))[1])
+        self.assertIn("skip-list", ok(org="Reach")[1])
+        self.assertIn("skip-list", ok(name="TJR Futures Clips")[1])
+        self.assertIn("skip-list", ok(org="Alpha Futures")[1])
+        self.assertIn("skip-list", ok(name="Alpha Capital Group clipping")[1])
+        self.assertIn("skip-list", ok(org="Clipping.net")[1])
+        self.assertIn("adult or gambling", ok(name="Stake Casino")[1])
+        self.assertIn("English", ok(name="Campagne en Français")[1])
+        self.assertIn("English", ok(name="\u0411\u0438\u0442\u043a\u043e\u0438\u043d \u043a\u043b\u0438\u043f\u044b")[1])
+        self.assertIn("budget", ok(spent=199990)[1])
+        self.assertIn("budget", ok(accepting=False)[1])
+        c = self.lead()
+        c["rates"] = {"youtube": {"cpm": 3}}
+        self.assertIn("pay on tiktok", crw.lead_ok(c)[1])
+        self.assertEqual(crw.lead_ok(self.lead(org="Reach"), ban=[])[0], True)            # an empty skip-list skips nobody
+
+
+class RefreshLiveTests(unittest.TestCase):
+    def setUp(self):
+        import cloud_runner
+        self.cr = cloud_runner
+        self.tmp = Path(tempfile.mkdtemp(prefix="clipper-live-"))
+        self.ws = pl.WS(str(self.tmp / "ws"))
+        self.files = []
+        for i, n in enumerate(("One", "Two")):
+            c = {"name": n, "automation_allowed": True, "cpm": 5, "min_payout": 7,
+                 "permission": {"campaign_url": f"https://contentrewards.com/c/campaigns/{U[i]}"}}
+            f = self.tmp / f"{n}.json"
+            f.write_text(json.dumps(c))
+            self.files.append(f)
+        self.pages = {U[0]: crw.parse_campaign(page(), U[0]), U[1]: crw.parse_campaign(page(budget=300000, spent=1000), U[1])}
+
+    def tearDown(self):
+        self.ws.close()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def fetch(self, url):
+        v = self.pages[crw.campaign_id(url)]
+        if isinstance(v, Exception):
+            raise v
+        return v
+
+    def gone(self, url="u"):
+        return urllib.error.HTTPError(url, 404, "nf", {}, None)
+
+    def test_pause_resume_and_the_rate_note(self):
+        self.pages[U[0]] = crw.parse_campaign(page(spent=199990), U[0])
+        notes = self.cr.refresh_live(self.ws, {}, self.fetch, self.files)
+        self.assertTrue(any("One paused automatically" in n for n in notes))
+        live = self.ws.setting("campaign_live.One")
+        self.assertFalse(live["ok"])
+        self.assertTrue(live["reachable"])
+        self.pages[U[0]] = crw.parse_campaign(page(), U[0])
+        notes = self.cr.refresh_live(self.ws, {}, self.fetch, self.files)
+        self.assertTrue(any("One resumed" in n for n in notes))
+
+    def test_a_failed_check_keeps_the_last_status_and_counts_failures(self):
+        self.cr.refresh_live(self.ws, {}, self.fetch, self.files)
+        self.pages[U[0]] = urllib.error.HTTPError("u", 500, "boom", {}, None)
+        notes = self.cr.refresh_live(self.ws, {}, self.fetch, self.files)
+        self.assertTrue(any("live check failed" in n for n in notes))
+        live = self.ws.setting("campaign_live.One")
+        self.assertTrue(live["ok"])                                   # last known status kept
+        self.assertEqual((live["reachable"], live["fail_count"], live["gone_count"]), (False, 1, 0))
+
+    def test_only_a_real_404_counts_as_gone_and_never_when_every_page_fails_together(self):
+        self.pages[U[0]] = self.gone()
+        self.cr.refresh_live(self.ws, {}, self.fetch, self.files)
+        self.assertEqual(self.ws.setting("campaign_live.One")["gone_count"], 1)
+        self.cr.refresh_live(self.ws, {}, self.fetch, self.files)
+        self.assertEqual(self.ws.setting("campaign_live.One")["gone_count"], 2)
+        self.pages[U[0]] = crw.parse_campaign(page(), U[0])
+        self.cr.refresh_live(self.ws, {}, self.fetch, self.files)
+        self.assertEqual(self.ws.setting("campaign_live.One")["gone_count"], 0)           # it came back
+        self.pages[U[0]] = ValueError("page didn't contain campaign data")              # a changed page layout: not "gone"
+        self.cr.refresh_live(self.ws, {}, self.fetch, self.files)
+        self.assertEqual(self.ws.setting("campaign_live.One")["gone_count"], 0)
+        self.pages[U[0]] = self.gone()
+        self.pages[U[1]] = self.gone()                                                   # both at once: the site, not them
+        self.cr.refresh_live(self.ws, {}, self.fetch, self.files)
+        self.assertEqual(self.ws.setting("campaign_live.One")["gone_count"], 0)
+        self.assertEqual(self.ws.setting("campaign_live.Two")["gone_count"], 0)
+
+    def test_banned_campaigns_are_not_fetched(self):
+        c = json.loads(self.files[1].read_text())
+        c["automation_allowed"] = False
+        self.files[1].write_text(json.dumps(c))
+        seen = []
+        self.cr.refresh_live(self.ws, {}, lambda u: seen.append(u) or self.pages[crw.campaign_id(u)], self.files)
+        self.assertEqual(len(seen), 1)
+
+
+class DiscoverLeadsTests(unittest.TestCase):
+    def setUp(self):
+        import cloud_runner
+        self.cr = cloud_runner
+        self.tmp = Path(tempfile.mkdtemp(prefix="clipper-leads-"))
+        self.ws = pl.WS(str(self.tmp / "ws"))
+        self.old_home = cloud_runner.HOME
+        cloud_runner.HOME = self.tmp / "home"
+        (cloud_runner.HOME).mkdir()
+
+    def tearDown(self):
+        self.cr.HOME = self.old_home
+        self.ws.close()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_good_leads_only_at_most_every_12_hours(self):
+        found = [crw.parse_campaign(page(name=f"Finance Clips {i}", org=f"Org{i}"), U[i]) for i in range(3)]
+        found.append(crw.parse_campaign(page(name="Reach Clipping", org="Reach"), U[5]))
+        found.append(crw.parse_campaign(page(name="Needs app", org="Z", app=True), U[6]))
+        state = {}
+        n = self.cr.discover_leads(self.ws, state, discover=lambda: found)
+        self.assertEqual(n, 3)
+        names = [l["name"] for l in self.ws.setting("leads.discovered")]
+        self.assertNotIn("Reach Clipping", names)
+        self.assertNotIn("Needs app", names)
+        self.assertEqual(self.cr.discover_leads(self.ws, state, discover=lambda: 1 / 0), 0)      # within 12 h: not asked again
+        self.assertEqual(set(state["lead_bad"]), {U[5], U[6]})                                    # remembered as useless
+        state["last_discover"] -= 13 * 3600
+        self.assertEqual(self.cr.discover_leads(self.ws, state, discover=lambda: found[:1]), 1)
+
+
+class OnboardAccountMatchTests(unittest.TestCase):
+    def build(self, brief_text):
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            cid = "1cc66d1c-d7bb-4cd6-addb-68093cb50908"
+            fetch = lambda url: crw.parse_campaign(page(name="Acme Prop Firm Clipping| $2k Budget"), cid)
+            p = onboard.build(f"https://contentrewards.com/c/campaigns/{cid}", [], campaigns_dir=tmp, fetch=fetch,
+                              today="2026-10-23", brief_text=brief_text)
+            return json.loads(p.read_text())
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_the_page_word_is_the_account_match(self):
+        self.assertEqual(self.build(BRIEF)["account_match"], "tradever")
+
+    def test_no_page_requirement_means_any_free_page_may_post(self):
+        c = self.build("Clip the podcast with a strong hook. Use #ad. Videos must be 9:16. No bots or fake engagement.")
+        self.assertEqual(c["account_match"], "")
+
+    def test_a_dedicated_page_requirement_without_a_name_word_uses_the_brand_word(self):
+        c = self.build("You must post from a dedicated clipping account. Use #ad. No bots or fake engagement.")
+        self.assertEqual(c["account_match"], "acme")
+
+    def test_without_any_brief_the_cautious_choice_is_a_brand_page(self):
+        self.assertEqual(self.build("")["account_match"], "acme")
 
 
 if __name__ == "__main__":

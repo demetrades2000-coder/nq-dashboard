@@ -4,7 +4,8 @@ Content Rewards (contentrewards.com, Whop's clipping marketplace): read public c
   fetch_campaign(url_or_id) -> {id, name, org, rates{platform: {cpm, min, max}}, budget, spent, left, status,
                                 accepting, creators, views, categories, types, content_rules, requirements,
                                 requires_application, description, url}
-  discover() -> [campaign, ...]   every campaign linked from the public Discover page
+  discover() -> [campaign, ...]   every campaign in the public catalogue (Discover + paginated clipping / UGC listings)
+  lead_ok(campaign) -> (ok, why)  worth suggesting: English, TikTok, clipping, no application, not on data/ban_list.json
   rank(campaigns, prefer=...) -> campaigns sorted by how well they fit the clipper (TikTok rate x budget left,
                                   talking/podcast/finance categories, no application, few rules)
 
@@ -17,6 +18,7 @@ import json
 import re
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 BASE = "https://contentrewards.com/c"
 UA = {"User-Agent": "Mozilla/5.0 (clip-engine)"}
@@ -120,8 +122,40 @@ def fetch_campaign(url_or_id: str, get=_get) -> dict:
     return c
 
 
-def discover(get=_get, workers: int = 8, limit: int = 300) -> list[dict]:
-    ids = sorted(set(re.findall(UUID, get(f"{BASE}/discover"))))[:limit]
+CATALOGUE_PAGES = ("discover", "discover/clipping?page={n}", "discover/ugc?page={n}")
+MAX_CATALOGUE_PAGES = 12
+
+
+def catalogue_ids(get=_get, max_pages: int = MAX_CATALOGUE_PAGES) -> list[str]:
+    """Every campaign id linked from the public catalogue: the Discover page plus the paginated clipping and UGC
+    listings (/c/discover/clipping?page=N, /c/discover/ugc?page=N). A listing stops at the first page that shows no
+    new campaign or fails; one broken listing never loses the others."""
+    seen: dict[str, None] = {}
+    for tmpl in CATALOGUE_PAGES:
+        if "{n}" not in tmpl:
+            try:
+                for i in re.findall(UUID, get(f"{BASE}/{tmpl}")):
+                    seen.setdefault(i, None)
+            except Exception:  # noqa: BLE001
+                pass
+            continue
+        for n in range(1, max_pages + 1):
+            try:
+                found = re.findall(UUID, get(f"{BASE}/{tmpl.format(n=n)}"))
+            except Exception:  # noqa: BLE001
+                break
+            fresh = [i for i in dict.fromkeys(found) if i not in seen]
+            if not fresh:
+                break
+            for i in fresh:
+                seen.setdefault(i, None)
+    return sorted(seen)
+
+
+def discover(get=_get, workers: int = 8, limit: int = 400, pages: bool = True, skip_ids=()) -> list[dict]:
+    """Every campaign in the public catalogue (parsed). `skip_ids` are ids known to be useless (not fetched again)."""
+    ids = catalogue_ids(get) if pages else sorted(set(re.findall(UUID, get(f"{BASE}/discover"))))
+    ids = [i for i in ids if i not in set(skip_ids)][:limit]
 
     def one(cid):
         try:
@@ -144,6 +178,61 @@ def suitable(c: dict) -> tuple[bool, str]:
         return False, "adult or gambling brand"
     if NON_ENGLISH.search(text):
         return False, "not an English campaign"
+    return True, ""
+
+
+DATA_DIR = Path(__file__).resolve().parent / "data"
+
+
+def load_ban_list(path=None) -> list[dict]:
+    """The skip-list of organisations whose rules ban automated tools (data/ban_list.json)."""
+    try:
+        data = json.loads(Path(path or DATA_DIR / "ban_list.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    return [e for e in data.get("orgs", []) if isinstance(e, dict) and e.get("match")]
+
+
+def _word_in(needle: str, hay: str) -> bool:
+    return bool(re.search(r"(?<![a-z0-9])" + re.escape(needle.lower()) + r"(?![a-z0-9])", hay.lower()))
+
+
+def banned_org(c: dict, ban: list[dict] | None = None) -> str | None:
+    """Why this campaign's organisation is on the skip-list, or None."""
+    for e in (load_ban_list() if ban is None else ban):
+        m = str(e["match"])
+        org, name = str(c.get("org") or ""), str(c.get("name") or "")
+        hit = _word_in(m, org) if e.get("mode") == "org" else (_word_in(m, org) or _word_in(m, name))
+        if hit:
+            return f"{m}: {e.get('why') or 'on the skip-list'}"
+    return None
+
+
+def _mostly_ascii(text: str) -> bool:
+    letters = [ch for ch in text if ch.isalpha()]
+    return not letters or sum(ch.isascii() for ch in letters) / len(letters) >= 0.8
+
+
+def lead_ok(c: dict, ban: list[dict] | None = None, platform: str = "tiktok", min_left: float = 25.0) -> tuple[bool, str]:
+    """Is this campaign worth suggesting to the owner? English, pays on TikTok, clipping/slideshow type, no application,
+    not adult/gambling, budget left, and not an organisation known to ban automated tools."""
+    ok, why = suitable(c)
+    if not ok:
+        return False, why
+    if not _mostly_ascii(f"{c.get('name', '')} {c.get('org', '')} {str(c.get('description') or '')[:300]}"):
+        return False, "not an English campaign"
+    why = banned_org(c, ban)
+    if why:
+        return False, f"skip-list ({why})"
+    if not (c.get("rates") or {}).get(platform):
+        return False, f"does not pay on {platform}"
+    types = c.get("types") or []
+    if types and "Clipping" not in types and "Slideshows" not in types:
+        return False, "not a clipping campaign (needs original content)"
+    if c.get("requires_application"):
+        return False, "needs an application"
+    if c.get("accepting") is False or (c.get("left") is not None and c["left"] < min_left):
+        return False, "no budget left"
     return True, ""
 
 

@@ -1,6 +1,25 @@
 # Planner
 
-A white, color-coded calendar and day planner. It syncs between your phone and computer, and your bots can add events to it.
+A white, color-coded calendar, day planner and project tracker. It syncs between your phone and computer, and your bots can add events to it.
+
+## Projects
+
+The **Projects** tab (shortcut `P`) has a card for each project. It starts with Kalshi bot, NQ bot, Jarvis, Clipper and Portfolio. Each card shows:
+
+- Status: Active, Blocked, Paused or Live.
+- The next milestone and its due date. The milestone also appears on the calendar in the project's color.
+- Progress, counted from the project's tasks.
+- Open tasks, with priority and an optional due date.
+- Project-tagged events coming up in the next 30 days.
+- Notes and a link.
+
+To tag something with a project:
+
+- In any task box, write `#name`: `#kalshi fix order sizing`, `#nq review fills`, `#clip`, `#port`.
+- Pick a project in the event editor.
+- Have a bot pass `project=` (see below).
+
+A task with a due date also shows in that day's plan.
 
 - **App (this folder):** a static site with no data in it. It belongs in its own repo, `planner` (public, served by GitHub Pages), so the dashboard bot's publish can never delete it.
 - **Data:** a private repo, `planner-data`.
@@ -54,6 +73,7 @@ python planner_bot.py --bot ATLAS add "Eval ends" 2026-11-14 --type deadline --i
 python planner_bot.py --bot ATLAS list
 ```
 
+- Pass `project="NQ bot"` (or `kalshi`, `jarvis`, `clipper`, `portfolio`) to file an event under a project.
 - Give events a stable `id`. Then re-running updates the event instead of adding a duplicate.
 - Calls that change nothing make no commit, so it's safe to call on every loop.
 - In GitHub Actions, store the key as the repository secret `PLANNER_TOKEN`.
@@ -69,7 +89,7 @@ You can write the file directly from any language:
   "bot": "Zlarior",
   "events": [
     { "id": "ny-open", "title": "NY open", "type": "trading", "date": "2026-10-27", "start": "09:30", "end": "11:30", "repeat": "weekdays", "skip": ["2026-11-26"] },
-    { "id": "payout-nov", "title": "Payout window", "type": "deadline", "date": "2026-11-03", "end_date": "2026-11-05", "notes": "Request before 4pm" }
+    { "id": "payout-nov", "title": "Payout window", "type": "deadline", "date": "2026-11-03", "end_date": "2026-11-05", "project": "NQ bot", "notes": "Request before 4pm" }
   ]
 }
 ```
@@ -79,4 +99,5 @@ Fields:
 - `repeat`: one of `none`, `daily`, `weekdays`, `weekly`, `biweekly`, `monthly`, `yearly`.
 - `until`: the last date a repeating event can happen.
 - `skip`: dates where a repeating event doesn't happen.
+- `project`: a project name or id (optional).
 - Leave out `start`/`end` for an all-day event.

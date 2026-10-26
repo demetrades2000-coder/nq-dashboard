@@ -13,7 +13,7 @@ Python:
     from planner_bot import Planner
     cal = Planner("Zlarior")
     cal.add("NY open", "2026-10-27", type="trading", start="09:30", end="11:30")
-    cal.add("Payout window", "2026-11-03", end_date="2026-11-05", type="deadline", id="payout-nov")
+    cal.add("Payout window", "2026-11-03", end_date="2026-11-05", type="deadline", id="payout-nov", project="NQ bot")
     cal.remove("payout-nov")
     cal.set_events([...])      # replace every event of this bot in one commit
     cal.prune(keep_days=30)    # drop one-off events that ended more than 30 days ago
@@ -77,7 +77,7 @@ def _hm(v, field):
 
 
 def make_event(title, date, type="bots", start=None, end=None, end_date=None, notes="",
-               repeat="none", until=None, skip=None, id=None):
+               repeat="none", until=None, skip=None, id=None, project=None):
     """Validate one event and return it in the bot-file format."""
     if not str(title).strip():
         raise PlannerError("title is required")
@@ -108,6 +108,8 @@ def make_event(title, date, type="bots", start=None, end=None, end_date=None, no
             ev["skip"] = sorted({_ymd(x, "skip") for x in skip})
     if notes:
         ev["notes"] = str(notes)[:2000]
+    if project:
+        ev["project"] = str(project).strip()[:60]
     return ev
 
 
@@ -229,6 +231,7 @@ def main(argv=None):
     a.add_argument("--until", help="last day a repeat can happen")
     a.add_argument("--notes", default="")
     a.add_argument("--id", help="stable id, so re-running updates instead of duplicating")
+    a.add_argument("--project", help="project name, e.g. \"NQ bot\" or kalshi")
     r = sub.add_parser("remove", help="remove an event by id")
     r.add_argument("id")
     sub.add_parser("list", help="print this bot's events")
@@ -240,7 +243,7 @@ def main(argv=None):
         cal = Planner(args.bot)
         if args.cmd == "add":
             changed = cal.add(args.title, args.date, type=args.type, start=args.start, end=args.end, end_date=args.end_date,
-                              repeat=args.repeat, until=args.until, notes=args.notes, id=args.id)
+                              repeat=args.repeat, until=args.until, notes=args.notes, id=args.id, project=args.project)
         elif args.cmd == "remove":
             changed = cal.remove(args.id)
         elif args.cmd == "clear":

@@ -857,6 +857,12 @@ SECRET_RE = re.compile(r"(sk-ant-[A-Za-z0-9_\-]{6})[A-Za-z0-9_\-]+|((?:api[_-]?k
 
 
 def redact(text: str) -> str:
+    text = str(text)
+    for var in ("ZERNIO_API_KEY", "NTFY_TOPIC", "GH_TOKEN", "GITHUB_TOKEN"):   # the exact secret values, wherever they appear
+        v = os.environ.get(var, "").strip()
+        if len(v) >= 6:
+            text = text.replace(v, "REDACTED")
+    text = re.sub(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=\-]+", "Bearer REDACTED", text)
     return SECRET_RE.sub(lambda m: (m.group(1) + "…REDACTED") if m.group(1) else (m.group(2) + "REDACTED"), text)
 
 

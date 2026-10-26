@@ -112,7 +112,12 @@ class WS:
 
     def setting(self, key: str, default=None):
         r = self.q("SELECT value FROM settings WHERE key=?", (key,))
-        return json.loads(r[0]["value"]) if r else default
+        if not r:
+            return default
+        try:
+            return json.loads(r[0]["value"])
+        except (ValueError, TypeError):   # a half-written or hand-edited row must not stop every run
+            return default
 
     def set_setting(self, key: str, value) -> None:
         self.x("INSERT OR REPLACE INTO settings(key, value) VALUES(?, ?)", (key, json.dumps(value)))
@@ -1494,6 +1499,27 @@ def campaign_account(c: dict, platform: str) -> str:
 _ZERNIO_NAMES: dict[str, list[str]] = {}
 
 
+def _rival_brand_words(ws, c: dict, match: str) -> list[str]:
+    """Other campaigns' brand words that contain this one ('tradever' for 'trade'): their pages are not ours."""
+    if ws is None:
+        return []
+    out = []
+    try:
+        import dashboard
+        for d in dashboard.campaign_dirs(ws):
+            for f in d.glob("*.json"):
+                try:
+                    o = json.loads(f.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    continue
+                w = str(o.get("account_match") or "").lower().strip().replace(" ", "") if isinstance(o, dict) else ""
+                if o.get("name") != c.get("name") and w not in ("", "*") and w != match and match in w:
+                    out.append(w)
+    except Exception:  # noqa: BLE001
+        return []
+    return out
+
+
 def campaign_accounts(c: dict, platform: str, via: str = "native", ws: "WS | None" = None) -> list[str]:
     """Every account a campaign posts to on a platform. A list rotates; "*" means every account of that platform
     connected in Zernio (free route). Each clip still goes to exactly ONE of them (no reposting across accounts).
@@ -1520,7 +1546,9 @@ def campaign_accounts(c: dict, platform: str, via: str = "native", ws: "WS | Non
                 _ZERNIO_NAMES[platform] = names
             names = list(_ZERNIO_NAMES[platform])
             if match:   # brand pages: only accounts named for this campaign ("page name must include X")
-                return [n for n in names if match in n.lower().replace(" ", "")]
+                rivals = _rival_brand_words(ws, c, match)
+                return [n for n in names if match in n.lower().replace(" ", "")
+                        and not any(r in n.lower().replace(" ", "") for r in rivals)]
             return names or ["default"]
         return ["default"]
     if isinstance(v, list):
@@ -1951,7 +1979,7 @@ def _upload_step(ws: WS, pol: dict, rep: dict, uploaders, pool: "UploaderPool", 
                     slot = None
                     res = attempt({})
             except Exception as e:  # noqa: BLE001
-                msg = classify(e)[1]
+                msg = cl.redact(classify(e)[1])
                 rep["upload_errors"].append(f"{p}/{acct} #{r['id']}: {msg}")
                 low = msg.lower()
                 if am.is_auth_error(msg):

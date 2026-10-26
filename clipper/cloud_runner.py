@@ -181,22 +181,51 @@ def remap_paths(ws) -> None:
                         break
 
 
+def _hide_money(ws) -> bool:
+    """Public cloud page without dollar figures. CLIP_HIDE_MONEY (repository variable) wins, then the setting
+    publish.hide_money; default ON, because the page and its branch are public."""
+    env = os.environ.get("CLIP_HIDE_MONEY", "").strip().lower()
+    if env:
+        return env not in ("0", "false", "no", "off")
+    try:
+        v = ws.setting("publish.hide_money", None)
+    except Exception:  # noqa: BLE001
+        v = None
+    return True if v is None else bool(v)
+
+
 def link_footage() -> None:
     """The campaign brief reads footage/<name>; point it at the state's footage so imports find it."""
     for cf in CAMPAIGNS:
-        c = json.loads(cf.read_text(encoding="utf-8"))
-        for src in c.get("sources", []):
-            local = cf.parent / src
-            cloud = HOME / "footage" / Path(src).name
-            cloud.mkdir(parents=True, exist_ok=True)
-            local.mkdir(parents=True, exist_ok=True)
-            for f in cloud.glob("*.mp4"):
-                tgt = local / f.name
-                if not tgt.exists():
-                    try:   # a hard link: the file really sits in the campaign's allowed folder (no symlink escape)
-                        os.link(f, tgt)
-                    except OSError:
+        try:
+            _link_campaign_footage(cf)
+        except Exception as e:  # noqa: BLE001  one broken brief must not end the run
+            log(f"link_footage skipped {cf.name}: {type(e).__name__}: {e}")
+
+
+def _link_campaign_footage(cf) -> None:
+    c = json.loads(cf.read_text(encoding="utf-8"))
+    base = cf.parent.resolve()
+    for src in (c.get("sources") or []):
+        if not isinstance(src, str) or not src.strip():
+            continue
+        local = (cf.parent / src).resolve()
+        if local != base and base not in local.parents:   # a brief must not make folders outside the campaigns directory
+            log(f"link_footage: {src!r} in {cf.name} points outside the campaign folder; skipped")
+            continue
+        cloud = HOME / "footage" / Path(src).name
+        cloud.mkdir(parents=True, exist_ok=True)
+        local.mkdir(parents=True, exist_ok=True)
+        for f in cloud.glob("*.mp4"):
+            tgt = local / f.name
+            if not tgt.exists():
+                try:   # a hard link: the file really sits in the campaign's allowed folder (no symlink escape)
+                    os.link(f, tgt)
+                except OSError:
+                    try:
                         shutil.copy2(f, tgt)
+                    except OSError as e:   # disk full: leave this file, keep going
+                        log(f"link_footage: could not copy {f.name}: {e}")
 
 
 def ntfy(topic: str, title: str, message: str, click: str = "", priority: str = "default", tags: str = "",
@@ -341,6 +370,9 @@ def sync_drive(campaign_file: Path, state: dict, ws=None) -> list[str]:
         if not fid or fid in seen:
             continue
         final = _download_convert(gdown, fid, name, dest)
+        if not final:
+            log(f"Drive file {name} not fetched; will retry next run")
+            continue
         seen.add(fid)
         if final:
             new.append(final.name)
@@ -882,6 +914,8 @@ def main(argv=None) -> int:
         import dashboard
         try:
             data = dashboard.build_data(ws)
+            if _hide_money(ws):
+                data = dashboard.hide_money(data)
             for name, blob in dashboard.site_files(data, ws).items():
                 (site / name).parent.mkdir(parents=True, exist_ok=True)
                 (site / name).write_bytes(blob)

@@ -2305,9 +2305,29 @@ self.addEventListener('fetch', (e) => {
 FX_FILE = Path(__file__).resolve().parent.parent / "fx.js"
 
 
+_ABS_PATH = re.compile(r"(?<![\w:/.\\])(?:/(?:home|tmp|Users|root|var|opt|mnt|private|runner|work)(?=[/\\])|[A-Za-z]:\\)"
+                       r"[^\s\"'<>,;|]*")
+
+
+def _strip_paths(o):
+    """Published copy: absolute paths of the machine (runner or PC, with user names) become just the file name."""
+    if isinstance(o, str):
+        def base(m):
+            return re.split(r"[\\/]", m.group(0).rstrip("/\\"))[-1]
+        return _ABS_PATH.sub(base, o)
+    if isinstance(o, list):
+        return [_strip_paths(x) for x in o]
+    if isinstance(o, dict):
+        return {k: _strip_paths(v) for k, v in o.items()}
+    return o
+
+
 def site_files(data: dict, ws=None) -> dict[str, bytes]:
     """Everything a hosted copy needs (GitHub Pages): page, data.json, manifest, icons and clip thumbnails.
     Thumbnails come from `ws.home/thumbs` (or the workspace named in the data when no ws is given)."""
+    home = ws.home if ws is not None else (Path(data["workspace"]) if data.get("workspace") else None)
+    data = _strip_paths(data)
+    data["workspace"] = ""
     files = {"index.html": render_html(data).encode("utf-8"),
              "data.json": json.dumps(data, default=str).encode("utf-8"),
              "manifest.webmanifest": json.dumps(MANIFEST, indent=2).encode("utf-8"),
@@ -2316,7 +2336,6 @@ def site_files(data: dict, ws=None) -> dict[str, bytes]:
         files[f.name] = f.read_bytes()
     if FX_FILE.is_file():   # the 3D layer, shared with the NQ dashboard; the page uses a 2D fallback without it
         files["fx.js"] = FX_FILE.read_bytes()
-    home = ws.home if ws is not None else (Path(data["workspace"]) if data.get("workspace") else None)
     for c in data.get("clips") or []:
         rel = c.get("thumb")
         if not home or not rel or not re.fullmatch(r"thumbs/\d+\.jpg", rel):
@@ -2329,7 +2348,8 @@ def site_files(data: dict, ws=None) -> dict[str, bytes]:
 
 
 def render_html(data: dict) -> str:
-    payload = json.dumps(data, default=str).replace("</", "<\\/")
+    payload = json.dumps(data, default=str).replace("</", "<\\/") \
+        .replace("<!--", "<\\!--").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
     return _page().replace("/*__DATA__*/null", payload)
 
 

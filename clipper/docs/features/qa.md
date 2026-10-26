@@ -209,7 +209,7 @@ can never get the key), secrets are never echoed, one chain via `concurrency`, `
 
 ## Supply chain
 
-`requirements.txt` (cloud installs it, plus `gdown`): every dependency floats.
+`requirements.txt` (cloud installs it, plus `gdown`): ten of twelve dependencies are pinned to the versions the tests ran with (tzdata and imageio-ffmpeg still float).
 
 | Package | Pin | Note |
 |---|---|---|

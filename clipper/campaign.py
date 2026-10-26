@@ -248,8 +248,10 @@ def source_allowed(c: dict, url_or_path: str, meta: dict | None = None) -> tuple
             continue
         na = _norm_url(a)
         for x in cands:
-            if x and _norm_url(x).startswith(na):
-                return True, a
+            if x:
+                nx = _norm_url(x)
+                if nx == na or (nx.startswith(na) and nx[len(na)] in "/?&#"):
+                    return True, a
         if meta:  # YouTube channel handles: allow "youtube.com/@name" to match uploader_id "@name"
             handle = na.split("/")[-1]
             if handle.startswith("@") and handle == str(meta.get("uploader_id") or "").lower():

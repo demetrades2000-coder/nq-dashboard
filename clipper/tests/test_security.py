@@ -174,7 +174,6 @@ class EchoedSecrets(unittest.TestCase):
     def tearDownClass(cls):
         cls.c.close()
 
-    @unittest.expectedFailure
     def test_echoed_authorization_header_is_not_published(self):
         """BUG 1 (qa.md): upload error text (zernio._explain -> rep['upload_errors']) is written to AUTOPILOT_REPORT.md,
         logs/autopilot.jsonl and site/data.json WITHOUT cl.redact, and redact() does not know 'Bearer ...' or the
@@ -418,7 +417,6 @@ class PathsAndFiles(unittest.TestCase):
         except OSError:
             pass
 
-    @unittest.expectedFailure
     def test_allowed_source_url_matches_whole_path_segments_only(self):
         """BUG 5 (qa.md): campaign.source_allowed() does a plain startswith(): the allowed channel 'youtube.com/@creator'
         also admits 'youtube.com/@creatorfake' (and 'youtube.com/@creator-evil'). Permission is the gate that decides which
@@ -452,7 +450,6 @@ class PathsAndFiles(unittest.TestCase):
         finally:
             c.close()
 
-    @unittest.expectedFailure
     def test_link_footage_does_not_create_folders_outside_the_campaign_dir(self):
         """BUG 8 (qa.md): cloud_runner.link_footage() does `local = cf.parent / src; local.mkdir(parents=True)` with the brief's
         `sources` entry unchanged, so a brief with sources ['../../outside'] creates (and hard-links video into) a folder
@@ -608,7 +605,6 @@ class DashboardLeaks(unittest.TestCase):
     def tearDownClass(cls):
         cls.c.close()
 
-    @unittest.expectedFailure
     def test_no_absolute_paths_or_usernames_in_the_public_data(self):
         """BUG 6 (qa.md): site/data.json (public) contains `workspace` (absolute path of the runner's disk) and `jobs[].input`
         / `last_error` (absolute footage paths and exception text). Harmless today ('/home/runner/...') but it tells the world
@@ -645,7 +641,6 @@ class DashboardLeaks(unittest.TestCase):
                     walk(v, f"{path}[{i}]")
         walk(d)
 
-    @unittest.expectedFailure
     def test_cloud_runner_honours_publish_hide_money(self):
         """BUG 2 (qa.md, privacy): the cloud site is built with dashboard.site_files(build_data(ws)), never through
         dashboard.hide_money(), and there is no cloud switch for it, so earnings ($ by post, campaign, day) are public on the
@@ -792,7 +787,6 @@ class XssInBrowser(unittest.TestCase):
     def test_no_injected_elements_or_inline_handlers(self):
         self.assertEqual(sorted(set(self.hosted["injectedNodes"])), [])
 
-    @unittest.expectedFailure
     def test_javascript_and_data_urls_are_never_rendered_as_links(self):
         """BUG 4 (qa.md): esc() stops HTML injection but not a dangerous URL SCHEME. An upload/lead/campaign `url` of
         'javascript:...' is rendered as <a href="javascript:..."> and runs when the owner taps 'Open'. Today those URLs come
@@ -808,7 +802,6 @@ class XssInBrowser(unittest.TestCase):
         payload = json.dumps(data, default=str).replace("</", "<\\/")
         self.assertNotIn("</script>", payload)
 
-    @unittest.expectedFailure
     def test_html_comment_open_in_data_does_not_break_the_local_page(self):
         """BUG 9 (qa.md, low): render_html() only escapes '</' in the embedded JSON. The text '<!--<script>' inside any data
         string (a campaign note, a caption, a transcript line) switches the HTML parser into the 'double escaped' script

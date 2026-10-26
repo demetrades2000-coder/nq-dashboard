@@ -316,11 +316,14 @@ def run(ws, briefs: list[dict], accounts: list[dict] | None, now: dt.datetime | 
              (ws.setting("campaigns.archived", None) or {}).items()]
     ranked_names = [h["c"]["name"] for h in healthy] + [c["name"] for c in briefs if c["name"] not in rank]
     for a in accounts or []:
+        cands = []
         for n in ranked_names + [e["name"] for e in extra if e["name"] not in ranked_names]:
             c = next((x for x in briefs if x["name"] == n), None) or next((e for e in extra if e["name"] == n), None)
             if c and not is_generic(c) and account_matches(c, a["name"]):
-                brand_bound[a["name"]] = n
-                break
+                cands.append((n, c))
+        if cands:   # a listed page wins; else the LONGEST brand word ('tradever' beats 'trade'); ties keep the rank order
+            best = max(cands, key=lambda t: (bool(pinned_accounts(t[1])), len(brand_word(t[1]))))
+            brand_bound[a["name"]] = best[0]
 
     prev_owner = {k.split("/", 1)[1]: v.get("campaign") for k, v in
                   ((f"{platform}/{a['name']}", ws.setting(f"account_state.{platform}/{a['name']}", None) or {})

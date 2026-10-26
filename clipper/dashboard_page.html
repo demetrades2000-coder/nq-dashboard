@@ -1012,6 +1012,7 @@ const icon = (n, s = 18, cls = '') => P[n] ? `<svg class="ico ${cls}" viewBox="0
 
 // ===================================================================== helpers: one format for every number on the site
 const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const safeUrl = (u) => /^https?:\/\//i.test(String(u || '').trim()) ? String(u).trim() : '';
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ok = (v) => v != null && v !== '' && !isNaN(v);
 const num = (v, d = 0) => !ok(v) ? '—' : Number(v).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -1377,10 +1378,10 @@ function openClip(id) {
     ${c.hook ? `<section><h4>${icon('bolt')}Hook</h4><p class="hook">“${esc(c.hook)}”</p></section>` : ''}
     ${c.caption ? `<section><h4>${icon('doc')}Caption<button class="btn sm" type="button" data-copy="${esc(c.caption)}" data-copied="Caption copied">${icon('copy', 15)}Copy</button></h4><div class="cap">${esc(c.caption)}</div></section>` : ''}
     <section><h4>${icon('send')}Posted on</h4>${ups.length ? ups.map(u => `<div class="up-row"><div class="u1">${pchip(u.platform)}${stChip(u.state)}${u.url ? (u.submitted_at ? `<span class="chip good">${icon('check', 13)}submitted ${esc(fDate(u.submitted_at))}</span>` : '<span class="chip warn">not submitted yet</span>') : ''}</div>
-        <div class="acts">${u.url ? `<button class="btn sm icon" type="button" data-copy="${esc(u.url)}" data-copied="Link copied" aria-label="Copy link">${icon('copy', 15)}</button><a class="btn sm icon" href="${esc(u.url)}" target="_blank" rel="noopener" aria-label="Open">${icon('ext', 15)}</a>` : ''}</div>
+        <div class="acts">${u.url ? `<button class="btn sm icon" type="button" data-copy="${esc(u.url)}" data-copied="Link copied" aria-label="Copy link">${icon('copy', 15)}</button><a class="btn sm icon" href="${esc(safeUrl(u.url))}" target="_blank" rel="noopener" aria-label="Open">${icon('ext', 15)}</a>` : ''}</div>
         <div class="u2"><span>${icon('eye', 13)} <b>${num(u.views || 0)}</b></span><span>${icon('heart', 13)} <b>${num(u.likes || 0)}</b></span><span>net <b class="up">${usd(u.net)}</b></span><span>${esc(u.account || '')}</span><span>${esc(fDT(u.created))}</span></div>
         <div class="u3"><div class="meter sm"><i style="width:${(100 * (u.views || 0) / mx).toFixed(1)}%;background:${pcol(u.platform)}"></i></div></div></div>`).join('') : `<div class="note" style="margin:0">Not posted yet${c.status === 'pending_review' ? ': held for review' : ''}.</div>`}</section>
-    ${sub.length ? `<section><h4>${icon('link')}Submit on the campaign page</h4><div class="chips">${sub.map(s => `<button class="btn sm" type="button" data-copy="${esc(s.url)}" data-copied="Link copied">${icon('copy', 15)}${esc(pname(s.platform))} link</button>${s.page ? `<a class="btn sm" href="${esc(s.page)}" target="_blank" rel="noopener">${icon('ext', 15)}Campaign page</a>` : ''}`).join('')}</div></section>` : ''}
+    ${sub.length ? `<section><h4>${icon('link')}Submit on the campaign page</h4><div class="chips">${sub.map(s => `<button class="btn sm" type="button" data-copy="${esc(s.url)}" data-copied="Link copied">${icon('copy', 15)}${esc(pname(s.platform))} link</button>${s.page ? `<a class="btn sm" href="${esc(safeUrl(s.page))}" target="_blank" rel="noopener">${icon('ext', 15)}Campaign page</a>` : ''}`).join('')}</div></section>` : ''}
     ${c.held ? `<section><h4>${icon('hold')}Held</h4><div class="prob" style="margin:0">${icon('alert')}<span><b>${esc(c.held)}</b><br><span style="color:var(--ink-2)">${esc(heldPlain(c))}</span></span></div></section>` : ''}
     ${ARR(c.spark).length > 1 ? `<section><h4>${icon('long')}Views over time</h4><div class="spk">${spark(c.spark, { color: 'var(--accent-2)' })}</div><div class="small mut">${num(c.spark[0])} → ${num(c.spark[c.spark.length - 1])} views across ${c.spark.length} readings</div></section>` : ''}
     ${c.queue ? `<section><h4>${icon('queue')}Queue</h4><p>#${c.queue.pos} in line: goes to <b>@${esc(c.queue.account)}</b> (${esc(pname(c.queue.platform))}), ${c.queue.slot === 'tomorrow' ? 'tomorrow' : 'at the next run'}.</p></section>` : ''}
@@ -1390,7 +1391,7 @@ function openClip(id) {
     <section><h4>${icon('film')}Source</h4><p style="font-weight:600">${esc(c.source_title || '—')}</p><div class="doc-meta small mut" style="margin-top:4px">${esc(c.campaign || '')} · cut ${range} of the source video · ${num(c.dur)} s</div></section>`;
   sheet(`<span class="tile-i" style="margin:0;--c:${scoreCol(c.score)}">${icon('clips')}</span><div><div class="eyebrow">#${esc(c.id)} · ${esc(c.campaign || '')} · ${esc((STATUS[c.status] || [c.status])[0])}${c.kind === 'slideshow' ? ' · slideshow' : ''}</div><h3>${esc(c.title)}</h3></div>
     <div class="sh-res"><b>${kfmt(c.views || 0)}</b><span class="up">${moneyHidden() ? 'views' : usd(c.net)}</span></div>`, body,
-    `${c.caption ? `<button class="btn" type="button" data-copy="${esc(c.caption)}" data-copied="Caption copied">${icon('copy')}Caption</button>` : ''}${best ? `<button class="btn" type="button" data-share="${esc(best.url)}" data-title="${esc(c.title)}">${icon('send')}Share</button>` : ''}${best ? `<a class="btn primary" href="${esc(best.url)}" target="_blank" rel="noopener">${icon('play')}Open on ${esc(pname(best.platform))}</a>` : ''}`, 'Clip ' + c.id);
+    `${c.caption ? `<button class="btn" type="button" data-copy="${esc(c.caption)}" data-copied="Caption copied">${icon('copy')}Caption</button>` : ''}${best ? `<button class="btn" type="button" data-share="${esc(best.url)}" data-title="${esc(c.title)}">${icon('send')}Share</button>` : ''}${best ? `<a class="btn primary" href="${esc(safeUrl(best.url))}" target="_blank" rel="noopener">${icon('play')}Open on ${esc(pname(best.platform))}</a>` : ''}`, 'Clip ' + c.id);
 }
 
 // ===================================================================== 3D layer (fx.js: three.js views, particle field, card auras, tap sparks) — the same module as the NQ dashboard
@@ -1559,7 +1560,7 @@ function subCard(g) {
     <div class="sub-top"><h3>${icon('camp')}<span>${esc(g.name)}</span></h3>${left ? `<span class="badge acc">${plural(left, 'link')} to submit</span>` : '<span class="badge good">all submitted</span>'}</div>
     ${left ? `<button class="btn primary big" type="button" data-subnext>${icon('copy')}Copy next link</button><div class="leftn" data-left><b>${left} of ${total}</b> left</div>` : ''}
     <div class="acts"><button class="btn" type="button" data-suball ${left ? '' : 'disabled'}>${icon('copy', 16)}Copy all${left ? ' ' + left : ''}</button>
-      ${g.page ? `<a class="btn" href="${esc(g.page)}" target="_blank" rel="noopener">${icon('ext', 16)}Open campaign page</a>` : `<span class="btn ghost" aria-disabled="true" title="No campaign link in the brief">${icon('ext', 16)}No campaign link</span>`}</div>
+      ${g.page ? `<a class="btn" href="${esc(safeUrl(g.page))}" target="_blank" rel="noopener">${icon('ext', 16)}Open campaign page</a>` : `<span class="btn ghost" aria-disabled="true" title="No campaign link in the brief">${icon('ext', 16)}No campaign link</span>`}</div>
     <div class="acts minor" style="margin:-6px 0 12px"><button class="btn sm ghost" type="button" data-subundo ${did ? '' : 'disabled'}>Undo last</button>${left > 1 ? '<button class="btn sm ghost" type="button" data-suballdone>Mark all submitted</button>' : ''}</div>
     <div class="lrows">${g.links.map(subRow).join('')}</div></div>`;
 }
@@ -1619,10 +1620,10 @@ function statusStrip(compact = false) {
   if (!D) return '';
   const st = statusNow(), rs = st.reasons, top = rs[0], a = A(), next = tms(a.next_run), notes = ARR((D.status || {}).notes);
   const sub = top ? '' : `Last run ${a.last?.finished ? esc(ago(a.last.finished)) : '—'}${ok(next) && next > Date.now() ? ` · next in <span data-cd="${next}">${esc(dur((next - Date.now()) / 1000))}</span>` : ''}`;
-  const act = top?.action ? `<a class="btn sm" href="${esc(top.action.url)}" target="_blank" rel="noopener">${icon('ext', 14)}${esc(top.action.label)}</a>` : top?.page && !compact ? `<button class="btn sm ghost" type="button" data-go="${esc(top.page)}">Open</button>` : '';
+  const act = top?.action ? `<a class="btn sm" href="${esc(safeUrl(top.action.url))}" target="_blank" rel="noopener">${icon('ext', 14)}${esc(top.action.label)}</a>` : top?.page && !compact ? `<button class="btn sm ghost" type="button" data-go="${esc(top.page)}">Open</button>` : '';
   const more = compact && (rs.length > 1 || notes.length) ? `<button class="btn sm ghost" type="button" data-go="today">${rs.length > 1 ? `+${rs.length - 1} more` : 'Details'}</button>` : '';
   return `<div class="sstrip ${st.level}${compact ? '' : ' big'}" role="status" data-level="${st.level}"><span class="sdot"></span><div class="stx"><b>${esc(top ? top.text : 'Everything is running')}</b>${sub ? `<small>${sub}</small>` : ''}
-    ${!compact && (rs.length > 1 || notes.length) ? `<details class="srd"><summary>${rs.length > 1 ? `${rs.length - 1} more to look at` : ''}${rs.length > 1 && notes.length ? ' · ' : ''}${notes.length ? plural(notes.length, 'note') : ''}${icon('down', 14, 'chev')}</summary>${rs.length > 1 ? `<div class="srs">${rs.slice(1).map(r => `<div class="sr ${r.level}"><i></i><span>${esc(r.text)}</span>${r.action ? `<a class="btn sm" href="${esc(r.action.url)}" target="_blank" rel="noopener">${esc(r.action.label)}</a>` : r.page ? `<button class="btn sm ghost" type="button" data-go="${esc(r.page)}">Open</button>` : ''}</div>`).join('')}</div>` : ''}
+    ${!compact && (rs.length > 1 || notes.length) ? `<details class="srd"><summary>${rs.length > 1 ? `${rs.length - 1} more to look at` : ''}${rs.length > 1 && notes.length ? ' · ' : ''}${notes.length ? plural(notes.length, 'note') : ''}${icon('down', 14, 'chev')}</summary>${rs.length > 1 ? `<div class="srs">${rs.slice(1).map(r => `<div class="sr ${r.level}"><i></i><span>${esc(r.text)}</span>${r.action ? `<a class="btn sm" href="${esc(safeUrl(r.action.url))}" target="_blank" rel="noopener">${esc(r.action.label)}</a>` : r.page ? `<button class="btn sm ghost" type="button" data-go="${esc(r.page)}">Open</button>` : ''}</div>`).join('')}</div>` : ''}
       ${notes.length ? `<div class="snotes">${notes.map(n => `<div class="sn"><i></i><span>${esc(n.text)}</span>${n.page ? `<button class="btn sm ghost" type="button" data-go="${esc(n.page)}">Open</button>` : ''}</div>`).join('')}</div>` : ''}</details>` : ''}</div>
     ${act || more ? `<div class="sa">${act}${more}</div>` : ''}</div>`;
 }
@@ -1934,7 +1935,7 @@ function topPosts() {
   const t = E().top || [];
   if (!t.length) return emptyBox('No posts yet.', '');
   const mx = Math.max(1, ...t.map(x => x.views || 0));
-  return `<div class="lbd">${t.map((x, i) => `<a class="li" href="${esc(x.url)}" target="_blank" rel="noopener"><span class="rk">${i + 1}</span><span class="lt">${esc(x.title)}</span><span class="lv up">${moneyHidden() ? kfmt(x.views || 0) : usd(x.net)}</span>
+  return `<div class="lbd">${t.map((x, i) => `<a class="li" href="${esc(safeUrl(x.url))}" target="_blank" rel="noopener"><span class="rk">${i + 1}</span><span class="lt">${esc(x.title)}</span><span class="lv up">${moneyHidden() ? kfmt(x.views || 0) : usd(x.net)}</span>
     <span class="ls">${pchip(x.platform)}<span class="meter sm"><i style="width:${(100 * (x.views || 0) / mx).toFixed(1)}%;background:${pcol(x.platform)}"></i></span><span class="mono">${kfmt(x.views || 0)} views</span></span></a>`).join('')}</div>`;
 }
 // a projection is shown only as what it is: the last 7 days repeated to the end of the month
@@ -1998,7 +1999,7 @@ function leadCard(l) {
     <div class="nums n3">${nbox('Rate /1K', rate(l.cpm))}${nbox('Min payout', ok(l.min) && l.min ? cash(l.min) : '—')}${nbox('Creators', ok(l.creators) ? num(l.creators) : '—')}</div>
     ${budgetHTML(l.left, l.budget, l.spent_frac)}
     <div class="live-k">${ok(l.max) && l.max ? `<span>max <b>${cash(l.max)}</b> a clip</span>` : ''}${(l.platforms || []).length ? `<span>${(l.platforms || []).map(pname).join(', ')}</span>` : ''}${ok(l.content_rules) ? `<span>${plural(l.content_rules, 'content rule')}</span>` : ''}${ok(l.requirements) ? `<span>${plural(l.requirements, 'requirement')}</span>` : ''}</div>
-    ${l.url ? `<a class="btn sm primary" href="${esc(l.url)}" target="_blank" rel="noopener">${icon('ext', 15)}Open / Join</a>` : ''}</div>`;
+    ${l.url ? `<a class="btn sm primary" href="${esc(safeUrl(l.url))}" target="_blank" rel="noopener">${icon('ext', 15)}Open / Join</a>` : ''}</div>`;
 }
 function pageCampaigns(el) {
   const C = D.campaigns || [], L = D.leads || [], benchN = new Set(ARR(BENCH().join_next).map(x => x.name)), LDs = LD().filter(x => !benchN.has(x.name)), g = AG(), live = C.filter(c => c.auto && !(c.problems || []).length && c.automation_allowed !== false && c.live?.state !== 'paused');
@@ -2020,7 +2021,7 @@ function pageCampaigns(el) {
     ${LDs.length ? `<div class="lgrid">${LDs.map(leadCard).join('')}</div>` : `<div class="card" style="margin-bottom:14px">${emptyBox('No leads found yet.', 'The cloud scans Content Rewards twice a day and ranks campaigns that fit (English, no adult or gambling brands).')}</div>`}
     ${L.length ? `${secH('Campaign files not ready', `<em>${plural(L.length, 'file')}</em>`)}<div class="card"><div class="lbd">${[...L].sort((a, b) => (b.cpm || 0) - (a.cpm || 0)).map((l, i) => `<div class="li"><span class="rk">${i + 1}</span><span class="lt">${esc(l.name)}</span><span class="lv">${rate(l.cpm)}<span class="mut small"> /1K</span></span>
         <span class="ls" style="flex-wrap:wrap;gap:6px">${l.status ? `<span class="chip ${/ban/i.test(l.status) ? 'bad' : 'warn'}">${esc(l.status)}</span>` : ''}${autoChip(l.automation_allowed)}${(l.platforms || []).map(p => pchip(p)).join('')}
-          ${l.url ? `<a class="chip" href="${esc(l.url)}" target="_blank" rel="noopener">${icon('ext', 13)}open</a>` : ''}</span>
+          ${l.url ? `<a class="chip" href="${esc(safeUrl(l.url))}" target="_blank" rel="noopener">${icon('ext', 13)}open</a>` : ''}</span>
         ${l.note ? `<span class="ls" style="color:var(--ink-2);font-size:12.5px;white-space:normal">${esc(l.note)}</span>` : ''}</div>`).join('')}</div></div>` : ''}`;
 }
 function campCard(c) {
@@ -2038,7 +2039,7 @@ function campCard(c) {
     ${c.notes ? `<p class="cnote">${esc(c.notes)}</p>` : ''}
     ${(c.problems || []).map(p => `<div class="prob">${icon('alert')}<span>${esc(p)}</span></div>`).join('')}
     ${rulesHTML(c)}
-    <div class="row-btns" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">${url ? `<a class="btn sm primary" href="${esc(url)}" target="_blank" rel="noopener">${icon('ext', 15)}Open campaign</a>` : ''}<button class="btn sm ghost" type="button" data-camp="${esc(c.name)}">${icon('clips', 15)}Its clips</button></div></div>`;
+    <div class="row-btns" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">${url ? `<a class="btn sm primary" href="${esc(safeUrl(url))}" target="_blank" rel="noopener">${icon('ext', 15)}Open campaign</a>` : ''}<button class="btn sm ghost" type="button" data-camp="${esc(c.name)}">${icon('clips', 15)}Its clips</button></div></div>`;
 }
 document.addEventListener('click', (e) => { const b = e.target.closest('[data-camp]'); if (!b) return; CS.camp = b.dataset.camp; CS.st = 'all'; CS.shown = 24; location.hash = '#/clips'; });
 
@@ -2542,7 +2543,7 @@ function joinCard(l) {
     ${budgetHTML(l.left, l.budget, l.spent_frac)}
     <ol class="steps-l"><li>Press <b>Join</b> on its page.</li><li>Open its <b>Rules</b> tab and search for ${words.map(w => `<code>${esc(w)}</code>`).join(' ')}. If nothing bans tools, go on.</li><li>Send this message to Claude:</li></ol>
     <div class="msgbox"><span>${esc(msg)}</span><button class="btn sm" type="button" data-copy="${esc(msg)}" data-copied="Message copied">${icon('copy', 15)}Copy</button></div>
-    <div class="row-btns" style="display:flex;gap:8px;flex-wrap:wrap">${l.url ? `<a class="btn sm primary" href="${esc(l.url)}" target="_blank" rel="noopener">${icon('ext', 15)}Join</a><button class="btn sm ghost" type="button" data-share="${esc(l.url)}" data-title="${esc(l.name)}" aria-label="Share link">${icon('send', 15)}Share</button>` : ''}${words.length ? `<button class="btn sm ghost" type="button" data-copy="${esc(words.join(' '))}" data-copied="Search words copied">${icon('search', 15)}Copy search words</button>` : ''}</div></div>`;
+    <div class="row-btns" style="display:flex;gap:8px;flex-wrap:wrap">${l.url ? `<a class="btn sm primary" href="${esc(safeUrl(l.url))}" target="_blank" rel="noopener">${icon('ext', 15)}Join</a><button class="btn sm ghost" type="button" data-share="${esc(l.url)}" data-title="${esc(l.name)}" aria-label="Share link">${icon('send', 15)}Share</button>` : ''}${words.length ? `<button class="btn sm ghost" type="button" data-copy="${esc(words.join(' '))}" data-copied="Search words copied">${icon('search', 15)}Copy search words</button>` : ''}</div></div>`;
 }
 function extraCampCard(lc) {
   return `<div class="card ccard"><div class="card-h"><h3>${icon('camp')}${esc(lc.name)}</h3>${stateChip(lc.state)}</div>${lcBlock(null, lc)}<div class="note">The autopilot knows this campaign, but it has no brief file in this workspace.</div></div>`;
@@ -2563,11 +2564,11 @@ function mgrBlock(x) {
     ${m.reason ? `<p class="mgr-why">${esc(m.reason)}</p>` : ''}
     ${sc != null ? `<div class="mgr-s"><span>Health score</span><b class="${k}">${sc}</b><div class="meter sm ${k}"><i style="width:${sc}%"></i></div></div>` : ''}
     ${ok(m.median_views_recent) ? `<div class="small mut" style="margin-top:6px">Median views on recent posts: <b style="color:var(--ink)">${num(m.median_views_recent)}</b></div>` : ''}
-    ${reco ? `<details class="reco" open><summary>${icon('alert', 15)}Reconnect in Zernio${icon('down', 16, 'chev')}</summary><ol class="steps-l">${ARR((D.account_help || {}).reconnect).map(s => `<li>${esc(s)}</li>`).join('')}</ol><a class="btn sm primary" href="${esc((D.account_help || {}).zernio_url || 'https://zernio.com')}" target="_blank" rel="noopener">${icon('ext', 15)}Open Zernio</a></details>` : ''}</div>`;
+    ${reco ? `<details class="reco" open><summary>${icon('alert', 15)}Reconnect in Zernio${icon('down', 16, 'chev')}</summary><ol class="steps-l">${ARR((D.account_help || {}).reconnect).map(s => `<li>${esc(s)}</li>`).join('')}</ol><a class="btn sm primary" href="${esc(safeUrl((D.account_help || {}).zernio_url || 'https://zernio.com'))}" target="_blank" rel="noopener">${icon('ext', 15)}Open Zernio</a></details>` : ''}</div>`;
 }
 function addAccountCard() {
   const H = D.account_help || {}, N = ARR(H.naming);
-  return `<div class="card"><div class="card-h"><h3>${icon('users')}Add an account</h3><a class="btn sm" href="${esc(H.zernio_url || 'https://zernio.com')}" target="_blank" rel="noopener">${icon('ext', 15)}Open Zernio</a></div>
+  return `<div class="card"><div class="card-h"><h3>${icon('users')}Add an account</h3><a class="btn sm" href="${esc(safeUrl(H.zernio_url || 'https://zernio.com'))}" target="_blank" rel="noopener">${icon('ext', 15)}Open Zernio</a></div>
     <ol class="steps-l">${ARR(H.steps).map(s => `<li>${esc(s)}</li>`).join('') || '<li>Create the TikTok account, connect it in Zernio, wait for the next run.</li>'}</ol>
     ${N.length ? `<div class="sec-h" style="margin:14px 2px 8px"><span>Naming rule per campaign</span><i></i></div><div class="nrule">${N.map(n => `<div class="nr ${n.has_account ? 'has' : 'need'}"><div class="nr-h"><b>${esc(n.campaign)}</b>${stateChip(n.state)}${n.has_account ? `<span class="chip good">${icon('check', 13)}${n.accounts.map(a => '@' + esc(a)).join(', ')}</span>` : '<span class="chip warn">needs an account</span>'}</div>
         <p>${esc(n.rule)}</p>${ARR(n.examples).length ? `<div class="cpbs">${n.examples.map(ex => copyChip('Example', ex)).join('')}</div>` : ''}</div>`).join('')}</div>` : ''}
@@ -2752,7 +2753,7 @@ function exportCSV() {
 const RUNS_SHOWN = { n: 12 };
 function restartBlock() {
   const s = SYS(), r = s.restart || {}, url = r.url || ACTIONS_URL;
-  return `<div class="card restart"><div class="card-h"><h3>${icon('refresh')}Restart the autopilot</h3><a class="btn sm primary" href="${esc(url)}" target="_blank" rel="noopener">${icon('ext', 15)}Open GitHub Actions</a></div>
+  return `<div class="card restart"><div class="card-h"><h3>${icon('refresh')}Restart the autopilot</h3><a class="btn sm primary" href="${esc(safeUrl(url))}" target="_blank" rel="noopener">${icon('ext', 15)}Open GitHub Actions</a></div>
     <p class="lead" style="margin-bottom:8px">If the light is red because it has not run for a long time, start it again. It takes about a minute and loses nothing.</p>
     <ol class="steps-l">${(ARR(r.steps).length ? r.steps : ['Open the GitHub Actions page.', 'Press Run workflow, then the green Run workflow.', 'Wait about 5 minutes and pull down to refresh here.']).map(t => `<li>${esc(t)}</li>`).join('')}</ol></div>`;
 }
@@ -2761,7 +2762,7 @@ function errorsCard() {
   return `<div class="card"><div class="card-h"><h3>${icon('alert')}Problems, in plain words</h3>${E2.length ? `<span class="badge warn">${E2.length}</span>` : '<span class="badge good">none</span>'}</div>
     ${E2.length ? `<div class="errs">${E2.slice(0, 8).map(e => `<details class="err ${esc(e.level)}"><summary><span class="ed"></span><span class="et"><b>${esc(e.title)}</b><i>${esc(e.ts ? ago(e.ts) : e.source)}</i></span>${icon('down', 16, 'chev')}</summary>
         <div class="eb"><p>${esc(e.plain)}</p><p><b>What to do:</b> ${esc(e.fix)}</p><div class="cap">${esc(e.text)}</div>
-          <div class="acts" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${e.action ? `<a class="btn sm primary" href="${esc(e.action.url)}" target="_blank" rel="noopener">${icon('ext', 15)}${esc(e.action.label)}</a>` : ''}<button class="btn sm ghost" type="button" data-copy="${esc(e.text)}" data-copied="Copied: send it to Claude">${icon('copy', 15)}Copy the original line</button></div></div></details>`).join('')}</div>` : emptyBox('No problems.', 'When something goes wrong it is explained here in plain words, with the one thing to do.')}</div>`;
+          <div class="acts" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${e.action ? `<a class="btn sm primary" href="${esc(safeUrl(e.action.url))}" target="_blank" rel="noopener">${icon('ext', 15)}${esc(e.action.label)}</a>` : ''}<button class="btn sm ghost" type="button" data-copy="${esc(e.text)}" data-copied="Copied: send it to Claude">${icon('copy', 15)}Copy the original line</button></div></div></details>`).join('')}</div>` : emptyBox('No problems.', 'When something goes wrong it is explained here in plain words, with the one thing to do.')}</div>`;
 }
 function keysCard() {
   const K = ARR(SYS().keys); const rows = K.filter(k => k.ok !== null || k.detail);

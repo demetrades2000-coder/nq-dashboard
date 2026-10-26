@@ -145,10 +145,25 @@ def _auth() -> dict:
     return {"Authorization": f"Bearer {key}"}
 
 
+def _scrub(text) -> str:
+    """Remove secret values (the API key, ntfy topic, GitHub token) and any 'Bearer ...' from text that gets stored or published."""
+    import re
+    text = str(text)
+    for var in ("ZERNIO_API_KEY", "NTFY_TOPIC", "GH_TOKEN", "GITHUB_TOKEN"):
+        v = os.environ.get(var, "").strip()
+        if len(v) >= 6:
+            text = text.replace(v, "REDACTED")
+    k = api_key()
+    if k and len(k) >= 6:
+        text = text.replace(k, "REDACTED")
+    return re.sub(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=\-]+", "Bearer REDACTED", text)
+
+
 def _explain(status: int, body: dict) -> str:
     msg = body.get("error") or body.get("message") or body.get("raw") or ""
     if isinstance(msg, dict):
         msg = msg.get("message") or json.dumps(msg)
+    msg = _scrub(msg)
     low = str(msg).lower()
     if status == 401:
         return "Zernio rejected the API key; run `pipeline.py zernio auth` with a fresh key"

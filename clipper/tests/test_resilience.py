@@ -50,7 +50,6 @@ class Base(unittest.TestCase):
 # ----------------------------------------------------------------------------------------------- broken state
 
 class BrokenState(Base):
-    @unittest.expectedFailure
     def test_corrupted_settings_values_do_not_stop_the_run(self):
         """BUG 7 (qa.md): pipeline.WS.setting() does json.loads() on the stored text with no guard, and cloud_runner calls it
         for campaign_live.*, supply.*, leads.* ... So ONE unreadable settings value (a half-written row, a manual edit) raises
@@ -186,7 +185,6 @@ class BadBriefs(Base):
     def test_platforms_is_a_string(self):
         self.run_case("platforms string", lambda d: d.update(platforms="tiktok"))
 
-    @unittest.expectedFailure
     def test_sources_is_null(self):
         """BUG 8 (qa.md): cloud_runner.link_footage() is the one loop over the briefs that still has no per-campaign guard:
         `for src in c.get("sources", [])` raises when a brief has "sources": null, and the whole run stops."""
@@ -305,7 +303,6 @@ class BadWorld(Base):
         self.assertIn("Drive folder not listed", out)
         self.assertEqual(posts_count(c), 1)
 
-    @unittest.expectedFailure
     def test_drive_download_of_one_file_fails_the_others_continue(self):
         """BUG 3 (qa.md): cloud_runner.sync_drive() adds a file id to `drive_seen` even when its download raised
         (quota, timeout, a Google hiccup). The file is then never fetched again: a transient error silently loses footage.
@@ -456,7 +453,6 @@ class BadWorld(Base):
         self.assertTrue(row["url"].startswith("https://www.tiktok.com/"))
         self.assertEqual(posts_count(c), 1)
 
-    @unittest.expectedFailure
     def test_disk_full_while_linking_footage(self):
         """BUG 8 (qa.md): link_footage() lets an OSError (disk full, permission) from the hard-link / copy escape, which
         ends the run before already-queued clips are posted. Fix: wrap each file in try/except OSError and log it."""
@@ -636,7 +632,6 @@ class Scale(Base):
         self.assertEqual(rc, 0, out[-700:])
         self.assertGreaterEqual(posts_count(c), 13)             # 12 brands + the original Acme page
 
-    @unittest.expectedFailure
     def test_a_brand_word_that_is_part_of_another_brand_does_not_steal_its_page(self):
         """BUG 11 (qa.md, low): the brand-name rule is a substring test (`match in name.lower().replace(' ', '')`), so a campaign
         whose word is contained in another brand's word ('trade' / 'tradever', 'alpha' / 'alphafutures', 'brand1' / 'brand10')

@@ -18,3 +18,4 @@ Window: 9:17 pm ET (Sun) → 5:00 am ET (Mon). Live site: https://demetrades2000
 
 - 9:24 pm — Lighter phone hero video (0.4 MB vs 6.8 MB desktop).
 - 9:35 pm — QA agent report (no P1 bugs). Fixed: lower-contrast text lifted, visible focus on icons/chips/send, removed stray tab stop, mobile strip gutter, tighter section spacing, hero title now fades in letter by letter (no random-glyph "typo" flash), real mobile menu, Jarvis typing indicator, desktop hero video 6.8 MB → 1.0 MB.
+- 9:40 pm — User request: hero picture should be a supercar (ideally Lamborghini) driving at night. Footage agent searching Wikimedia/archive.org/Mixkit for real night supercar clips; will review, swap into hero, and add any required attribution.

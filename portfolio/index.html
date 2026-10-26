@@ -449,7 +449,7 @@ fetch('media/clips.json').then(r=>r.ok?r.json():null).then(m=>{
   if(m.hero){const v=$('#hv'),p=$('#hp');
     if(m.hero.poster){p.src=m.hero.poster;p.onload=()=>p.classList.add('on')}
     if(lite)return;
-    v.src=m.hero.file;v.addEventListener('canplay',()=>{v.classList.add('on');v.play().catch(()=>{})},{once:true});
+    v.src=(innerWidth<760&&m.hero.fileMobile)||m.hero.file;v.addEventListener('canplay',()=>{v.classList.add('on');v.play().catch(()=>{})},{once:true});
     new IntersectionObserver(e=>{e[0].isIntersecting?v.play().catch(()=>{}):v.pause()}).observe($('#top'))}
   if(m.reel&&m.reel.length){
     $('#drive').hidden=false;

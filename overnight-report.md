@@ -23,3 +23,4 @@ Window: 9:17 pm ET (Sun) → 5:00 am ET (Mon). Live site: https://demetrades2000
 - 11:19 pm — watchdog: the dashboard bot wiped main at 11:08 pm ET (it rewrites main each run); portfolio restored automatically. Started a 5-minute restore loop (no usage cost) between wake-ups.
 - 2:10 am — bot wiped main again at 2:08 am ET (it runs on market days); restored. Worker restarted and killed the old loop; relaunched a 3-minute restore loop (watchdog.log). Bot wipes confirm Cloudflare Pages is the real fix.
 - 2:25 am — fixed watchdog check (it still looked for the deleted old hero file); site live, hero video 200.
+- 5:00 am — FINAL: site live (page + hero 200). Dashboard bot wiped main 3+ more times overnight (11:08 pm, 2:08 am, ~2:30, 3:25, 4:17 am ET); every wipe auto-restored within minutes by the restore loop. Overnight wake-up schedule deleted. Restore loop keeps running until ~6:15 am ET.

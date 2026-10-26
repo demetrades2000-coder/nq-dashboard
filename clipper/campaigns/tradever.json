@@ -125,5 +125,8 @@
     "tradever-1012"
   ],
   "account_match": "tradever",
-  "cloud": true
+  "cloud": true,
+  "style": {
+    "logo_safe": true
+  }
 }

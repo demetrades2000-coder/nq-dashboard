@@ -447,7 +447,7 @@ dialog[open]{animation:pop .16s ease-out}
     <div class="dlg-h"><h3 id="syncTitle">Sync phone, computer and bots</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     <ol class="steps">
       <li>Your calendar is kept in your <b>private</b> GitHub repo below. Every device and bot reads and writes it there.</li>
-      <li>Make a key once: <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub → New fine-grained token</a>. Repository access: <b>Only select repositories → planner-data</b>. Permissions: <b>Contents → Read and write</b>. Pick the longest expiration.</li>
+      <li>Make a key once: <a href="https://github.com/settings/personal-access-tokens/new?name=Planner%20sync&amp;description=Planner%20app%20and%20bots%3A%20read%2Fwrite%20planner-data&amp;target_name=demetrades2000-coder&amp;expires_in=365&amp;contents=write" target="_blank" rel="noopener">GitHub → New fine-grained token</a> (name, expiry and permission come pre-filled). Repository access: <b>Only select repositories → planner-data</b>. Permissions: <b>Contents → Read and write</b>. Pick the longest expiration.</li>
       <li>Paste the key here. On your other devices, tap <b>Link a device</b> instead of pasting again.</li>
     </ol>
     <div class="fld"><label for="sToken">Access key</label><input id="sToken" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…"></div>

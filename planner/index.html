@@ -402,7 +402,7 @@ dialog[open]{animation:pop .16s ease-out}
       <div class="label" style="display:flex;justify-content:space-between"><span>Tasks</span><span id="taskCount" style="letter-spacing:0;text-transform:none;font-weight:500"></span></div>
       <div class="prog" id="progWrap"><i id="prog"></i></div>
       <ul class="tasks" id="tasks"></ul>
-      <form class="add-t" id="taskForm"><span>+</span><input id="taskIn" placeholder="Add a task (#nq tags a project)" autocomplete="off" aria-label="Add a task"></form>
+      <form class="add-t" id="taskForm"><span>+</span><input id="taskIn" placeholder="Quick add: call Sam fri 3pm #nq" autocomplete="off" aria-label="Add a task"></form>
     </section>
 
     <section class="card">
@@ -436,7 +436,7 @@ dialog[open]{animation:pop .16s ease-out}
     <div class="hint" id="botNote" hidden></div>
     <div class="err" id="fErr" hidden></div>
     <div class="dlg-f">
-      <div><button type="button" class="btn danger" id="fDelete">Delete</button><button type="button" class="btn danger" id="fDeleteOne" hidden>Delete this day only</button></div>
+      <div><button type="button" class="btn danger" id="fDelete">Delete</button><button type="button" class="btn danger" id="fDeleteOne" hidden>Delete this day only</button><button type="button" class="btn" id="fDup" hidden>Duplicate</button></div>
       <div><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn" id="fDismiss" hidden>Dismiss</button><button type="submit" class="btn primary" id="fSave">Save</button></div>
     </div>
   </form>
@@ -633,35 +633,47 @@ let DB = null, dbInflight = 0, dbSeeded = false;
 const dbHas = {}, dbChains = {};
 const ORDERED = ['categories', 'projects'];
 const docId = (id) => String(id).replace(/[^A-Za-z0-9_\-.~:@+]/g, '_').slice(0, 180) || 'x';
-function dbWrite(path, op) {
-  dbInflight++; setSync('busy');
-  const run = async () => {
-    try { await op(); } catch (e) {
-      if (!e || e.code !== 'unavailable') throw e;
-      await new Promise((r) => setTimeout(r, 700 + Math.random() * 900));
-      await op();
+const PEND_KEY = 'planner.pending';
+let pending = (() => { try { return JSON.parse(localStorage.getItem(PEND_KEY)) || {}; } catch (e) { return {}; } })();
+let flushing = false, flushTimer = null;
+const savePending = () => { try { localStorage.setItem(PEND_KEY, JSON.stringify(pending)); } catch (e) { /* queue stays in memory */ } };
+const pendCount = () => Object.keys(pending).length;
+// Every change is queued first, then sent. If the signal drops, the queue stays (and survives closing the app)
+// and is sent when the connection returns.
+function enqueue(k, id) { pending[k + '/' + id] = 1; savePending(); }
+async function flush() {
+  if (!DB || flushing) return;
+  flushing = true;
+  try {
+    while (pendCount()) {
+      const path = Object.keys(pending)[0], [k, ...rest] = path.split('/'), id = rest.join('/');
+      const run = async () => {
+        if (k === 'settings') return DB.doc('settings/main').set({ weekStart: S.weekStart, seeded: true });
+        const x = S[k].find((it) => String(it.id) === id);
+        if (!x) return DB.collection(k).doc(docId(id)).delete();
+        const body = JSON.parse(JSON.stringify({ ...x, key: x.id, ord: S[k].indexOf(x) })); delete body.id;
+        return DB.collection(k).doc(docId(id)).set(body);
+      };
+      try { await run(); } catch (e) {
+        if (e && e.code === 'unavailable') { await new Promise((r) => setTimeout(r, 700 + Math.random() * 900)); await run(); } else throw e;
+      }
+      delete pending[path]; savePending();
     }
-  };
-  dbChains[path] = (dbChains[path] || Promise.resolve()).then(run).then(
-    () => { if (--dbInflight === 0 && syncState === 'busy') setSync('ok'); },
-    (e) => {
-      dbInflight--;
-      const msg = e && e.code === 'quota_exceeded' ? 'Storage is full. Delete old events or tasks.' : 'Could not save the last change. Check your connection.';
-      setSync('error', msg); toast(msg);
-    });
+    setSync('ok');
+  } catch (e) {
+    if (e && e.code === 'quota_exceeded') { setSync('error', 'Storage is full. Delete old events or tasks.'); }
+    else { setSync('offline'); clearTimeout(flushTimer); flushTimer = setTimeout(flush, 15000); }
+  } finally { flushing = false; }
 }
 function dbPush(changed, removed, settings) {
   for (const k of SYNCED) {
     // An ordered list the database doesn't hold yet (first save) goes up whole, so defaults aren't lost.
     const items = ORDERED.includes(k) && !dbHas[k] ? S[k] : changed[k];
-    for (const x of items) {
-      const body = JSON.parse(JSON.stringify({ ...x, key: x.id, ord: S[k].indexOf(x) }));
-      delete body.id;
-      dbWrite(`${k}/${x.id}`, () => DB.collection(k).doc(docId(x.id)).set(body));
-    }
-    for (const id of removed[k]) dbWrite(`${k}/${id}`, () => DB.collection(k).doc(docId(id)).delete());
+    items.forEach((x) => enqueue(k, x.id));
+    removed[k].forEach((id) => enqueue(k, id));
   }
-  if (settings || !dbSeeded) { dbSeeded = true; dbWrite('settings/main', () => DB.doc('settings/main').set({ weekStart: S.weekStart, seeded: true })); }
+  if (settings || !dbSeeded) { dbSeeded = true; enqueue('settings', 'main'); }
+  setSync('busy'); flush();
 }
 function dbApply(k, snap) {
   const rows = snap.docs.map((d) => { const b = { ...d.data() }, ord = typeof b.ord === 'number' ? b.ord : 0, id = b.key || d.id; delete b.key; delete b.ord; return { ord, item: { ...b, id } }; });
@@ -669,12 +681,20 @@ function dbApply(k, snap) {
   const list = rows.map((r) => r.item);
   dbHas[k] = list.length > 0;
   // Empty on the server: keep the built-in event types (always) and projects (until the first save).
-  if (!list.length && (k === 'categories' || (k === 'projects' && !dbSeeded))) return;
-  S[k] = list;
+  if (!list.length && (k === 'categories' || (k === 'projects' && !dbSeeded)) && !pendCount()) return;
+  // Changes still waiting to be sent win over what the server shows, so a slow connection never undoes them.
+  if (pendCount()) {
+    const merged = list.filter((it) => !pending[k + '/' + it.id] || S[k].some((l) => l.id === it.id));
+    S[k].forEach((l) => { if (pending[k + '/' + l.id] && !merged.some((m) => m.id === l.id)) merged.push(l); });
+    S[k].forEach((l) => { const i = merged.findIndex((m) => m.id === l.id); if (i >= 0 && pending[k + '/' + l.id]) merged[i] = l; });
+    S[k] = merged;
+  } else S[k] = list;
   save(); safeRender();
 }
 async function startDb() {
   setSync('off');
+  addEventListener('online', flush);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') flush(); });
   DB = window.claude && window.claude.use ? await window.claude.use('db') : null;
   if (!DB) { setSync('error', 'Your Claude account storage is not available here. Changes stay on this device.'); return; }
   const fail = (e) => { if (e && e.code !== 'revoked') setSync('error', 'Live sync stopped. Reload the page.'); };
@@ -683,7 +703,7 @@ async function startDb() {
   const arrived = (name, snap) => {
     if (!waiting.has(name) || (snap.metadata && snap.metadata.fromCache)) return;
     waiting.delete(name);
-    if (!waiting.size && !dbInflight) setSync('ok');
+    if (!waiting.size) { if (pendCount()) flush(); else setSync('ok'); }
   };
   SYNCED.forEach((k) => DB.collection(k).onSnapshot((snap) => { dbApply(k, snap); arrived(k, snap); }, fail));
   DB.doc('settings/main').onSnapshot((snap) => {
@@ -792,7 +812,8 @@ async function syncNow() {
 function setSync(state, msg) { syncState = state; syncMsg = msg || ''; if (state === 'ok') lastSynced = Date.now(); paintSync(); }
 function paintSync() {
   if (HOSTED) {
-    const t = syncState === 'busy' ? 'Saving…' : syncState === 'ok' ? 'Synced to your Claude account' : syncState === 'off' ? 'Connecting…' : syncMsg;
+    const n = pendCount();
+    const t = syncState === 'offline' ? `Offline${n ? ` · ${n} change${n === 1 ? '' : 's'} waiting` : ''}. Saved on this device, sends when you're back online.` : syncState === 'busy' ? 'Saving…' : syncState === 'ok' ? 'Synced to your Claude account' : syncState === 'off' ? 'Connecting…' : syncMsg;
     $('#syncDot').className = 'sdot ' + (syncState === 'off' ? '' : syncState);
     $('#syncText').textContent = t;
     $('#syncText').className = syncState === 'error' ? 'error' : '';
@@ -1260,6 +1281,7 @@ function openEditor(e, occ, isNew) {
   $('#fNotes').value = e.notes || '';
   const rec = !!(ev && ev.repeat && ev.repeat !== 'none');
   $('#fDelete').hidden = !ev;
+  $('#fDup').hidden = !ev || !!ev.bot || !!ev.milestone;
   $('#fDelete').textContent = rec ? 'Delete all' : 'Delete';
   $('#fDeleteOne').hidden = !rec;
   $('#seriesHint').hidden = !rec;
@@ -1392,10 +1414,56 @@ function parseTag(title) {
   return { title: rest || title, proj };
 }
 function refreshTasks() { renderSide(); if (!query && (S.view === 'month' || S.view === 'projects')) renderMain(); }
-function addTask(title, date = selected, proj = '') {
-  const t = parseTag(title);
-  commit(() => { S.tasks.push({ id: uid(), title: t.title, date: date || '', done: false, p: 0, proj: t.proj || proj, created: Date.now() }); });
+const WDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+// "call Sam fri 3pm #nq" -> { title, date, start, rep }. Dates: today, tomorrow, mon..sun, in N days, 10/30.
+function parseWhen(text) {
+  let t = ' ' + text + ' ', date = '', start = '', rep = '';
+  const cut = (m) => { t = t.slice(0, m.index) + ' ' + t.slice(m.index + m[0].length); };
+  let m;
+  if ((m = t.match(/\s(every ?day|daily)(?=\s)/i))) { rep = 'daily'; cut(m); }
+  else if ((m = t.match(/\s(every weekday|weekdays)(?=\s)/i))) { rep = 'weekdays'; cut(m); }
+  else if ((m = t.match(/\s(every week|weekly)(?=\s)/i))) { rep = 'weekly'; cut(m); }
+  if ((m = t.match(/\s(\d{1,2})(?::(\d{2}))?\s?(am|pm)(?=\s|$)/i))) {
+    let h = +m[1] % 12; if (/pm/i.test(m[3])) h += 12;
+    if (+m[1] >= 1 && +m[1] <= 12) { start = `${pad(h)}:${m[2] || '00'}`; cut(m); }
+  } else if ((m = t.match(/\s([01]?\d|2[0-3]):([0-5]\d)(?=\s|$)/))) { start = `${pad(+m[1])}:${m[2]}`; cut(m); }
+  const today = todayKey();
+  if ((m = t.match(/\s(today|tonight)(?=\s)/i))) { date = today; cut(m); }
+  else if ((m = t.match(/\s(tomorrow|tmrw)(?=\s)/i))) { date = addDays(today, 1); cut(m); }
+  else if ((m = t.match(/\sin (\d{1,3}) days?(?=\s)/i))) { date = addDays(today, +m[1]); cut(m); }
+  else if ((m = t.match(/\s(?:next |on )?(sun|mon|tue|wed|thu|fri|sat)[a-z]*(?=\s)/i))) {
+    const w = WDAYS.indexOf(m[1].toLowerCase()); let d = (w - dow(today) + 7) % 7; if (d === 0) d = 7;
+    date = addDays(today, d); cut(m);
+  } else if ((m = t.match(/\s(\d{1,2})\/(\d{1,2})(?=\s)/))) {
+    const now = new Date(); let y = now.getFullYear(); let k = `${y}-${pad(+m[1])}-${pad(+m[2])}`;
+    if (k < today) k = `${y + 1}-${pad(+m[1])}-${pad(+m[2])}`;
+    if (YMD.test(k) && +m[1] <= 12 && +m[2] <= 31) { date = k; cut(m); }
+  }
+  return { title: t.replace(/\s+/g, ' ').trim(), date, start, rep };
+}
+function addTask(raw, date = selected, proj = '') {
+  const tag = parseTag(raw), w = parseWhen(tag.title);
+  const title = w.title || tag.title;
+  if (w.start) {
+    // A time means it's an appointment: make it an event.
+    const d = w.date || date || todayKey();
+    snapshot();
+    commit(() => { S.events.push({ id: uid(), title, cat: S.lastCat, date: d, allDay: false, start: w.start, end: fromMin(Math.min(toMin(w.start) + 60, 1439)), endDate: '', repeat: w.rep || 'none', until: '', notes: '', ex: [], proj: tag.proj || proj, created: Date.now() }); });
+    selected = d; miniMonth = d.slice(0, 7); if (S.view !== 'month' && S.view !== 'agenda' && S.view !== 'projects') cursor = d;
+    render(); toast(`Event added: ${longDate(d)}, ${fmtTime(w.start)}`, true);
+    return;
+  }
+  commit(() => { S.tasks.push({ id: uid(), title, date: w.date || date || '', done: false, p: 0, proj: tag.proj || proj, rep: w.rep, created: Date.now() }); });
   refreshTasks();
+  if (w.date && w.date !== selected && !proj) toast(`Task set for ${longDate(w.date)}`);
+}
+// A finished repeating task puts the next one on the calendar.
+function nextRep(t) {
+  if (!t.rep) return null;
+  let d = addDays(t.date && t.date > todayKey() ? t.date : todayKey(), 1);
+  if (t.rep === 'weekly') d = addDays(t.date || todayKey(), 7);
+  if (t.rep === 'weekdays') while (dow(d) === 0 || dow(d) === 6) d = addDays(d, 1);
+  return d;
 }
 function taskAction(id, fn) { const t = S.tasks.find((x) => x.id === id); if (t) { commit(() => fn(t)); refreshTasks(); } }
 
@@ -1528,7 +1596,11 @@ document.addEventListener('click', (e) => {
 });
 document.addEventListener('change', (e) => {
   const li = e.target.closest('.tasks [data-t]');
-  if (li && e.target.type === 'checkbox') taskAction(li.dataset.t, (t) => { t.done = e.target.checked; });
+  if (li && e.target.type === 'checkbox') {
+    const done = e.target.checked, src = S.tasks.find((x) => x.id === li.dataset.t);
+    taskAction(li.dataset.t, (t) => { t.done = done; });
+    if (done && src && src.rep) { const d = nextRep(src); commit(() => { S.tasks.push({ id: uid(), title: src.title, date: d, done: false, p: src.p || 0, proj: src.proj || '', rep: src.rep, created: Date.now() }); }); refreshTasks(); toast(`Repeats ${longDate(d)}`); }
+  }
   else if (li && e.target.classList.contains('t-date')) taskAction(li.dataset.t, (t) => { t.date = e.target.value; });
   const ps = e.target.closest('[data-pstat]');
   if (ps) { const p = projOf(ps.closest('[data-pid]').dataset.pid); if (p) { commit(() => { p.status = ps.value; }); render(); } }
@@ -1565,6 +1637,13 @@ $('#fDelete').onclick = () => {
   snapshot();
   commit(() => { S.events = S.events.filter((x) => x.id !== editing.id); });
   dlg.close(); render(); toast('Event deleted', true);
+};
+$('#fDup').onclick = () => {
+  const ev = S.events.find((x) => x.id === editing.id); if (!ev) return;
+  const copy = { ...JSON.parse(JSON.stringify(ev)), id: uid(), title: ev.title + ' (copy)', ex: [], created: Date.now() };
+  delete copy.u;
+  snapshot(); commit(() => { S.events.push(copy); });
+  dlg.close(); render(); toast('Duplicated', true);
 };
 $('#fDismiss').onclick = () => {
   const id = 'd:' + editing.id;

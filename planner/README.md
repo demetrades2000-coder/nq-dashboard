@@ -1,5 +1,16 @@
 # Planner
 
+## Where it runs
+
+**claude.ai (the default):** https://claude.ai/artifact/L53tFQMxbGkhVdYZ7iKucR
+
+- Your data is saved to your Claude account and syncs live to every device signed into it. There are no repos or keys to set up.
+- The page's storage rules make it readable and writable only by you (and editors you add).
+- `build_hosted.py` builds that page from `index.html`.
+- **Bot events:** a daily scheduled task (7:37am ET) runs `bot/dashboard_events.py` on the NQ dashboard's `data.json` and saves the result as the `bots/nq` document. That brings in high-impact news with the windows when the bot pauses, FOMC days, early closes, clock changes and eval end dates.
+
+**Self-hosted (optional):** the GitHub Pages and `planner-data` setup below still works, if you ever want the app off claude.ai.
+
 A white, color-coded calendar, day planner and project tracker. It syncs between your phone and computer, and your bots can add events to it.
 
 ## Projects

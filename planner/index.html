@@ -493,7 +493,9 @@ dialog[open]{animation:pop .16s ease-out}
 <script>
 (() => {
 'use strict';
-const KEY = 'planner.v1';
+// HOSTED: running as a claude.ai page; data lives in the page's database (synced to the owner's Claude account).
+const HOSTED = !!window.PLANNER_HOSTED;
+const KEY = HOSTED ? 'planner.hosted.v1' : 'planner.v1';
 const VIEWS = ['month', 'week', 'day', 'agenda', 'projects'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -609,18 +611,95 @@ function commit(fn) {
   SYNCED.forEach((k) => { before[k] = new Map(S[k].map((x) => [x.id, canon({ ...x, u: 0 })])); });
   const ws = S.weekStart;
   fn();
-  const now = Date.now();
+  const now = Date.now(), changed = {}, removed = {};
   SYNCED.forEach((k) => {
     const seen = new Set();
+    changed[k] = []; removed[k] = [];
     S[k].forEach((x) => {
       seen.add(x.id);
-      if (before[k].get(x.id) !== canon({ ...x, u: 0 })) { x.u = now; delete S.deleted[x.id]; }
+      if (before[k].get(x.id) !== canon({ ...x, u: 0 })) { x.u = now; delete S.deleted[x.id]; changed[k].push(x); }
     });
-    before[k].forEach((_, id) => { if (!seen.has(id)) S.deleted[id] = now; });
+    before[k].forEach((_, id) => { if (!seen.has(id)) { S.deleted[id] = now; removed[k].push(id); } });
   });
   if (S.weekStart !== ws) S.settingsU = now;
   save();
   scheduleSync();
+  if (DB) dbPush(changed, removed, S.weekStart !== ws);
+}
+
+// ---------- hosted storage: one database document per item (collections events, tasks, projects, categories,
+// dismissed), settings/main, and bots/<bot> documents written by the bot sync. Live on every signed-in device.
+let DB = null, dbInflight = 0, dbSeeded = false;
+const dbHas = {}, dbChains = {};
+const ORDERED = ['categories', 'projects'];
+const docId = (id) => String(id).replace(/[^A-Za-z0-9_\-.~:@+]/g, '_').slice(0, 180) || 'x';
+function dbWrite(path, op) {
+  dbInflight++; setSync('busy');
+  const run = async () => {
+    try { await op(); } catch (e) {
+      if (!e || e.code !== 'unavailable') throw e;
+      await new Promise((r) => setTimeout(r, 700 + Math.random() * 900));
+      await op();
+    }
+  };
+  dbChains[path] = (dbChains[path] || Promise.resolve()).then(run).then(
+    () => { if (--dbInflight === 0 && syncState === 'busy') setSync('ok'); },
+    (e) => {
+      dbInflight--;
+      const msg = e && e.code === 'quota_exceeded' ? 'Storage is full. Delete old events or tasks.' : 'Could not save the last change. Check your connection.';
+      setSync('error', msg); toast(msg);
+    });
+}
+function dbPush(changed, removed, settings) {
+  for (const k of SYNCED) {
+    // An ordered list the database doesn't hold yet (first save) goes up whole, so defaults aren't lost.
+    const items = ORDERED.includes(k) && !dbHas[k] ? S[k] : changed[k];
+    for (const x of items) {
+      const body = JSON.parse(JSON.stringify({ ...x, key: x.id, ord: S[k].indexOf(x) }));
+      delete body.id;
+      dbWrite(`${k}/${x.id}`, () => DB.collection(k).doc(docId(x.id)).set(body));
+    }
+    for (const id of removed[k]) dbWrite(`${k}/${id}`, () => DB.collection(k).doc(docId(id)).delete());
+  }
+  if (settings || !dbSeeded) { dbSeeded = true; dbWrite('settings/main', () => DB.doc('settings/main').set({ weekStart: S.weekStart, seeded: true })); }
+}
+function dbApply(k, snap) {
+  const rows = snap.docs.map((d) => { const b = { ...d.data() }, ord = typeof b.ord === 'number' ? b.ord : 0, id = b.key || d.id; delete b.key; delete b.ord; return { ord, item: { ...b, id } }; });
+  if (ORDERED.includes(k)) rows.sort((a, b) => a.ord - b.ord);
+  const list = rows.map((r) => r.item);
+  dbHas[k] = list.length > 0;
+  // Empty on the server: keep the built-in event types (always) and projects (until the first save).
+  if (!list.length && (k === 'categories' || (k === 'projects' && !dbSeeded))) return;
+  S[k] = list;
+  save(); safeRender();
+}
+async function startDb() {
+  setSync('off');
+  DB = window.claude && window.claude.use ? await window.claude.use('db') : null;
+  if (!DB) { setSync('error', 'Your Claude account storage is not available here. Changes stay on this device.'); return; }
+  const fail = (e) => { if (e && e.code !== 'revoked') setSync('error', 'Live sync stopped. Reload the page.'); };
+  // "Synced" once every list has arrived from the server the first time.
+  const waiting = new Set([...SYNCED, 'settings', 'bots']);
+  const arrived = (name, snap) => {
+    if (!waiting.has(name) || (snap.metadata && snap.metadata.fromCache)) return;
+    waiting.delete(name);
+    if (!waiting.size && !dbInflight) setSync('ok');
+  };
+  SYNCED.forEach((k) => DB.collection(k).onSnapshot((snap) => { dbApply(k, snap); arrived(k, snap); }, fail));
+  DB.doc('settings/main').onSnapshot((snap) => {
+    arrived('settings', snap);
+    if (!snap.exists) return;
+    const v = snap.data();
+    dbSeeded = !!v.seeded;
+    if (v.weekStart === 0 || v.weekStart === 1) S.weekStart = v.weekStart;
+    save(); safeRender();
+  }, fail);
+  DB.collection('bots').onSnapshot((snap) => {
+    const next = {};
+    snap.docs.forEach((d) => { next[d.id + '.json'] = { sha: '', data: d.data() }; });
+    botCache = next; safeRender();
+    arrived('bots', snap);
+  }, fail);
 }
 const userDoc = () => ({ v: 2, categories: S.categories, events: S.events, tasks: S.tasks, projects: S.projects, dismissed: S.dismissed, deleted: S.deleted, settings: { weekStart: S.weekStart, u: S.settingsU || 0 } });
 function mergeDocs(a, b) {
@@ -654,8 +733,12 @@ function ghError(r) {
   return new Error(m[r.status] || `GitHub error ${r.status}`);
 }
 function scheduleSync(ms = 1200) { if (!sync) return; clearTimeout(syncTimer); setSync('busy'); syncTimer = setTimeout(syncNow, ms); }
+let renderQueued = false;
 function safeRender() {
-  if (document.activeElement && document.activeElement.classList.contains('t-in')) pendingRender = true; else render();
+  if (document.activeElement && document.activeElement.classList.contains('t-in')) { pendingRender = true; return; }
+  if (renderQueued) return;
+  renderQueued = true;
+  setTimeout(() => { renderQueued = false; render(); }, 30);
 }
 async function pullBots() {
   const r = await gh(`/repos/${sync.repo}/contents/bots`);
@@ -708,6 +791,15 @@ async function syncNow() {
 }
 function setSync(state, msg) { syncState = state; syncMsg = msg || ''; if (state === 'ok') lastSynced = Date.now(); paintSync(); }
 function paintSync() {
+  if (HOSTED) {
+    const t = syncState === 'busy' ? 'Saving…' : syncState === 'ok' ? 'Synced to your Claude account' : syncState === 'off' ? 'Connecting…' : syncMsg;
+    $('#syncDot').className = 'sdot ' + (syncState === 'off' ? '' : syncState);
+    $('#syncText').textContent = t;
+    $('#syncText').className = syncState === 'error' ? 'error' : '';
+    $('#syncText').title = 'Every device signed into your Claude account sees the same calendar, live.';
+    $('#syncBtn').hidden = true; $('#syncMore').hidden = true;
+    return;
+  }
   const s = Math.round((Date.now() - lastSynced) / 1000);
   const ago = s < 45 ? 'just now' : s < 3600 ? `${Math.round(s / 60)} min ago` : `${Math.round(s / 3600)} h ago`;
   const text = !sync ? 'Only on this device'
@@ -1185,7 +1277,7 @@ function openEditor(e, occ, isNew) {
   setTimeout(() => { if (!ev) $('#fTitle').focus(); }, 30);
 }
 function newEvent(date, start, allDay) {
-  const s = start || (date === todayKey() ? fromMin(Math.min(23 * 60, (new Date().getHours() + 1) * 60)) : '09:00');
+  const s = start || (date === todayKey() ? fromMin(Math.min(22 * 60, (new Date().getHours() + 1) * 60)) : '09:00');
   openEditor({ title: '', date, allDay: !!allDay, start: s, end: fromMin(Math.min(toMin(s) + 60, 23 * 60 + 59)), repeat: 'none' }, null, true);
 }
 function formErr(msg) { $('#fErr').textContent = msg; $('#fErr').hidden = false; }
@@ -1308,7 +1400,15 @@ function addTask(title, date = selected, proj = '') {
 function taskAction(id, fn) { const t = S.tasks.find((x) => x.id === id); if (t) { commit(() => fn(t)); refreshTasks(); } }
 
 // ---------- backup ----------
-function download(name, text, type) {
+async function download(name, text, type) {
+  if (HOSTED) {
+    const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    if (!dl) { toast('Downloads are not available in this view.'); return false; }
+    try { await dl.save({ filename: name, data: text }); return true; } catch (e) {
+      if (e && e.code !== 'declined') toast('Could not save the file here.');
+      return false;
+    }
+  }
   if (PREVIEW) { toast('Downloads work in the installed app, not in this preview.'); return false; }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([text], { type }));
@@ -1501,10 +1601,11 @@ $('#catAdd').onclick = () => {
 $('#catForm').onsubmit = (e) => { e.preventDefault(); saveCats(); };
 
 // backup wiring
-$('#exportBtn').onclick = () => { if (download(`planner-backup-${todayKey()}.json`, JSON.stringify(S, null, 1), 'application/json')) toast('Backup downloaded'); };
-$('#icsBtn').onclick = () => {
+$('#exportBtn').onclick = async () => { if (await download(`planner-backup-${todayKey()}.json`, JSON.stringify(S, null, 1), 'application/json')) toast('Backup downloaded'); };
+$('#icsBtn').hidden = HOSTED; // claude.ai saves only common file types; .ics is not one of them
+$('#icsBtn').onclick = async () => {
   if (!allEvents().length) { toast('No events to export yet'); return; }
-  if (download(`planner-${todayKey()}.ics`, toICS(), 'text/calendar')) toast('Calendar file downloaded');
+  if (await download(`planner-${todayKey()}.ics`, toICS(), 'text/calendar')) toast('Calendar file downloaded');
 };
 $('#importBtn').onclick = () => $('#importFile').click();
 $('#importFile').onchange = async (e) => {
@@ -1582,13 +1683,16 @@ setInterval(() => {
 }, 30000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync) syncNow(); });
 addEventListener('online', () => { if (sync) syncNow(); });
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => null);
+if (!HOSTED && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => null);
 
 render();
 paintSync();
-readConnectLink();
-addEventListener('hashchange', readConnectLink);
-if (sync) syncNow();
+if (HOSTED) startDb();
+else {
+  readConnectLink();
+  addEventListener('hashchange', readConnectLink);
+  if (sync) syncNow();
+}
 })();
 </script>
 </body>

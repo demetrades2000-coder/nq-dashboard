@@ -4411,13 +4411,15 @@ setInterval(() => {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync) syncNow(); });
 addEventListener('online', () => { if (sync) syncNow(); });
 $('#helpBtn').onclick = () => $('#helpDlg').showModal();
-const APP_VERSION = '2026-10-28.8';
+const APP_VERSION = '2026-10-28.9';
 if ($('#verNote')) $('#verNote').textContent = 'Planner ' + APP_VERSION;
 if (!HOSTED && 'serviceWorker' in navigator && window.isSecureContext && location.protocol.startsWith('http')) {
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register('sw.js').catch(() => null);
   // A new service worker took over: offer a reload (never reload on its own, a half-typed task would be lost).
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) $('#updBar').hidden = false; });
+  // The site answered with an error (for example its copy of the app was removed): the saved copy on this phone is running.
+  navigator.serviceWorker.addEventListener('message', (e) => { if (e.data && e.data.planner === 'saved-copy') { try { if (sessionStorage.getItem('planner.savedNote')) return; sessionStorage.setItem('planner.savedNote', '1'); } catch (err) { /* show anyway */ } toast('The online copy of the app is unavailable, so your saved copy is running. Your data is safe on this phone.'); } });
   $('#updGo').onclick = () => location.reload();
 }
 

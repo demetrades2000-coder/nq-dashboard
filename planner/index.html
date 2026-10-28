@@ -505,6 +505,7 @@ body.focusing .toast{bottom:76px}
 .sl-row .pill[aria-pressed=true] .n{color:#fff}
 .rv-nav .btn[aria-pressed=true]{background:var(--soft2);border-color:#cfd3da}
 .tpl-it .btn{height:36px}
+.rv-card .btn.primary{height:auto;min-height:38px;padding:8px 14px;white-space:normal;text-align:center;justify-content:center}
 
 /* ---------- responsive ---------- */
 @media (max-width:1180px){
@@ -2537,8 +2538,9 @@ function jrnHtml(k, kind) {
 }
 function renderJournals() {
   const side = $('#jrnSide'), day = $('#jrnDay');
-  if (side && !side.contains(document.activeElement)) side.innerHTML = jrnHtml(selected, 'side');
-  if (day && !day.contains(document.activeElement)) day.innerHTML = jrnHtml(cursor, 'day');
+  const busy = (el) => el.contains(document.activeElement) && document.activeElement.tagName === 'TEXTAREA';
+  if (side && !busy(side)) side.innerHTML = jrnHtml(selected, 'side');
+  if (day && !busy(day)) day.innerHTML = jrnHtml(cursor, 'day');
 }
 // ===== JOURNAL END =====
 
@@ -2549,7 +2551,7 @@ function defaultTemplates() {
 }
 const tplDlg = $('#tplDlg');
 function renderTplRow() {
-  const el = $('#tplSide'); if (!el || el.contains(document.activeElement)) return;
+  const el = $('#tplSide'); if (!el || (el.contains(document.activeElement) && document.activeElement.tagName === 'SELECT')) return;
   const keep = el.querySelector('select') ? el.querySelector('select').value : '';
   el.innerHTML = `<div class="label" style="margin:0 0 6px">Day template</div><div class="tplrow">${S.templates.length ? `<select aria-label="Template" id="tplPick">${S.templates.map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('')}</select><button class="btn sm" id="tplApply" style="height:36px">Apply</button>` : '<span class="sub" style="flex:1">No templates yet.</span>'}<button class="btn sm" id="tplManage" style="height:36px">Manage</button></div>`;
   const sel = $('#tplPick'); if (sel && S.templates.some((t) => t.id === keep)) sel.value = keep;
@@ -2664,7 +2666,7 @@ function focusFinish(natural) {
   const ok = logFocus(f.tid, mins, key(new Date(end)));
   if (natural) {
     S.focus = { ...f, status: 'done', logged: ok ? mins : 0 };
-    try { if (navigator.vibrate) navigator.vibrate([250, 120, 250, 120, 250]); } catch (e) { /* optional */ }
+    try { if (navigator.vibrate && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) navigator.vibrate([250, 120, 250, 120, 250]); } catch (e) { /* optional */ }
   } else { S.focus = null; toast(ok ? `Logged ${mins} min of focus` : 'Under a minute, nothing logged'); }
   save(); focusPaint(); if (!query && (S.view === 'review')) renderMain();
 }

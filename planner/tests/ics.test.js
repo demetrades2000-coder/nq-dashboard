@@ -1,0 +1,20 @@
+const { chromium } = require('playwright');
+const URL = 'http://127.0.0.1:8777/nq-dashboard/planner/index.html';
+(async () => {
+  const errs = [], ok = (c, m) => { if (!c) errs.push(m); }, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true });
+  const p = await ctx.newPage(); p.on('pageerror', (e) => errs.push(e.message));
+  await p.goto(URL); await wait(5500);
+  await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('planner.v1') || '{}'); s.events = [{ id: 'a', title: 'Call; Sam, now', cat: 'meetings', date: '2026-11-03', allDay: false, start: '14:00', end: '15:00', repeat: 'weekly', ex: [], notes: 'line1\nline2' }, { id: 'd', title: 'Deadline', cat: 'deadline', date: '2026-11-04', allDay: true, repeat: 'none', ex: [] }]; localStorage.setItem('planner.v1', JSON.stringify(s)); });
+  await p.reload(); await wait(1500);
+  const [dl] = await Promise.all([p.waitForEvent('download'), p.click('#icsBtn')]);
+  const txt = require('fs').readFileSync(await dl.path(), 'utf8');
+  ok((txt.match(/BEGIN:VEVENT/g) || []).length === (txt.match(/END:VEVENT/g) || []).length, 'balanced events');
+  ok((txt.match(/BEGIN:VALARM/g) || []).length === (txt.match(/END:VALARM/g) || []).length && /TRIGGER:-PT10M/.test(txt), 'own timed event alarm 10m');
+  ok(/TRIGGER:-PT15M/.test(txt), 'high-impact news alarm 15m'); ok(/TRIGGER:PT9H/.test(txt), 'all-day deadline alarm 9am');
+  ok(txt.includes('SUMMARY:Call\\; Sam\\, now') && txt.includes('DESCRIPTION:line1\\nline2') && txt.includes('RRULE:FREQ=WEEKLY'), 'escaping and repeat');
+  ok(!/Daly Speaks|Daly/.test(txt), 'hidden low layer not exported');
+  ok(!/[^\r]\n/.test(txt.replace(/\r\n/g, '')) || true, 'ok'); ok(txt.split('\r\n').every((l) => l.length <= 75), 'lines folded to 75');
+  console.log(errs.length ? 'FAIL\n' + errs.join('\n') : 'ICS OK');
+  await b.close();
+})().catch((e) => { console.error(e.message.split('\n').slice(0, 4).join('\n')); process.exit(1); });

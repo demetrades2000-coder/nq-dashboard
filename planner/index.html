@@ -40,6 +40,8 @@ svg{display:block}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;letter-spacing:-.01em;width:248px;flex:none}
 .logo{width:28px;height:28px;border-radius:8px;background:var(--ink);display:grid;place-items:center;color:#fff}
 .nav{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.nav .ib,.nav .btn{flex:none}
+.right{flex:none}
 .nav h1{font-size:18px;font-weight:600;letter-spacing:-.015em;margin-left:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .right{display:flex;align-items:center;gap:10px}
 .btn{height:36px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:#fff;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:background .15s,border-color .15s}
@@ -307,6 +309,103 @@ body.dragging-ev{cursor:grabbing;-webkit-user-select:none;user-select:none}
 .tone{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;align-self:start;background:var(--soft2);color:var(--mute);white-space:nowrap}
 .tone.off{background:#fee2e2;color:#991b1b}.tone.on{background:#dcfce7;color:#166534}
 @media (max-width:640px){.news{padding:16px 16px 40px}.nw-row{grid-template-columns:54px 10px minmax(0,1fr)}.nw-c{grid-column:3;padding-top:0}}
+@media (max-width:960px){
+  .side .card.fold > .sec-h{margin-bottom:0}
+  .side .card.fold > .sec-h h2{cursor:pointer;display:flex;align-items:center;gap:8px;padding:4px 0;min-height:28px}
+  .side .card.fold > .sec-h h2::after{content:"";width:7px;height:7px;border:solid var(--faint);border-width:0 2px 2px 0;transform:rotate(45deg) translateY(-2px);transition:transform .15s}
+  .side .card.fold.collapsed > .sec-h h2::after{transform:rotate(-45deg)}
+  .side .card.fold:not(.collapsed) > .sec-h{margin-bottom:10px}
+  .side .card.fold.collapsed > *:not(.sec-h){display:none}
+}
+.mch{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;align-items:stretch}
+.mch>div{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
+.mch .pl{height:64px;width:100%;position:relative;display:flex;flex-direction:column}
+.mch .up,.mch .dn{flex:1;display:flex}
+.mch .up{align-items:flex-end}.mch .dn{align-items:flex-start}
+.mch i{display:block;width:70%;margin:0 auto;border-radius:3px}
+.mch .up i{background:#10b981}.mch .dn i{background:#ef4444}
+.mch small{font-size:10.5px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
+.mch small.v{color:var(--ink);font-weight:500}
+.tdy{max-width:720px;margin:0 auto;padding:18px 20px 70px;display:flex;flex-direction:column;gap:14px}
+.td-h{display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
+.td-h h2{font-size:24px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.td-h .sub{margin-top:2px}
+.td-card{border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px;background:#fff}
+.td-card>h3{font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.td-card>h3 a,.td-card>h3 button{font-size:12px;font-weight:500;color:var(--mute)}
+.td-ev{display:flex;gap:10px;align-items:baseline;padding:7px 8px;border-radius:8px;text-align:left;width:100%;background:var(--bg-c)}
+.td-ev.cur{box-shadow:inset 0 0 0 1.5px var(--c)}
+.td-ev .tm{font-size:12px;color:var(--mute);width:62px;flex:none;font-variant-numeric:tabular-nums}
+.td-ev .tt{font-size:13.5px;font-weight:500;color:var(--fg);min-width:0;overflow-wrap:anywhere}
+.td-ev.past{opacity:.5}
+.td-hab{display:flex;align-items:center;gap:10px;padding:6px 2px}
+.td-hab button{width:30px;height:30px;border-radius:50%;border:2px solid var(--c);flex:none;display:grid;place-items:center;color:#fff}
+.td-hab button[aria-pressed=true]{background:var(--c)}
+.td-hab span{flex:1;font-size:13.5px}.td-hab small{color:var(--mute);font-size:12px}
+.td-acct{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-variant-numeric:tabular-nums}
+.td-acct b{font-weight:600}
+@media (max-width:640px){.tdy{padding:14px 16px 60px}.seg button{padding:0 7px;font-size:12.5px}}
+body.offline .brand::after{content:"Offline";font-size:11px;font-weight:600;color:#92400e;background:#fef3c7;padding:2px 8px;border-radius:10px;margin-left:6px}
+.updbar{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:60;background:var(--ink);color:#fff;border-radius:12px;padding:10px 12px 10px 16px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);max-width:460px;margin:0 auto;font-size:13.5px}
+.updbar span{flex:1}.updbar button{background:#fff;color:var(--ink);font-weight:600;padding:6px 12px;border-radius:8px}
+.pw-days{display:flex;flex-direction:column;gap:8px;max-height:46vh;overflow:auto}
+.pw-day{border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.pw-day>b{font-size:12.5px;font-weight:600;display:flex;justify-content:space-between}
+.pw-day>b span{font-weight:400;color:var(--mute)}
+.pw-day label{display:flex;gap:8px;align-items:flex-start;padding:4px 0;font-size:13.5px;cursor:pointer}
+.pw-day label input{width:16px;height:16px;margin-top:2px;flex:none;accent-color:var(--ink);padding:0}
+.hx{max-width:900px;margin:0 auto;padding:18px 20px 70px;display:flex;flex-direction:column;gap:14px}
+.hx-tabs{max-width:420px}
+.hx-card{border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;background:#fff}
+.hx-card>h3{font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.hx-card>h3 small{font-weight:400;color:var(--mute);font-size:12px}
+.hx-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:14px;align-items:start}
+.hx-date{display:flex;align-items:center;justify-content:center;gap:14px}
+.hx-date b{font-size:15px;min-width:150px;text-align:center}
+.hx-date button{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);font-size:18px}
+.hx-date button:disabled{opacity:.35}
+.hx-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.hx-row>span.l{font-size:13px;color:var(--ink2);font-weight:500}
+.hx-step{display:flex;align-items:center;gap:10px}
+.hx-step button{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);font-size:20px;line-height:1;background:#fff}
+.hx-step button:hover{background:var(--soft)}
+.hx-step output{min-width:64px;text-align:center;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+.hxc{display:flex;gap:6px;flex-wrap:wrap}
+.hxc button{min-height:36px;min-width:42px;padding:0 12px;border-radius:20px;border:1px solid var(--line);font-size:13px;font-weight:500;background:#fff;color:var(--ink2)}
+.hxc button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+.hx-dots{display:flex;gap:6px;flex-wrap:wrap}
+.hx-dots i{width:22px;height:22px;border-radius:50%;border:2px solid #93c5fd;display:block}
+.hx-dots i.on{background:#3b82f6;border-color:#3b82f6}
+.hx-hint{font-size:12px;color:var(--mute);line-height:1.45}
+.hx-hint b{color:var(--ink)}
+.hx-in{display:flex;gap:10px}
+.hx-in .fld{flex:1}
+.hx-plan{display:grid;grid-template-columns:48px 1fr;gap:6px 10px;align-items:center}
+.hx-plan select{height:38px;border:1px solid var(--line);border-radius:8px;padding:0 8px;background:#fff}
+.hx-wk{display:flex;gap:10px;align-items:baseline;width:100%;text-align:left;padding:10px 4px;border-top:1px solid var(--line2);border-radius:6px}
+.hx-wk:hover{background:var(--soft)}
+.hx-wk .d{font-size:12px;color:var(--mute);width:56px;flex:none}
+.hx-wk .n{flex:1;min-width:0;font-size:13.5px;overflow-wrap:anywhere}
+.hx-wk .n small{display:block;color:var(--mute);font-size:12px}
+.hx-wk .a{font-size:12.5px;color:var(--ink2);white-space:nowrap}
+.hx-ex{border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.hx-ex .top{display:flex;gap:8px}
+.hx-ex .top input{flex:1;min-width:0;height:38px;border:1px solid var(--line);border-radius:8px;padding:0 10px}
+.hx-ex .set{display:grid;grid-template-columns:22px 1fr 1fr 32px;gap:6px;align-items:center}
+.hx-ex .set span{font-size:12px;color:var(--mute);text-align:center}
+.hx-ex .set input{height:36px;border:1px solid var(--line);border-radius:8px;padding:0 8px;width:100%;min-width:0}
+.hx-ex .last{font-size:11.5px;color:var(--mute)}
+.hx-ex button.x{color:var(--faint);padding:4px 8px;border-radius:6px}
+.hx-bars{display:grid;gap:4px;align-items:end}
+.hx-bars>div{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
+.hx-bars .pl{height:70px;width:100%;position:relative;display:flex;align-items:flex-end}
+.hx-bars .pl i{display:block;width:70%;margin:0 auto;border-radius:3px 3px 0 0;background:#6366f1}
+.hx-bars .pl .ln{position:absolute;left:0;right:0;border-top:1.5px dashed #9ca3af;pointer-events:none}
+.hx-bars small{font-size:10px;color:var(--mute);white-space:nowrap}
+.hx-ins{display:flex;flex-direction:column;gap:8px}
+.hx-ins div{font-size:13px;line-height:1.45;padding:8px 10px;border-radius:8px;background:var(--soft)}
+.hx-ins div.dim{color:var(--mute);background:transparent;border:1px dashed var(--line)}
+@media (max-width:640px){.hx{padding:14px 16px 60px}}
 .keys{font-size:11.5px;color:var(--faint);line-height:1.7}
 kbd{font:500 10.5px var(--font);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;color:var(--mute);background:#fff}
 
@@ -527,9 +626,23 @@ body.focusing .toast{bottom:76px}
 .sl-row .pill .n{font-variant-numeric:tabular-nums;color:var(--mute);font-weight:600}
 #hSw button,#hDays .pill{min-height:36px}
 #hSw button{width:34px;height:34px}
-@media(max-width:1180px){
+@media(max-width:1700px){
+  .brand{width:auto;min-width:104px}
+  .search{width:150px}
+  .seg button{padding:0 10px}
+}
+@media(max-width:1600px){
+  .seg button{padding:0 7px}
+  .search{width:130px}
+}
+@media(max-width:1400px){
   .seg .xtra{display:none}
   #moreBtn{display:inline-block}
+}
+@media(max-width:1180px){
+  .search{width:110px}
+  .brand{font-size:0;gap:0;min-width:0}
+  .seg button{padding:0 8px;font-size:12.5px}
 }
 @media(max-width:960px){
   #dayTools{order:-1}
@@ -542,6 +655,82 @@ body.focusing .toast{bottom:76px}
   .rv-big{font-size:22px}
 }
 /* ===== EXTRAS CSS END ===== */
+/* ===== MONEYX CSS BEGIN (rules checklist, trades, payout planner, risk alerts) ===== */
+@media(max-width:1500px){
+  .seg .xtra2{display:none}
+  #moreBtn{display:inline-block}
+}
+.rl-chip{display:flex;align-items:center;gap:8px;margin:10px 0 2px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--soft);font-size:12.5px;color:var(--ink2);line-height:1.35}
+.rl-chip .sdot{flex:none}
+.rl-chip.done{border-color:#bbf7d0;background:#f0fdf4}
+.rl-chip.todo{border-color:#fde68a;background:#fffbeb}
+.rl-chip span{flex:1;min-width:0}
+.rl-chip .btn{flex:none}
+.nowbar .nb-t small.nb-x{color:#92400e}
+.nowbar .nb-t small.nb-x.red{color:#b91c1c}
+.nowbar .nb-t small.nb-x[data-nowrules]{cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.rl-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line2)}
+.rl-row:first-of-type{border-top:0}
+.rl-row .rl-t{flex:1;min-width:0;display:flex;flex-direction:column}
+.rl-row .rl-t b{font-weight:600;font-size:14.5px;overflow-wrap:anywhere}
+.rl-row .rl-t small{color:var(--mute);font-size:12.5px;overflow-wrap:anywhere}
+.rl-stat{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end}
+.rl-stat div{font-size:12px;color:var(--mute);line-height:1.3}
+.rl-stat b{display:block;font-size:24px;color:var(--ink);font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.rl-grid{display:grid;grid-template-columns:repeat(7,1fr);justify-items:center}
+.rl-grid .wd{font-size:10px;font-weight:600;color:var(--faint);padding-bottom:2px}
+.rl-d{width:100%;height:38px;display:grid;place-items:center}
+.rl-d i{width:18px;height:18px;border-radius:50%;border:1.5px solid #d6d9df;background:#fff;display:block}
+.rl-d.full i{background:#059669;border-color:#059669}
+.rl-d.part i{background:#fff;border-color:#dc2626;box-shadow:inset 0 0 0 4px #fecaca}
+.rl-d.miss i{border-color:#9ca3af}
+.rl-d.off i{border-color:var(--line2);background:var(--soft)}
+.rl-d.today i{box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--ink)}
+.rl-d.part.today i{box-shadow:inset 0 0 0 4px #fecaca,0 0 0 2px #fff,0 0 0 3.5px var(--ink)}
+.rl-d:disabled{cursor:default;opacity:.35}
+.ck-r{display:flex;flex-direction:column;gap:8px;padding:12px 0;border-top:1px solid var(--line2)}
+.ck-r:first-child{border-top:0}
+.ck-n b{font-weight:600;font-size:15px;overflow-wrap:anywhere}
+.ck-n small{display:block;color:var(--mute);font-size:12.5px}
+.ck-yn{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ck-b{height:52px;border-radius:12px;border:1.5px solid var(--line);font-size:16px;font-weight:600;background:#fff;color:var(--ink2)}
+.ck-b.yes[aria-pressed=true]{background:#059669;border-color:#059669;color:#fff}
+.ck-b.no[aria-pressed=true]{background:#dc2626;border-color:#dc2626;color:#fff}
+.tr-filter{display:flex;gap:6px;flex-wrap:wrap}
+.tr-filter .pill{height:34px}
+.tr-filter .pill[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+.tr-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;width:100%;text-align:left;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;min-height:56px}
+.tr-row:hover{border-color:#d0d4db;background:var(--soft)}
+.tr-list{display:flex;flex-direction:column;gap:8px}
+.tr-bdg{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--soft2);color:var(--ink2)}
+.tr-bdg.lit{background:#eef2ff;color:#3730a3}.tr-bdg.atlas{background:#f0fdfa;color:#115e59}
+.tr-side{font-size:13px;font-weight:600}
+.tr-src{font-size:11.5px;color:var(--mute);text-transform:uppercase;letter-spacing:.04em}
+.tr-num{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:600;font-size:14px;display:flex;gap:10px}
+.tr-sub{flex-basis:100%;display:flex;gap:6px 10px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--mute)}
+.tr-tag{font-size:11.5px;font-weight:500;padding:1px 8px;border-radius:20px;border:1px solid var(--line);color:var(--ink2);background:var(--soft)}
+.tr-star{letter-spacing:1px;color:#d97706}
+.tr-note{flex-basis:100%;font-size:12.5px;color:var(--ink2);overflow-wrap:anywhere}
+.tr-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tr-tbl th,.tr-tbl td{text-align:left;padding:6px 6px 6px 0;border-top:1px solid var(--line2);font-variant-numeric:tabular-nums;vertical-align:top}
+.tr-tbl th{font-weight:500;color:var(--mute);border-top:0;font-size:12px}
+.tr-tbl td:last-child,.tr-tbl th:last-child{text-align:right;padding-right:0}
+.po-in{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.po-in .fld{min-width:0}
+.po-acct{border-top:1px solid var(--line2);padding-top:10px;display:flex;flex-direction:column;gap:4px;font-size:13px}
+.po-acct:first-of-type{border-top:0;padding-top:0}
+.po-est{font-size:13px;background:var(--soft);border:1px solid var(--line2);border-radius:10px;padding:8px 10px;line-height:1.45}
+.tr-rate{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.tr-rate button{height:44px;border-radius:10px;border:1.5px solid var(--line);font-weight:600;font-size:15px;background:#fff}
+.tr-rate button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+#trTags .pill{height:38px}
+#trTags .pill[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+.ralerts{display:flex;flex-direction:column;gap:6px;margin:0 0 10px}
+.ral{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.4;padding:7px 9px;border-radius:9px;border:1px solid var(--line);background:var(--soft);color:var(--ink2)}
+.ral i{width:8px;height:8px;border-radius:50%;margin-top:5px;flex:none;background:#9ca3af}
+.ral.red{background:#fef2f2;border-color:#fecaca;color:#7f1d1d}.ral.red i{background:#dc2626}
+.ral.amber{background:#fffbeb;border-color:#fde68a;color:#78350f}.ral.amber i{background:#f59e0b}
+/* ===== MONEYX CSS END ===== */
 .sl-row .pill[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
 .sl-row .pill[aria-pressed=true] .n{color:#fff}
 .rv-nav .btn[aria-pressed=true]{background:var(--soft2);border-color:#cfd3da}
@@ -556,7 +745,7 @@ body.focusing .toast{bottom:76px}
 @media (max-width:960px){
   body{overflow:auto}
   .top{height:auto;flex-wrap:wrap;padding:12px 16px;gap:10px}
-  .brand{order:1;flex:1}
+  .brand{order:1;flex:1;font-size:16px;gap:10px;min-width:0}
   .right{display:contents}
   #newBtn{order:2}
   .nav{order:3;flex:1 1 100%}
@@ -632,7 +821,7 @@ body.focusing .toast{bottom:76px}
   <div class="right">
     <label class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search" aria-label="Search events" autocomplete="off"></label>
     <div class="seg" id="views" role="group" aria-label="View">
-      <button data-v="month" title="Month (M)">Month</button><button data-v="week" title="Week (W)">Week</button><button data-v="day" title="Day (D)">Day</button><button data-v="agenda" title="Agenda (A)">Agenda</button><button data-v="projects" class="xtra" title="Projects (P)">Projects</button><button data-v="habits" class="xtra" title="Habits (H)">Habits</button><button data-v="review" class="xtra" title="Review (R)">Review</button><button data-v="news" class="xtra" title="Market news">News</button><button id="moreBtn" aria-haspopup="true" aria-expanded="false" title="Projects, Habits, Review">More</button>
+      <button data-v="today" title="Today screen">Today</button><button data-v="month" title="Month (M)">Month</button><button data-v="week" title="Week (W)">Week</button><button data-v="day" title="Day (D)">Day</button><button data-v="agenda" title="Agenda (A)">Agenda</button><button data-v="projects" class="xtra" title="Projects (P)">Projects</button><button data-v="habits" class="xtra" title="Habits (H)">Habits</button><button data-v="health" class="xtra" title="Health and fitness">Health</button><button data-v="review" class="xtra" title="Review (R)">Review</button><button data-v="news" class="xtra" title="Market news">News</button><button data-v="rules" class="xtra xtra2" title="Pre-trade checklist">Rules</button><button data-v="trades" class="xtra xtra2" title="Trades, notes and payout planner">Trades</button><button id="moreBtn" aria-haspopup="true" aria-expanded="false" title="Projects, Habits, Review">More</button>
     </div>
     <button class="btn primary" id="newBtn" title="New event (N)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="newlabel">New event</span></button>
   </div>
@@ -647,7 +836,8 @@ body.focusing .toast{bottom:76px}
     </section>
 
     <section class="card" id="plan">
-      <div class="sec-h" style="margin-bottom:2px"><div><div class="plan-title" id="planTitle"></div><div class="sub" id="planSub"></div></div><div style="display:flex;gap:6px"><button class="btn sm" id="planGoBtn" title="Pick today's tasks and block time for them">Plan day</button><button class="btn sm" id="planAdd" title="New event on this day">+ Event</button></div></div>
+      <div class="sec-h" style="margin-bottom:2px"><div><div class="plan-title" id="planTitle"></div><div class="sub" id="planSub"></div></div><div style="display:flex;gap:6px"><button class="btn sm" id="planGoBtn" title="Pick today's tasks and block time for them">Plan day</button><button class="btn sm" id="planWeekBtn" title="Spread open tasks over the week">Week</button><button class="btn sm" id="planAdd" title="New event on this day">+ Event</button></div></div>
+      <div id="rulesChip" hidden></div>
       <div class="label">Schedule</div>
       <div class="sched" id="sched"></div>
       <div class="label" style="display:flex;justify-content:space-between"><span>Tasks</span><span id="taskCount" style="letter-spacing:0;text-transform:none;font-weight:500"></span></div>
@@ -673,13 +863,15 @@ body.focusing .toast{bottom:76px}
       <ul class="cats" id="cats"></ul>
     </section>
 
-    <section class="card tools">
+    <section class="card tools" id="settings">
+      <div class="sec-h"><h2>Settings and backup</h2></div>
       <div class="row"><span class="sub" style="color:var(--ink2);font-weight:500">Week starts</span><div class="seg" id="wkStart"><button data-w="0">Sun</button><button data-w="1">Mon</button></div></div>
       <div class="sync-row"><span class="sdot" id="syncDot"></span><span id="syncText">Only on this device</span><button class="btn sm" id="syncBtn">Connect</button></div>
       <div class="sub" id="bkNote" hidden></div>
       <div class="btns" id="syncMore" hidden><button class="btn sm" id="syncLink" title="A private link that connects your phone or another computer in one tap">Link a device</button><button class="btn sm" id="syncOff">Disconnect</button></div>
-      <div class="btns"><button class="btn sm" id="exportBtn">Back up</button><button class="btn sm" id="importBtn">Restore</button><button class="btn sm" id="icsBtn" title="Download a .ics file for Google / Apple / Outlook Calendar">Export .ics</button></div>
+      <div class="btns"><button class="btn sm" id="exportBtn">Back up</button><button class="btn sm" id="importBtn">Restore</button><button class="btn sm" id="icsBtn" title="Save a calendar file with alerts, then open it in the iPhone Calendar app">Calendar alerts</button></div>
       <input type="file" id="importFile" accept="application/json,.json" hidden>
+      <div class="sub" id="verNote"></div>
       <div class="keys"><kbd>N</kbd> new &nbsp;<kbd>T</kbd> today &nbsp;<kbd>←</kbd><kbd>→</kbd> move &nbsp;<kbd>M</kbd><kbd>W</kbd><kbd>D</kbd><kbd>A</kbd> views &nbsp;<kbd>/</kbd> search</div>
     </section>
   </aside>
@@ -753,6 +945,16 @@ body.focusing .toast{bottom:76px}
     <div class="fld"><span class="flabel" id="gapLabel">Free time</span><div class="gaps" id="bGaps"></div></div>
     <div class="err" id="bErr" hidden></div>
     <div class="dlg-f"><div></div><div><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Add to calendar</button></div></div>
+  </form>
+</dialog>
+
+<dialog id="weekDlg" aria-labelledby="weekDlgTitle">
+  <form class="dlg" id="weekForm" novalidate>
+    <div class="dlg-h"><h3 id="weekDlgTitle">Plan my week</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="hint" id="weekHint"></div>
+    <div class="pw-days" id="weekDays"></div>
+    <div class="hint" id="weekLeft"></div>
+    <div class="dlg-f"><div></div><div><button type="button" class="btn" data-close>Not now</button><button type="submit" class="btn primary">Schedule these</button></div></div>
   </form>
 </dialog>
 
@@ -843,9 +1045,26 @@ body.focusing .toast{bottom:76px}
   </div>
 </dialog>
 
-<div class="menu" id="moreMenu" hidden><button data-v="projects">Projects</button><button data-v="habits">Habits</button><button data-v="review">Review</button><button data-v="news">News</button></div>
+<div class="menu" id="moreMenu" hidden><button data-v="projects">Projects</button><button data-v="habits">Habits</button><button data-v="health">Health</button><button data-v="review">Review</button><button data-v="news">News</button><button data-v="rules">Rules</button><button data-v="trades">Trades</button></div>
 <div class="fbar" id="focusBar" role="status" hidden></div>
 <!-- ===== EXTRAS DIALOGS END ===== -->
+
+<dialog id="wkDlg" aria-labelledby="wkTitle">
+  <form class="dlg" id="wkForm" novalidate>
+    <div class="dlg-h"><h3 id="wkTitle">Log workout</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="frow"><div class="fld"><label for="wkType">Type</label><select id="wkType"></select></div><div class="fld"><label for="wkDate">Date</label><input type="date" id="wkDate"></div></div>
+    <div class="frow"><div class="fld"><label for="wkMins">Minutes</label><input id="wkMins" inputmode="numeric" autocomplete="off" placeholder="45"></div><div class="fld"><label for="wkRpe">Effort</label><select id="wkRpe"><option value="0">Not rated</option><option value="3">3 Easy</option><option value="5">5 Moderate</option><option value="7">7 Hard</option><option value="9">9 Very hard</option><option value="10">10 All out</option></select></div></div>
+    <div class="fld" id="wkTplWrap"><label for="wkTpl">Start from a template</label><select id="wkTpl"></select></div>
+    <div id="wkEx"></div>
+    <div id="wkExAdd"><button type="button" class="btn sm" id="wkAddEx">+ Exercise</button></div>
+    <div class="fld"><label for="wkNotes">Notes</label><textarea id="wkNotes" rows="2" placeholder="How it felt, what to change next time"></textarea></div>
+    <div class="frow" id="wkSaveRow"><label class="check"><input type="checkbox" id="wkSaveTpl"> Save the exercises as a template</label><div class="fld"><input id="wkTplName" maxlength="40" placeholder="Template name" autocomplete="off" aria-label="Template name"></div></div>
+    <div class="err" id="wkErr" hidden></div>
+    <div class="dlg-f"><div><button type="button" class="btn danger" id="wkDelete">Delete</button></div><div><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Save</button></div></div>
+  </form>
+</dialog>
+
+<div class="updbar" id="updBar" hidden><span>A new version is ready.</span><button id="updGo">Reload</button></div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastMsg"></span><button id="toastBtn" hidden>Undo</button></div>
 
@@ -855,7 +1074,7 @@ body.focusing .toast{bottom:76px}
 // HOSTED: running as a claude.ai page; data lives in the page's database (synced to the owner's Claude account).
 const HOSTED = !!window.PLANNER_HOSTED;
 const KEY = HOSTED ? 'planner.hosted.v1' : 'planner.v1';
-const VIEWS = ['month', 'week', 'day', 'agenda', 'projects', 'habits', 'review', 'news'];
+const VIEWS = ['today', 'month', 'week', 'day', 'agenda', 'projects', 'habits', 'health', 'review', 'news', 'rules', 'trades'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const DEFAULT_CATS = [
@@ -905,6 +1124,7 @@ const shade = (hex, f) => { const [r, g, b] = rgb(hex); return `rgb(${Math.round
 const cvars = (hex) => `--c:${hex};--bg-c:${tint(hex, .13)};--fg:${shade(hex, .42)}`;
 
 // ---------- state ----------
+const XSYNC = ['rules', 'checks', 'tradenotes']; // collections added by the Rules and Trades features
 let S = load();
 let cursor = todayKey(), selected = cursor, miniMonth = cursor.slice(0, 7);
 let query = '', agendaDays = 30, undoSnap = null, editing = null, lastScrollView = null;
@@ -917,6 +1137,9 @@ function normalize(s) {
     categories: cats,
     events: Array.isArray(s.events) ? s.events.filter((e) => e && e.id && e.date) : [],
     tasks: Array.isArray(s.tasks) ? s.tasks.filter((t) => t && t.id) : [],
+    health: Array.isArray(s.health) ? s.health.filter((x) => x && x.id) : [],
+    workouts: Array.isArray(s.workouts) ? s.workouts.filter((x) => x && x.id) : [],
+    wtemplates: Array.isArray(s.wtemplates) ? s.wtemplates.filter((x) => x && x.id) : [],
     goals: Array.isArray(s.goals) ? s.goals.filter((x) => x && x.id) : [],
     money: Array.isArray(s.money) ? s.money.filter((x) => x && x.id) : [],
     planned: typeof s.planned === 'string' ? s.planned : '',
@@ -927,13 +1150,14 @@ function normalize(s) {
     dismissed: Array.isArray(s.dismissed) ? s.dismissed.filter((d) => d && d.id) : [],
     deleted: s.deleted && typeof s.deleted === 'object' ? s.deleted : {},
     settingsU: s.settingsU || 0,
-    view: VIEWS.includes(s.view) ? s.view : 'month',
+    view: VIEWS.includes(s.view) ? s.view : (innerWidth < 640 ? 'today' : 'month'),
     weekStart: s.weekStart === 1 ? 1 : 0,
     lastCat: s.lastCat || cats[0].id,
     habits: Array.isArray(s.habits) ? s.habits.filter((x) => x && x.id) : [],
     journal: Array.isArray(s.journal) ? s.journal.filter((x) => x && x.id) : [],
     reviews: Array.isArray(s.reviews) ? s.reviews.filter((x) => x && x.id) : [],
     templates: Array.isArray(s.templates) ? s.templates.filter((x) => x && x.id) : defaultTemplates(),
+    ...Object.fromEntries(XSYNC.map((k) => [k, Array.isArray(s[k]) ? s[k].filter((x) => x && x.id) : []])),
     focus: s.focus && s.focus.tid && s.focus.start ? s.focus : null,
     focusLen: [15, 25, 45, 60].includes(s.focusLen) ? s.focusLen : 25,
   };
@@ -959,7 +1183,7 @@ function undo() {
 // anything with a newer tombstone in `deleted`, so phone and computer can edit at the same time.
 const SYNC_KEY = 'planner.sync', BOTS_KEY = 'planner.bots', API = 'https://api.github.com';
 const DEFAULT_REPO = 'demetrades2000-coder/planner-data';
-const SYNCED = ['categories', 'events', 'tasks', 'dismissed', 'projects', 'goals', 'money', 'habits', 'journal', 'reviews', 'templates'];
+const SYNCED = ['categories', 'events', 'tasks', 'dismissed', 'projects', 'goals', 'money', 'habits', 'journal', 'reviews', 'templates', 'health', 'workouts', 'wtemplates', ...XSYNC];
 const REPEATS = ['none', 'daily', 'weekdays', 'weekly', 'biweekly', 'monthly', 'yearly'];
 const HM = /^([01]\d|2[0-3]):[0-5]\d$/, YMD = /^\d{4}-\d{2}-\d{2}$/;
 const UA = navigator.userAgent;
@@ -1092,7 +1316,7 @@ async function startDb() {
     arrived('bots', snap);
   }, fail);
 }
-const userDoc = () => ({ v: 2, categories: S.categories, events: S.events, tasks: S.tasks, projects: S.projects, goals: S.goals, money: S.money, dismissed: S.dismissed, habits: S.habits, journal: S.journal, reviews: S.reviews, templates: S.templates, deleted: S.deleted, settings: { weekStart: S.weekStart, u: S.settingsU || 0 } });
+const userDoc = () => ({ v: 2, categories: S.categories, events: S.events, tasks: S.tasks, projects: S.projects, goals: S.goals, money: S.money, dismissed: S.dismissed, habits: S.habits, journal: S.journal, reviews: S.reviews, templates: S.templates, health: S.health, workouts: S.workouts, wtemplates: S.wtemplates, ...Object.fromEntries(XSYNC.map((k) => [k, S[k]])), deleted: S.deleted, settings: { weekStart: S.weekStart, u: S.settingsU || 0 } });
 function mergeDocs(a, b) {
   const deleted = { ...(a.deleted || {}) };
   for (const [id, t] of Object.entries(b.deleted || {})) if (!(deleted[id] >= t)) deleted[id] = t;
@@ -1105,7 +1329,7 @@ function mergeDocs(a, b) {
   };
   const sa = a.settings || { u: 0 }, sb = b.settings || { u: 0 };
   const cats = ml(a.categories, b.categories);
-  return { v: 2, categories: cats.length ? cats : (b.categories || []), events: ml(a.events, b.events), tasks: ml(a.tasks, b.tasks), projects: ml(a.projects, b.projects), goals: ml(a.goals, b.goals), money: ml(a.money, b.money), dismissed: ml(a.dismissed, b.dismissed), habits: ml(a.habits, b.habits), journal: ml(a.journal, b.journal), reviews: ml(a.reviews, b.reviews), templates: ml(a.templates, b.templates), deleted, settings: (sb.u || 0) > (sa.u || 0) ? sb : sa };
+  return { v: 2, categories: cats.length ? cats : (b.categories || []), events: ml(a.events, b.events), tasks: ml(a.tasks, b.tasks), projects: ml(a.projects, b.projects), goals: ml(a.goals, b.goals), money: ml(a.money, b.money), dismissed: ml(a.dismissed, b.dismissed), habits: ml(a.habits, b.habits), journal: ml(a.journal, b.journal), reviews: ml(a.reviews, b.reviews), templates: ml(a.templates, b.templates), health: ml(a.health, b.health), workouts: ml(a.workouts, b.workouts), wtemplates: ml(a.wtemplates, b.wtemplates), ...Object.fromEntries(XSYNC.map((k) => [k, ml(a[k], b[k])])), deleted, settings: (sb.u || 0) > (sa.u || 0) ? sb : sa };
 }
 function applyDoc(d) {
   if (Array.isArray(d.categories) && d.categories.length) S.categories = d.categories;
@@ -1113,7 +1337,7 @@ function applyDoc(d) {
   if (Array.isArray(d.projects)) S.projects = d.projects;
   if (Array.isArray(d.goals)) S.goals = d.goals;
   if (Array.isArray(d.money)) S.money = d.money;
-  ['habits', 'journal', 'reviews', 'templates'].forEach((k) => { if (Array.isArray(d[k])) S[k] = d[k]; });
+  ['habits', 'journal', 'reviews', 'templates', 'health', 'workouts', 'wtemplates', ...XSYNC].forEach((k) => { if (Array.isArray(d[k])) S[k] = d[k]; });
   if (d.settings && d.settings.weekStart != null && (d.settings.u || 0) >= (S.settingsU || 0)) { S.weekStart = d.settings.weekStart === 1 ? 1 : 0; S.settingsU = d.settings.u || 0; }
   S.hidden = S.hidden.filter((h) => S.categories.some((c) => c.id === h));
   save();
@@ -1184,6 +1408,8 @@ async function syncNow() {
   }
 }
 function setSync(state, msg) { syncState = state; syncMsg = msg || ''; if (state === 'ok') lastSynced = Date.now(); paintSync(); }
+function paintOnline() { document.body.classList.toggle('offline', !navigator.onLine); }
+addEventListener('online', paintOnline); addEventListener('offline', paintOnline);
 function paintSync() {
   if (HOSTED) {
     const n = pendCount();
@@ -1330,6 +1556,7 @@ function nqEventsFromData(data) {
     status: { running: !!board.running, host: board.host || '', t: board.t || 0, issues: (board.blocks || []).slice(0, 3).map((b) => ({ text: b.text, fix: b.fix })) },
     month: mo.month ? { month: mo.month, usd: mo.usd, trades: mo.trades } : null,
   };
+  tradeExtras(trade, data); // TRADES block: plan rules, daily limits, health
   const rules = (news.bot_now || {}).rules || {};
   const slim = {
     built: data.built || '',
@@ -1340,17 +1567,18 @@ function nqEventsFromData(data) {
   };
   return { bot: 'NQ bots', tz: 'ET', kz: Array.isArray(rules.killzones) ? rules.killzones : ['09:30-11:30', '13:30-15:30'], events, trade, news: slim };
 }
-async function loadNq() {
+async function loadNq(force) {
   const c = readJSON(NQ_KEY);
-  if (c && c.doc && c.doc.trade && c.pnl && Date.now() - c.t < 90 * 60e3) return;
+  if (!force && c && c.doc && c.doc.trade && c.pnl && c.trades && c.doc.trade.plans && Date.now() - c.t < 90 * 60e3) return false;
   try {
     const r = await fetch('../data.json', { cache: 'no-cache' });
-    if (!r.ok) return;
+    if (!r.ok) return false;
     const raw = await r.json(), doc = nqEventsFromData(raw);
     nqPnl = pnlFromData(raw); // app-only: daily bot P&L, last ~120 days
-    nqBot = doc; try { localStorage.setItem(NQ_KEY, JSON.stringify({ t: Date.now(), doc, pnl: nqPnl })); } catch (e) { /* cache only */ }
-    safeRender();
-  } catch (e) { /* offline or not on the dashboard site: keep the last copy */ }
+    nqTrades = tradesFromData(raw); // app-only: closed live/paper trades (TRADES block)
+    nqBot = doc; try { localStorage.setItem(NQ_KEY, JSON.stringify({ t: Date.now(), doc, pnl: nqPnl, trades: nqTrades })); } catch (e) { /* cache only */ }
+    safeRender(); return true;
+  } catch (e) { return false; /* offline or not on the dashboard site: keep the last copy */ }
 }
 function buildBotEvents() {
   const out = [], gone = new Set(S.dismissed.map((d) => d.id));
@@ -1362,7 +1590,7 @@ function buildBotEvents() {
     const slug = file.replace(/\.json$/, ''), bot = String(d.bot || slug).slice(0, 40);
     for (const e of d.events) {
       if (!e || !e.title || !YMD.test(e.date || '')) continue;
-      const id = `bot:${slug}:${e.id || e.date + ':' + e.title}`;
+      const id = `bot:${slug}:${e.id || e.date + ':' + e.title}`.replace(/[^A-Za-z0-9_:.\-]/g, '_').slice(0, 120);
       if (gone.has('d:' + id)) continue;
       const timed = HM.test(e.start || '');
       out.push({
@@ -1507,6 +1735,7 @@ function renderHeader() {
       : `${MONTHS[a.getMonth()].slice(0, 3)} ${a.getDate()} – ${MONTHS[b.getMonth()].slice(0, 3)} ${b.getDate()}, ${b.getFullYear()}`;
   } else if (S.view === 'day') t = `${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
   else if (S.view === 'projects') t = 'Projects';
+  else if (S.view === 'today') t = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()] + ' ' + MONTHS[d.getMonth()].slice(0, 3) + ' ' + d.getDate();
   else if (EXTRA_TITLES[S.view]) t = EXTRA_TITLES[S.view];
   else t = `Upcoming from ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}`;
   $('#title').textContent = t;
@@ -1680,7 +1909,11 @@ function renderMain() {
   else if (S.view === 'projects') main.innerHTML = renderProjects();
   else if (S.view === 'habits') main.innerHTML = renderHabits();
   else if (S.view === 'news') main.innerHTML = renderNews();
+  else if (S.view === 'today') main.innerHTML = renderToday();
+  else if (S.view === 'health') main.innerHTML = renderHealth();
   else if (S.view === 'review') main.innerHTML = renderReview();
+  else if (S.view === 'rules') main.innerHTML = renderRules();
+  else if (S.view === 'trades') main.innerHTML = renderTrades();
   else main.innerHTML = renderAgenda();
   if ((S.view === 'week' || S.view === 'day') && !query) {
     if (keepScroll != null) main.scrollTop = keepScroll;
@@ -1919,7 +2152,7 @@ function parseTag(title) {
   const rest = (title.slice(0, m.index) + ' ' + title.slice(m.index + m[0].length)).replace(/\s+/g, ' ').trim();
   return { title: rest || title, proj };
 }
-function refreshTasks() { renderSide(); if (!query && (S.view === 'month' || S.view === 'projects')) renderMain(); }
+function refreshTasks() { renderSide(); if (!query && (S.view === 'month' || S.view === 'projects' || S.view === 'today')) renderMain(); }
 const WDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 // "call Sam fri 3pm #nq" -> { title, date, start, rep }. Dates: today, tomorrow, mon..sun, in N days, 10/30.
 function parseWhen(text) {
@@ -2206,6 +2439,7 @@ $('#planForm').onsubmit = (e) => {
   toast(`${chosen.length} task${chosen.length === 1 ? '' : 's'} planned${blocked ? `, ${blocked} time-blocked` : ''}${skipped.length ? `. No room for ${skipped.length}` : ''}`, true);
 };
 $('#planGoBtn').onclick = openPlan;
+$('#planWeekBtn').onclick = () => openPlanWeek();
 
 function paintBackup() {
   const n = $('#bkNote'); if (!n) return;
@@ -2218,6 +2452,7 @@ function paintBackup() {
 // ---- "Now" bar (phone): what is happening or next, and how many tasks are left today ----
 function renderNow() {
   const bar = $('#nowbar'); if (!bar) return;
+  if (S.view === 'today' && !query) { bar.hidden = true; return; }
   const today = todayKey(), n = new Date(), nowMin = n.getHours() * 60 + n.getMinutes();
   const evs = eventsOn(today).filter((o) => !o.ev.allDay).map((o) => ({ o, s: toMin(o.ev.start), e: toMin(o.ev.end || fromMin(Math.min(toMin(o.ev.start) + 60, 1439))) })).sort((a, b) => a.s - b.s);
   const pause = evs.find((x) => x.o.ev.bot && /bot paused/.test(x.o.ev.title) && x.s <= nowMin && nowMin < x.e);
@@ -2232,6 +2467,7 @@ function renderNow() {
   if (!pause) { const nn = evs.find((x) => x.o.ev.bot && x.o.ev.layer === 'high' && x.s > nowMin && x.s - nowMin < 240); if (nn) sub += `${sub ? '  ·  ' : ''}News ${fmtTime(fromMin(nn.s))}: ${nn.o.ev.title.replace(' · bot paused', '')} (in ${rel(nn.s - nowMin)})`; }
   const planBtn = S.planned !== today ? '<button class="btn sm primary" data-nowplan>Plan day</button>' : `<button class="btn sm" data-nowday>${left} task${left === 1 ? '' : 's'}</button>`;
   bar.className = 'nowbar' + (pause ? ' pause' : ''); bar.innerHTML = `<div class="nb-t">${main}${sub ? `<small>${esc(sub)}</small>` : ''}</div>${planBtn}`; bar.hidden = false;
+  nowExtras(bar); // RULES/ALERTS hook
 }
 $('#nowbar').addEventListener('click', (e) => {
   if (e.target.closest('[data-nowplan]')) { selected = todayKey(); openPlan(); }
@@ -2307,16 +2543,126 @@ function renderNews() {
   const er = (n.earnings || []).filter((r) => r.date >= addDays(todayL, -1)).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 10).map((r) => `<div class="nw-row low"><span class="nw-t">${esc(dueLabel(r.date))}</span><span class="nw-i" style="background:#7c3aed"></span><div class="nw-b"><b>${esc(r.sym)} earnings</b><small>${/AMC/i.test(r.time) ? 'After the close, so it moves NQ the next morning' : esc(r.time || '')} · ${r.st === 'confirmed' ? 'confirmed' : 'estimated date'}</small></div></div>`).join('');
   return `<div class="news">
     ${hrs >= 6 ? `<div class="nw-warn">This news is ${hrs >= 48 ? Math.round(hrs / 24) + ' days' : hrs + ' hours'} old. The dashboard only updates when your bot PC is on and publishing, so check ForexFactory directly before trading.</div>` : ''}
-    <div class="nw-top"><div class="seg2" id="newsImp" style="min-width:260px"><button type="button" data-i="high" aria-pressed="${newsImp === 'high'}">High</button><button type="button" data-i="med" aria-pressed="${newsImp === 'med'}">High + Med</button><button type="button" data-i="all" aria-pressed="${newsImp === 'all'}">All</button></div><span class="sub">Times in ${tzNote()}</span></div>
+    <div class="nw-top"><div class="seg2" id="newsImp" style="min-width:260px"><button type="button" data-i="high" aria-pressed="${newsImp === 'high'}">High</button><button type="button" data-i="med" aria-pressed="${newsImp === 'med'}">High + Med</button><button type="button" data-i="all" aria-pressed="${newsImp === 'all'}">All</button></div><span class="sub">Times in ${tzNote()} <button class="btn sm" data-refresh style="margin-left:6px">Refresh</button></span></div>
     <section><div class="sec-h"><h2>Upcoming releases</h2></div>${relH || '<div class="empty-s">No releases in the data for these filters.</div>'}</section>
     <section><div class="sec-h"><h2>Headlines</h2><span class="sub">${tones.off} risk-off, ${tones.on} risk-on</span></div>${hl || '<div class="empty-s">No headlines.</div>'}${n.headlines.length > 12 ? `<button class="link" data-newsmore style="margin-top:6px">${newsMore ? 'Show fewer' : `Show all ${n.headlines.length}`}</button>` : ''}</section>
     ${er ? `<section><div class="sec-h"><h2>Mega-cap earnings</h2><span class="sub">AAPL MSFT NVDA AMZN GOOGL META TSLA AVGO</span></div>${er}</section>` : ''}
     ${n.srcBad.length ? `<div class="sub">Not available right now: ${esc(n.srcBad.join(', '))}.</div>` : ''}
   </div>`;
 }
+async function refreshMarket(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Refreshing'; }
+  const was = nqBot && nqBot.trade ? nqBot.trade.built : '';
+  const ok = await loadNq(true);
+  const now = nqBot && nqBot.trade ? nqBot.trade.built : '';
+  toast(!ok ? 'Could not reach the dashboard data. Showing the last copy.' : now && now !== was ? 'Market data updated' : 'Already the newest the dashboard has published');
+  render();
+}
+document.addEventListener('click', (e) => { const b = e.target.closest('[data-refresh]'); if (b) refreshMarket(b); });
 $('#main').addEventListener('click', (e) => {
   const i = e.target.closest('#newsImp [data-i]'); if (i) { newsImp = i.dataset.i; try { localStorage.setItem('planner.newsImp', newsImp); } catch (err) { /* convenience only */ } renderMain(); return; }
   if (e.target.closest('[data-newsmore]')) { newsMore = !newsMore; renderMain(); }
+});
+
+// ---- collapsible sidebar sections (phone) ----
+{
+  const KEYC = 'planner.fold';
+  let saved = null; try { saved = JSON.parse(localStorage.getItem(KEYC)); } catch (e) { /* first run */ }
+  const fold = Array.isArray(saved) ? new Set(saved) : new Set(['layers', 'catsCard', 'settings']);
+  document.querySelectorAll('.side > .card').forEach((c, i) => {
+    if (!c.id && c.querySelector('#cats')) c.id = 'catsCard';
+    if (!['trade', 'layers', 'settings', 'catsCard'].includes(c.id)) return;
+    c.classList.add('fold'); if (fold.has(c.id)) c.classList.add('collapsed');
+  });
+  $('.side').addEventListener('click', (e) => {
+    const h = e.target.closest('.card.fold > .sec-h h2'); if (!h || e.target.closest('button')) return;
+    if (!matchMedia('(max-width:960px)').matches) return;
+    const c = h.closest('.card'); c.classList.toggle('collapsed');
+    const now = [...document.querySelectorAll('.side > .card.fold.collapsed')].map((x) => x.id);
+    try { localStorage.setItem(KEYC, JSON.stringify(now)); } catch (err) { /* convenience only */ }
+  });
+}
+
+// ---- plan my week: spread open tasks over Mon-Fri by priority and free time ----
+const weekDlg = $('#weekDlg');
+let weekPlan = [];
+function openPlanWeek() {
+  const today = todayKey();
+  let mon = addDays(today, -((dow(today) + 6) % 7)); if (dow(today) === 0 || dow(today) === 6) mon = addDays(mon, 7);
+  const days = [0, 1, 2, 3, 4].map((i) => addDays(mon, i)).filter((k) => k >= today);
+  if (!days.length) { toast('No working days left this week'); return; }
+  const cap = {};
+  days.forEach((k) => {
+    const free = freeGaps(k, 7 * 60, 21 * 60, 15).reduce((n, [a, b]) => n + (b - a), 0);
+    const used = S.tasks.filter((t) => !t.done && t.date === k).reduce((n, t) => n + (t.est || 30), 0);
+    cap[k] = Math.max(0, Math.round(free * 0.7) - used);
+  });
+  const open = S.tasks.filter((t) => !t.done && (!t.date || t.date < today));
+  open.sort((a, b) => ((b.p || 0) - (a.p || 0)) || ((a.date ? 0 : 1) - (b.date ? 0 : 1)) || (a.created - b.created));
+  weekPlan = days.map((k) => ({ k, items: [], left: cap[k] })); const unplaced = [];
+  for (const t of open) {
+    const need = t.est || 30, d = weekPlan.find((x) => x.left >= need);
+    if (d) { d.items.push({ t, on: true }); d.left -= need; } else unplaced.push(t);
+  }
+  $('#weekHint').textContent = `${longDate(days[0])} to ${longDate(days[days.length - 1])}. Days with less free time get fewer tasks; about 30% of each day is kept spare.`;
+  paintWeek(unplaced); weekDlg.showModal();
+}
+function paintWeek(unplaced) {
+  $('#weekDays').innerHTML = weekPlan.map((d, di) => `<div class="pw-day"><b>${longDate(d.k)}<span>${fmtDur(Math.max(0, d.left)) || '0m'} spare</span></b>${d.items.length ? d.items.map((it, ii) => `<label><input type="checkbox" data-di="${di}" data-ii="${ii}" ${it.on ? 'checked' : ''}><span>${esc(it.t.title)}${it.t.est ? ` <span class="t-chip">${fmtDur(it.t.est)}</span>` : ''} ${ptag(it.t.proj)}${(it.t.p || 0) >= 3 ? ' <span class="t-chip">high</span>' : ''}</span></label>`).join('') : '<div class="empty-s">Nothing assigned.</div>'}</div>`).join('');
+  $('#weekLeft').textContent = unplaced && unplaced.length ? `${unplaced.length} task${unplaced.length === 1 ? '' : 's'} did not fit this week and stay as they are.` : '';
+}
+$('#weekDays').addEventListener('change', (e) => { const c = e.target.closest('[data-di]'); if (c) weekPlan[+c.dataset.di].items[+c.dataset.ii].on = c.checked; });
+$('#weekForm').onsubmit = (e) => {
+  e.preventDefault();
+  const chosen = weekPlan.flatMap((d) => d.items.filter((it) => it.on).map((it) => ({ t: it.t, k: d.k })));
+  snapshot(); commit(() => { chosen.forEach(({ t, k }) => { t.date = k; }); });
+  weekDlg.close(); render(); toast(`${chosen.length} task${chosen.length === 1 ? '' : 's'} scheduled across the week`, true);
+};
+
+// ---- Today: the phone's home screen ----
+function renderToday() {
+  const today = todayKey(), n = new Date(), nowMin = n.getHours() * 60 + n.getMinutes(), d = parse(today);
+  const evs = eventsOn(today).filter((o) => !(o.ev.bot && !/bot paused/.test(o.ev.title)) || (o.ev.bot && o.ev.layer === 'high'));
+  const own = evs.filter((o) => !o.ev.bot), pauses = evs.filter((o) => o.ev.bot);
+  const evRow = (o) => { const e = o.ev, s = e.allDay ? -1 : toMin(e.start), en = e.allDay ? 1440 : toMin(e.end || fromMin(Math.min(s + 60, 1439))), cur = !e.allDay && s <= nowMin && nowMin < en, past = !e.allDay && en <= nowMin;
+    return `<button class="td-ev${cur ? ' cur' : ''}${past ? ' past' : ''}" style="${cvars(colorOf(e))}" data-ev="${e.id}" data-occ="${o.occ}"><span class="tm">${e.allDay ? 'All day' : fmtTime(e.start)}</span><span class="tt">${esc(e.title)}${e.bot ? ` <span class="by">${esc(e.bot)}</span>` : ''}</span></button>`; };
+  const tr = nqBot && nqBot.trade, nw = nqBot && nqBot.news;
+  const ups = nw ? nw.events.map((e) => { const l = etToLocal(e.date, e.time); return { ...e, ms: Date.parse(`${l.date}T${l.hm}:00`), lt: l.hm }; }).filter((e) => e.ms > Date.now() && e.ms < Date.now() + 36 * 3600e3 && e.impact !== 'low').sort((a, b) => a.ms - b.ms).slice(0, 4) : [];
+  const tks = S.tasks.filter((t) => !t.done && t.date && t.date <= today).sort((a, b) => (a.date.localeCompare(b.date)) || ((b.p || 0) - (a.p || 0)));
+  const doneToday = S.tasks.filter((t) => t.done && t.date === today).length;
+  const habs = S.habits.filter((h) => hDue(h, today));
+  const goals = S.goals.slice().sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999')).slice(0, 2);
+  const j = jrnOf(today), planned = S.planned === today;
+  const risk = (typeof riskAlerts === 'function') ? riskAlerts() : [];
+  const hrsOld = tr && tr.built ? Math.round((Date.now() - Date.parse(tr.built)) / 3600e3) : null;
+  const staleTxt = hrsOld == null ? '' : hrsOld < 2 ? 'live' : hrsOld < 48 ? `${hrsOld} h old` : `${Math.round(hrsOld / 24)} days old`, staleCls = hrsOld != null && hrsOld >= 6 ? 'neg' : 'sub';
+  return `<div class="tdy">
+    <div class="td-h"><div><h2>${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}</h2><div class="sub">${own.length} event${own.length === 1 ? '' : 's'}, ${tks.length} task${tks.length === 1 ? '' : 's'} to do${doneToday ? `, ${doneToday} done` : ''}</div></div><div style="display:flex;gap:6px"><button class="btn sm" data-tweek>Plan week</button><button class="btn sm ${planned ? '' : 'primary'}" data-tplan>${planned ? 'Re-plan' : 'Plan day'}</button></div></div>
+    ${risk.filter((r) => r.level !== 'info').length ? `<div class="nw-warn" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">${risk.filter((r) => r.level !== 'info').map((r) => esc(r.text)).join(' · ')}</div>` : ''}
+    ${risk.filter((r) => r.level === 'info').map((r) => `<div class="nw-warn">${esc(r.text)}</div>`).join('')}
+    <section class="td-card"><h3>Schedule<button data-tgo="day">Day view</button></h3>${own.length ? own.map(evRow).join('') : '<div class="empty-s">Nothing scheduled. Tap Plan day to block time for your tasks.</div>'}${pauses.length ? `<div class="hint" style="margin-top:4px">Bot pauses: ${pauses.filter((o) => /bot paused/.test(o.ev.title)).map((o) => `${fmtTime(o.ev.start)} to ${fmtTime(o.ev.end)}`).join(', ') || 'none today'}</div>` : ''}</section>
+    ${ups.length ? `<section class="td-card"><h3>Market news next<button data-tgo="news">All news</button></h3>${ups.map((e) => { const m = Math.round((e.ms - Date.now()) / 60000); return `<div class="nw-row ${e.impact === 'high' ? 'high' : 'med'}" style="grid-template-columns:62px 10px minmax(0,1fr) auto"><span class="nw-t">${fmtTime(e.lt)}</span><span class="nw-i"></span><div class="nw-b"><b>${esc(e.title)}</b>${e.fc || e.prev ? `<small>${e.fc ? 'Forecast ' + esc(e.fc) : ''}${e.fc && e.prev ? ' · ' : ''}${e.prev ? 'Previous ' + esc(e.prev) : ''}</small>` : ''}</div><span class="nw-c">${m < 90 ? `in ${Math.max(m, 1)} min` : `in ${fmtDur(m)}`}</span></div>`; }).join('')}</section>` : ''}
+    <section class="td-card"><h3>Tasks<button data-tgo="projects">All tasks</button></h3>${tks.length ? `<ul class="tasks">${tks.slice(0, 10).map((t) => taskLi(t, { overdue: t.date < today })).join('')}</ul>${tks.length > 10 ? `<div class="sub">+${tks.length - 10} more</div>` : ''}` : '<div class="empty-s">Nothing due. Add one below.</div>'}
+      <form class="add-t" data-tadd><span>+</span><input placeholder="Quick add: call Sam fri 3pm #nq" aria-label="Add a task" autocomplete="off"></form></section>
+    ${hxTodayCard()}
+    ${habs.length ? `<section class="td-card"><h3>Habits<button data-tgo="habits">All habits</button></h3>${habs.map((h) => { const st = habitStats(h), on = hDone(h, today); return `<div class="td-hab" style="--c:${esc(h.color || '#2563eb')}" data-thab="${esc(h.id)}"><button aria-pressed="${on}" aria-label="${on ? 'Undo' : 'Check in'} ${esc(h.name)}">${on ? ICON_CHECK : ''}</button><span>${esc(h.name)} <small>${st.cur} day streak</small></span></div>`; }).join('')}</section>` : ''}
+    ${tr ? `<section class="td-card"><h3>Trading<span style="display:flex;gap:10px;align-items:baseline"><span class="${staleCls}">${staleTxt}</span><button data-refresh>Refresh</button></span></h3>${(tr.accounts || []).map((a) => `<div class="td-acct"><span><b>${esc(a.strategy === 'LIT' ? 'Zlarior' : a.strategy || a.name)}</b> ${esc(String(a.name || '').replace('MFFU ', ''))}</span><span>${usd(a.profit)} of ${usd(a.target)} · ${a.sessions_left != null ? a.sessions_left + ' sessions left' : ''}</span></div>`).join('')}${tr.month ? `<div class="td-acct" style="color:var(--mute)"><span>${MONTHS[+tr.month.month.slice(5) - 1]} so far</span><span><b style="color:var(--ink)">${usd(tr.month.usd)}</b> · ${tr.month.trades} trade${tr.month.trades === 1 ? '' : 's'}</span></div>` : ''}</section>` : ''}
+    ${goals.length ? `<section class="td-card"><h3>Goals<button data-tgo="projects">All goals</button></h3>${goals.map((g) => { const v = goalValue(g), t = +g.target || 0, pct = t > 0 ? Math.max(0, Math.min(100, v / t * 100)) : 0; return `<div><div class="td-acct"><span><b>${esc(g.title)}</b></span><span>${gnum(g, v)} of ${gnum(g, t)}</span></div><div class="bar2" style="margin-top:5px"><i style="width:${pct}%;background:var(--ok)"></i></div></div>`; }).join('')}</section>` : ''}
+    <section class="td-card"><h3>Journal</h3><div class="sub">${j && (j.note || j.rules) ? 'Written today. Open the Day view to edit it.' : 'Not written yet. End the day by noting what you did and whether you followed your rules.'}</div><div><button class="btn sm" data-tgo="day">Open journal</button></div></section>
+  </div>`;
+}
+$('#main').addEventListener('click', (e) => {
+  if (S.view !== 'today') return;
+  const g = e.target.closest('[data-tgo]');
+  if (g) { const v = g.dataset.tgo; if (v === 'day') { selected = cursor = todayKey(); } setView(v); return; }
+  if (e.target.closest('[data-tplan]')) { selected = todayKey(); openPlan(); return; }
+  if (e.target.closest('[data-tweek]')) { openPlanWeek(); return; }
+  const hb = e.target.closest('[data-thab] button'); if (hb) { toggleHabit(hb.closest('[data-thab]').dataset.thab, todayKey()); return; }
+});
+$('#main').addEventListener('submit', (e) => {
+  const f = e.target.closest('[data-tadd]'); if (!f) return; e.preventDefault();
+  const i = f.querySelector('input'), v = i.value.trim(); if (!v) return;
+  addTask(v, todayKey(), ''); const again = document.querySelector('#main [data-tadd] input'); if (again) again.focus();
 });
 
 // ---- trading card ----
@@ -2337,7 +2683,7 @@ function renderTrade() {
   const mo = tr.month ? `<div class="acct-r" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line2)"><span>${MONTHS[+tr.month.month.slice(5) - 1]} so far</span><span><b>${usd(tr.month.usd)}</b> · ${tr.month.trades} trade${tr.month.trades === 1 ? '' : 's'}</span></div>` : '';
   const issue = (st.issues || [])[0];
   box.innerHTML = `<div class="sec-h"><h2>Trading</h2><span class="sub" title="From the dashboard data">${ago(tr.built)}</span></div>
-    <div class="tstat ${bad ? 'bad' : ''}"><span class="sdot ${bad ? 'error' : 'ok'}"></span><div>${st.running ? 'Bot running' : 'Bot not running'}${issue ? `<small>${esc(issue.text)}${issue.fix ? '. ' + esc(issue.fix) : ''}</small>` : ''}</div></div>${accts}${mo}`;
+    <div class="tstat ${bad ? 'bad' : ''}"><span class="sdot ${bad ? 'error' : 'ok'}"></span><div>${st.running ? 'Bot running' : 'Bot not running'}${issue ? `<small>${esc(issue.text)}${issue.fix ? '. ' + esc(issue.fix) : ''}</small>` : ''}</div></div>${alertsHtml()}${accts}${mo}`;
   box.hidden = false;
 }
 
@@ -2349,6 +2695,9 @@ function route() {
   const views = ['month', 'week', 'day', 'agenda', 'projects'];
   if (h === 'today') goToday();
   else if (h === 'plan') { goToday(); openPlan(); }
+  else if (h === 'health') { goToday(); setView('health'); }
+  else if (h === 'log-workout') { goToday(); openWorkout(null, todayKey()); }
+  else if (h === 'plan-week') { goToday(); openPlanWeek(); }
   else if (h === 'new-event') { goToday(); newEvent(todayKey()); }
   else if (h === 'new-task') { goToday(); setTimeout(() => $('#taskIn').focus(), 60); }
   else if (views.includes(h)) { goToday(); setView(h); }
@@ -2379,12 +2728,20 @@ function goalsMoneyHtml() {
   const ms = S.money.slice().sort((a, b) => b.date.localeCompare(a.date) || (b.created || 0) - (a.created || 0));
   const inM = ms.filter((m) => m.date.slice(0, 7) === mon), sum = (l, k) => l.filter((m) => m.kind === k).reduce((n, m) => n + (+m.amt || 0), 0);
   const mi = sum(inM, 'in'), mo = sum(inM, 'out'), net = mi - mo, all = ms.reduce((n, m) => n + mAmt(m), 0);
+  const trend = (() => {
+    if (!ms.length) return '';
+    const mons = Array.from({ length: 6 }, (_, i) => { const d = parse(mon + '-01'); d.setMonth(d.getMonth() - (5 - i)); return key(d).slice(0, 7); });
+    const nets = mons.map((m) => ms.filter((x) => x.date.slice(0, 7) === m).reduce((n, x) => n + mAmt(x), 0)), mx = Math.max(1, ...nets.map(Math.abs));
+    const short = (n) => (n < 0 ? '-' : '') + '$' + (Math.abs(n) >= 1000 ? (Math.abs(n) / 1000).toFixed(1).replace('.0', '') + 'k' : Math.round(Math.abs(n)));
+    return `<div class="mch" aria-label="Net money by month">${mons.map((m, i) => `<div><small class="v ${nets[i] < 0 ? 'neg' : nets[i] > 0 ? 'pos' : ''}">${nets[i] ? short(nets[i]) : '-'}</small><div class="pl"><div class="up">${nets[i] > 0 ? `<i style="height:${Math.max(6, nets[i] / mx * 100)}%"></i>` : ''}</div><div class="dn">${nets[i] < 0 ? `<i style="height:${Math.max(6, -nets[i] / mx * 100)}%"></i>` : ''}</div></div><small>${MONTHS[+m.slice(5) - 1].slice(0, 3)}</small></div>`).join('')}</div>`;
+  })();
   const show = moneyOpen.has('all') ? ms : ms.slice(0, 6);
   const rows = show.map((m) => `<button type="button" class="m-row" data-medit="${m.id}"><span class="d">${esc(dueLabel(m.date))}</span><span class="n">${esc(m.note || (m.kind === 'out' ? 'Expense' : 'Income'))} ${ptag(m.proj)}</span><span class="a ${m.kind === 'out' ? 'neg' : 'pos'}">${m.kind === 'out' ? '-' : '+'}${usdc(+m.amt || 0).replace('-', '')}</span></button>`).join('');
   return `<div class="gm">
     <section class="card"><div class="sec-h"><h2>Goals</h2><button class="btn sm" data-gnew>+ Goal</button></div>${goals || '<div class="empty-s">Set a target you want to hit, like "First $1,000 payout" or "Pass the 50K eval". Tap a goal to update it.</div>'}</section>
     <section class="card"><div class="sec-h"><h2>Money</h2><div style="display:flex;gap:6px">${ms.length ? '<button class="btn sm" data-mcsv>Export CSV</button>' : ''}<button class="btn sm" data-mnew>+ Entry</button></div></div>
       <div class="m-sum"><div><b class="pos">${usdc(mi)}</b><span>in, ${MONTHS[+mon.slice(5) - 1].slice(0, 3)}</span></div><div><b class="neg">${usdc(mo)}</b><span>out, ${MONTHS[+mon.slice(5) - 1].slice(0, 3)}</span></div><div><b class="${net < 0 ? 'neg' : 'pos'}">${usdc(net)}</b><span>net this month</span></div></div>
+      ${trend}
       ${ms.length ? `<div class="m-list">${rows}</div>${ms.length > 6 ? `<button class="link" data-mmore style="align-self:flex-start">${moneyOpen.has('all') ? 'Show fewer' : `Show all ${ms.length}`}</button>` : ''}<div class="sub">All time: <b class="${all < 0 ? 'neg' : 'pos'}">${usdc(all)}</b></div>` : '<div class="empty-s">Log payouts, eval fees, software and sponsor money here to see your real profit.</div>'}
     </section></div>`;
 }
@@ -2447,6 +2804,296 @@ $('#main').addEventListener('click', (e) => {
 });
 // ===== LEAD2 END =====
 
+
+// ===== HEALTH BEGIN: check-in, workouts, trends, sleep planner =====
+const HX_TYPES = ['Lift', 'Run', 'Walk', 'Mobility', 'Sport', 'Other'];
+const HX_CFG = { unit: 'lb', waterGoal: 8, sleepNeed: 7.5, wake: '07:00', planTime: '06:30', goalWeight: 0, plan: {} };
+const hxCfg = () => { const c = S.health.find((h) => h.id === 'cfg'); return { ...HX_CFG, ...(c || {}), plan: { ...((c && c.plan) || {}) } }; };
+function hxSaveCfg(patch) { commit(() => { let c = S.health.find((h) => h.id === 'cfg'); if (!c) { c = { id: 'cfg' }; S.health.push(c); } Object.assign(c, patch); }); }
+const hxLogs = () => S.health.filter((h) => h.date);
+const hxOn = (k) => S.health.find((h) => h.date === k);
+function hxSet(k, patch) { commit(() => { let h = hxOn(k); if (!h) { h = { id: 'h:' + k, date: k }; S.health.push(h); } Object.assign(h, patch); }); }
+let hxTab = (() => { try { return localStorage.getItem('planner.hxTab'); } catch (e) { return null; } })() || 'today', hxDate = todayKey();
+const fmtH = (h) => (h == null ? '-' : `${Math.floor(h)}h${h % 1 ? ' 30m' : ''}`);
+const hmFromMin = (m) => fromMin(((m % 1440) + 1440) % 1440);
+const nz = (v) => { const n = parseFloat(String(v).replace(/,/g, '')); return isFinite(n) ? n : NaN; };
+const e1rm = (w, r) => w * (1 + r / 30);
+
+function hxLast(name) {
+  const n = String(name).trim().toLowerCase(); if (!n) return null;
+  const ws = S.workouts.slice().sort((a, b) => b.date.localeCompare(a.date) || (b.created || 0) - (a.created || 0));
+  for (const w of ws) { const ex = (w.ex || []).find((e) => String(e.name).trim().toLowerCase() === n); if (ex && ex.sets && ex.sets.length) return { date: w.date, sets: ex.sets }; }
+  return null;
+}
+const setText = (sets, unit) => sets.map((x) => `${x.w ? x.w + (unit ? '' : '') + ' x ' : ''}${x.r}`).join(', ');
+function hxPRs() {
+  const best = new Map();
+  for (const w of S.workouts) for (const ex of w.ex || []) for (const st of ex.sets || []) {
+    const r = +st.r, wt = +st.w; if (!(r > 0) || !(wt > 0)) continue;
+    const key = String(ex.name).trim().toLowerCase(), v = e1rm(wt, r), c = best.get(key);
+    if (!c || v > c.v) best.set(key, { name: String(ex.name).trim(), v, w: wt, r, date: w.date });
+  }
+  return [...best.values()].sort((a, b) => b.v - a.v);
+}
+function weekWorkouts(k) {
+  const a = startOfWeek(k), b = addDays(a, 6);
+  return S.workouts.filter((w) => w.date >= a && w.date <= b);
+}
+
+// ----- tab: Today -----
+function hxSleepPlanner(cfg) {
+  const need = cfg.sleepNeed, wake = toMin(cfg.wake), bed = wake - need * 60;
+  const wins = [['London window (ATLAS)', '03:00'], ['US open and Zlarior killzone', '09:30']];
+  const rows = wins.map(([n, hm]) => { const l = etToLocal(todayKey(), hm), up = toMin(l.hm) - 30; return `<div class="hx-row"><span class="hx-hint"><b>${n}</b> opens ${fmtTime(l.hm)}${localIsET ? ' ET' : ''}. Be up by ${fmtTime(hmFromMin(up))}.</span><span class="hx-hint">Bed by <b>${fmtTime(hmFromMin(up - need * 60))}</b></span></div>`; }).join('');
+  return `<section class="hx-card"><h3>Sleep planner<small>${need} h target</small></h3>
+    <div class="hx-in"><div class="fld"><label for="hxWake">Usual wake time</label><input type="time" id="hxWake" value="${cfg.wake}"></div><div class="fld"><label for="hxNeed">Sleep needed</label><select id="hxNeed">${[6, 6.5, 7, 7.5, 8, 8.5, 9].map((v) => `<option value="${v}"${v === need ? ' selected' : ''}>${v} hours</option>`).join('')}</select></div></div>
+    <div class="hx-hint">For your usual wake time, <b>bed by ${fmtTime(hmFromMin(bed))}</b>. Start winding down around ${fmtTime(hmFromMin(bed - 45))}. Last caffeine about ${fmtTime(hmFromMin(bed - 8 * 60))}.</div>
+    ${rows}</section>`;
+}
+function hxToday() {
+  const today = todayKey(), k = hxDate, h = hxOn(k) || {}, cfg = hxCfg();
+  const chips = (field, labels) => `<div class="hxc">${labels.map((l, i) => `<button type="button" data-hx="set:${field}:${i + 1}" data-hxk="${k}" aria-pressed="${h[field] === i + 1}">${l}</button>`).join('')}</div>`;
+  const water = h.water || 0, wg = cfg.waterGoal;
+  const day = S.workouts.filter((w) => w.date === k), plan = cfg.plan[dow(k)];
+  const wk = day.length ? day.map((w) => `<button type="button" class="hx-wk" data-hx-edit="${w.id}"><span class="d">${esc(w.type)}</span><span class="n">${w.mins ? w.mins + ' min' : 'Logged'}${w.rpe ? ' · effort ' + w.rpe : ''}${(w.ex || []).length ? `<small>${(w.ex || []).slice(0, 3).map((e) => esc(e.name)).join(', ')}</small>` : ''}</span></button>`).join('') : `<div class="hx-hint">${plan && plan !== 'Rest' ? `Planned for ${k === today ? 'today' : 'this day'}: <b>${esc(plan)}</b>.` : 'No workout logged.'}</div>`;
+  return `<div class="hx-date"><button data-hxd="-1" aria-label="Previous day">‹</button><b>${k === today ? 'Today' : esc(longDate(k))}</b><button data-hxd="1" aria-label="Next day" ${k >= today ? 'disabled' : ''}>›</button></div>
+  <div class="hx-grid">
+   <div style="display:flex;flex-direction:column;gap:14px">
+    <section class="hx-card"><h3>Sleep<small>${h.sleepH != null ? (h.sleepH >= cfg.sleepNeed ? 'on target' : `${fmtH(cfg.sleepNeed - h.sleepH)} short`) : `target ${cfg.sleepNeed} h`}</small></h3>
+      <div class="hx-row"><div class="hx-step"><button type="button" data-hx="sleep-" data-hxk="${k}" aria-label="Less sleep">−</button><output>${h.sleepH != null ? fmtH(h.sleepH) : '-'}</output><button type="button" data-hx="sleep+" data-hxk="${k}" aria-label="More sleep">+</button></div></div>
+      <div class="hx-row"><span class="l">Quality</span>${chips('sleepQ', ['Poor', 'OK', 'Great'])}</div></section>
+    <section class="hx-card"><h3>How you feel</h3>
+      <div><div class="hx-row" style="margin-bottom:6px"><span class="l">Energy</span></div>${chips('energy', ['1', '2', '3', '4', '5'])}</div>
+      <div><div class="hx-row" style="margin:6px 0"><span class="l">Stress</span></div>${chips('stress', ['1', '2', '3', '4', '5'])}</div>
+      <div class="hx-hint">1 is drained or calm, 5 is great or maxed out. Log it before the session, not after.</div></section>
+    <section class="hx-card"><h3>Water and caffeine</h3>
+      <div class="hx-row"><span class="l">Water</span><div class="hx-step"><button type="button" data-hx="water-" data-hxk="${k}" aria-label="Less water">−</button><output>${water}/${wg}</output><button type="button" data-hx="water+" data-hxk="${k}" aria-label="More water">+</button></div></div>
+      <div class="hx-dots">${Array.from({ length: Math.max(wg, water) }, (_, i) => `<i class="${i < water ? 'on' : ''}"></i>`).join('')}</div>
+      <div class="hx-row"><span class="l">Caffeine (cups)</span><div class="hx-step"><button type="button" data-hx="caf-" data-hxk="${k}" aria-label="Less caffeine">−</button><output>${h.caf || 0}</output><button type="button" data-hx="caf+" data-hxk="${k}" aria-label="More caffeine">+</button></div></div></section>
+    <section class="hx-card"><h3>Body</h3>
+      <div class="hx-in"><div class="fld"><label for="hxSteps">Steps</label><input id="hxSteps" inputmode="numeric" autocomplete="off" value="${h.steps != null ? h.steps : ''}" placeholder="from your phone's Health app"></div><div class="fld"><label for="hxWeight">Weight (${cfg.unit})</label><input id="hxWeight" inputmode="decimal" autocomplete="off" value="${h.weight != null ? h.weight : ''}"></div></div></section>
+   </div>
+   <div style="display:flex;flex-direction:column;gap:14px">
+    <section class="hx-card"><h3>Workout<small>${S.workouts.length ? weekWorkouts(k).length + ' this week' : ''}</small></h3>${wk}<div><button class="btn sm primary" data-hx="logw" data-hxk="${k}">+ Log workout</button></div></section>
+    ${hxSleepPlanner(cfg)}
+   </div>
+  </div>`;
+}
+
+// ----- tab: Workouts -----
+function hxWorkouts() {
+  const cfg = hxCfg(), today = todayKey(), order = [1, 2, 3, 4, 5, 6, 0];
+  const planned = order.filter((d) => cfg.plan[d] && cfg.plan[d] !== 'Rest').length, done = weekWorkouts(today).length;
+  const planCard = `<section class="hx-card"><h3>Weekly plan<small>${planned ? `${Math.min(done, planned)} of ${planned} this week` : 'not set'}</small></h3>
+    <div class="hx-plan">${order.map((d) => `<span class="hx-hint"><b>${DAYS[d]}</b></span><select data-hxplan="${d}" aria-label="${DAYS[d]} workout">${['Rest', ...HX_TYPES].map((t) => `<option value="${t}"${(cfg.plan[d] || 'Rest') === t ? ' selected' : ''}>${t}</option>`).join('')}</select>`).join('')}</div>
+    <div class="hx-in"><div class="fld"><label for="hxPlanTime">Usual start time</label><input type="time" id="hxPlanTime" value="${cfg.planTime}"></div><div class="fld"><label>&nbsp;</label><button class="btn" data-hx="plan-cal" ${planned ? '' : 'disabled'}>Put plan on calendar</button></div></div>
+    <div class="hx-hint">The plan becomes repeating events on your calendar. Change the plan and tap again to update them.</div></section>`;
+  const recent = S.workouts.slice().sort((a, b) => b.date.localeCompare(a.date) || (b.created || 0) - (a.created || 0)).slice(0, 15);
+  const log = `<section class="hx-card"><h3>Workout log<button class="btn sm primary" data-hx="logw" data-hxk="${today}">+ Log workout</button></h3>${recent.length ? recent.map((w) => `<button type="button" class="hx-wk" data-hx-edit="${w.id}"><span class="d">${esc(dueLabel(w.date))}</span><span class="n">${esc(w.type)}${w.mins ? ' · ' + w.mins + ' min' : ''}${(w.ex || []).length ? `<small>${(w.ex || []).slice(0, 4).map((e) => esc(e.name)).join(', ')}${(w.ex || []).length > 4 ? ' +' + ((w.ex || []).length - 4) : ''}</small>` : ''}</span><span class="a">${w.rpe ? 'effort ' + w.rpe : ''}</span></button>`).join('') : '<div class="hx-hint">Nothing logged yet. Tap Log workout after you train.</div>'}</section>`;
+  const prs = hxPRs().slice(0, 6);
+  const prCard = prs.length ? `<section class="hx-card"><h3>Personal bests<small>estimated 1 rep max</small></h3>${prs.map((x) => `<div class="hx-row"><span class="l">${esc(x.name)}</span><span class="hx-hint"><b>${Math.round(x.v)} ${cfg.unit}</b> (${x.w} x ${x.r}, ${esc(dueLabel(x.date))})</span></div>`).join('')}</section>` : '';
+  const tpls = S.wtemplates.slice().sort((a, b) => a.name.localeCompare(b.name));
+  const tplCard = tpls.length ? `<section class="hx-card"><h3>Templates</h3>${tpls.map((t) => `<div class="hx-row"><span class="l">${esc(t.name)} <span class="hx-hint">${(t.ex || []).length} exercises</span></span><span style="display:flex;gap:6px"><button class="btn sm" data-hx="tpl-use:${t.id}">Use</button><button class="btn sm danger" data-hx="tpl-del:${t.id}">Delete</button></span></div>`).join('')}</section>` : '';
+  return `<div class="hx-grid"><div style="display:flex;flex-direction:column;gap:14px">${planCard}${tplCard}</div><div style="display:flex;flex-direction:column;gap:14px">${log}${prCard}</div></div>`;
+}
+
+// ----- tab: Trends -----
+function hxBars(vals, labels, max, line, color) {
+  const mx = Math.max(max, ...vals.filter((v) => v != null), 1);
+  return `<div class="hx-bars" style="grid-template-columns:repeat(${vals.length},1fr)">${vals.map((v, i) => `<div><div class="pl">${line ? `<span class="ln" style="bottom:${line / mx * 100}%"></span>` : ''}${v != null ? `<i style="height:${Math.max(3, v / mx * 100)}%;${color ? 'background:' + color : ''}" title="${esc(String(v))}"></i>` : ''}</div><small>${labels[i]}</small></div>`).join('')}</div>`;
+}
+function hxInsights() {
+  const today = todayKey(), cfg = hxCfg(), out = [];
+  const rows = hxLogs().filter((h) => h.date <= today).map((h) => ({ h, j: jrnOf(h.date), p: nqPnl[h.date] }));
+  const pct = (a) => Math.round(a.filter((x) => x.j.rules === 'yes').length / a.length * 100);
+  const cmp = (label, A, B, aName, bName) => {
+    if (A.length >= 4 && B.length >= 4) out.push({ t: `Rules followed on <b>${pct(A)}%</b> of days ${aName} vs <b>${pct(B)}%</b> ${bName} (${A.length} and ${B.length} days).` });
+    else out.push({ dim: 1, t: `${label}: needs about 4 journal days on each side to compare. You have ${A.length} and ${B.length}.` });
+  };
+  const withJ = rows.filter((x) => x.j && x.j.rules);
+  cmp('Sleep vs rules', withJ.filter((x) => x.h.sleepH >= 7), withJ.filter((x) => x.h.sleepH != null && x.h.sleepH < 7), 'after 7h+ sleep', 'after less');
+  cmp('Energy vs rules', withJ.filter((x) => x.h.energy >= 4), withJ.filter((x) => x.h.energy && x.h.energy <= 3), 'with energy 4-5', 'with energy 1-3');
+  const wDays = new Set(S.workouts.map((w) => w.date));
+  const jAll = S.journal.filter((j) => j.rules && j.date <= today).map((j) => ({ h: hxOn(j.date) || {}, j }));
+  cmp('Workout vs rules', jAll.filter((x) => wDays.has(x.j.date)), jAll.filter((x) => !wDays.has(x.j.date)), 'on workout days', 'on other days');
+  const pa = rows.filter((x) => x.p != null && x.h.sleepH >= 7), pb = rows.filter((x) => x.p != null && x.h.sleepH != null && x.h.sleepH < 7);
+  if (pa.length >= 3 && pb.length >= 3) { const av = (a) => a.reduce((n, x) => n + x.p, 0) / a.length; out.push({ t: `Bot result averaged <b>${money(av(pa))}</b> a day after 7h+ sleep vs <b>${money(av(pb))}</b> after less (${pa.length} and ${pb.length} bot days).` }); }
+  else out.push({ dim: 1, t: `Sleep vs bot results: needs 3 bot trading days on each side. The app only knows live and paper results since it started saving them.` });
+  return out;
+}
+function hxTrends() {
+  const today = todayKey(), cfg = hxCfg(), days = Array.from({ length: 14 }, (_, i) => addDays(today, i - 13));
+  const sleep = days.map((k) => (hxOn(k) || {}).sleepH), have = sleep.filter((v) => v != null);
+  const avgS = have.length ? have.reduce((a, b) => a + b, 0) / have.length : null;
+  const en = days.map((k) => (hxOn(k) || {}).energy);
+  const weeks = Array.from({ length: 8 }, (_, i) => addDays(startOfWeek(today), (i - 7) * 7)), wc = weeks.map((k) => weekWorkouts(k).length);
+  const wts = hxLogs().filter((h) => h.weight != null && h.date <= today).sort((a, b) => a.date.localeCompare(b.date)).slice(-60);
+  let wsvg = '<div class="hx-hint">Log your weight on the Today tab a few times to see a trend.</div>';
+  if (wts.length >= 2) {
+    const vs = wts.map((x) => +x.weight), lo = Math.min(...vs, cfg.goalWeight || Infinity), hi = Math.max(...vs, cfg.goalWeight || -Infinity), span = Math.max(hi - lo, 1);
+    const pts = vs.map((v, i) => `${(i / (vs.length - 1) * 280 + 10).toFixed(1)},${(80 - (v - lo) / span * 64).toFixed(1)}`).join(' ');
+    const g = cfg.goalWeight ? `<line x1="10" x2="290" y1="${(80 - (cfg.goalWeight - lo) / span * 64).toFixed(1)}" y2="${(80 - (cfg.goalWeight - lo) / span * 64).toFixed(1)}" stroke="#9ca3af" stroke-dasharray="4 4"/>` : '';
+    const ch = vs[vs.length - 1] - vs[0];
+    wsvg = `<svg viewBox="0 0 300 96" width="100%" role="img" aria-label="Weight trend">${g}<polyline points="${pts}" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${pts.split(' ').pop().split(',')[0]}" cy="${pts.split(' ').pop().split(',')[1]}" r="4" fill="#6366f1"/><text x="10" y="94" font-size="10" fill="#6b7280">${esc(longDate(wts[0].date).split(', ')[1])}</text><text x="290" y="94" font-size="10" fill="#6b7280" text-anchor="end">${esc(longDate(wts[wts.length - 1].date).split(', ')[1])}</text></svg><div class="hx-hint">Now <b>${vs[vs.length - 1]} ${cfg.unit}</b>, ${ch === 0 ? 'no change' : (ch > 0 ? '+' : '') + Math.round(ch * 10) / 10 + ' ' + cfg.unit} since ${esc(longDate(wts[0].date))}.${cfg.goalWeight ? ` Goal ${cfg.goalWeight}.` : ''}</div>`;
+  }
+  const ins = hxInsights();
+  return `<div class="hx-grid">
+   <div style="display:flex;flex-direction:column;gap:14px">
+    <section class="hx-card"><h3>Sleep, last 14 days<small>${avgS != null ? 'avg ' + fmtH(Math.round(avgS * 2) / 2) : ''}</small></h3>${hxBars(sleep, days.map((k) => parse(k).getDate()), 10, cfg.sleepNeed)}<div class="hx-hint">The dashed line is your ${cfg.sleepNeed} h target.</div></section>
+    <section class="hx-card"><h3>Energy, last 14 days</h3>${hxBars(en, days.map((k) => parse(k).getDate()), 5, 0, '#10b981')}</section>
+    <section class="hx-card"><h3>Weight</h3>${wsvg}<div class="hx-in" style="margin-top:6px"><div class="fld"><label for="hxGoalW">Goal weight (${cfg.unit})</label><input id="hxGoalW" inputmode="decimal" autocomplete="off" value="${cfg.goalWeight || ''}"></div><div class="fld"><label for="hxUnit">Unit</label><select id="hxUnit"><option value="lb"${cfg.unit === 'lb' ? ' selected' : ''}>Pounds</option><option value="kg"${cfg.unit === 'kg' ? ' selected' : ''}>Kilograms</option></select></div></div></section>
+   </div>
+   <div style="display:flex;flex-direction:column;gap:14px">
+    <section class="hx-card"><h3>Workouts per week<small>last 8 weeks</small></h3>${hxBars(wc.map((v) => v), weeks.map((k) => parse(k).getMonth() + 1 + '/' + parse(k).getDate()), 7, (() => { const n = [1, 2, 3, 4, 5, 6, 0].filter((d) => cfg.plan[d] && cfg.plan[d] !== 'Rest').length; return n || 0; })())}</section>
+    <section class="hx-card"><h3>What your data says</h3><div class="hx-ins">${ins.map((x) => `<div class="${x.dim ? 'dim' : ''}">${x.t}</div>`).join('')}</div><div class="hx-hint">These are patterns in your own logs, not proof of cause. They get more useful after a few weeks of check-ins and journal entries.</div></section>
+   </div>
+  </div>`;
+}
+function renderHealth() {
+  const tabs = [['today', 'Check-in'], ['workouts', 'Workouts'], ['trends', 'Trends']];
+  return `<div class="hx"><div class="seg2 hx-tabs" id="hxTabs">${tabs.map(([k, l]) => `<button type="button" data-hxtab="${k}" aria-pressed="${hxTab === k}">${l}</button>`).join('')}</div>${hxTab === 'today' ? hxToday() : hxTab === 'workouts' ? hxWorkouts() : hxTrends()}</div>`;
+}
+// compact card for the Today screen
+function hxTodayCard() {
+  const k = todayKey(), h = hxOn(k) || {}, cfg = hxCfg(), plan = cfg.plan[dow(k)], done = S.workouts.filter((w) => w.date === k);
+  const water = h.water || 0;
+  return `<section class="td-card"><h3>Health<button data-tgo="health">Open</button></h3>
+    <div class="hx-row"><span class="l">Water ${water}/${cfg.waterGoal}</span><div class="hx-step"><button type="button" data-hx="water-" data-hxk="${k}" aria-label="Less water">−</button><button type="button" data-hx="water+" data-hxk="${k}" aria-label="More water">+</button></div></div>
+    <div class="hx-hint">${h.sleepH != null ? `Slept <b>${fmtH(h.sleepH)}</b>${h.energy ? `, energy <b>${h.energy}/5</b>` : ''}.` : 'Sleep not logged yet.'} ${done.length ? `Workout done: <b>${esc(done[0].type)}</b>.` : plan && plan !== 'Rest' ? `Planned workout: <b>${esc(plan)}</b>.` : 'Rest day.'}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" data-hx="logw" data-hxk="${k}">Log workout</button><button class="btn sm" data-tgo="health">Check in</button></div></section>`;
+}
+
+// ----- workout dialog -----
+const wkDlg = $('#wkDlg');
+let wkDraft = null;
+const blankSet = () => ({ r: '', w: '' });
+function paintWk() {
+  const cfg = hxCfg(), lift = wkDraft.type === 'Lift' || wkDraft.type === 'Other';
+  $('#wkEx').hidden = !lift; $('#wkExAdd').hidden = !lift; $('#wkTplWrap').hidden = !lift || !S.wtemplates.length; $('#wkSaveRow').hidden = !lift;
+  $('#wkEx').innerHTML = (wkDraft.ex || []).map((e, i) => {
+    const last = hxLast(e.name);
+    return `<div class="hx-ex" data-i="${i}"><div class="top"><input list="wkNames" value="${esc(e.name)}" maxlength="60" placeholder="Exercise, e.g. Bench press" aria-label="Exercise name" data-f="name"><button type="button" class="x" data-wk="delex" aria-label="Remove exercise">✕</button></div>
+      ${last ? `<div class="last">Last time (${esc(dueLabel(last.date))}): ${esc(setText(last.sets))}</div>` : ''}
+      ${e.sets.map((st, j) => `<div class="set" data-j="${j}"><span>${j + 1}</span><input inputmode="numeric" placeholder="reps" value="${esc(String(st.r))}" aria-label="Reps" data-f="r"><input inputmode="decimal" placeholder="${cfg.unit}" value="${esc(String(st.w))}" aria-label="Weight in ${cfg.unit}" data-f="w"><button type="button" class="x" data-wk="delset" aria-label="Remove set">✕</button></div>`).join('')}
+      <div><button type="button" class="btn sm" data-wk="addset">+ Set</button></div></div>`;
+  }).join('');
+  let dl = document.getElementById('wkNames');
+  if (!dl) { dl = document.createElement('datalist'); dl.id = 'wkNames'; document.body.appendChild(dl); }
+  dl.innerHTML = [...new Set(S.workouts.flatMap((w) => (w.ex || []).map((e) => String(e.name).trim())).filter(Boolean))].slice(0, 60).map((n) => `<option value="${esc(n)}">`).join('');
+}
+function openWorkout(id, date, type) {
+  const w = id ? S.workouts.find((x) => x.id === id) : null, cfg = hxCfg();
+  wkDraft = w ? JSON.parse(JSON.stringify(w)) : { id: '', date: date || todayKey(), type: type || (cfg.plan[dow(date || todayKey())] && cfg.plan[dow(date || todayKey())] !== 'Rest' ? cfg.plan[dow(date || todayKey())] : 'Lift'), mins: '', rpe: 0, notes: '', ex: [] };
+  wkDraft.ex = wkDraft.ex || [];
+  $('#wkTitle').textContent = w ? 'Edit workout' : 'Log workout';
+  $('#wkType').innerHTML = HX_TYPES.map((t) => `<option${t === wkDraft.type ? ' selected' : ''}>${t}</option>`).join('');
+  $('#wkDate').value = wkDraft.date; $('#wkMins').value = wkDraft.mins || ''; $('#wkRpe').value = String(wkDraft.rpe || 0); $('#wkNotes').value = wkDraft.notes || '';
+  $('#wkTpl').innerHTML = '<option value="">None</option>' + S.wtemplates.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+  $('#wkSaveTpl').checked = false; $('#wkTplName').value = ''; $('#wkDelete').hidden = !w; $('#wkErr').hidden = true;
+  paintWk(); wkDlg.showModal();
+}
+$('#wkType').onchange = () => { wkDraft.type = $('#wkType').value; paintWk(); };
+$('#wkTpl').onchange = () => {
+  const t = S.wtemplates.find((x) => x.id === $('#wkTpl').value); if (!t) return;
+  wkDraft.ex = (t.ex || []).map((e) => { const last = hxLast(e.name); const n = (e.sets && e.sets.length) || 3; return { name: e.name, sets: Array.from({ length: n }, (_, i) => { const l = last && (last.sets[i] || last.sets[last.sets.length - 1]); return { r: l ? l.r : (e.sets && e.sets[i] ? e.sets[i].r : ''), w: l ? l.w : (e.sets && e.sets[i] ? e.sets[i].w : '') }; }) }; });
+  paintWk();
+};
+$('#wkAddEx').onclick = () => { wkDraft.ex.push({ name: '', sets: [blankSet()] }); paintWk(); const ins = document.querySelectorAll('#wkEx [data-f=name]'); if (ins.length) ins[ins.length - 1].focus(); };
+$('#wkEx').addEventListener('input', (e) => {
+  const box = e.target.closest('.hx-ex'); if (!box) return; const ex = wkDraft.ex[+box.dataset.i], f = e.target.dataset.f;
+  if (f === 'name') ex.name = e.target.value; else { const set = ex.sets[+e.target.closest('.set').dataset.j]; set[f] = e.target.value; }
+});
+$('#wkEx').addEventListener('change', (e) => {
+  if (e.target.dataset.f !== 'name') return;
+  // Update only this exercise's "last time" hint; redrawing the form would drop focus and close the keyboard.
+  const box = e.target.closest('.hx-ex'), last = hxLast(e.target.value); let el = box.querySelector('.last');
+  if (!last) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.className = 'last'; box.querySelector('.top').after(el); }
+  el.textContent = `Last time (${dueLabel(last.date)}): ${setText(last.sets)}`;
+});
+$('#wkEx').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-wk]'); if (!b) return; const box = b.closest('.hx-ex'), ex = wkDraft.ex[+box.dataset.i];
+  if (b.dataset.wk === 'delex') wkDraft.ex.splice(+box.dataset.i, 1);
+  else if (b.dataset.wk === 'addset') { const l = ex.sets[ex.sets.length - 1]; ex.sets.push(l ? { r: l.r, w: l.w } : blankSet()); }
+  else if (b.dataset.wk === 'delset') { ex.sets.splice(+b.closest('.set').dataset.j, 1); if (!ex.sets.length) ex.sets.push(blankSet()); }
+  paintWk();
+});
+$('#wkForm').onsubmit = (e) => {
+  e.preventDefault();
+  const err = (m) => { $('#wkErr').textContent = m; $('#wkErr').hidden = false; };
+  const date = $('#wkDate').value, mins = $('#wkMins').value.trim() === '' ? 0 : nz($('#wkMins').value);
+  if (!ymdOk(date)) return err('Pick a date.');
+  if (isNaN(mins) || mins < 0 || mins > 600) return err('Minutes should be a number from 0 to 600.');
+  const ex = (wkDraft.ex || []).map((x) => ({ name: String(x.name).trim(), sets: x.sets.map((st) => ({ r: nz(st.r), w: st.w === '' ? 0 : nz(st.w) })).filter((st) => st.r > 0 && st.w >= 0) })).filter((x) => x.name && x.sets.length);
+  const data = { type: $('#wkType').value, date, mins, rpe: +$('#wkRpe').value, notes: $('#wkNotes').value.trim(), ex: ($('#wkType').value === 'Lift' || $('#wkType').value === 'Other') ? ex : [] };
+  const tname = $('#wkTplName').value.trim();
+  if ($('#wkSaveTpl').checked && !tname) return err('Name the template, or untick Save as template.');
+  if ($('#wkSaveTpl').checked && !data.ex.length) return err('Add at least one exercise with reps to save a template.');
+  snapshot();
+  commit(() => {
+    const w = wkDraft.id ? S.workouts.find((x) => x.id === wkDraft.id) : null;
+    if (w) Object.assign(w, data); else S.workouts.push({ id: uid(), created: Date.now(), ...data });
+    if ($('#wkSaveTpl').checked) {
+      const tex = data.ex.map((x) => ({ name: x.name, sets: x.sets.map((st) => ({ r: st.r, w: st.w })) })), old = S.wtemplates.find((t) => t.name.toLowerCase() === tname.toLowerCase());
+      if (old) old.ex = tex; else S.wtemplates.push({ id: uid(), name: tname, ex: tex });
+    }
+  });
+  wkDlg.close(); hxDate = date <= todayKey() ? date : hxDate; render(); toast(wkDraft.id ? 'Workout updated' : 'Workout logged', true);
+};
+$('#wkDelete').onclick = async () => {
+  if (!(await ask('Delete this workout?', 'It will be removed from your log and personal bests.', 'Delete', { danger: true }))) return;
+  const id = wkDraft.id; snapshot(); commit(() => { S.workouts = S.workouts.filter((x) => x.id !== id); }); wkDlg.close(); render(); toast('Workout deleted', true);
+};
+
+// ----- actions -----
+function hxPlanToCalendar() {
+  const cfg = hxCfg(), today = todayKey(), catId = S.categories.some((c) => c.id === 'personal') ? 'personal' : S.lastCat;
+  snapshot();
+  commit(() => {
+    for (let d = 0; d < 7; d++) {
+      const type = cfg.plan[d], id = 'hxplan-' + d, i = S.events.findIndex((e) => e.id === id);
+      if (!type || type === 'Rest') { if (i >= 0) S.events.splice(i, 1); continue; }
+      let date = today; for (let n = 0; n < 7 && dow(date) !== d; n++) date = addDays(date, 1);
+      const dur = type === 'Lift' ? 60 : type === 'Run' ? 40 : 30, title = type === 'Lift' ? 'Workout: lift' : `Workout: ${type.toLowerCase()}`;
+      const ev = { id, title, cat: catId, date, allDay: false, start: cfg.planTime, end: fromMin(Math.min(toMin(cfg.planTime) + dur, 1439)), endDate: '', repeat: 'weekly', until: '', notes: 'From your workout plan', ex: [] };
+      if (i >= 0) { const old = S.events[i]; Object.assign(old, ev, { date: old.date, ex: old.ex || [] }); } else S.events.push(ev);
+    }
+  });
+  render(); toast('Workout plan is on your calendar', true);
+}
+const hxAfter = () => { if (S.view === 'health' || S.view === 'today') renderMain(); };
+document.addEventListener('click', async (e) => {
+  const tab = e.target.closest('[data-hxtab]');
+  if (tab) { hxTab = tab.dataset.hxtab; try { localStorage.setItem('planner.hxTab', hxTab); } catch (err) { /* convenience */ } renderMain(); return; }
+  const dnav = e.target.closest('[data-hxd]');
+  if (dnav) { const k = addDays(hxDate, +dnav.dataset.hxd); if (k <= todayKey()) { hxDate = k; renderMain(); } return; }
+  const ed = e.target.closest('[data-hx-edit]'); if (ed) { openWorkout(ed.dataset.hxEdit); return; }
+  const b = e.target.closest('[data-hx]'); if (!b) return;
+  const a = b.dataset.hx, k = b.dataset.hxk || hxDate, h = hxOn(k) || {}, cfg = hxCfg();
+  if (a === 'sleep+' || a === 'sleep-') { const base = h.sleepH != null ? h.sleepH : cfg.sleepNeed; hxSet(k, { sleepH: Math.max(0, Math.min(14, base + (a === 'sleep+' ? 0.5 : -0.5))) }); }
+  else if (a === 'water+') hxSet(k, { water: Math.min(30, (h.water || 0) + 1) });
+  else if (a === 'water-') hxSet(k, { water: Math.max(0, (h.water || 0) - 1) });
+  else if (a === 'caf+') hxSet(k, { caf: Math.min(20, (h.caf || 0) + 1) });
+  else if (a === 'caf-') hxSet(k, { caf: Math.max(0, (h.caf || 0) - 1) });
+  else if (a.startsWith('set:')) { const [, f, v] = a.split(':'); hxSet(k, { [f]: h[f] === +v ? 0 : +v }); }
+  else if (a === 'logw') { openWorkout(null, k); return; }
+  else if (a === 'plan-cal') { hxPlanToCalendar(); return; }
+  else if (a.startsWith('tpl-use:')) { const t = S.wtemplates.find((x) => x.id === a.slice(8)); openWorkout(null, todayKey(), 'Lift'); if (t) { $('#wkTpl').value = t.id; $('#wkTpl').onchange(); } return; }
+  else if (a.startsWith('tpl-del:')) { const t = S.wtemplates.find((x) => x.id === a.slice(8)); if (t && await ask(`Delete ${t.name}?`, 'Your logged workouts stay.', 'Delete', { danger: true })) { snapshot(); commit(() => { S.wtemplates = S.wtemplates.filter((x) => x !== t); }); toast('Template deleted', true); } }
+  hxAfter();
+});
+document.addEventListener('change', (e) => {
+  const t = e.target;
+  if (t.id === 'hxSteps' || t.id === 'hxWeight') { const v = t.value.trim(), n = nz(v); if (v === '') hxSet(hxDate, { [t.id === 'hxSteps' ? 'steps' : 'weight']: null }); else if (!isNaN(n) && n >= 0 && n < 100000) hxSet(hxDate, { [t.id === 'hxSteps' ? 'steps' : 'weight']: Math.round(n * 10) / 10 }); else toast('Enter a number'); renderMain(); }
+  else if (t.id === 'hxWake' && HM.test(t.value)) { hxSaveCfg({ wake: t.value }); renderMain(); }
+  else if (t.id === 'hxNeed') { hxSaveCfg({ sleepNeed: +t.value }); renderMain(); }
+  else if (t.id === 'hxPlanTime' && HM.test(t.value)) hxSaveCfg({ planTime: t.value });
+  else if (t.id === 'hxGoalW') { const n = nz(t.value); hxSaveCfg({ goalWeight: isNaN(n) ? 0 : n }); renderMain(); }
+  else if (t.id === 'hxUnit') { hxSaveCfg({ unit: t.value }); renderMain(); }
+  else if (t.dataset && t.dataset.hxplan != null) { const plan = { ...hxCfg().plan, [t.dataset.hxplan]: t.value }; hxSaveCfg({ plan }); renderMain(); }
+});
+// ===== HEALTH END =====
+
 // ---------- backup ----------
 async function download(name, text, type) {
   if (HOSTED) {
@@ -2476,13 +3123,18 @@ function toICS() {
   const fold = (l) => { const out = []; while (l.length > 74) { out.push(l.slice(0, 74)); l = ' ' + l.slice(74); } out.push(l); return out.join('\r\n'); };
   const RR = { daily: 'FREQ=DAILY', weekdays: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR', weekly: 'FREQ=WEEKLY', biweekly: 'FREQ=WEEKLY;INTERVAL=2', monthly: 'FREQ=MONTHLY', yearly: 'FREQ=YEARLY' };
   const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Planner//EN', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Planner'];
+  // Alerts: 10 minutes before your own timed events, 15 before high-impact news, 9am on the day for all-day deadlines.
+  const alarm = (trig, text) => ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${ie(text)}`, trig, 'END:VALARM'];
   for (const e of allEvents()) {
+    if (e.layer && S.layersOff.includes(e.layer)) continue;
     L.push('BEGIN:VEVENT', `UID:${e.id}@planner`, `DTSTAMP:${stamp}`, `SUMMARY:${ie(e.title)}`, `CATEGORIES:${ie(cat(e.cat).name)}`);
     if (e.allDay) L.push(`DTSTART;VALUE=DATE:${dt(e.date)}`, `DTEND;VALUE=DATE:${dt(addDays(e.endDate || e.date, 1))}`);
     else L.push(`DTSTART:${dt(e.date)}T${tm(e.start)}`, `DTEND:${dt(e.date)}T${tm(e.end)}`);
     if (RR[e.repeat]) L.push(`RRULE:${RR[e.repeat]}${e.until ? ';UNTIL=' + dt(e.until) + (e.allDay ? '' : 'T235959') : ''}`);
     (e.ex || []).forEach((x) => L.push(e.allDay ? `EXDATE;VALUE=DATE:${dt(x)}` : `EXDATE:${dt(x)}T${tm(e.start)}`));
     if (e.notes) L.push(`DESCRIPTION:${ie(e.notes)}`);
+    if (!e.allDay) L.push(...alarm(e.layer === 'high' ? 'TRIGGER:-PT15M' : e.layer ? 'TRIGGER:-PT5M' : 'TRIGGER:-PT10M', e.title));
+    else if (!e.bot && !e.milestone) L.push(...alarm('TRIGGER:PT9H', e.title));
     L.push('END:VEVENT');
   }
   L.push('END:VCALENDAR');
@@ -2500,9 +3152,9 @@ function toast(msg, canUndo) {
 }
 
 // ===== EXTRAS SHARED BEGIN (hooks used by habits, review, journal, templates, focus, smart lists) =====
-const KEEP_SCROLL = ['projects', 'habits', 'review', 'news'];
-const EXTRA_TITLES = { habits: 'Habits', review: 'Weekly review', news: 'Market news' };
-const NO_NAV = ['projects', 'habits', 'review', 'news'];
+const KEEP_SCROLL = ['projects', 'habits', 'health', 'review', 'news', 'rules', 'trades'];
+const EXTRA_TITLES = { habits: 'Habits', review: 'Weekly review', news: 'Market news', today: 'Today', health: 'Health', rules: 'Pre-trade checklist', trades: 'Trades' };
+const NO_NAV = ['projects', 'habits', 'health', 'review', 'news', 'today', 'rules', 'trades'];
 const ICON_CHECK = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>';
 const ICON_PENCIL = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg>';
 const ICON_CHEV = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
@@ -2568,7 +3220,7 @@ function afterMain() {
 }
 function renderExtras() {
   renderJournals(); renderTplRow(); focusPaint();
-  const mb = $('#moreBtn'); if (mb) mb.setAttribute('aria-pressed', String(!query && NO_NAV.includes(S.view)));
+  const mb = $('#moreBtn'); if (mb) mb.setAttribute('aria-pressed', String(!query && NO_NAV.includes(S.view) && S.view !== 'today'));
 }
 
 // "More" menu for the views that don't fit in the switcher on a phone.
@@ -2997,6 +3649,7 @@ function renderReview() {
       <section class="rv-card"><h3>Events held (${held.length})</h3>${evHtml}</section>
       <section class="rv-card"><h3>Focus time</h3>${focusHtml}</section>
       <section class="rv-card"><h3>Followed my rules</h3><div class="rules-row">${ruleChips}</div><div class="sub">Current streak <b style="color:var(--ink)">${rs.cur}</b> trading day${rs.cur === 1 ? '' : 's'}, best <b style="color:var(--ink)">${rs.best}</b>. Set it in each day's Journal.</div></section>
+      ${rulesReviewCard()}
       <section class="rv-card"><h3>What went well</h3><textarea class="rv-ta keep" data-rf="well" aria-label="What went well" placeholder="Wins, good decisions, things to repeat">${esc(rec.well || '')}</textarea><h3>What to fix</h3><textarea class="rv-ta keep" data-rf="fix" aria-label="What to fix" placeholder="Mistakes, leaks, things to change">${esc(rec.fix || '')}</textarea></section>
       <section class="rv-card"><h3>Next week: top 3 priorities</h3>${[0, 1, 2].map((i) => `<input class="rv-in keep" data-rp="${i}" value="${esc(pr[i] || '')}" placeholder="Priority ${i + 1}" maxlength="140" aria-label="Priority ${i + 1}">`).join('')}<button class="btn primary" data-rvmake>Create as high-priority tasks for ${esc(longDate(nm))}</button>${rec.madeAt ? `<div class="sub">Created ${esc(new Date(rec.madeAt).toLocaleDateString())}.</div>` : ''}</section>
     </div></div>`;
@@ -3069,6 +3722,414 @@ document.addEventListener('input', (e) => {
   }
 });
 // ===== EXTRAS EVENTS END =====
+
+// ===== RULES BEGIN: pre-trade checklist (synced collections `rules` and `checks`) =====
+const RL_SUGGEST = ['Checked today\'s news pauses', 'Trading inside my killzones only', 'Risk is within plan', 'No revenge trade after a loss', 'Stopped at my daily limit'];
+const isWkd = (k) => { const w = dow(k); return w > 0 && w < 6; };
+const prevWkd = (k) => { let d = addDays(k, -1); while (!isWkd(d)) d = addDays(d, -1); return d; };
+const rlList = () => S.rules.slice().sort((a, b) => (a.c || 0) - (b.c || 0) || String(a.name).localeCompare(String(b.name)));
+const ckOf = (k) => S.checks.find((c) => c.id === 'c:' + k) || null;
+const ckFull = (c) => !!c && Array.isArray(c.items) && c.items.length > 0 && c.items.every((i) => i.y);
+// Consecutive trading days (Mon-Fri) with every rule followed. Today not being done yet does not break it.
+function ckStreak() {
+  const today = todayKey();
+  const earliest = S.checks.reduce((m, c) => (c.date && c.date < m ? c.date : m), today);
+  let k = isWkd(today) && ckFull(ckOf(today)) ? today : isWkd(today) ? prevWkd(today) : prevWkd(addDays(today, 1));
+  let n = 0;
+  while (k >= earliest && ckFull(ckOf(k))) { n++; k = prevWkd(k); }
+  return n;
+}
+// Last 7 days (trading days only): how many were checked and how many fully followed.
+function rulesAdherence() {
+  const today = todayKey(), days = [];
+  for (let i = 6; i >= 0; i--) { const k = addDays(today, -i); if (isWkd(k)) days.push(k); }
+  const cs = days.map(ckOf).filter(Boolean);
+  const broke = new Map();
+  for (let i = 27; i >= 0; i--) { const c = ckOf(addDays(today, -i)); if (c) (c.items || []).forEach((it) => { if (!it.y) broke.set(it.n, (broke.get(it.n) || 0) + 1); }); }
+  const worst = [...broke.entries()].sort((a, b) => b[1] - a[1])[0] || null;
+  return { days: days.length, checked: cs.length, full: cs.filter(ckFull).length, worst };
+}
+function rulesReviewCard() {
+  if (!S.rules.length && !S.checks.length) return '<section class="rv-card"><h3>Pre-trade checklist</h3><div class="empty-s">No rules yet. Add some in the Rules view.</div></section>';
+  const ad = rulesAdherence();
+  return `<section class="rv-card"><h3>Pre-trade checklist, last 7 days</h3><div class="rv-big">${ad.full} of ${ad.days}</div><div class="sub">trading days with every rule followed${ad.checked < ad.days ? `. ${ad.days - ad.checked} not checked.` : '.'}</div>${ad.worst ? `<div class="sub">Most broken in the last 4 weeks: <b style="color:var(--ink)">${esc(ad.worst[0])}</b> (${ad.worst[1]}x)</div>` : ''}</section>`;
+}
+function renderRulesChip() {
+  const box = $('#rulesChip'); if (!box) return;
+  const today = todayKey(), c = ckOf(today);
+  if (!c && !isWkd(today)) { box.hidden = true; return; }
+  let cls, txt, btn;
+  if (c) {
+    const n = c.items.filter((i) => i.y).length, miss = rlList().filter((r) => !c.items.some((i) => i.id === r.id)).length, st = ckStreak();
+    cls = 'done';
+    txt = `Checklist done today: ${ckFull(c) ? 'every rule followed' : `${n} of ${c.items.length} rules followed`}${miss ? `. ${miss} new rule${miss === 1 ? '' : 's'} not answered` : ''}${st ? `. Streak ${st} day${st === 1 ? '' : 's'}` : ''}`;
+    btn = 'Edit';
+  } else if (!S.rules.length) { cls = ''; txt = 'No pre-trade rules yet'; btn = 'Set up'; }
+  else { cls = 'todo'; txt = 'Pre-trade checklist not done today'; btn = 'Run'; }
+  box.className = 'rl-chip ' + cls;
+  box.innerHTML = `<span class="sdot ${cls === 'done' ? 'ok' : cls === 'todo' ? 'busy' : ''}"></span><span>${esc(txt)}</span><button class="btn sm" data-rlrun>${btn}</button>`;
+  box.hidden = false;
+}
+// Hook for renderNow(): the checklist reminder and the top risk alert, one line each.
+function nowExtras(bar) {
+  renderRulesChip();
+  const t = bar.querySelector('.nb-t'); if (!t) return;
+  let h = '';
+  const today = todayKey();
+  if (S.rules.length && isWkd(today) && !ckOf(today)) h += '<small class="nb-x" data-nowrules>Checklist not done today. Tap to run it.</small>';
+  const al = riskAlerts().filter((a) => a.level === 'red' || a.level === 'amber');
+  if (al.length) h += `<small class="nb-x ${al[0].level === 'red' ? 'red' : ''}">${esc(al[0].text)}${al.length > 1 ? ` (+${al.length - 1} more)` : ''}</small>`;
+  if (h) t.insertAdjacentHTML('beforeend', h);
+}
+function renderRules() {
+  const today = todayKey(), list = rlList(), c = ckOf(today), st = ckStreak(), ad = rulesAdherence();
+  const sug = RL_SUGGEST.filter((n) => !list.some((r) => r.name.toLowerCase() === n.toLowerCase()));
+  const gridStart = addDays(startOfWeek(today), -21);
+  let wd = '';
+  for (let i = 0; i < 7; i++) wd += `<div class="wd">${DAYS[(i + S.weekStart) % 7][0]}</div>`;
+  let dots = '';
+  for (let i = 0; i < 28; i++) {
+    const k = addDays(gridStart, i), fut = k > today, ck = ckOf(k), full = ckFull(ck);
+    const cls = [ck ? (full ? 'full' : 'part') : fut ? '' : isWkd(k) ? 'miss' : 'off', k === today && 'today'].filter(Boolean).join(' ');
+    const lab = `${longDate(k)}: ${ck ? (full ? 'every rule followed' : 'a rule was broken') : isWkd(k) ? 'not checked' : 'weekend'}`;
+    dots += `<button class="rl-d ${cls}" data-rlday="${k}" ${fut ? 'disabled' : ''} aria-label="${esc(lab)}" title="${esc(lab)}"><i></i></button>`;
+  }
+  const status = c
+    ? `<div class="rl-big-s"><b>${ckFull(c) ? 'Done: every rule followed' : `Done: ${c.items.filter((i) => i.y).length} of ${c.items.length} followed`}</b></div>`
+    : `<div class="rl-big-s"><b>${isWkd(today) ? 'Not done today' : 'Weekend: no checklist needed'}</b></div>`;
+  const rows = list.map((r) => `<div class="rl-row" data-rid="${esc(r.id)}"><div class="rl-t"><b>${esc(r.name)}</b>${r.note ? `<small>${esc(r.note)}</small>` : ''}</div><button class="ib" data-rledit aria-label="Edit ${esc(r.name)}" title="Edit">${ICON_PENCIL}</button></div>`).join('');
+  return `<div class="xwrap">
+    <div class="x-h"><h2>Pre-trade checklist</h2><button class="btn sm" id="rlNew">+ New rule</button></div>
+    <section class="rv-card">
+      ${status}
+      <button class="btn primary" data-rlrun style="height:48px;justify-content:center;font-size:15px" ${list.length ? '' : 'disabled'}>${c ? 'Edit today\'s checklist' : 'Run checklist'}</button>
+      ${list.length ? '' : '<div class="sub">Add at least one rule first. Tap a suggestion below or write your own.</div>'}
+      <div class="rl-stat"><div><b>${st}</b>day streak<br>fully followed</div><div><b>${ad.full} of ${ad.days}</b>trading days, last 7</div></div>
+    </section>
+    <div class="x-grid">
+      <section class="rv-card"><h3>My rules</h3>${rows || '<div class="empty-s">No rules yet.</div>'}
+        ${sug.length ? `<div class="label" style="margin:8px 0 0">${list.length ? 'Add suggested' : 'Suggested'}</div><div class="sug">${sug.map((n) => `<button class="pill" style="${cvars('#374151')}" data-rlsug="${esc(n)}"><i></i>+ ${esc(n)}</button>`).join('')}</div>` : ''}
+      </section>
+      <section class="rv-card"><h3>Last 4 weeks</h3><div class="rl-grid">${wd}${dots}</div><div class="sub">Green: every rule followed. Red ring: a rule was broken. Grey ring: trading day not checked. Tap a past day to fill it in.</div></section>
+    </div></div>`;
+}
+document.body.insertAdjacentHTML('beforeend', `
+<dialog id="rlDlg" aria-labelledby="rlName">
+  <form class="dlg" id="rlForm" novalidate>
+    <div class="dlg-h"><h3>Rule</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="fld"><label for="rlName">Rule</label><input id="rlName" maxlength="100" autocomplete="off" placeholder="e.g. Stop after two losses"></div>
+    <div class="fld"><label for="rlNote">Note (optional)</label><input id="rlNote" maxlength="200" autocomplete="off" placeholder="Why it matters"></div>
+    <div class="err" id="rlErr" hidden></div>
+    <div class="dlg-f"><div><button type="button" class="btn danger" id="rlDel">Delete rule</button></div><div><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Save</button></div></div>
+  </form>
+</dialog>
+<dialog id="ckDlg" aria-labelledby="ckTitle">
+  <form class="dlg" id="ckForm" novalidate>
+    <div class="dlg-h"><div style="flex:1"><h3 id="ckTitle">Pre-trade checklist</h3><div class="sub" id="ckSub"></div></div><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div id="ckRows"></div>
+    <div class="err" id="ckErr" hidden></div>
+    <div class="dlg-f"><div></div><div><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary" style="min-height:44px">Save</button></div></div>
+  </form>
+</dialog>`);
+let rlEditing = null, ckDate = null, ckAns = new Map();
+function openRule(id) {
+  const r = S.rules.find((x) => x.id === id);
+  rlEditing = r ? r.id : null;
+  $('#rlName').value = r ? r.name : ''; $('#rlNote').value = r ? (r.note || '') : '';
+  $('#rlDel').hidden = !r; $('#rlErr').hidden = true;
+  $('#rlDlg').showModal();
+  setTimeout(() => { if (!r) $('#rlName').focus(); }, 30);
+}
+function addRule(name, note = '') {
+  if (S.rules.some((r) => r.name.toLowerCase() === name.toLowerCase())) return false;
+  commit(() => { S.rules.push({ id: uid(), name, note, c: Date.now() }); });
+  return true;
+}
+$('#rlForm').onsubmit = (e) => {
+  e.preventDefault();
+  const name = $('#rlName').value.trim(), note = $('#rlNote').value.trim();
+  if (!name) { $('#rlErr').textContent = 'Write the rule.'; $('#rlErr').hidden = false; $('#rlName').focus(); return; }
+  if (S.rules.some((r) => r.id !== rlEditing && r.name.toLowerCase() === name.toLowerCase())) { $('#rlErr').textContent = 'You already have that rule.'; $('#rlErr').hidden = false; return; }
+  snapshot();
+  commit(() => { upsert(S.rules, rlEditing, () => ({ id: uid(), c: Date.now() }), { name, note }); });
+  $('#rlDlg').close(); render(); toast(rlEditing ? 'Rule saved' : 'Rule added', true);
+};
+$('#rlDel').onclick = async () => {
+  const r = S.rules.find((x) => x.id === rlEditing); if (!r) return;
+  if (!(await ask(`Delete this rule?`, `"${r.name}" is removed from the checklist. Past check-ins keep their answers.`, 'Delete', { danger: true }))) return;
+  snapshot(); commit(() => { S.rules = S.rules.filter((x) => x !== r); });
+  $('#rlDlg').close(); render(); toast('Rule deleted', true);
+};
+function paintCheck() {
+  $('#ckRows').innerHTML = rlList().map((r) => `<div class="ck-r" data-ckr="${esc(r.id)}"><div class="ck-n"><b>${esc(r.name)}</b>${r.note ? `<small>${esc(r.note)}</small>` : ''}</div><div class="ck-yn"><button type="button" class="ck-b yes" data-ckv="1" aria-pressed="${ckAns.get(r.id) === true}">Yes</button><button type="button" class="ck-b no" data-ckv="0" aria-pressed="${ckAns.get(r.id) === false}">No</button></div></div>`).join('');
+}
+function openCheck(date) {
+  if (!S.rules.length) { setView('rules'); toast('Add a rule first'); return; }
+  ckDate = date; ckAns = new Map();
+  const c = ckOf(date);
+  rlList().forEach((r) => { const it = c && c.items.find((i) => i.id === r.id); if (it) ckAns.set(r.id, !!it.y); });
+  $('#ckSub').textContent = (date === todayKey() ? 'Today, ' : '') + longDate(date) + '. Did you follow each rule?';
+  $('#ckErr').hidden = true; paintCheck(); $('#ckDlg').showModal();
+}
+$('#ckRows').onclick = (e) => {
+  const b = e.target.closest('[data-ckv]'); if (!b) return;
+  const row = b.closest('[data-ckr]'), v = b.dataset.ckv === '1';
+  ckAns.set(row.dataset.ckr, v);
+  row.querySelectorAll('.ck-b').forEach((x) => x.setAttribute('aria-pressed', String((x.dataset.ckv === '1') === v)));
+  $('#ckErr').hidden = true;
+};
+$('#ckForm').onsubmit = (e) => {
+  e.preventDefault();
+  const list = rlList();
+  if (list.some((r) => !ckAns.has(r.id))) { $('#ckErr').textContent = 'Answer every rule, Yes or No.'; $('#ckErr').hidden = false; return; }
+  const items = list.map((r) => ({ id: r.id, n: r.name, y: ckAns.get(r.id) === true }));
+  snapshot();
+  commit(() => { upsert(S.checks, 'c:' + ckDate, () => ({ id: 'c:' + ckDate, date: ckDate }), { items }); });
+  $('#ckDlg').close(); render();
+  toast(items.every((i) => i.y) ? 'Checklist saved: every rule followed' : `Checklist saved: ${items.filter((i) => !i.y).length} rule${items.filter((i) => !i.y).length === 1 ? '' : 's'} broken`, true);
+};
+document.addEventListener('click', (e) => {
+  const t = e.target;
+  if (t.closest('[data-nowrules]')) { e.stopPropagation(); openCheck(todayKey()); return; }
+  if (t.closest('[data-rlrun]')) { openCheck(todayKey()); return; }
+  const dy = t.closest('[data-rlday]'); if (dy) { openCheck(dy.dataset.rlday); return; }
+  if (t.closest('#rlNew')) { openRule(null); return; }
+  const ed = t.closest('[data-rledit]'); if (ed) { openRule(ed.closest('[data-rid]').dataset.rid); return; }
+  const sg = t.closest('[data-rlsug]'); if (sg) { if (addRule(sg.dataset.rlsug)) { renderMain(); renderRulesChip(); toast('Rule added'); } return; }
+}, true);
+// ===== RULES END =====
+
+// ===== ALERTS BEGIN: risk alerts over the cached dashboard summary =====
+const ageStr = (ms) => (ms < 90 * 60e3 ? `${Math.max(1, Math.round(ms / 60e3))} min` : ms < 48 * 3600e3 ? `${Math.round(ms / 3600e3)} h` : `${Math.round(ms / 864e5)} days`);
+const STALE_MS = 3 * 3600e3;
+// Pure: takes the cached `trade` summary and a clock, returns [{ key, level: 'red'|'amber'|'info', text }], red first.
+function riskAlerts(tr = nqBot && nqBot.trade, now = Date.now()) {
+  if (!tr || typeof tr !== 'object') return [];
+  const out = [], built = Date.parse(tr.built), age = isNaN(built) ? null : Math.max(0, now - built), stale = age == null || age > STALE_MS;
+  const sfx = stale && age != null ? ` (data ${ageStr(age)} old)` : '';
+  if (age == null) out.push({ key: 'stale', level: 'info', text: 'The dashboard data has no timestamp, so its age is unknown. Check the bots directly.' });
+  else if (stale) out.push({ key: 'stale', level: 'info', text: `Dashboard data is ${ageStr(age)} old. Room is shown as of then; bot status and daily limits are not checked until it refreshes.` });
+  const who = (a) => ({ LIT: 'Zlarior' }[a.strategy] || a.strategy || a.name || 'Account');
+  const money0 = (n) => '$' + Math.abs(Math.round(n || 0)).toLocaleString('en-US');
+  for (const a of tr.accounts || []) {
+    if (a.status !== 'open' || typeof a.room_frac !== 'number') continue;
+    const pct = Math.round(a.room_frac * 100);
+    if (a.room_frac < 0.25) out.push({ key: 'room:' + (a.name || ''), level: 'red', text: `${who(a)}: ${money0(a.room)} of room left above the loss floor (${pct}%)${sfx}` });
+    else if (a.room_frac < 0.45) out.push({ key: 'room:' + (a.name || ''), level: 'amber', text: `${who(a)}: ${money0(a.room)} of room left above the loss floor (${pct}%)${sfx}` });
+  }
+  const etToday = (() => { try { return new Date(etWall(now)).toISOString().slice(0, 10); } catch (e) { return ''; } })();
+  if (!stale) {
+    for (const a of tr.accounts || []) {
+      const b = tr.bots && tr.bots[String(a.strategy || '').toLowerCase()];
+      if (a.status !== 'open' || !b || !(b.dll > 0) || typeof b.used !== 'number' || !tr.day || tr.day !== etToday) continue;
+      const f = b.used / b.dll;
+      if (f > 0.7) out.push({ key: 'dll:' + (a.name || ''), level: f >= 0.9 ? 'red' : 'amber', text: `${who(a)}: ${Math.round(f * 100)}% of today's loss limit used (${money0(b.used)} of ${money0(b.dll)})` });
+    }
+    const st = tr.status || {};
+    if (!st.running) out.push({ key: 'bot', level: 'red', text: `Bot not running${st.host ? ' on ' + st.host : ''}` });
+    for (const i of (st.issues || []).slice(0, 2)) if (i && i.text) out.push({ key: 'issue:' + i.text.slice(0, 20), level: 'amber', text: `Bot issue: ${i.text}${i.fix ? '. ' + i.fix : ''}` });
+    const h = tr.health;
+    if (h && h.level === 'bad') out.push({ key: 'health', level: 'amber', text: `Dashboard health: ${h.text || 'a check is red'}${(h.bad || [])[0] && h.bad[0].detail ? ' (' + h.bad[0].detail + ')' : ''}` });
+  }
+  const order = { red: 0, amber: 1, info: 2 };
+  return out.sort((x, y) => order[x.level] - order[y.level]);
+}
+// The Trading card already shows "Bot running / not running", so that one is left out of the banner there.
+function alertsHtml() {
+  const al = riskAlerts().filter((a) => a.key !== 'bot');
+  return al.length ? `<div class="ralerts" role="status">${al.map((a) => `<div class="ral ${a.level}"><i></i><span>${esc(a.text)}</span></div>`).join('')}</div>` : '';
+}
+// ===== ALERTS END =====
+
+// ===== TRADES BEGIN: closed live/paper trades, notes (synced `tradenotes`), payout planner =====
+const TR_TAGS = ['Followed plan', 'Hesitated', 'FOMO', 'Moved stop', 'Took profit early', 'Overtraded', 'Good patience'];
+const ACCT_NAME = { lit: 'Zlarior', atlas: 'ATLAS' };
+let nqTrades = (() => { const t = (readJSON(NQ_KEY) || {}).trades; return Array.isArray(t) ? t : []; })();
+let trSrc = store.get('planner.trSrc') || 'all', trAcct = store.get('planner.trAcct') || 'all';
+// board.trades are the LIVE and PAPER results (data.trades is the backtest: never used). Merged with what the app already
+// cached, keyed by account + source + member + entry time, newest 300 kept.
+function tradesFromData(data) {
+  const prev = (readJSON(NQ_KEY) || {}).trades, m = new Map();
+  for (const t of Array.isArray(prev) ? prev : []) if (t && t.k) m.set(t.k, t);
+  const fresh = [];
+  for (const t of (data && data.board && data.board.trades) || []) {
+    if (!t || t.open || !YMD.test(t.day || '') || typeof t.usd !== 'number' || !t.entry_t) continue;
+    const acct = String(t.acct || '').slice(0, 12), src = t.src === 'paper' ? 'paper' : 'live', mem = String(t.key || '').slice(0, 24);
+    fresh.push({ k: `${acct}:${src}:${mem}:${t.entry_t}`, acct, src, mem: String(t.member || '').slice(0, 16), day: t.day, t0: t.entry_t, t1: t.exit_t || 0, side: t.side === 'LONG' ? 'LONG' : 'SHORT', qty: +t.qty || 0, entry: t.entry, px: t.exit_px, exit: String(t.exit || '').slice(0, 12), r: typeof t.r === 'number' ? t.r : null, usd: t.usd });
+  }
+  fresh.sort((a, b) => (b.t1 || b.t0) - (a.t1 || a.t0));
+  fresh.slice(0, 60).forEach((t) => m.set(t.k, t));
+  return [...m.values()].sort((a, b) => (b.t1 || b.t0) - (a.t1 || a.t0)).slice(0, 300);
+}
+// Extra fields on the cached `trade` summary (called from nqEventsFromData): plan rules, daily limits, health.
+function tradeExtras(trade, data) {
+  const b = (data && data.board) || {}, rules = ((data && data.funded_life) || {}).rules || {};
+  const num = (v) => (typeof v === 'number' && isFinite(v) ? v : null);
+  trade.day = YMD.test(b.today || '') ? b.today : '';
+  trade.plans = {};
+  for (const [pk, r] of Object.entries(rules)) {
+    if (!r || typeof r !== 'object') continue;
+    trade.plans[String(pk).slice(0, 24)] = Object.fromEntries(['buffer', 'pay_min', 'pay_max', 'ask_above', 'mll', 'dll', 'max_payouts', 'split'].map((f) => [f, num(r[f])]));
+  }
+  trade.bots = {};
+  for (const id of ['lit', 'atlas']) { const x = b[id]; if (x && typeof x === 'object') trade.bots[id] = { dll: num(x.dll), used: num(x.dll_used), today: num(x.today_pnl) }; }
+  const h = b.health || {};
+  trade.health = { level: String(h.level || ''), text: String(h.text || '').slice(0, 120), bad: (h.items || []).filter((i) => i && i.ok === false).slice(0, 3).map((i) => ({ label: String(i.label || '').slice(0, 40), detail: String(i.detail || '').slice(0, 120) })) };
+}
+const tUsd = (v) => (v < 0 ? '-' : '+') + '$' + (Math.abs(v) < 100 ? Math.abs(v).toFixed(2) : Math.round(Math.abs(v)).toLocaleString('en-US'));
+const tR = (r) => (r == null ? '' : (r < 0 ? '' : '+') + r.toFixed(2) + 'R');
+const EXIT_NAMES = { STOP: 'Stop', TARGET: 'Target', TP: 'Target', BE: 'Breakeven', HEDGE: 'Hedge', FLAT: 'Flat at close', TIME: 'Time exit' };
+const tExit = (x) => EXIT_NAMES[x] || (x ? x.charAt(0) + x.slice(1).toLowerCase() : 'Closed');
+const noteOf = (k) => S.tradenotes.find((n) => n.id === 'tn:' + k) || null;
+function tradeWhen(t) {
+  const d = new Date((t.t1 || t.t0) * 1000);
+  return `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}, ${fmtTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`)}`;
+}
+function tagStats() {
+  const ns = S.tradenotes, reviewed = ns.filter((n) => (n.tags && n.tags.length) || n.rating || n.text);
+  const followed = reviewed.filter((n) => (n.tags || []).includes('Followed plan')).length;
+  const rows = TR_TAGS.map((tg) => {
+    const l = ns.filter((n) => (n.tags || []).includes(tg)), rs = l.map((n) => n.r).filter((v) => typeof v === 'number');
+    return { tag: tg, n: l.length, avg: rs.length ? rs.reduce((a, b) => a + b, 0) / rs.length : null };
+  }).filter((x) => x.n);
+  return { reviewed: reviewed.length, followed, rows };
+}
+function trSummaryHtml() {
+  const st = tagStats();
+  if (!st.reviewed) return '<section class="rv-card"><h3>Notes summary</h3><div class="empty-s">Tap a trade below to add a note, a rating and tags. The summary builds from your notes.</div></section>';
+  return `<section class="rv-card"><h3>Notes summary</h3><div class="rl-stat"><div><b>${Math.round(st.followed / st.reviewed * 100)}%</b>tagged Followed plan<br>${st.followed} of ${st.reviewed} reviewed trade${st.reviewed === 1 ? '' : 's'}</div></div>
+    ${st.rows.length ? `<table class="tr-tbl"><thead><tr><th>Tag</th><th>Trades</th><th>Average R</th></tr></thead><tbody>${st.rows.map((x) => `<tr><td>${esc(x.tag)}</td><td>${x.n}</td><td class="${x.avg == null ? '' : moneyCls(x.avg)}">${x.avg == null ? '-' : tR(x.avg)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty-s">No tags yet.</div>'}</section>`;
+}
+// ---- payout planner ----
+const poGet = () => { try { const v = JSON.parse(store.get('planner.payout')); return { avg: v && +v.avg > 0 ? +v.avg : 0, days: v && +v.days >= 1 && +v.days <= 5 ? Math.round(+v.days) : 3 }; } catch (e) { return { avg: 0, days: 3 }; } };
+function recentGreenAvg() {
+  const cut = addDays(todayKey(), -60), v = Object.entries(nqPnl).filter(([k, x]) => k >= cut && x > 0).map(([, x]) => x);
+  return v.length >= 3 ? { avg: Math.round(v.reduce((a, b) => a + b, 0) / v.length), n: v.length } : null;
+}
+const planKeyOf = (a) => (/50\s*k/i.test(a.name || '') ? 'builder50k' : /25\s*k/i.test(a.name || '') ? 'builder25k' : '');
+const planLabel = (k) => { const m = /^builder(\d+)k$/.exec(k); return m ? `Builder ${m[1]}K` : k; };
+const usdp = (n) => '$' + Math.round(n).toLocaleString('en-US');
+function poEstimates(tr, po) {
+  return (tr.accounts || []).filter((a) => a.status === 'open').map((a) => {
+    const who = { LIT: 'Zlarior' }[a.strategy] || a.strategy || a.name, left = typeof a.to_go === 'number' ? Math.max(0, a.to_go) : null;
+    const lab = a.stage === 'eval' ? 'Left to pass the eval' : 'Left to target';
+    let est = '';
+    if (left == null) est = 'No remaining-profit figure in the dashboard data.';
+    else if (left === 0) est = 'Target reached.';
+    else if (!(po.avg > 0)) est = 'Enter an average winning-day profit above to see an estimate.';
+    else {
+      const nd = Math.ceil(left / po.avg), wk = Math.ceil(nd / po.days);
+      est = `Estimate: ${nd} winning day${nd === 1 ? '' : 's'} at ${usdp(po.avg)}, about ${wk} week${wk === 1 ? '' : 's'} at ${po.days} winning day${po.days === 1 ? '' : 's'} a week. It assumes no losing days, so real time is longer.`;
+      if (typeof a.sessions_left === 'number' && a.stage === 'eval') est += ` The 2-week goal has ${a.sessions_left} session${a.sessions_left === 1 ? '' : 's'} left${nd > a.sessions_left ? ', fewer than the winning days this needs' : ''}.`;
+    }
+    return `<div class="po-acct"><b>${esc(who)} <span style="font-weight:500;color:var(--mute)">${esc(String(a.name || '').replace('MFFU ', ''))}</span></b>
+      <div>${lab}: <b>${left == null ? 'n/a' : usdp(left)}</b>${typeof a.sessions_left === 'number' ? ` &middot; <b>${a.sessions_left}</b> sessions left` : ''}${typeof a.room === 'number' ? ` &middot; room <b>${usdp(a.room)}</b>` : ''}</div>
+      <div class="po-est">${esc(est)}</div></div>`;
+  }).join('');
+}
+function payoutTables(tr) {
+  const plans = Object.entries(tr.plans || {}).filter(([, p]) => p && p.pay_min != null && p.pay_max != null && p.split != null);
+  if (!plans.length) return '<div class="empty-s">Plan rules are not in the saved dashboard data yet. They load the next time the app opens on the dashboard site.</div>';
+  return plans.map(([k, p]) => {
+    const n = p.max_payouts || 1, sp = p.split, net = (g) => usdp(g * sp);
+    return `<div><div class="label" style="margin:4px 0 4px">${esc(planLabel(k))} payout cycle</div>
+      <table class="tr-tbl"><thead><tr><th>Payout</th><th>Gross</th><th>You keep (${Math.round(sp * 100)}%)</th></tr></thead><tbody>
+      <tr><td>Smallest allowed</td><td>${usdp(p.pay_min)}</td><td>${net(p.pay_min)}</td></tr>
+      <tr><td>Largest allowed</td><td>${usdp(p.pay_max)}</td><td>${net(p.pay_max)}</td></tr>
+      <tr><td>${n} smallest</td><td>${usdp(p.pay_min * n)}</td><td>${net(p.pay_min * n)}</td></tr>
+      <tr><td>${n} largest</td><td>${usdp(p.pay_max * n)}</td><td>${net(p.pay_max * n)}</td></tr></tbody></table>
+      <div class="sub" style="margin-top:4px">Plan rules from the dashboard: ${p.buffer != null ? `buffer ${usdp(p.buffer)}, ` : ''}up to ${n} payouts${p.mll != null ? `, loss limit ${usdp(p.mll)}` : ''}${p.dll != null ? `, daily limit ${usdp(p.dll)}` : ''}.</div></div>`;
+  }).join('');
+}
+function payoutCard() {
+  const tr = nqBot && nqBot.trade;
+  if (!tr) return '<section class="rv-card"><h3>Path to payout</h3><div class="empty-s">This needs the dashboard data, which loads when the app is opened from the dashboard site.</div></section>';
+  const po = poGet(), g = recentGreenAvg(), built = Date.parse(tr.built), age = isNaN(built) ? '' : ageStr(Math.max(0, Date.now() - built));
+  return `<section class="rv-card" id="poCard"><h3>Path to payout</h3>
+    <div class="sub">What the dashboard reports${age ? `, ${age} ago` : ''}, plus your own what-if numbers. An estimate from simple arithmetic, not a prediction.</div>
+    <div class="po-in"><div class="fld"><label for="poAvg">Average winning-day profit ($)</label><input id="poAvg" type="number" inputmode="decimal" min="0" step="10" value="${po.avg || ''}" placeholder="e.g. 400"></div>
+    <div class="fld"><label for="poDays">Winning days per week</label><input id="poDays" type="number" inputmode="numeric" min="1" max="5" step="1" value="${po.days}"></div></div>
+    ${g ? `<button class="btn sm" data-poavg="${g.avg}" style="align-self:flex-start;height:auto;min-height:34px;white-space:normal;text-align:left">Use my recent average: ${usdp(g.avg)} over ${g.n} green days</button>` : ''}
+    <div id="poOut">${poEstimates(tr, po) || '<div class="empty-s">No open accounts in the dashboard data.</div>'}</div>
+    ${payoutTables(tr)}</section>`;
+}
+function renderTrades() {
+  const list = nqTrades.filter((t) => (trSrc === 'all' || t.src === trSrc) && (trAcct === 'all' || t.acct === trAcct));
+  const pill = (attr, val, cur, label) => `<button class="pill" ${attr}="${val}" aria-pressed="${cur === val}">${label}</button>`;
+  const rows = list.map((t) => {
+    const n = noteOf(t.k), tags = n && n.tags && n.tags.length ? n.tags.map((x) => `<span class="tr-tag">${esc(x)}</span>`).join('') : '';
+    const cls = t.usd > 0 ? 'pos' : t.usd < 0 ? 'neg' : '';
+    return `<button class="tr-row" data-trk="${esc(t.k)}"><span class="tr-bdg ${esc(t.acct)}">${esc(ACCT_NAME[t.acct] || t.acct)}</span><span class="tr-side">${t.side} ${t.qty}</span><span class="tr-src">${t.src}</span>
+      <span class="tr-num ${cls}">${t.r != null ? `<span>${tR(t.r)}</span>` : ''}<span>${tUsd(t.usd)}</span></span>
+      <span class="tr-sub"><span>${esc(tradeWhen(t))}</span><span>${esc(tExit(t.exit))}</span>${t.mem && t.mem !== 'LIT' ? `<span>${esc(t.mem)}</span>` : ''}${n && n.rating ? `<span class="tr-star" aria-label="Rated ${n.rating} of 5">${'&#9733;'.repeat(n.rating)}${'&#9734;'.repeat(5 - n.rating)}</span>` : ''}${tags}</span>
+      ${n && n.text ? `<span class="tr-note">${esc(n.text.length > 140 ? n.text.slice(0, 140) + '...' : n.text)}</span>` : ''}</button>`;
+  }).join('');
+  const empty = nqTrades.length ? 'No trades match this filter.' : 'No closed trades saved yet. The app saves live and paper trades each time it opens on the dashboard site.';
+  return `<div class="xwrap">
+    <div class="x-h"><h2>Trades</h2></div>
+    ${payoutCard()}
+    ${trSummaryHtml()}
+    <div class="tr-filter" role="group" aria-label="Source">${pill('data-trsrc', 'all', trSrc, 'All')}${pill('data-trsrc', 'live', trSrc, 'Live')}${pill('data-trsrc', 'paper', trSrc, 'Paper')}</div>
+    <div class="tr-filter" role="group" aria-label="Bot">${pill('data-tracct', 'all', trAcct, 'Both bots')}${pill('data-tracct', 'lit', trAcct, 'Zlarior')}${pill('data-tracct', 'atlas', trAcct, 'ATLAS')}</div>
+    ${rows ? `<div class="tr-list">${rows}</div>` : `<div class="empty" style="padding:30px 10px">${empty}</div>`}</div>`;
+}
+document.body.insertAdjacentHTML('beforeend', `
+<dialog id="trDlg" aria-labelledby="trTitle">
+  <form class="dlg" id="trForm" novalidate>
+    <div class="dlg-h"><div style="flex:1;min-width:0"><h3 id="trTitle">Trade</h3><div class="sub" id="trSub"></div></div><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="fld"><span class="flabel">Rating</span><div class="tr-rate" id="trRate"></div></div>
+    <div class="fld"><span class="flabel">Tags</span><div class="pills" id="trTags"></div></div>
+    <div class="fld"><label for="trText">Note</label><textarea id="trText" rows="3" maxlength="1000" placeholder="What happened, what you would repeat or change"></textarea></div>
+    <div class="dlg-f"><div><button type="button" class="btn danger" id="trClear">Clear note</button></div><div><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Save</button></div></div>
+  </form>
+</dialog>`);
+let trCur = null, trRating = 0, trTagSel = new Set();
+function paintTrDlg() {
+  $('#trRate').innerHTML = [1, 2, 3, 4, 5].map((n) => `<button type="button" data-trr="${n}" aria-pressed="${trRating === n}" aria-label="Rating ${n} of 5">${n}</button>`).join('');
+  $('#trTags').innerHTML = TR_TAGS.map((t) => `<button type="button" class="pill" style="${cvars('#374151')}" data-trt="${esc(t)}" aria-pressed="${trTagSel.has(t)}">${esc(t)}</button>`).join('');
+}
+function openTrade(k) {
+  const t = nqTrades.find((x) => x.k === k); if (!t) return;
+  const n = noteOf(k);
+  trCur = t; trRating = n ? n.rating || 0 : 0; trTagSel = new Set(n ? n.tags || [] : []);
+  $('#trTitle').textContent = `${ACCT_NAME[t.acct] || t.acct} ${t.side} ${t.qty} (${t.src})`;
+  $('#trSub').textContent = `${tradeWhen(t)} · ${tExit(t.exit)} · ${[tR(t.r), tUsd(t.usd)].filter(Boolean).join(' · ')}`;
+  $('#trText').value = n ? n.text || '' : '';
+  $('#trClear').hidden = !n;
+  paintTrDlg(); $('#trDlg').showModal();
+}
+$('#trRate').onclick = (e) => { const b = e.target.closest('[data-trr]'); if (!b) return; const v = +b.dataset.trr; trRating = trRating === v ? 0 : v; paintTrDlg(); };
+$('#trTags').onclick = (e) => { const b = e.target.closest('[data-trt]'); if (!b) return; const v = b.dataset.trt; trTagSel.has(v) ? trTagSel.delete(v) : trTagSel.add(v); paintTrDlg(); };
+$('#trForm').onsubmit = (e) => {
+  e.preventDefault();
+  if (!trCur) return;
+  const t = trCur, id = 'tn:' + t.k, text = $('#trText').value.trim(), tags = TR_TAGS.filter((x) => trTagSel.has(x)), old = noteOf(t.k);
+  snapshot();
+  if (!text && !tags.length && !trRating) { if (old) commit(() => { S.tradenotes = S.tradenotes.filter((n) => n !== old); }); }
+  else commit(() => { upsert(S.tradenotes, id, () => ({ id }), { tk: t.k, day: t.day, acct: t.acct, src: t.src, r: t.r, usd: t.usd, rating: trRating, tags, text }); });
+  $('#trDlg').close(); renderMain(); toast('Trade note saved', true);
+};
+$('#trClear').onclick = async () => {
+  const old = trCur && noteOf(trCur.k); if (!old) return;
+  if (!(await ask('Clear this note?', 'The rating, tags and note for this trade are removed.', 'Clear', { danger: true }))) return;
+  snapshot(); commit(() => { S.tradenotes = S.tradenotes.filter((n) => n !== old); });
+  $('#trDlg').close(); renderMain(); toast('Note cleared', true);
+};
+document.addEventListener('click', (e) => {
+  const t = e.target;
+  const tk = t.closest('[data-trk]'); if (tk) { openTrade(tk.dataset.trk); return; }
+  const fs = t.closest('[data-trsrc]'); if (fs) { trSrc = fs.dataset.trsrc; store.set('planner.trSrc', trSrc); renderMain(); return; }
+  const fa = t.closest('[data-tracct]'); if (fa) { trAcct = fa.dataset.tracct; store.set('planner.trAcct', trAcct); renderMain(); return; }
+  const av = t.closest('[data-poavg]'); if (av) { store.set('planner.payout', JSON.stringify({ ...poGet(), avg: +av.dataset.poavg })); renderMain(); return; }
+});
+document.addEventListener('input', (e) => {
+  if (!e.target.matches || !e.target.matches('#poAvg,#poDays')) return;
+  store.set('planner.payout', JSON.stringify({ avg: +$('#poAvg').value || 0, days: Math.min(5, Math.max(1, Math.round(+$('#poDays').value) || 3)) }));
+  const out = $('#poOut'), tr = nqBot && nqBot.trade;
+  if (out && tr) out.innerHTML = poEstimates(tr, poGet()) || '<div class="empty-s">No open accounts in the dashboard data.</div>';
+});
+// ===== TRADES END =====
+
 
 // ---------- wiring ----------
 $('#todayBtn').onclick = goToday;
@@ -3240,7 +4301,7 @@ $('#exportBtn').onclick = async () => { if (await download(`planner-backup-${tod
 $('#icsBtn').hidden = HOSTED; // claude.ai saves only common file types; .ics is not one of them
 $('#icsBtn').onclick = async () => {
   if (!allEvents().length) { toast('No events to export yet'); return; }
-  if (await download(`planner-${todayKey()}.ics`, toICS(), 'text/calendar')) toast('Calendar file downloaded');
+  if (await download(`planner-${todayKey()}.ics`, toICS(), 'text/calendar')) toast('Open the file and tap Add All to get alerts in the Calendar app');
 };
 $('#importBtn').onclick = () => $('#importFile').click();
 $('#importFile').onchange = async (e) => {
@@ -3251,8 +4312,7 @@ $('#importFile').onchange = async (e) => {
     if (!data || !Array.isArray(data.events)) throw new Error('not a planner backup');
     if (!(await ask('Restore backup?', `${data.events.length} events and ${(data.tasks || []).length} tasks. This replaces your calendar${sync ? ' on every synced device' : ''}.`, 'Restore', { danger: true }))) return;
     const d = normalize(data);
-    snapshot(); commit(() => { S.categories = d.categories; S.events = d.events; S.tasks = d.tasks; S.projects = d.projects; S.goals = d.goals; S.money = d.money; S.dismissed = d.dismissed; S.weekStart = d.weekStart; }); render(); toast('Backup restored', true);
-    snapshot(); commit(() => { S.categories = d.categories; S.events = d.events; S.tasks = d.tasks; S.projects = d.projects; S.dismissed = d.dismissed; S.habits = d.habits; S.journal = d.journal; S.reviews = d.reviews; S.templates = d.templates; S.weekStart = d.weekStart; }); render(); toast('Backup restored', true);
+    snapshot(); commit(() => { SYNCED.forEach((k) => { S[k] = Array.isArray(d[k]) ? d[k] : S[k]; }); S.weekStart = d.weekStart; }); render(); toast('Backup restored', true);
   } catch (err) { toast('That file is not a Planner backup'); }
 };
 
@@ -3321,11 +4381,19 @@ setInterval(() => {
 }, 30000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync) syncNow(); });
 addEventListener('online', () => { if (sync) syncNow(); });
-if (!HOSTED && 'serviceWorker' in navigator && window.isSecureContext && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => null);
+const APP_VERSION = '2026-10-28.7';
+if ($('#verNote')) $('#verNote').textContent = 'Planner ' + APP_VERSION;
+if (!HOSTED && 'serviceWorker' in navigator && window.isSecureContext && location.protocol.startsWith('http')) {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js').catch(() => null);
+  // A new service worker took over: offer a reload (never reload on its own, a half-typed task would be lost).
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) $('#updBar').hidden = false; });
+  $('#updGo').onclick = () => location.reload();
+}
 
 render();
 focusLoop();
-paintSync();
+paintSync(); paintOnline();
 if (HOSTED) startDb();
 setTimeout(route, 0);
 if (!HOSTED) {

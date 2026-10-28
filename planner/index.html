@@ -4064,7 +4064,8 @@ function renderTrades() {
     <div class="x-h"><h2>Trades</h2></div>
     ${payoutCard()}
     ${trSummaryHtml()}
-    <div class="tr-filter" role="group" aria-label="Source">${pill('data-trsrc', 'all', trSrc, 'All')}${pill('data-trsrc', 'live', trSrc, 'Live')}${pill('data-trsrc', 'paper', trSrc, 'Paper')}<span style="width:8px"></span>${pill('data-tracct', 'all', trAcct, 'Both bots')}${pill('data-tracct', 'lit', trAcct, 'Zlarior')}${pill('data-tracct', 'atlas', trAcct, 'ATLAS')}</div>
+    <div class="tr-filter" role="group" aria-label="Source">${pill('data-trsrc', 'all', trSrc, 'All')}${pill('data-trsrc', 'live', trSrc, 'Live')}${pill('data-trsrc', 'paper', trSrc, 'Paper')}</div>
+    <div class="tr-filter" role="group" aria-label="Bot">${pill('data-tracct', 'all', trAcct, 'Both bots')}${pill('data-tracct', 'lit', trAcct, 'Zlarior')}${pill('data-tracct', 'atlas', trAcct, 'ATLAS')}</div>
     ${rows ? `<div class="tr-list">${rows}</div>` : `<div class="empty" style="padding:30px 10px">${empty}</div>`}</div>`;
 }
 document.body.insertAdjacentHTML('beforeend', `

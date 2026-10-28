@@ -2332,13 +2332,17 @@ const store = {
   get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* convenience only */ } },
 };
-// Daily bot P&L from data.json's closed trades, last ~120 days only (kept tiny in the planner.nq cache).
+// (see pnlFromData above: live and paper bot results only)
+// Daily results of the LIVE and PAPER bots (board.trades), never the backtest history (data.trades). Days the app has
+// already seen are kept, so the record grows as the app is opened; a day is replaced when the dashboard re-reports it.
 function pnlFromData(data) {
-  const cut = addDays(todayKey(), -120), out = {};
-  for (const t of (data && data.trades) || []) {
-    if (!t || !YMD.test(t.day || '') || t.day < cut || typeof t.pnl !== 'number') continue;
-    out[t.day] = Math.round(((out[t.day] || 0) + t.pnl) * 100) / 100;
+  const cut = addDays(todayKey(), -400), fresh = {};
+  for (const t of (data && data.board && data.board.trades) || []) {
+    if (!t || t.open || !YMD.test(t.day || '') || t.day < cut || typeof t.usd !== 'number') continue;
+    fresh[t.day] = Math.round(((fresh[t.day] || 0) + t.usd) * 100) / 100;
   }
+  const out = { ...((readJSON(NQ_KEY) || {}).pnl || {}), ...fresh };
+  for (const k of Object.keys(out)) if (k < cut) delete out[k];
   return out;
 }
 const money = (v) => (v < 0 ? '-$' : '+$') + Math.abs(Math.round(v)).toLocaleString('en-US');
@@ -2795,7 +2799,7 @@ function renderReview() {
   const total = vals.reduce((a, v) => a + (v || 0), 0), maxAbs = Math.max(1, ...vals.map((v) => Math.abs(v || 0)));
   const bars = days.map((k) => { const v = nqPnl[k]; return `<div class="bar-c" title="${esc(longDate(k))}: ${v != null ? money(v) : 'no trades'}"><div class="bar-up">${v > 0 ? `<i style="height:${Math.max(3, v / maxAbs * 100)}%"></i>` : ''}</div><div class="bar-dn">${v < 0 ? `<i style="height:${Math.max(3, -v / maxAbs * 100)}%"></i>` : ''}</div><div class="bar-l">${DAYS[dow(k)][0]}<br>${v != null ? money(v) : '-'}</div></div>`; }).join('');
   const tradeDays = vals.filter((v) => v != null);
-  const pnlHtml = hasPnl ? `<div class="rv-big ${moneyCls(total)}">${money(total)}</div><div class="sub">${tradeDays.filter((v) => v > 0).length} green, ${tradeDays.filter((v) => v < 0).length} red of ${tradeDays.length} trading days</div><div class="bars">${bars}</div>` : '<div class="empty-s">No bot P&amp;L on file for this week. It loads from the NQ dashboard when the app is installed on its site.</div>';
+  const pnlHtml = hasPnl ? `<div class="rv-big ${moneyCls(total)}">${money(total)}</div><div class="sub">${tradeDays.filter((v) => v > 0).length} green, ${tradeDays.filter((v) => v < 0).length} red of ${tradeDays.length} trading days</div><div class="bars">${bars}</div>` : '<div class="empty-s">No live or paper bot results saved for this week. The app saves them each time it opens on its site, so this fills in over time.</div>';
   // focus
   const fbd = focusByDay(days), fTotal = Object.values(fbd).reduce((a, b) => a + b, 0);
   const focusHtml = fTotal ? `<div class="rv-big">${fTotal} min</div><ul class="rv-list">${days.filter((k) => fbd[k]).map((k) => `<li>${esc(longDate(k))}: ${fbd[k]} min</li>`).join('')}</ul>` : '<div class="empty-s">No focus sessions logged this week. Start one from the clock icon on any task.</div>';

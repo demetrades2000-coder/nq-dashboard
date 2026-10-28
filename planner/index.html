@@ -179,6 +179,58 @@ main{overflow:auto;min-width:0;position:relative}
 .pc-link:hover{color:var(--ink);text-decoration:underline}
 .srow .tm.wide{width:auto;min-width:92px}
 .swatches button[aria-pressed=true]{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--c)}
+.t-chip{font-size:11px;font-weight:500;color:var(--ink2);background:var(--soft2);padding:1px 7px;border-radius:10px;line-height:16px}
+button.t-chip:hover{background:#e7e9ee}
+.tdet{opacity:.55;width:22px;height:22px;display:grid;place-items:center;border-radius:6px;flex:none;color:var(--mute)}
+.tdet:hover{opacity:1;background:var(--soft2)}
+.subs{list-style:none;display:flex;flex-direction:column;gap:2px}
+.subs li{display:flex;align-items:center;gap:8px;padding:3px 2px}
+.subs input[type=checkbox]{appearance:none;width:16px;height:16px;border:1.5px solid #c9cdd4;border-radius:5px;flex:none;cursor:pointer;display:grid;place-items:center}
+.subs input[type=checkbox]:checked{background:var(--ok);border-color:var(--ok)}
+.subs input[type=checkbox]:checked::after{content:"";width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.subs input[type=text]{flex:1;min-width:0;border:0;outline:none;background:transparent;font-size:13.5px;padding:3px 0}
+.subs li.done input[type=text]{color:var(--faint);text-decoration:line-through}
+.subs button{color:var(--faint);padding:2px 6px;border-radius:5px}
+.subs button:hover{color:#b91c1c}
+.gaps{display:flex;flex-wrap:wrap;gap:6px}
+.gaps button{font-size:12px;font-weight:500;border:1px solid var(--line);border-radius:20px;padding:4px 10px;background:#fff}
+.gaps button:hover,.gaps button[aria-pressed=true]{border-color:var(--ink);background:var(--soft)}
+.blk{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.blk .rz{position:absolute;left:0;right:0;bottom:0;height:12px;cursor:ns-resize}
+.blk .rz::after{content:"";position:absolute;left:50%;bottom:3px;width:22px;height:3px;border-radius:2px;background:var(--c);opacity:0;transform:translateX(-50%);transition:opacity .12s}
+.blk:hover .rz::after,.blk.dragging .rz::after{opacity:.5}
+.blk.dragging{box-shadow:inset 3px 0 0 var(--c),0 8px 24px rgba(17,24,39,.25);z-index:6;filter:none;transition:none;opacity:.96}
+body.dragging-ev{cursor:grabbing;-webkit-user-select:none;user-select:none}
+.tstat{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--ink2);line-height:1.4}
+.tstat .sdot{margin-top:5px}
+.tstat.bad{color:#991b1b}
+.tstat small{display:block;color:var(--mute);font-size:11.5px}
+.acct{display:flex;flex-direction:column;gap:6px;padding:10px 0 2px;border-top:1px solid var(--line2);margin-top:10px}
+.acct-h{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.acct-h b{font-size:13.5px;font-weight:600}
+.acct-h span{font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+.bar2{height:6px;border-radius:4px;background:var(--soft2);overflow:hidden}
+.bar2 i{display:block;height:100%;border-radius:4px;background:#111827}
+.bar2.room i{background:var(--ok)}.bar2.room.mid i{background:#f59e0b}.bar2.room.low i{background:#dc2626}
+.acct-r{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+.acct-r b{color:var(--ink);font-weight:600}
+.plan-pick{display:flex;flex-direction:column;gap:2px;max-height:38vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:4px}
+.pp{display:flex;align-items:center;gap:10px;padding:8px 8px;border-radius:8px;cursor:pointer}
+.pp:hover{background:var(--soft)}
+.plan-pick .pp input[type=checkbox]{width:17px;height:17px;min-width:17px;padding:0;border:1px solid #c9cdd4;border-radius:4px;flex:none}
+.fld .subs input[type=text]{height:auto;border:0;border-radius:0;padding:3px 0;background:transparent;width:auto}
+.fld .subs input[type=checkbox]{height:16px;width:16px;padding:0;border:1.5px solid #c9cdd4;border-radius:5px}
+.fld .subs input[type=checkbox]:checked{border-color:var(--ok)}
+.fld .add-t input{height:100%;border:0;padding:0;background:transparent}
+.pp input{accent-color:var(--ink);width:17px;height:17px;flex:none}
+.pp .tt{flex:1;min-width:0;font-size:13.5px;overflow-wrap:anywhere}
+.pp .star{font-size:17px;line-height:1;color:#d1d5db;padding:2px 4px}
+.pp .star.on{color:#f59e0b}
+.pp.od .tt{color:#b45309}
+.glance{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.glance div{border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+.glance b{display:block;font-size:20px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.glance span{font-size:11.5px;color:var(--mute)}
 .keys{font-size:11.5px;color:var(--faint);line-height:1.7}
 kbd{font:500 10.5px var(--font);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;color:var(--mute);background:#fff}
 
@@ -324,7 +376,7 @@ dialog[open]{animation:pop .16s ease-out}
   main{overflow:visible}
   .month{min-height:0;height:auto}
   .m-g{grid-auto-rows:minmax(84px,auto)}
-  #plan{order:-1}
+  #plan,#trade{order:-1}
   main.grid{overflow:auto;max-height:78vh;max-height:78dvh;border-bottom:1px solid var(--line)}
 }
 @media (max-width:640px){
@@ -396,7 +448,7 @@ dialog[open]{animation:pop .16s ease-out}
     </section>
 
     <section class="card" id="plan">
-      <div class="sec-h" style="margin-bottom:2px"><div><div class="plan-title" id="planTitle"></div><div class="sub" id="planSub"></div></div><button class="btn sm" id="planAdd" title="New event on this day">+ Event</button></div>
+      <div class="sec-h" style="margin-bottom:2px"><div><div class="plan-title" id="planTitle"></div><div class="sub" id="planSub"></div></div><div style="display:flex;gap:6px"><button class="btn sm" id="planGoBtn" title="Pick today's tasks and block time for them">Plan day</button><button class="btn sm" id="planAdd" title="New event on this day">+ Event</button></div></div>
       <div class="label">Schedule</div>
       <div class="sched" id="sched"></div>
       <div class="label" style="display:flex;justify-content:space-between"><span>Tasks</span><span id="taskCount" style="letter-spacing:0;text-transform:none;font-weight:500"></span></div>
@@ -404,6 +456,8 @@ dialog[open]{animation:pop .16s ease-out}
       <ul class="tasks" id="tasks"></ul>
       <form class="add-t" id="taskForm"><span>+</span><input id="taskIn" placeholder="Quick add: call Sam fri 3pm #nq" autocomplete="off" aria-label="Add a task"></form>
     </section>
+
+    <section class="card" id="trade" hidden></section>
 
     <section class="card">
       <div class="sec-h"><h2>Event types</h2><div style="display:flex;gap:10px"><button class="link" id="showAll" hidden>Show all</button><button class="link" id="editCats">Edit</button></div></div>
@@ -413,6 +467,7 @@ dialog[open]{animation:pop .16s ease-out}
     <section class="card tools">
       <div class="row"><span class="sub" style="color:var(--ink2);font-weight:500">Week starts</span><div class="seg" id="wkStart"><button data-w="0">Sun</button><button data-w="1">Mon</button></div></div>
       <div class="sync-row"><span class="sdot" id="syncDot"></span><span id="syncText">Only on this device</span><button class="btn sm" id="syncBtn">Connect</button></div>
+      <div class="sub" id="bkNote" hidden></div>
       <div class="btns" id="syncMore" hidden><button class="btn sm" id="syncLink" title="A private link that connects your phone or another computer in one tap">Link a device</button><button class="btn sm" id="syncOff">Disconnect</button></div>
       <div class="btns"><button class="btn sm" id="exportBtn">Back up</button><button class="btn sm" id="importBtn">Restore</button><button class="btn sm" id="icsBtn" title="Download a .ics file for Google / Apple / Outlook Calendar">Export .ics</button></div>
       <input type="file" id="importFile" accept="application/json,.json" hidden>
@@ -436,7 +491,7 @@ dialog[open]{animation:pop .16s ease-out}
     <div class="hint" id="botNote" hidden></div>
     <div class="err" id="fErr" hidden></div>
     <div class="dlg-f">
-      <div><button type="button" class="btn danger" id="fDelete">Delete</button><button type="button" class="btn danger" id="fDeleteOne" hidden>Delete this day only</button><button type="button" class="btn" id="fDup" hidden>Duplicate</button></div>
+      <div><button type="button" class="btn danger" id="fDelete">Delete</button><button type="button" class="btn danger" id="fDeleteOne" hidden>Delete this day only</button><button type="button" class="btn" id="fDup" hidden>Duplicate</button><button type="button" class="btn" id="fTaskDone" hidden>Mark task done</button></div>
       <div><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn" id="fDismiss" hidden>Dismiss</button><button type="submit" class="btn primary" id="fSave">Save</button></div>
     </div>
   </form>
@@ -464,6 +519,44 @@ dialog[open]{animation:pop .16s ease-out}
     <ul class="cat-ed" id="catEd"></ul>
     <div><button type="button" class="btn sm" id="catAdd">+ Add type</button></div>
     <div class="dlg-f"><div></div><div><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Save</button></div></div>
+  </form>
+</dialog>
+
+<dialog id="taskDlg" aria-labelledby="tTitle">
+  <form class="dlg" id="taskForm2" novalidate>
+    <div class="dlg-h"><input id="tTitle" class="title-in" placeholder="Task" maxlength="200" autocomplete="off"><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="frow"><div class="fld"><label for="tProj">Project</label><select id="tProj"></select></div><div class="fld"><label for="tPri">Priority</label><select id="tPri"><option value="0">None</option><option value="1">Low</option><option value="2">Medium</option><option value="3">High</option></select></div></div>
+    <div class="frow"><div class="fld"><label for="tDate">Due</label><input type="date" id="tDate"></div><div class="fld"><label for="tEst">Time needed</label><select id="tEst"><option value="0">Not set</option><option value="15">15 min</option><option value="30">30 min</option><option value="45">45 min</option><option value="60">1 hour</option><option value="90">1.5 hours</option><option value="120">2 hours</option><option value="180">3 hours</option></select></div></div>
+    <div class="fld"><label for="tRep">Repeats</label><select id="tRep"><option value="">Does not repeat</option><option value="daily">Every day</option><option value="weekdays">Every weekday</option><option value="weekly">Every week</option></select></div>
+    <div class="fld"><span class="flabel">Steps</span><ul class="subs" id="tSubs"></ul><div class="add-t" style="margin-top:2px"><span>+</span><input id="tSubIn" placeholder="Add a step, Enter to save" autocomplete="off" aria-label="Add a step"></div></div>
+    <div class="fld"><label for="tNotes">Notes</label><textarea id="tNotes" rows="3" placeholder="Details, links, what done looks like"></textarea></div>
+    <div class="fld"><label for="tLink">Link</label><input id="tLink" type="url" autocomplete="off" placeholder="Repo, doc or page"></div>
+    <div class="err" id="tErr" hidden></div>
+    <div class="dlg-f"><div><button type="button" class="btn danger" id="tDelete">Delete</button><button type="button" class="btn" id="tBlock">Block time</button></div><div><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Save</button></div></div>
+  </form>
+</dialog>
+
+<dialog id="blockDlg" aria-labelledby="blockTitle">
+  <form class="dlg" id="blockForm" novalidate>
+    <div class="dlg-h"><h3 id="blockTitle">Block time</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="hint" id="blockWhat"></div>
+    <div class="frow"><div class="fld"><label for="bDate">Day</label><input type="date" id="bDate"></div><div class="fld"><label for="bStart">Start</label><input type="time" id="bStart" step="300"></div><div class="fld"><label for="bDur">Length</label><select id="bDur"><option value="15">15 min</option><option value="30">30 min</option><option value="45">45 min</option><option value="60">1 hour</option><option value="90">1.5 hours</option><option value="120">2 hours</option><option value="180">3 hours</option></select></div></div>
+    <div class="fld"><span class="flabel" id="gapLabel">Free time</span><div class="gaps" id="bGaps"></div></div>
+    <div class="err" id="bErr" hidden></div>
+    <div class="dlg-f"><div></div><div><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Add to calendar</button></div></div>
+  </form>
+</dialog>
+
+<dialog id="planDlg" aria-labelledby="planDlgTitle">
+  <form class="dlg" id="planForm" novalidate>
+    <div class="dlg-h"><h3 id="planDlgTitle">Plan my day</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="glance" id="planGlance"></div>
+    <div class="fld" id="planPauses" hidden><span class="flabel">Bot pauses</span><div class="hint" id="planPauseTxt"></div></div>
+    <div class="fld"><span class="flabel">Pick what you will do. Star the top ones.</span><div class="plan-pick" id="planPick"></div></div>
+    <div class="fld"><span class="flabel">Free time</span><div class="gaps" id="planGaps"></div></div>
+    <label class="check"><input type="checkbox" id="planAuto" checked> Put chosen tasks into free time</label>
+    <div class="hint" id="planNote"></div>
+    <div class="dlg-f"><div></div><div><button type="button" class="btn" data-close>Not now</button><button type="submit" class="btn primary" id="planGo">Start my day</button></div></div>
   </form>
 </dialog>
 
@@ -558,6 +651,8 @@ function normalize(s) {
     categories: cats,
     events: Array.isArray(s.events) ? s.events.filter((e) => e && e.id && e.date) : [],
     tasks: Array.isArray(s.tasks) ? s.tasks.filter((t) => t && t.id) : [],
+    planned: typeof s.planned === 'string' ? s.planned : '',
+    lastBackup: +s.lastBackup || 0,
     projects: Array.isArray(s.projects) ? s.projects.filter((x) => x && x.id) : DEFAULT_PROJECTS.map((x) => ({ ...x })),
     hidden: Array.isArray(s.hidden) ? s.hidden : [],
     dismissed: Array.isArray(s.dismissed) ? s.dismissed.filter((d) => d && d.id) : [],
@@ -911,11 +1006,19 @@ function nqEventsFromData(data) {
     events.push({ id: `eval-${a.id || who}`, title: `${who} · ${a.name || 'eval'}: last session of the 2-week goal`, type: 'deadline', date: d, notes: (a.sentence || '') + ' (Estimated from sessions left.)', project: 'nq' });
   }
   events.sort((a, b) => (a.date + (a.start || '')).localeCompare(b.date + (b.start || '')));
-  return { bot: 'NQ bots', events };
+  // A small summary for the Trading card (accounts, bot status, month result).
+  const board = data.board || {}, mo = goals.month || {};
+  const trade = {
+    built: data.built || '',
+    accounts: (goals.accounts || []).map((a) => ({ name: a.name, strategy: a.strategy, stage: a.stage, status: a.status, balance: a.balance, profit: a.profit, target: a.profit_target, to_go: a.to_go, floor: a.floor, room: a.room, room_frac: a.room_frac, sessions_left: a.sessions_left, sessions_goal: a.sessions_goal, sessions_used: a.sessions_used, progress: a.progress, level: a.level })),
+    status: { running: !!board.running, host: board.host || '', t: board.t || 0, issues: (board.blocks || []).slice(0, 3).map((b) => ({ text: b.text, fix: b.fix })) },
+    month: mo.month ? { month: mo.month, usd: mo.usd, trades: mo.trades } : null,
+  };
+  return { bot: 'NQ bots', events, trade };
 }
 async function loadNq() {
   const c = readJSON(NQ_KEY);
-  if (c && Date.now() - c.t < 3 * 3600e3) return;
+  if (c && c.doc && c.doc.trade && Date.now() - c.t < 90 * 60e3) return;
   try {
     const r = await fetch('../data.json', { cache: 'no-cache' });
     if (!r.ok) return;
@@ -974,8 +1077,12 @@ function dueLabel(k) {
 }
 function taskLi(t, { overdue = false, showProj = true, showDate = false } = {}) {
   const late = t.date && !t.done && t.date < todayKey();
+  const subs = t.sub && t.sub.length ? `<button type="button" class="t-chip" data-tdetail title="Steps">${t.sub.filter((x) => x.d).length}/${t.sub.length} steps</button>` : '';
   const meta = [
     showProj ? ptag(t.proj) : '',
+    subs,
+    t.est ? `<span class="t-chip" title="Time needed">${fmtDur(t.est)}</span>` : '',
+    t.rep ? `<span class="t-chip" title="Repeats">repeats</span>` : '',
     showDate ? `<span class="t-due"><button type="button" class="t-dbtn${t.date ? ' set' : ''}${late ? ' late' : ''}" data-tdue title="${t.date ? 'Due ' + longDate(t.date) : 'Set a due date'}">${t.date ? (late ? 'Overdue · ' : '') + dueLabel(t.date) : 'Due date'}</button><input type="date" class="t-date" value="${t.date || ''}" tabindex="-1" aria-label="Due date"></span>` : '',
     overdue ? `<button class="tmove" data-tmove title="Move to today">${dueLabel(t.date)} → move to today</button>` : '',
   ].join('');
@@ -986,6 +1093,7 @@ function taskLi(t, { overdue = false, showProj = true, showDate = false } = {}) 
         ${meta ? `<div class="t-meta">${meta}</div>` : ''}
       </div>
       <button class="pri" data-tp data-p="${t.p || 0}" title="Priority: ${PRI[t.p || 0]} (tap to change)" aria-label="Priority ${PRI[t.p || 0]}"><i></i></button>
+      <button class="tdet" data-tdetail aria-label="Task details" title="Details, steps, notes"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
       <button class="tdel" data-tdel aria-label="Delete task" title="Delete">✕</button></li>`;
 }
 function schedRow(o, withDate) {
@@ -1135,7 +1243,7 @@ function renderGrid(days) {
     }));
     const blocks = items.map(({ o, s, e, realE, col, n: cn }) => {
       const h = (e - s) / 60 * HOUR, short = (realE - s) < 45;
-      return `<button class="blk${short ? ' short' : ''}" data-ev="${o.ev.id}" data-occ="${o.occ}" title="${esc(fmtRange(o.ev) + ' · ' + o.ev.title)}" style="${cvars(colorOf(o.ev))};top:${s / 60 * HOUR + 1}px;height:${h - 2}px;left:calc(${col / cn * 100}% + 2px);width:calc(${100 / cn}% - 4px)"><b>${esc(o.ev.title)}</b><span>${fmtTime(o.ev.start)}${short ? '' : ' – ' + fmtTime(o.ev.end)}${o.ev.repeat && o.ev.repeat !== 'none' ? ' ↻' : ''}</span></button>`;
+      return `<button class="blk${short ? ' short' : ''}" data-ev="${o.ev.id}" data-occ="${o.occ}" title="${esc(fmtRange(o.ev) + ' · ' + o.ev.title)}" style="${cvars(colorOf(o.ev))};top:${s / 60 * HOUR + 1}px;height:${h - 2}px;left:calc(${col / cn * 100}% + 2px);width:calc(${100 / cn}% - 4px)"><b>${esc(o.ev.title)}</b><span>${fmtTime(o.ev.start)}${short ? '' : ' – ' + fmtTime(o.ev.end)}${o.ev.repeat && o.ev.repeat !== 'none' ? ' ↻' : ''}</span>${o.ev.bot || o.ev.milestone ? '' : '<i class="rz"></i>'}</button>`;
     }).join('');
     cols += `<div class="tg-col${k === today ? ' today' : ''}" data-date="${k}">${blocks}${k === today ? `<div class="now" style="top:${nowMin / 60 * HOUR}px"></div>` : ''}</div>`;
   }
@@ -1260,6 +1368,8 @@ function renderSide() {
     g += `<button class="${cls}" data-date="${k}" aria-label="${longDate(k)}">${parse(k).getDate()}</button>`;
   }
   $('#mini').innerHTML = g;
+  renderTrade(); paintBackup();
+  { const nudge = S.planned !== todayKey() && selected === todayKey(); $('#planGoBtn').className = 'btn sm' + (nudge ? ' primary' : ''); }
 
   // day plan
   const isToday = selected === today;
@@ -1337,6 +1447,7 @@ function openEditor(e, occ, isNew) {
   const rec = !!(ev && ev.repeat && ev.repeat !== 'none');
   $('#fDelete').hidden = !ev;
   $('#fDup').hidden = !ev || !!ev.bot || !!ev.milestone;
+  { const lt = ev && ev.taskId ? taskById(ev.taskId) : null; $('#fTaskDone').hidden = !(lt && !lt.done); }
   $('#fDelete').textContent = rec ? 'Delete all' : 'Delete';
   $('#fDeleteOne').hidden = !rec;
   $('#seriesHint').hidden = !rec;
@@ -1522,6 +1633,272 @@ function nextRep(t) {
 }
 function taskAction(id, fn) { const t = S.tasks.find((x) => x.id === id); if (t) { commit(() => fn(t)); refreshTasks(); } }
 
+
+// ===== LEAD BEGIN: task details, time blocks, drag, plan my day, trading card, deep links =====
+const usd = (n) => (n < 0 ? '-' : '') + '$' + Math.abs(Math.round(n || 0)).toLocaleString('en-US');
+const fmtDur = (m) => (m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ' ' + (m % 60) + 'm' : ''}` : `${m}m`);
+const ymdOk = (v) => YMD.test(v || '');
+// Busy spans of the day (your own timed events; the bot's pause windows don't block your time).
+function busyOn(k) {
+  return eventsOn(k).filter((o) => !o.ev.allDay && !o.ev.bot).map((o) => { const s = toMin(o.ev.start); let e = toMin(o.ev.end || fromMin(Math.min(s + 60, 1439))); if (e <= s) e = 1440; return [s, e]; }).sort((a, b) => a[0] - b[0]);
+}
+function freeGaps(k, from = 7 * 60, to = 21 * 60, min = 30, extra = []) {
+  let cur = from;
+  if (k === todayKey()) { const n = new Date(); cur = Math.max(cur, Math.ceil((n.getHours() * 60 + n.getMinutes()) / 15) * 15); }
+  const out = [];
+  for (const [s, e] of busyOn(k).concat(extra).sort((a, b) => a[0] - b[0])) { if (s - cur >= min) out.push([cur, Math.min(s, to)]); cur = Math.max(cur, e); }
+  if (to - cur >= min) out.push([cur, to]);
+  return out;
+}
+const gapText = ([a, b]) => `${fmtTime(fromMin(a))} to ${fmtTime(fromMin(b))} · ${fmtDur(b - a)}`;
+const taskById = (id) => S.tasks.find((t) => t.id === id);
+
+// ---- task details ----
+const taskDlg = $('#taskDlg');
+let tDraft = null;
+function paintSubs() {
+  $('#tSubs').innerHTML = (tDraft.sub || []).map((x, i) => `<li data-i="${i}" class="${x.d ? 'done' : ''}"><input type="checkbox" ${x.d ? 'checked' : ''} aria-label="Done"><input type="text" value="${esc(x.t)}" maxlength="200" aria-label="Step"><button type="button" data-sdel aria-label="Remove step">✕</button></li>`).join('');
+}
+function openTask(id) {
+  const t = taskById(id); if (!t) return;
+  tDraft = JSON.parse(JSON.stringify(t)); tDraft.sub = tDraft.sub || [];
+  $('#tTitle').value = t.title;
+  $('#tProj').innerHTML = '<option value="">None</option>' + S.projects.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
+  $('#tProj').value = projOf(t.proj) ? t.proj : '';
+  $('#tPri').value = String(t.p || 0); $('#tDate').value = t.date || ''; $('#tRep').value = t.rep || '';
+  $('#tEst').value = [0, 15, 30, 45, 60, 90, 120, 180].includes(t.est || 0) ? String(t.est || 0) : '0';
+  $('#tNotes').value = t.notes || ''; $('#tLink').value = t.link || ''; $('#tErr').hidden = true; $('#tSubIn').value = '';
+  paintSubs(); taskDlg.showModal();
+}
+document.addEventListener('click', (e) => {
+  const d = e.target.closest('.tasks [data-tdetail]');
+  if (d) { openTask(d.closest('[data-t]').dataset.t); }
+});
+$('#tSubs').addEventListener('input', (e) => { const li = e.target.closest('[data-i]'); if (li && e.target.type === 'text') tDraft.sub[+li.dataset.i].t = e.target.value; });
+$('#tSubs').addEventListener('change', (e) => { const li = e.target.closest('[data-i]'); if (li && e.target.type === 'checkbox') { tDraft.sub[+li.dataset.i].d = e.target.checked; paintSubs(); } });
+$('#tSubs').addEventListener('click', (e) => { const b = e.target.closest('[data-sdel]'); if (b) { tDraft.sub.splice(+b.closest('[data-i]').dataset.i, 1); paintSubs(); } });
+$('#tSubIn').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return; e.preventDefault();
+  const v = $('#tSubIn').value.trim(); if (!v) return;
+  tDraft.sub.push({ id: uid(), t: v.slice(0, 200), d: false }); $('#tSubIn').value = ''; paintSubs();
+});
+$('#taskForm2').onsubmit = (e) => {
+  e.preventDefault();
+  const title = $('#tTitle').value.trim();
+  if (!title) { $('#tErr').textContent = 'Give the task a title.'; $('#tErr').hidden = false; return; }
+  let link = $('#tLink').value.trim();
+  if (link && !/^https?:\/\//i.test(link)) link = 'https://' + link.replace(/^[a-z]+:\/*/i, '');
+  const sub = tDraft.sub.map((x) => ({ ...x, t: x.t.trim() })).filter((x) => x.t);
+  commit(() => {
+    const t = taskById(tDraft.id); if (!t) return;
+    Object.assign(t, { title, proj: $('#tProj').value, p: +$('#tPri').value, date: $('#tDate').value, rep: $('#tRep').value, est: +$('#tEst').value || 0, notes: $('#tNotes').value.trim(), link, sub });
+  });
+  taskDlg.close(); refreshTasks(); if (S.view === 'projects') renderMain(); toast('Task saved');
+};
+$('#tDelete').onclick = () => {
+  snapshot(); const id = tDraft.id;
+  commit(() => { S.tasks = S.tasks.filter((x) => x.id !== id); });
+  taskDlg.close(); refreshTasks(); toast('Task deleted', true);
+};
+$('#tBlock').onclick = () => { const id = tDraft.id; taskDlg.close(); openBlock(id); };
+
+// ---- block time for a task ----
+const blockDlg = $('#blockDlg');
+let blockFor = null;
+function paintGaps() {
+  const k = $('#bDate').value, dur = +$('#bDur').value;
+  const gaps = ymdOk(k) ? freeGaps(k, 6 * 60, 22 * 60, Math.min(dur, 30)) : [];
+  $('#gapLabel').textContent = gaps.length ? 'Free time that day (tap to start there)' : 'No free time left that day';
+  $('#bGaps').innerHTML = gaps.map(([a, b]) => `<button type="button" data-gs="${fromMin(a)}" aria-pressed="${$('#bStart').value === fromMin(a)}">${esc(gapText([a, b]))}</button>`).join('');
+}
+function openBlock(id) {
+  const t = taskById(id); if (!t) return;
+  blockFor = id;
+  const day = ymdOk(t.date) && t.date >= todayKey() ? t.date : (selected >= todayKey() ? selected : todayKey());
+  $('#blockWhat').textContent = t.title;
+  $('#bDate').value = day;
+  $('#bDur').value = String([15, 30, 45, 60, 90, 120, 180].includes(t.est) ? t.est : 60);
+  const g = freeGaps(day, 6 * 60, 22 * 60, +$('#bDur').value)[0];
+  $('#bStart').value = g ? fromMin(g[0]) : '09:00'; $('#bErr').hidden = true;
+  paintGaps(); blockDlg.showModal();
+}
+$('#bDate').onchange = paintGaps; $('#bDur').onchange = paintGaps; $('#bStart').onchange = paintGaps;
+$('#bGaps').onclick = (e) => { const b = e.target.closest('[data-gs]'); if (b) { $('#bStart').value = b.dataset.gs; paintGaps(); } };
+$('#blockForm').onsubmit = (e) => {
+  e.preventDefault();
+  const t = taskById(blockFor), day = $('#bDate').value, st = $('#bStart').value, dur = +$('#bDur').value;
+  if (!t) return;
+  if (!ymdOk(day) || !HM.test(st)) { $('#bErr').textContent = 'Pick a day and a start time.'; $('#bErr').hidden = false; return; }
+  if (toMin(st) + dur > 1440) { $('#bErr').textContent = 'That runs past midnight. Start earlier or make it shorter.'; $('#bErr').hidden = false; return; }
+  snapshot();
+  commit(() => {
+    S.events.push({ id: uid(), title: t.title, cat: S.lastCat, date: day, allDay: false, start: st, end: fromMin(toMin(st) + dur), endDate: '', repeat: 'none', until: '', notes: t.notes || '', ex: [], proj: t.proj || '', taskId: t.id, created: Date.now() });
+    t.date = day;
+  });
+  blockDlg.close(); selected = day; miniMonth = day.slice(0, 7);
+  if (S.view !== 'month' && S.view !== 'agenda' && S.view !== 'projects') cursor = day;
+  render(); toast(`Blocked ${longDate(day)}, ${fmtTime(st)} to ${fmtTime(fromMin(toMin(st) + dur))}`, true);
+};
+$('#fTaskDone').onclick = () => {
+  const ev = S.events.find((x) => x.id === editing.id), t = ev && taskById(ev.taskId); if (!t) return;
+  snapshot(); commit(() => { t.done = true; }); dlg.close(); render(); toast('Task done', true);
+};
+
+// ---- drag to move / resize events in the day and week grid ----
+let drag = null, noClickUntil = 0;
+const SNAP = 15;
+function dragStart(st) {
+  st.active = true; st.blk.classList.add('dragging'); document.body.classList.add('dragging-ev');
+  if (navigator.vibrate) try { navigator.vibrate(12); } catch (e) { /* not supported */ }
+}
+$('#main').addEventListener('contextmenu', (e) => { if (e.target.closest('.blk')) e.preventDefault(); });
+$('#main').addEventListener('pointerdown', (e) => {
+  const blk = e.target.closest('.blk'); if (!blk || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  const ev = allEvents().find((x) => x.id === blk.dataset.ev);
+  if (!ev || ev.bot || ev.milestone || ev.allDay) return;
+  const s0 = toMin(ev.start); let e0 = toMin(ev.end || fromMin(Math.min(s0 + 60, 1439))); if (e0 <= s0) e0 = 1440;
+  drag = { blk, ev, id: e.pointerId, x0: e.clientX, y0: e.clientY, touch: e.pointerType !== 'mouse', resize: !!e.target.closest('.rz'), active: false, s0, e0, s: s0, e: e0, date: blk.dataset.occ, occ: blk.dataset.occ, col: blk.parentElement, rec: !!(ev.repeat && ev.repeat !== 'none'), timer: null };
+  if (drag.touch) { const d = drag; d.timer = setTimeout(() => { if (drag === d && !d.active) dragStart(d); }, 380); }
+});
+document.addEventListener('pointermove', (e) => {
+  const d = drag; if (!d || e.pointerId !== d.id) return;
+  const dx = e.clientX - d.x0, dy = e.clientY - d.y0;
+  if (!d.active) {
+    if (d.touch) { if (Math.hypot(dx, dy) > 9) { clearTimeout(d.timer); drag = null; } return; }
+    if (Math.hypot(dx, dy) < 5) return;
+    dragStart(d);
+  }
+  const dMin = Math.round(dy / HOUR * 60 / SNAP) * SNAP, dur = d.e0 - d.s0;
+  if (d.resize) { d.e = Math.max(d.s0 + SNAP, Math.min(1440, d.e0 + dMin)); d.s = d.s0; }
+  else {
+    d.s = Math.max(0, Math.min(1440 - dur, d.s0 + dMin)); d.e = d.s + dur;
+    if (!d.rec) {
+      const col = document.elementsFromPoint(e.clientX, e.clientY).find((x) => x.classList && x.classList.contains('tg-col'));
+      if (col && col !== d.col) { col.appendChild(d.blk); d.col = col; d.date = col.dataset.date; d.blk.style.left = '2px'; d.blk.style.width = 'calc(100% - 4px)'; }
+    }
+  }
+  d.blk.style.top = d.s / 60 * HOUR + 1 + 'px'; d.blk.style.height = Math.max(14, (d.e - d.s) / 60 * HOUR - 2) + 'px';
+  const sp = d.blk.querySelector('span'); if (sp) sp.textContent = `${fmtTime(fromMin(d.s))} – ${fmtTime(fromMin(Math.min(d.e, 1439)))}`;
+  e.preventDefault();
+});
+document.addEventListener('touchmove', (e) => { if (drag && drag.active) e.preventDefault(); }, { passive: false });
+function endDrag(cancel) {
+  const d = drag; if (!d) return; clearTimeout(d.timer); drag = null;
+  if (!d.active) return;
+  document.body.classList.remove('dragging-ev'); d.blk.classList.remove('dragging');
+  noClickUntil = Date.now() + 450;
+  const ev = d.ev, changed = d.s !== d.s0 || d.e !== d.e0 || (!d.rec && d.date !== d.occ);
+  if (cancel || !changed || d.e > 1440) { render(); return; }
+  snapshot();
+  commit(() => { ev.start = fromMin(d.s); ev.end = d.e >= 1440 ? '23:59' : fromMin(d.e); if (!d.rec && d.date !== d.occ) ev.date = d.date; });
+  selected = d.date; miniMonth = d.date.slice(0, 7); render();
+  toast(d.rec ? `Time changed for every repeat: ${fmtTime(ev.start)} to ${fmtTime(ev.end)}` : `${d.resize ? 'Resized' : 'Moved'} to ${longDate(ev.date)}, ${fmtTime(ev.start)}`, true);
+}
+document.addEventListener('pointerup', (e) => { if (drag && e.pointerId === drag.id) endDrag(false); });
+document.addEventListener('pointercancel', (e) => { if (drag && e.pointerId === drag.id) { if (drag.active) endDrag(false); else { clearTimeout(drag.timer); drag = null; } } });
+document.addEventListener('click', (e) => { if (Date.now() < noClickUntil) { e.stopPropagation(); e.preventDefault(); } }, true);
+
+// ---- plan my day ----
+const planDlg = $('#planDlg');
+let planDay = '', planCands = [];
+function openPlan() {
+  planDay = selected < todayKey() ? todayKey() : selected;
+  const isToday = planDay === todayKey();
+  $('#planDlgTitle').textContent = isToday ? 'Plan my day' : `Plan ${planDay === addDays(todayKey(), 1) ? 'tomorrow' : longDate(planDay)}`;
+  const busy = busyOn(planDay), busyMin = busy.reduce((n, [a, b]) => n + (b - a), 0), gaps = freeGaps(planDay, 7 * 60, 21 * 60, 30);
+  const freeMin = gaps.reduce((n, [a, b]) => n + (b - a), 0), evs = eventsOn(planDay).filter((o) => !o.ev.bot);
+  $('#planGlance').innerHTML = `<div><b>${evs.length}</b><span>events</span></div><div><b>${fmtDur(busyMin) || '0m'}</b><span>booked</span></div><div><b>${fmtDur(freeMin) || '0m'}</b><span>free, 7am to 9pm</span></div>`;
+  const pauses = eventsOn(planDay).filter((o) => o.ev.bot && /bot paused/.test(o.ev.title));
+  $('#planPauses').hidden = !pauses.length;
+  $('#planPauseTxt').textContent = pauses.map((o) => `${fmtTime(o.ev.start)} to ${fmtTime(o.ev.end)} ${o.ev.title.replace(' · bot paused', '')}`).join('  ·  ');
+  const open = S.tasks.filter((t) => !t.done);
+  const od = open.filter((t) => t.date && t.date < todayKey());
+  const tod = open.filter((t) => t.date === planDay), und = open.filter((t) => !t.date);
+  const rank = (a, b) => ((b.p || 0) - (a.p || 0)) || (a.created - b.created);
+  planCands = [...od.sort(rank).map((t) => ({ t, od: true, on: true })), ...tod.sort(rank).map((t) => ({ t, on: true })), ...und.sort(rank).map((t) => ({ t, on: (t.p || 0) >= 3 }))].map((c) => ({ ...c, star: (c.t.p || 0) >= 3 }));
+  paintPick();
+  $('#planGaps').innerHTML = gaps.length ? gaps.map((g) => `<span class="t-chip">${esc(gapText(g))}</span>`).join('') : '<span class="hint">No free blocks of 30 minutes or more.</span>';
+  $('#planAuto').checked = gaps.length > 0; $('#planAuto').disabled = !gaps.length;
+  $('#planNote').textContent = '';
+  planDlg.showModal();
+}
+function paintPick() {
+  $('#planPick').innerHTML = planCands.length ? planCands.map((c, i) => `<label class="pp${c.od ? ' od' : ''}" data-i="${i}"><input type="checkbox" ${c.on ? 'checked' : ''}><span class="tt">${esc(c.t.title)}${c.t.est ? ` <span class="t-chip">${fmtDur(c.t.est)}</span>` : ''}${c.od ? ` <span class="t-chip">from ${esc(dueLabel(c.t.date))}</span>` : ''} ${ptag(c.t.proj)}</span><button type="button" class="star${c.star ? ' on' : ''}" data-star aria-label="Top priority" title="Top priority">★</button></label>`).join('') : '<div class="empty-s" style="padding:10px">No open tasks. Add some in the box under Tasks.</div>';
+}
+$('#planPick').addEventListener('click', (e) => {
+  const star = e.target.closest('[data-star]'); if (!star) return;
+  e.preventDefault(); const c = planCands[+star.closest('[data-i]').dataset.i]; c.star = !c.star; if (c.star) c.on = true; paintPick();
+});
+$('#planPick').addEventListener('change', (e) => { const l = e.target.closest('[data-i]'); if (l) planCands[+l.dataset.i].on = e.target.checked; });
+$('#planForm').onsubmit = (e) => {
+  e.preventDefault();
+  const chosen = planCands.filter((c) => c.on), auto = $('#planAuto').checked && !$('#planAuto').disabled;
+  let blocked = 0, skipped = [];
+  snapshot();
+  commit(() => {
+    chosen.forEach((c) => { c.t.date = planDay; c.t.p = c.star ? 3 : (c.t.p === 3 && !c.star ? 2 : c.t.p || 0); });
+    if (auto) {
+      const extra = [];
+      const has = new Set(S.events.filter((x) => x.date === planDay && x.taskId).map((x) => x.taskId));
+      const order = chosen.filter((c) => !has.has(c.t.id)).sort((a, b) => ((b.star ? 1 : 0) - (a.star ? 1 : 0)) || ((b.t.p || 0) - (a.t.p || 0)));
+      for (const c of order) {
+        const need = c.t.est || 30, g = freeGaps(planDay, 7 * 60, 21 * 60, need, extra)[0];
+        if (!g) { skipped.push(c.t.title); continue; }
+        S.events.push({ id: uid(), title: c.t.title, cat: S.lastCat, date: planDay, allDay: false, start: fromMin(g[0]), end: fromMin(g[0] + need), endDate: '', repeat: 'none', until: '', notes: c.t.notes || '', ex: [], proj: c.t.proj || '', taskId: c.t.id, created: Date.now() });
+        extra.push([g[0], g[0] + need]); blocked++;
+      }
+    }
+  });
+  S.planned = planDay; save();
+  planDlg.close(); selected = planDay; cursor = planDay; miniMonth = planDay.slice(0, 7); render();
+  toast(`${chosen.length} task${chosen.length === 1 ? '' : 's'} planned${blocked ? `, ${blocked} time-blocked` : ''}${skipped.length ? `. No room for ${skipped.length}` : ''}`, true);
+};
+$('#planGoBtn').onclick = openPlan;
+
+function paintBackup() {
+  const n = $('#bkNote'); if (!n) return;
+  const has = S.events.length + S.tasks.length > 3, days = S.lastBackup ? Math.floor((Date.now() - S.lastBackup) / 864e5) : null;
+  n.hidden = HOSTED || sync || !has || (days != null && days < 14);
+  n.textContent = days == null ? 'Your calendar lives only on this phone. Tap Back up and save the file to iCloud Drive.' : `Last backup ${days} days ago. Tap Back up and save it to iCloud Drive.`;
+  n.style.color = '#b45309';
+}
+
+// ---- trading card ----
+function renderTrade() {
+  const box = $('#trade'), tr = nqBot && nqBot.trade;
+  if (HOSTED || !tr) { box.hidden = true; return; }
+  const ago = (iso) => { const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return isNaN(m) ? '' : m < 90 ? `${Math.max(m, 1)} min ago` : m < 2880 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`; };
+  const st = tr.status || {}, bad = !st.running || (st.issues || []).length;
+  const who = (a) => ({ LIT: 'Zlarior' }[a.strategy] || a.strategy || a.name);
+  const accts = (tr.accounts || []).filter((a) => a.status === 'open' || a.stage !== 'eval' || true).map((a) => {
+    const target = a.target || 0, pct = target ? Math.max(0, Math.min(100, (a.profit || 0) / target * 100)) : 0, rf = Math.max(0, Math.min(1, a.room_frac == null ? 1 : a.room_frac));
+    return `<div class="acct"><div class="acct-h"><b>${esc(who(a))} <span style="font-weight:500">${esc(String(a.name || '').replace('MFFU ', ''))}</span></b><span>${usd(a.profit)} of ${usd(target)}</span></div>
+      <div class="bar2" title="Progress to the profit target"><i style="width:${pct}%"></i></div>
+      <div class="acct-r"><span><b>${usd(a.to_go)}</b> to go</span><span>${a.sessions_left != null ? `<b>${a.sessions_left}</b> sessions left` : ''}</span></div>
+      <div class="bar2 room ${rf < .2 ? 'low' : rf < .45 ? 'mid' : ''}" title="Room above the loss floor"><i style="width:${rf * 100}%"></i></div>
+      <div class="acct-r"><span>Room above floor <b>${usd(a.room)}</b></span><span>Balance ${usd(a.balance)}</span></div></div>`;
+  }).join('');
+  const mo = tr.month ? `<div class="acct-r" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line2)"><span>${MONTHS[+tr.month.month.slice(5) - 1]} so far</span><span><b>${usd(tr.month.usd)}</b> · ${tr.month.trades} trade${tr.month.trades === 1 ? '' : 's'}</span></div>` : '';
+  const issue = (st.issues || [])[0];
+  box.innerHTML = `<div class="sec-h"><h2>Trading</h2><span class="sub" title="From the dashboard data">${ago(tr.built)}</span></div>
+    <div class="tstat ${bad ? 'bad' : ''}"><span class="sdot ${bad ? 'error' : 'ok'}"></span><div>${st.running ? 'Bot running' : 'Bot not running'}${issue ? `<small>${esc(issue.text)}${issue.fix ? '. ' + esc(issue.fix) : ''}</small>` : ''}</div></div>${accts}${mo}`;
+  box.hidden = false;
+}
+
+// ---- deep links (#today, #plan, #new-event, #new-task, #week ...). Works with the iOS Shortcuts app and Back Tap. ----
+function route() {
+  const h = decodeURIComponent(location.hash.replace(/^#\/?/, '')).trim();
+  if (!h || h.startsWith('connect=')) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  const views = ['month', 'week', 'day', 'agenda', 'projects'];
+  if (h === 'today') goToday();
+  else if (h === 'plan') { goToday(); openPlan(); }
+  else if (h === 'new-event') { goToday(); newEvent(todayKey()); }
+  else if (h === 'new-task') { goToday(); setTimeout(() => $('#taskIn').focus(), 60); }
+  else if (views.includes(h)) { goToday(); setView(h); }
+}
+// ===== LEAD END =====
+
 // ---------- backup ----------
 async function download(name, text, type) {
   if (HOSTED) {
@@ -1533,6 +1910,11 @@ async function download(name, text, type) {
     }
   }
   if (PREVIEW) { toast('Downloads work in the installed app, not in this preview.'); return false; }
+  // On iPhone the share sheet is the way to Files / iCloud Drive.
+  try {
+    const f = new File([text], name, { type });
+    if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: name }); return true; }
+  } catch (e) { if (e && e.name === 'AbortError') return false; }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([text], { type }));
   a.download = name; document.body.appendChild(a); a.click();
@@ -1735,7 +2117,7 @@ $('#catAdd').onclick = () => {
 $('#catForm').onsubmit = (e) => { e.preventDefault(); saveCats(); };
 
 // backup wiring
-$('#exportBtn').onclick = async () => { if (await download(`planner-backup-${todayKey()}.json`, JSON.stringify(S, null, 1), 'application/json')) toast('Backup downloaded'); };
+$('#exportBtn').onclick = async () => { if (await download(`planner-backup-${todayKey()}.json`, JSON.stringify(S, null, 1), 'application/json')) { S.lastBackup = Date.now(); save(); paintBackup(); toast('Backup saved'); } };
 $('#icsBtn').hidden = HOSTED; // claude.ai saves only common file types; .ics is not one of them
 $('#icsBtn').onclick = async () => {
   if (!allEvents().length) { toast('No events to export yet'); return; }
@@ -1822,9 +2204,10 @@ if (!HOSTED && 'serviceWorker' in navigator && window.isSecureContext && locatio
 render();
 paintSync();
 if (HOSTED) startDb();
-else {
+setTimeout(route, 0);
+if (!HOSTED) {
   readConnectLink();
-  addEventListener('hashchange', readConnectLink);
+  addEventListener('hashchange', () => { readConnectLink(); route(); });
   if (sync) syncNow();
   if (location.protocol.startsWith('http') && !PREVIEW) { loadNq(); setInterval(loadNq, 30 * 60e3); }
 }

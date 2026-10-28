@@ -266,6 +266,47 @@ body.dragging-ev{cursor:grabbing;-webkit-user-select:none;user-select:none}
   .nowbar .nb-t small{display:block;color:var(--mute);font-size:12px}
   .nowbar.pause .nb-t b{color:#92400e}
 }
+.sess{position:absolute;left:0;right:0;pointer-events:none;z-index:0}
+.sess span{position:absolute;right:4px;top:2px;font-size:9.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:rgba(71,85,105,.55)}
+.s-ldn{background:rgba(100,116,139,.07)}
+.s-kz{background:rgba(37,99,235,.075)}
+@media (max-width:640px){.tg[style*="--n:7"] .sess span{display:none}}
+.lay{display:flex;flex-wrap:wrap;gap:6px}
+.lay button{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:20px;border:1px solid var(--line);font-size:12.5px;font-weight:500;background:#fff;color:var(--ink2)}
+.lay button i{width:9px;height:9px;border-radius:50%;background:var(--c);flex:none}
+.lay button b{font-weight:500;color:var(--faint);font-size:11.5px}
+.lay button[aria-pressed=false]{color:var(--faint);background:var(--soft)}
+.lay button[aria-pressed=false] i{background:transparent;box-shadow:inset 0 0 0 1.5px var(--c)}
+.mkt summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.mkt summary::-webkit-details-marker{display:none}
+.mkt .now-l{font-size:12.5px;color:var(--ink2);font-weight:500}
+.mkt ul{list-style:none;margin-top:10px;display:flex;flex-direction:column}
+.mkt li{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:6px 0;border-top:1px solid var(--line2);color:var(--mute);font-variant-numeric:tabular-nums}
+.mkt li b{color:var(--ink);font-weight:500}
+.mkt li.on{color:var(--ink)}.mkt li.on b{font-weight:700}
+.mkt li.on::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok);margin:5px 6px 0 0;flex:none}
+.mkt li span:first-of-type{flex:1}
+.news{max-width:980px;margin:0 auto;padding:22px 24px 60px;display:flex;flex-direction:column;gap:14px}
+.nw-warn{border:1px solid #f3d9a4;background:#fffaf0;color:#92400e;border-radius:10px;padding:10px 12px;font-size:12.5px}
+.nw-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.nw-day{display:flex;flex-direction:column;gap:2px}
+.nw-day h3{font-size:13px;font-weight:600;margin:10px 0 4px;color:var(--ink2)}
+.nw-row{display:grid;grid-template-columns:62px 10px minmax(0,1fr) auto;gap:10px;align-items:start;padding:9px 10px;border:1px solid var(--line2);border-radius:10px}
+.nw-row.past{opacity:.55}
+.nw-t{font-size:12.5px;color:var(--mute);font-variant-numeric:tabular-nums;padding-top:1px}
+.nw-i{width:9px;height:9px;border-radius:50%;margin-top:5px;background:#94a3b8}
+.nw-row.high .nw-i{background:#dc2626}.nw-row.med .nw-i{background:#f59e0b}
+.nw-b b{font-size:13.5px;font-weight:600;overflow-wrap:anywhere}
+.nw-b small{display:block;font-size:12px;color:var(--mute);margin-top:2px}
+.nw-b small.p{color:#92400e}
+.nw-c{font-size:12px;color:var(--ink2);font-weight:500;white-space:nowrap;padding-top:1px}
+.hl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;padding:10px 2px;border-top:1px solid var(--line2);text-decoration:none;color:inherit}
+.hl:hover b{text-decoration:underline}
+.hl b{font-size:13.5px;font-weight:500;line-height:1.35;overflow-wrap:anywhere}
+.hl small{font-size:11.5px;color:var(--mute)}
+.tone{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;align-self:start;background:var(--soft2);color:var(--mute);white-space:nowrap}
+.tone.off{background:#fee2e2;color:#991b1b}.tone.on{background:#dcfce7;color:#166534}
+@media (max-width:640px){.news{padding:16px 16px 40px}.nw-row{grid-template-columns:54px 10px minmax(0,1fr)}.nw-c{grid-column:3;padding-top:0}}
 .keys{font-size:11.5px;color:var(--faint);line-height:1.7}
 kbd{font:500 10.5px var(--font);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;color:var(--mute);background:#fff}
 
@@ -591,7 +632,7 @@ body.focusing .toast{bottom:76px}
   <div class="right">
     <label class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search" aria-label="Search events" autocomplete="off"></label>
     <div class="seg" id="views" role="group" aria-label="View">
-      <button data-v="month" title="Month (M)">Month</button><button data-v="week" title="Week (W)">Week</button><button data-v="day" title="Day (D)">Day</button><button data-v="agenda" title="Agenda (A)">Agenda</button><button data-v="projects" class="xtra" title="Projects (P)">Projects</button><button data-v="habits" class="xtra" title="Habits (H)">Habits</button><button data-v="review" class="xtra" title="Review (R)">Review</button><button id="moreBtn" aria-haspopup="true" aria-expanded="false" title="Projects, Habits, Review">More</button>
+      <button data-v="month" title="Month (M)">Month</button><button data-v="week" title="Week (W)">Week</button><button data-v="day" title="Day (D)">Day</button><button data-v="agenda" title="Agenda (A)">Agenda</button><button data-v="projects" class="xtra" title="Projects (P)">Projects</button><button data-v="habits" class="xtra" title="Habits (H)">Habits</button><button data-v="review" class="xtra" title="Review (R)">Review</button><button data-v="news" class="xtra" title="Market news">News</button><button id="moreBtn" aria-haspopup="true" aria-expanded="false" title="Projects, Habits, Review">More</button>
     </div>
     <button class="btn primary" id="newBtn" title="New event (N)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="newlabel">New event</span></button>
   </div>
@@ -616,6 +657,10 @@ body.focusing .toast{bottom:76px}
     </section>
 
     <section class="card" id="trade" hidden></section>
+
+    <section class="card" id="layers" hidden></section>
+
+    <section class="card mkt" id="mkt"></section>
 
     <section class="card" id="dayTools"><!-- EXTRAS: journal + templates -->
       <div id="jrnSide"></div>
@@ -798,7 +843,7 @@ body.focusing .toast{bottom:76px}
   </div>
 </dialog>
 
-<div class="menu" id="moreMenu" hidden><button data-v="projects">Projects</button><button data-v="habits">Habits</button><button data-v="review">Review</button></div>
+<div class="menu" id="moreMenu" hidden><button data-v="projects">Projects</button><button data-v="habits">Habits</button><button data-v="review">Review</button><button data-v="news">News</button></div>
 <div class="fbar" id="focusBar" role="status" hidden></div>
 <!-- ===== EXTRAS DIALOGS END ===== -->
 
@@ -810,7 +855,7 @@ body.focusing .toast{bottom:76px}
 // HOSTED: running as a claude.ai page; data lives in the page's database (synced to the owner's Claude account).
 const HOSTED = !!window.PLANNER_HOSTED;
 const KEY = HOSTED ? 'planner.hosted.v1' : 'planner.v1';
-const VIEWS = ['month', 'week', 'day', 'agenda', 'projects', 'habits', 'review'];
+const VIEWS = ['month', 'week', 'day', 'agenda', 'projects', 'habits', 'review', 'news'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const DEFAULT_CATS = [
@@ -876,6 +921,7 @@ function normalize(s) {
     money: Array.isArray(s.money) ? s.money.filter((x) => x && x.id) : [],
     planned: typeof s.planned === 'string' ? s.planned : '',
     lastBackup: +s.lastBackup || 0,
+    layersOff: Array.isArray(s.layersOff) ? s.layersOff : ['low'],
     projects: Array.isArray(s.projects) ? s.projects.filter((x) => x && x.id) : DEFAULT_PROJECTS.map((x) => ({ ...x })),
     hidden: Array.isArray(s.hidden) ? s.hidden : [],
     dismissed: Array.isArray(s.dismissed) ? s.dismissed.filter((d) => d && d.id) : [],
@@ -1203,6 +1249,24 @@ function typeToCat(t) {
 // scheduled task) and shows the same events as bot/dashboard_events.py (kept in step with it).
 const NQ_KEY = 'planner.nq';
 let nqBot = readJSON(NQ_KEY) ? readJSON(NQ_KEY).doc : null;
+// Market times arrive as New York wall-clock times. etToLocal() turns one into this phone's local date and time
+// (identical when the phone is on Eastern time).
+const ETZ = 'America/New_York', etFmt = new Intl.DateTimeFormat('en-US', { timeZone: ETZ, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+const etCache = new Map();
+const localIsET = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone === ETZ; } catch (e) { return true; } })();
+function etWall(ms) { const o = {}; etFmt.formatToParts(ms).forEach((x) => { o[x.type] = x.value; }); return Date.UTC(+o.year, +o.month - 1, +o.day, +o.hour % 24, +o.minute); }
+function etToLocal(date, hm) {
+  const ck = date + ' ' + hm, c = etCache.get(ck); if (c) return c;
+  let r;
+  try {
+    const [y, m, d] = date.split('-').map(Number), [h, mi] = hm.split(':').map(Number), want = Date.UTC(y, m - 1, d, h, mi);
+    let t = want; for (let i = 0; i < 3; i++) t += want - etWall(t);
+    const L = new Date(t); r = { date: key(L), hm: `${pad(L.getHours())}:${pad(L.getMinutes())}` };
+  } catch (e) { r = { date, hm }; }
+  etCache.set(ck, r); return r;
+}
+const tzNote = () => (localIsET ? 'Eastern time (ET)' : 'your local time (converted from ET)');
+const LAYER_COLORS = { high: '#dc2626', med: '#f59e0b', low: '#94a3b8', earn: '#7c3aed' };
 function nqEventsFromData(data) {
   const news = data.news || {}, goals = data.goals || {}, cal = goals.calendar || {}, events = [];
   const hold = new Set((news.days || []).filter((d) => d.holiday).map((d) => d.date));
@@ -1219,8 +1283,27 @@ function nqEventsFromData(data) {
     let start, end, note, title;
     if (pause) { start = pause.blackout_start; end = pause.blackout_end; note = `Bot pauses new entries ${start}-${end} ET (blackout inside a killzone).`; title = titles.join(' + ') + ' · bot paused'; }
     else { start = hm; end = hmAdd(hm, 30); note = `Release at ${hm} ET. Outside the killzones: the bot does not pause.`; title = titles.join(' + '); }
-    events.push({ id: `news-${day}-${hm.replace(':', '')}`, title, type: 'trading', date: day, start, end, notes: [note, ...fc].join('\n'), project: 'nq' });
+    events.push({ id: `news-${day}-${hm.replace(':', '')}`, title, type: 'trading', date: day, start, end, notes: [note, ...fc].join('\n'), project: 'nq', layer: 'high', color: LAYER_COLORS.high });
     seen.add(k);
+  }
+  // Medium and low releases (and Fed speakers): same-time releases share one event.
+  for (const [imp, layer, len] of [['medium', 'med', 20], ['low', 'low', 15]]) {
+    const g = new Map();
+    for (const e of news.events || []) { if (e.impact !== imp || !e.date || !e.time_et) continue; const k = e.date + ' ' + e.time_et; if (!g.has(k)) g.set(k, []); g.get(k).push(e); }
+    for (const k of [...g.keys()].sort()) {
+      const es = g.get(k), [day, hm] = k.split(' '), titles = [...new Set(es.map((e) => e.title))];
+      const fc = es.filter((e) => e.forecast).map((e) => `${e.title}: forecast ${e.forecast}, previous ${e.previous}`);
+      events.push({ id: `news${layer[0]}-${day}-${hm.replace(':', '')}`, title: titles.slice(0, 2).join(' + ') + (titles.length > 2 ? ` +${titles.length - 2}` : ''), type: 'trading', date: day, start: hm, end: hmAdd(hm, len), notes: [`${imp[0].toUpperCase() + imp.slice(1)}-impact USD release at ${hm} ET.`, ...fc].join('\n'), project: 'nq', layer, color: LAYER_COLORS[layer] });
+    }
+  }
+  // NQ mega-cap earnings (after the close, so the move lands in the next morning's session).
+  const eg = new Map(), todayET = String((goals.today || data.built || '')).slice(0, 10);
+  for (const r of ((data.props || {}).earnings || {}).rows || []) { if (!r.sym || !YMD.test(r.date || '') || r.date < addDays(YMD.test(todayET) ? todayET : r.date, -1)) continue; const k = r.date + ' ' + (r.time || ''); if (!eg.has(k)) eg.set(k, []); eg.get(k).push(r); }
+  for (const k of [...eg.keys()].sort()) {
+    const rs = eg.get(k), [day, when] = k.split(' '), amc = /AMC/i.test(when), bmo = /BMO/i.test(when);
+    const ev = { id: `earn-${day}-${when || 'x'}`, title: `${rs.map((r) => r.sym).join(' + ')} earnings${amc ? ' · after close' : bmo ? ' · before open' : ''}`, type: 'trading', date: day, notes: rs.map((r) => `${r.sym}: ${r.st === 'confirmed' ? 'confirmed' : 'estimated date'}`).join('\n') + (amc ? '\nReports after the close; the move lands in the next morning\'s session.' : ''), project: 'nq', layer: 'earn', color: LAYER_COLORS.earn };
+    if (amc) { ev.start = '16:05'; ev.end = '16:35'; } else if (bmo) { ev.start = '07:30'; ev.end = '08:00'; }
+    events.push(ev);
   }
   const extra = new Map();
   for (const e of cal.news || []) { if (e.day && e.time && !seen.has(e.day + ' ' + e.time)) { const k = e.day + ' ' + e.time; if (!extra.has(k)) extra.set(k, []); extra.get(k).push(e.event || 'USD release'); } }
@@ -1247,7 +1330,15 @@ function nqEventsFromData(data) {
     status: { running: !!board.running, host: board.host || '', t: board.t || 0, issues: (board.blocks || []).slice(0, 3).map((b) => ({ text: b.text, fix: b.fix })) },
     month: mo.month ? { month: mo.month, usd: mo.usd, trades: mo.trades } : null,
   };
-  return { bot: 'NQ bots', events, trade };
+  const rules = (news.bot_now || {}).rules || {};
+  const slim = {
+    built: data.built || '',
+    events: (news.events || []).map((e) => ({ date: e.date, time: e.time_et, impact: e.impact, title: e.title, fc: e.forecast || '', prev: e.previous || '', act: e.actual || '', hint: e.usd_hint || '', bs: e.blackout_start || '', be: e.blackout_end || '', kz: !!e.blackout_hits_killzone })),
+    headlines: (news.headlines || []).slice(0, 30).map((h) => ({ t: h.t, title: String(h.title || '').slice(0, 220), source: h.source || '', url: /^https?:\/\//i.test(h.url || '') ? h.url : '', tone: h.tone || 'neutral' })),
+    earnings: ((data.props || {}).earnings || {}).rows || [],
+    srcBad: (news.sources || []).filter((x) => !x.ok).map((x) => x.name).slice(0, 8),
+  };
+  return { bot: 'NQ bots', tz: 'ET', kz: Array.isArray(rules.killzones) ? rules.killzones : ['09:30-11:30', '13:30-15:30'], events, trade, news: slim };
 }
 async function loadNq() {
   const c = readJSON(NQ_KEY);
@@ -1281,7 +1372,12 @@ function buildBotEvents() {
         repeat: REPEATS.includes(e.repeat) ? e.repeat : 'none', until: YMD.test(e.until || '') ? e.until : '',
         ex: Array.isArray(e.skip) ? e.skip.filter((x) => YMD.test(x)) : [], notes: String(e.notes || '').slice(0, 2000),
         proj: findProj(e.project),
+        layer: e.layer || '', color: e.color || '',
       });
+      if (d.tz === 'ET' && timed && !localIsET) {
+        const ev = out[out.length - 1], a = etToLocal(ev.date, ev.start), b = etToLocal(ev.date, ev.end);
+        ev.date = a.date; ev.start = a.hm; ev.end = b.date === a.date ? b.hm : '23:59';
+      }
     }
   }
   // Project milestones show on the calendar in the project's color; clicking one opens the project.
@@ -1381,6 +1477,7 @@ function eventsOn(k, includeHidden) {
   const out = [];
   for (const ev of allEvents()) {
     if (!includeHidden && S.hidden.includes(ev.cat)) continue;
+    if (ev.layer && S.layersOff.includes(ev.layer)) continue;
     const s = occStart(ev, k);
     if (s) out.push({ ev, occ: s, cont: s !== k });
   }
@@ -1481,7 +1578,7 @@ function renderGrid(days) {
       const h = (e - s) / 60 * HOUR, short = (realE - s) < 45;
       return `<button class="blk${short ? ' short' : ''}" data-ev="${o.ev.id}" data-occ="${o.occ}" title="${esc(fmtRange(o.ev) + ' · ' + o.ev.title)}" style="${cvars(colorOf(o.ev))};top:${s / 60 * HOUR + 1}px;height:${h - 2}px;left:calc(${col / cn * 100}% + 2px);width:calc(${100 / cn}% - 4px)"><b>${esc(o.ev.title)}</b><span>${fmtTime(o.ev.start)}${short ? '' : ' – ' + fmtTime(o.ev.end)}${o.ev.repeat && o.ev.repeat !== 'none' ? ' ↻' : ''}</span>${o.ev.bot || o.ev.milestone ? '' : '<i class="rz"></i>'}</button>`;
     }).join('');
-    cols += `<div class="tg-col${k === today ? ' today' : ''}" data-date="${k}">${blocks}${k === today ? `<div class="now" style="top:${nowMin / 60 * HOUR}px"></div>` : ''}</div>`;
+    cols += `<div class="tg-col${k === today ? ' today' : ''}" data-date="${k}">${sessBands(k)}${blocks}${k === today ? `<div class="now" style="top:${nowMin / 60 * HOUR}px"></div>` : ''}</div>`;
   }
   let hours = '';
   for (let h = 1; h < 24; h++) hours += `<span style="top:${h * HOUR}px">${fmtTime(fromMin(h * 60))}</span>`;
@@ -1582,6 +1679,7 @@ function renderMain() {
   else if (S.view === 'day') main.innerHTML = renderGrid([cursor]);
   else if (S.view === 'projects') main.innerHTML = renderProjects();
   else if (S.view === 'habits') main.innerHTML = renderHabits();
+  else if (S.view === 'news') main.innerHTML = renderNews();
   else if (S.view === 'review') main.innerHTML = renderReview();
   else main.innerHTML = renderAgenda();
   if ((S.view === 'week' || S.view === 'day') && !query) {
@@ -1610,7 +1708,7 @@ function renderSide() {
     g += `<button class="${cls}" data-date="${k}" aria-label="${longDate(k)}">${parse(k).getDate()}</button>`;
   }
   $('#mini').innerHTML = g;
-  renderTrade(); paintBackup(); renderNow();
+  renderTrade(); renderLayers(); renderMkt(); paintBackup(); renderNow();
   { const nudge = S.planned !== todayKey() && selected === todayKey(); $('#planGoBtn').className = 'btn sm' + (nudge ? ' primary' : ''); }
 
   // day plan
@@ -2131,12 +2229,94 @@ function renderNow() {
   else if (nxt) { main = `<b>Next: ${esc(nxt.o.ev.title)}</b>`; sub = `${fmtTime(fromMin(nxt.s))}, in ${rel(nxt.s - nowMin)}`; }
   else main = '<b>Nothing else scheduled today</b>';
   if (pause && nxt) sub += `  ·  Next: ${nxt.o.ev.title} ${fmtTime(fromMin(nxt.s))}`;
+  if (!pause) { const nn = evs.find((x) => x.o.ev.bot && x.o.ev.layer === 'high' && x.s > nowMin && x.s - nowMin < 240); if (nn) sub += `${sub ? '  ·  ' : ''}News ${fmtTime(fromMin(nn.s))}: ${nn.o.ev.title.replace(' · bot paused', '')} (in ${rel(nn.s - nowMin)})`; }
   const planBtn = S.planned !== today ? '<button class="btn sm primary" data-nowplan>Plan day</button>' : `<button class="btn sm" data-nowday>${left} task${left === 1 ? '' : 's'}</button>`;
   bar.className = 'nowbar' + (pause ? ' pause' : ''); bar.innerHTML = `<div class="nb-t">${main}${sub ? `<small>${esc(sub)}</small>` : ''}</div>${planBtn}`; bar.hidden = false;
 }
 $('#nowbar').addEventListener('click', (e) => {
   if (e.target.closest('[data-nowplan]')) { selected = todayKey(); openPlan(); }
   else if (e.target.closest('[data-nowday]') || e.target.closest('.nb-t')) openDay(todayKey());
+});
+
+// ---- market layers, session bands, market schedule ----
+const LAYERS = [['high', 'High impact', LAYER_COLORS.high], ['med', 'Medium', LAYER_COLORS.med], ['low', 'Low and Fed speakers', LAYER_COLORS.low], ['earn', 'Earnings', LAYER_COLORS.earn], ['sess', 'Sessions', '#2563eb']];
+function renderLayers() {
+  const box = $('#layers');
+  if (HOSTED || !nqBot) { box.hidden = true; return; }
+  const today = todayKey(), end = addDays(today, 14), cnt = {};
+  for (const e of extraEvents) if (e.layer && e.date >= today && e.date <= end) cnt[e.layer] = (cnt[e.layer] || 0) + 1;
+  box.innerHTML = `<div class="sec-h"><h2>Market on the calendar</h2></div><div class="lay">${LAYERS.map(([id, name, c]) => `<button type="button" data-layer="${id}" style="--c:${c}" aria-pressed="${!S.layersOff.includes(id)}"><i></i>${name}${cnt[id] ? ` <b>${cnt[id]}</b>` : ''}</button>`).join('')}</div><div class="sub" style="margin-top:8px">Times shown in ${tzNote()}.</div>`;
+  box.hidden = false;
+}
+$('#layers').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-layer]'); if (!b) return;
+  const id = b.dataset.layer; S.layersOff = S.layersOff.includes(id) ? S.layersOff.filter((x) => x !== id) : [...S.layersOff, id]; save(); render();
+});
+function sessList() {
+  const kz = (nqBot && nqBot.kz) || ['09:30-11:30', '13:30-15:30'];
+  const k1 = String(kz[0] || '09:30-11:30').split('-'), k2 = String(kz[1] || '13:30-15:30').split('-');
+  return [['London', '03:00', '09:30', 's-ldn'], ['NY AM', k1[0], k1[1], 's-kz'], ['NY PM', k2[0], k2[1], 's-kz']];
+}
+function sessBands(k) {
+  if (S.layersOff.includes('sess')) return '';
+  let h = '';
+  for (const off of [-1, 0, 1]) {
+    const ek = addDays(k, off), wd = dow(ek); if (wd === 0 || wd === 6) continue;
+    for (const [name, a, b, cls] of sessList()) {
+      const A = etToLocal(ek, a), B = etToLocal(ek, b);
+      const s = A.date < k ? 0 : A.date > k ? null : toMin(A.hm), e = B.date < k ? null : B.date > k ? 1440 : toMin(B.hm);
+      if (s == null || e == null || e <= s) continue;
+      h += `<div class="sess ${cls}" style="top:${s / 60 * HOUR}px;height:${(e - s) / 60 * HOUR}px"><span>${name}</span></div>`;
+    }
+  }
+  return h;
+}
+const SCHEDULE = [['Asia session', '20:00', '03:00', 'Globex evening'], ['London window', '03:00', '09:30', 'ATLAS trades here'], ['US stocks open', '09:30', '', 'cash open'], ['Zlarior killzone 1', '09:30', '11:30', ''], ['Zlarior killzone 2', '13:30', '15:30', ''], ['Bots flat', '15:55', '', 'no holding past this'], ['US stocks close', '16:00', '', ''], ['CME daily break', '17:00', '18:00', 'futures halt']];
+function renderMkt() {
+  const box = $('#mkt'); if (!box) return;
+  const nowET = new Date(), wallET = etWall(nowET.getTime()), etMin = new Date(wallET).getUTCHours() * 60 + new Date(wallET).getUTCMinutes(), etDay = new Date(wallET).getUTCDay();
+  const wk = etDay >= 1 && etDay <= 5, base = todayKey();
+  const lt = (hm) => { const r = etToLocal(base, hm); return fmtTime(r.hm); };
+  const rows = SCHEDULE.map(([name, a, b, note]) => {
+    const s = toMin(a), e = b ? toMin(b) : s, wraps = b && e < s, on = wk && b && (wraps ? etMin >= s || etMin < e : etMin >= s && etMin < e);
+    return `<li class="${on ? 'on' : ''}"><span><b>${esc(name)}</b>${note ? ` <span style="color:var(--faint)">${esc(note)}</span>` : ''}</span><span>${lt(a)}${b ? ' to ' + lt(b) : ''}</span></li>`;
+  }).join('');
+  let now = 'Weekend: US markets closed';
+  if (wk) { const cur = SCHEDULE.find(([, a, b]) => b && (toMin(b) < toMin(a) ? etMin >= toMin(a) || etMin < toMin(b) : etMin >= toMin(a) && etMin < toMin(b)) && !/stocks|daily/i.test(a)); now = cur ? `Now: ${cur[0]}` : (etMin >= 17 * 60 && etMin < 18 * 60 ? 'Now: CME daily break' : 'Between sessions'); }
+  box.innerHTML = `<details><summary><h2 style="font-size:13px;font-weight:600">Market times</h2><span class="now-l">${now}</span></summary><ul>${rows}</ul><div class="sub" style="margin-top:8px">In ${tzNote()}.</div></details>`;
+}
+
+// ---- Market news view: releases like the ForexFactory calendar, headlines with tone, earnings ----
+let newsImp = (() => { try { return localStorage.getItem('planner.newsImp'); } catch (e) { return null; } })() || 'med', newsMore = false;
+const ago2 = (t) => { const m = Math.max(1, Math.round((Date.now() - t * 1000) / 60000)); return m < 90 ? `${m} min ago` : m < 2880 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`; };
+function renderNews() {
+  const n = nqBot && nqBot.news;
+  if (!n) return `<div class="news"><div class="empty"><b>No market news yet</b>It loads from your NQ dashboard when the app is opened from its own site.</div></div>`;
+  const now = Date.now(), todayL = todayKey(), hrs = Math.round((now - Date.parse(n.built)) / 3600e3);
+  const rel = n.events.map((e) => { const l = etToLocal(e.date, e.time), ms = Date.parse(`${l.date}T${l.hm}:00`); return { ...e, ld: l.date, lt: l.hm, ms }; }).filter((e) => e.ld >= addDays(todayL, -0) && (newsImp === 'all' || (newsImp === 'high' ? e.impact === 'high' : e.impact !== 'low'))).sort((a, b) => a.ms - b.ms);
+  const days = [...new Set(rel.map((e) => e.ld))];
+  const relH = days.map((d) => `<div class="nw-day"><h3>${d === todayL ? 'Today' : d === addDays(todayL, 1) ? 'Tomorrow' : DAYS[parse(d).getDay()]}, ${longDate(d).split(', ')[1]}</h3>${rel.filter((e) => e.ld === d).map((e) => {
+    const past = e.ms < now, diff = Math.round((e.ms - now) / 60000), c = past ? '' : diff < 90 ? `in ${Math.max(diff, 1)} min` : diff < 1440 ? `in ${fmtDur(diff)}` : '';
+    const imp = e.impact === 'high' ? 'high' : e.impact === 'medium' ? 'med' : 'low';
+    const bl = e.bs && e.kz ? `<small class="p">Bot pauses new entries ${fmtTime(etToLocal(e.date, e.bs).hm)} to ${fmtTime(etToLocal(e.date, e.be).hm)}</small>` : '';
+    const nums = [e.fc && `Forecast ${esc(e.fc)}`, e.prev && `Previous ${esc(e.prev)}`, e.act && `Actual ${esc(e.act)}`].filter(Boolean).join(' · ');
+    return `<div class="nw-row ${imp}${past ? ' past' : ''}"><span class="nw-t">${fmtTime(e.lt)}</span><span class="nw-i" title="${e.impact} impact"></span><div class="nw-b"><b>${esc(e.title)}</b>${nums ? `<small>${nums}</small>` : ''}${e.hint ? `<small>${esc(e.hint)}</small>` : ''}${bl}</div><span class="nw-c">${c}</span></div>`;
+  }).join('')}</div>`).join('');
+  const tones = { off: n.headlines.filter((h) => h.tone === 'risk-off').length, on: n.headlines.filter((h) => h.tone === 'risk-on').length };
+  const hl = (newsMore ? n.headlines : n.headlines.slice(0, 12)).map((h) => `<${h.url ? `a href="${esc(h.url)}" target="_blank" rel="noopener"` : 'div'} class="hl"><b>${esc(h.title)}</b><span class="tone ${h.tone === 'risk-off' ? 'off' : h.tone === 'risk-on' ? 'on' : ''}">${h.tone === 'risk-off' ? 'Risk-off' : h.tone === 'risk-on' ? 'Risk-on' : 'Neutral'}</span><small>${esc(h.source)} · ${ago2(h.t)}</small></${h.url ? 'a' : 'div'}>`).join('');
+  const er = (n.earnings || []).filter((r) => r.date >= addDays(todayL, -1)).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 10).map((r) => `<div class="nw-row low"><span class="nw-t">${esc(dueLabel(r.date))}</span><span class="nw-i" style="background:#7c3aed"></span><div class="nw-b"><b>${esc(r.sym)} earnings</b><small>${/AMC/i.test(r.time) ? 'After the close, so it moves NQ the next morning' : esc(r.time || '')} · ${r.st === 'confirmed' ? 'confirmed' : 'estimated date'}</small></div></div>`).join('');
+  return `<div class="news">
+    ${hrs >= 6 ? `<div class="nw-warn">This news is ${hrs >= 48 ? Math.round(hrs / 24) + ' days' : hrs + ' hours'} old. The dashboard only updates when your bot PC is on and publishing, so check ForexFactory directly before trading.</div>` : ''}
+    <div class="nw-top"><div class="seg2" id="newsImp" style="min-width:260px"><button type="button" data-i="high" aria-pressed="${newsImp === 'high'}">High</button><button type="button" data-i="med" aria-pressed="${newsImp === 'med'}">High + Med</button><button type="button" data-i="all" aria-pressed="${newsImp === 'all'}">All</button></div><span class="sub">Times in ${tzNote()}</span></div>
+    <section><div class="sec-h"><h2>Upcoming releases</h2></div>${relH || '<div class="empty-s">No releases in the data for these filters.</div>'}</section>
+    <section><div class="sec-h"><h2>Headlines</h2><span class="sub">${tones.off} risk-off, ${tones.on} risk-on</span></div>${hl || '<div class="empty-s">No headlines.</div>'}${n.headlines.length > 12 ? `<button class="link" data-newsmore style="margin-top:6px">${newsMore ? 'Show fewer' : `Show all ${n.headlines.length}`}</button>` : ''}</section>
+    ${er ? `<section><div class="sec-h"><h2>Mega-cap earnings</h2><span class="sub">AAPL MSFT NVDA AMZN GOOGL META TSLA AVGO</span></div>${er}</section>` : ''}
+    ${n.srcBad.length ? `<div class="sub">Not available right now: ${esc(n.srcBad.join(', '))}.</div>` : ''}
+  </div>`;
+}
+$('#main').addEventListener('click', (e) => {
+  const i = e.target.closest('#newsImp [data-i]'); if (i) { newsImp = i.dataset.i; try { localStorage.setItem('planner.newsImp', newsImp); } catch (err) { /* convenience only */ } renderMain(); return; }
+  if (e.target.closest('[data-newsmore]')) { newsMore = !newsMore; renderMain(); }
 });
 
 // ---- trading card ----
@@ -2320,9 +2500,9 @@ function toast(msg, canUndo) {
 }
 
 // ===== EXTRAS SHARED BEGIN (hooks used by habits, review, journal, templates, focus, smart lists) =====
-const KEEP_SCROLL = ['projects', 'habits', 'review'];
-const EXTRA_TITLES = { habits: 'Habits', review: 'Weekly review' };
-const NO_NAV = ['projects', 'habits', 'review'];
+const KEEP_SCROLL = ['projects', 'habits', 'review', 'news'];
+const EXTRA_TITLES = { habits: 'Habits', review: 'Weekly review', news: 'Market news' };
+const NO_NAV = ['projects', 'habits', 'review', 'news'];
 const ICON_CHECK = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>';
 const ICON_PENCIL = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg>';
 const ICON_CHEV = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';

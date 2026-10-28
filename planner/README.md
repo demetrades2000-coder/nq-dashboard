@@ -121,6 +121,7 @@ Fields:
 - **Trading card:** eval progress, room above the floor, sessions left, bot status and the month's P&L, from the dashboard data.
 - **Goals and Money:** targets with progress (manual, or live from the bots), plus an income and expense log with CSV export.
 - **Habits, Journal, Weekly review, Day templates, Focus timer, Smart lists.** Bot P&L in the journal and review is the live and paper bots' results only, never the backtest. The app saves each day it sees, so the history grows over time.
+- **Market news:** the dashboard's ForexFactory USD releases (high, medium and low, plus Fed speakers) and NQ mega-cap earnings go on the calendar, each layer switchable. London, NY AM and NY PM killzones are shaded on the day and week views. A News view lists upcoming releases with forecast and previous, headlines tagged risk-on/off, and a warning when the dashboard data is stale. All market times are converted from ET to the phone's own time zone.
 - **Deep links** for the iOS Shortcuts app and Back Tap: `#today`, `#plan`, `#new-event`, `#new-task`, `#week`, `#day`, `#agenda`, `#projects`.
 - **Backup:** Back up opens the share sheet so you can save the file to iCloud Drive. The app reminds you if it's been 14 days.
 

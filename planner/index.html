@@ -307,6 +307,42 @@ body.dragging-ev{cursor:grabbing;-webkit-user-select:none;user-select:none}
 .tone{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;align-self:start;background:var(--soft2);color:var(--mute);white-space:nowrap}
 .tone.off{background:#fee2e2;color:#991b1b}.tone.on{background:#dcfce7;color:#166534}
 @media (max-width:640px){.news{padding:16px 16px 40px}.nw-row{grid-template-columns:54px 10px minmax(0,1fr)}.nw-c{grid-column:3;padding-top:0}}
+@media (max-width:960px){
+  .side .card.fold > .sec-h{margin-bottom:0}
+  .side .card.fold > .sec-h h2{cursor:pointer;display:flex;align-items:center;gap:8px;padding:4px 0;min-height:28px}
+  .side .card.fold > .sec-h h2::after{content:"";width:7px;height:7px;border:solid var(--faint);border-width:0 2px 2px 0;transform:rotate(45deg) translateY(-2px);transition:transform .15s}
+  .side .card.fold.collapsed > .sec-h h2::after{transform:rotate(-45deg)}
+  .side .card.fold:not(.collapsed) > .sec-h{margin-bottom:10px}
+  .side .card.fold.collapsed > *:not(.sec-h){display:none}
+}
+.mch{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;align-items:stretch}
+.mch>div{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
+.mch .pl{height:64px;width:100%;position:relative;display:flex;flex-direction:column}
+.mch .up,.mch .dn{flex:1;display:flex}
+.mch .up{align-items:flex-end}.mch .dn{align-items:flex-start}
+.mch i{display:block;width:70%;margin:0 auto;border-radius:3px}
+.mch .up i{background:#10b981}.mch .dn i{background:#ef4444}
+.mch small{font-size:10.5px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
+.mch small.v{color:var(--ink);font-weight:500}
+.tdy{max-width:720px;margin:0 auto;padding:18px 20px 70px;display:flex;flex-direction:column;gap:14px}
+.td-h{display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
+.td-h h2{font-size:24px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.td-h .sub{margin-top:2px}
+.td-card{border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px;background:#fff}
+.td-card>h3{font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.td-card>h3 a,.td-card>h3 button{font-size:12px;font-weight:500;color:var(--mute)}
+.td-ev{display:flex;gap:10px;align-items:baseline;padding:7px 8px;border-radius:8px;text-align:left;width:100%;background:var(--bg-c)}
+.td-ev.cur{box-shadow:inset 0 0 0 1.5px var(--c)}
+.td-ev .tm{font-size:12px;color:var(--mute);width:62px;flex:none;font-variant-numeric:tabular-nums}
+.td-ev .tt{font-size:13.5px;font-weight:500;color:var(--fg);min-width:0;overflow-wrap:anywhere}
+.td-ev.past{opacity:.5}
+.td-hab{display:flex;align-items:center;gap:10px;padding:6px 2px}
+.td-hab button{width:30px;height:30px;border-radius:50%;border:2px solid var(--c);flex:none;display:grid;place-items:center;color:#fff}
+.td-hab button[aria-pressed=true]{background:var(--c)}
+.td-hab span{flex:1;font-size:13.5px}.td-hab small{color:var(--mute);font-size:12px}
+.td-acct{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-variant-numeric:tabular-nums}
+.td-acct b{font-weight:600}
+@media (max-width:640px){.tdy{padding:14px 16px 60px}.seg button{padding:0 7px;font-size:12.5px}}
 .keys{font-size:11.5px;color:var(--faint);line-height:1.7}
 kbd{font:500 10.5px var(--font);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;color:var(--mute);background:#fff}
 
@@ -632,7 +668,7 @@ body.focusing .toast{bottom:76px}
   <div class="right">
     <label class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search" aria-label="Search events" autocomplete="off"></label>
     <div class="seg" id="views" role="group" aria-label="View">
-      <button data-v="month" title="Month (M)">Month</button><button data-v="week" title="Week (W)">Week</button><button data-v="day" title="Day (D)">Day</button><button data-v="agenda" title="Agenda (A)">Agenda</button><button data-v="projects" class="xtra" title="Projects (P)">Projects</button><button data-v="habits" class="xtra" title="Habits (H)">Habits</button><button data-v="review" class="xtra" title="Review (R)">Review</button><button data-v="news" class="xtra" title="Market news">News</button><button id="moreBtn" aria-haspopup="true" aria-expanded="false" title="Projects, Habits, Review">More</button>
+      <button data-v="today" title="Today screen">Today</button><button data-v="month" title="Month (M)">Month</button><button data-v="week" title="Week (W)">Week</button><button data-v="day" title="Day (D)">Day</button><button data-v="agenda" title="Agenda (A)">Agenda</button><button data-v="projects" class="xtra" title="Projects (P)">Projects</button><button data-v="habits" class="xtra" title="Habits (H)">Habits</button><button data-v="review" class="xtra" title="Review (R)">Review</button><button data-v="news" class="xtra" title="Market news">News</button><button id="moreBtn" aria-haspopup="true" aria-expanded="false" title="Projects, Habits, Review">More</button>
     </div>
     <button class="btn primary" id="newBtn" title="New event (N)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="newlabel">New event</span></button>
   </div>
@@ -673,12 +709,13 @@ body.focusing .toast{bottom:76px}
       <ul class="cats" id="cats"></ul>
     </section>
 
-    <section class="card tools">
+    <section class="card tools" id="settings">
+      <div class="sec-h"><h2>Settings and backup</h2></div>
       <div class="row"><span class="sub" style="color:var(--ink2);font-weight:500">Week starts</span><div class="seg" id="wkStart"><button data-w="0">Sun</button><button data-w="1">Mon</button></div></div>
       <div class="sync-row"><span class="sdot" id="syncDot"></span><span id="syncText">Only on this device</span><button class="btn sm" id="syncBtn">Connect</button></div>
       <div class="sub" id="bkNote" hidden></div>
       <div class="btns" id="syncMore" hidden><button class="btn sm" id="syncLink" title="A private link that connects your phone or another computer in one tap">Link a device</button><button class="btn sm" id="syncOff">Disconnect</button></div>
-      <div class="btns"><button class="btn sm" id="exportBtn">Back up</button><button class="btn sm" id="importBtn">Restore</button><button class="btn sm" id="icsBtn" title="Download a .ics file for Google / Apple / Outlook Calendar">Export .ics</button></div>
+      <div class="btns"><button class="btn sm" id="exportBtn">Back up</button><button class="btn sm" id="importBtn">Restore</button><button class="btn sm" id="icsBtn" title="Save a calendar file with alerts, then open it in the iPhone Calendar app">Calendar alerts</button></div>
       <input type="file" id="importFile" accept="application/json,.json" hidden>
       <div class="keys"><kbd>N</kbd> new &nbsp;<kbd>T</kbd> today &nbsp;<kbd>←</kbd><kbd>→</kbd> move &nbsp;<kbd>M</kbd><kbd>W</kbd><kbd>D</kbd><kbd>A</kbd> views &nbsp;<kbd>/</kbd> search</div>
     </section>
@@ -855,7 +892,7 @@ body.focusing .toast{bottom:76px}
 // HOSTED: running as a claude.ai page; data lives in the page's database (synced to the owner's Claude account).
 const HOSTED = !!window.PLANNER_HOSTED;
 const KEY = HOSTED ? 'planner.hosted.v1' : 'planner.v1';
-const VIEWS = ['month', 'week', 'day', 'agenda', 'projects', 'habits', 'review', 'news'];
+const VIEWS = ['today', 'month', 'week', 'day', 'agenda', 'projects', 'habits', 'review', 'news'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const DEFAULT_CATS = [
@@ -927,7 +964,7 @@ function normalize(s) {
     dismissed: Array.isArray(s.dismissed) ? s.dismissed.filter((d) => d && d.id) : [],
     deleted: s.deleted && typeof s.deleted === 'object' ? s.deleted : {},
     settingsU: s.settingsU || 0,
-    view: VIEWS.includes(s.view) ? s.view : 'month',
+    view: VIEWS.includes(s.view) ? s.view : (innerWidth < 640 ? 'today' : 'month'),
     weekStart: s.weekStart === 1 ? 1 : 0,
     lastCat: s.lastCat || cats[0].id,
     habits: Array.isArray(s.habits) ? s.habits.filter((x) => x && x.id) : [],
@@ -1362,7 +1399,7 @@ function buildBotEvents() {
     const slug = file.replace(/\.json$/, ''), bot = String(d.bot || slug).slice(0, 40);
     for (const e of d.events) {
       if (!e || !e.title || !YMD.test(e.date || '')) continue;
-      const id = `bot:${slug}:${e.id || e.date + ':' + e.title}`;
+      const id = `bot:${slug}:${e.id || e.date + ':' + e.title}`.replace(/[^A-Za-z0-9_:.\-]/g, '_').slice(0, 120);
       if (gone.has('d:' + id)) continue;
       const timed = HM.test(e.start || '');
       out.push({
@@ -1680,6 +1717,7 @@ function renderMain() {
   else if (S.view === 'projects') main.innerHTML = renderProjects();
   else if (S.view === 'habits') main.innerHTML = renderHabits();
   else if (S.view === 'news') main.innerHTML = renderNews();
+  else if (S.view === 'today') main.innerHTML = renderToday();
   else if (S.view === 'review') main.innerHTML = renderReview();
   else main.innerHTML = renderAgenda();
   if ((S.view === 'week' || S.view === 'day') && !query) {
@@ -1919,7 +1957,7 @@ function parseTag(title) {
   const rest = (title.slice(0, m.index) + ' ' + title.slice(m.index + m[0].length)).replace(/\s+/g, ' ').trim();
   return { title: rest || title, proj };
 }
-function refreshTasks() { renderSide(); if (!query && (S.view === 'month' || S.view === 'projects')) renderMain(); }
+function refreshTasks() { renderSide(); if (!query && (S.view === 'month' || S.view === 'projects' || S.view === 'today')) renderMain(); }
 const WDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 // "call Sam fri 3pm #nq" -> { title, date, start, rep }. Dates: today, tomorrow, mon..sun, in N days, 10/30.
 function parseWhen(text) {
@@ -2218,6 +2256,7 @@ function paintBackup() {
 // ---- "Now" bar (phone): what is happening or next, and how many tasks are left today ----
 function renderNow() {
   const bar = $('#nowbar'); if (!bar) return;
+  if (S.view === 'today' && !query) { bar.hidden = true; return; }
   const today = todayKey(), n = new Date(), nowMin = n.getHours() * 60 + n.getMinutes();
   const evs = eventsOn(today).filter((o) => !o.ev.allDay).map((o) => ({ o, s: toMin(o.ev.start), e: toMin(o.ev.end || fromMin(Math.min(toMin(o.ev.start) + 60, 1439))) })).sort((a, b) => a.s - b.s);
   const pause = evs.find((x) => x.o.ev.bot && /bot paused/.test(x.o.ev.title) && x.s <= nowMin && nowMin < x.e);
@@ -2319,6 +2358,66 @@ $('#main').addEventListener('click', (e) => {
   if (e.target.closest('[data-newsmore]')) { newsMore = !newsMore; renderMain(); }
 });
 
+// ---- collapsible sidebar sections (phone) ----
+{
+  const KEYC = 'planner.fold';
+  let saved = null; try { saved = JSON.parse(localStorage.getItem(KEYC)); } catch (e) { /* first run */ }
+  const fold = Array.isArray(saved) ? new Set(saved) : new Set(['layers', 'catsCard', 'settings']);
+  document.querySelectorAll('.side > .card').forEach((c, i) => {
+    if (!c.id && c.querySelector('#cats')) c.id = 'catsCard';
+    if (!['trade', 'layers', 'settings', 'catsCard'].includes(c.id)) return;
+    c.classList.add('fold'); if (fold.has(c.id)) c.classList.add('collapsed');
+  });
+  $('.side').addEventListener('click', (e) => {
+    const h = e.target.closest('.card.fold > .sec-h h2'); if (!h || e.target.closest('button')) return;
+    if (!matchMedia('(max-width:960px)').matches) return;
+    const c = h.closest('.card'); c.classList.toggle('collapsed');
+    const now = [...document.querySelectorAll('.side > .card.fold.collapsed')].map((x) => x.id);
+    try { localStorage.setItem(KEYC, JSON.stringify(now)); } catch (err) { /* convenience only */ }
+  });
+}
+
+// ---- Today: the phone's home screen ----
+function renderToday() {
+  const today = todayKey(), n = new Date(), nowMin = n.getHours() * 60 + n.getMinutes(), d = parse(today);
+  const evs = eventsOn(today).filter((o) => !(o.ev.bot && !/bot paused/.test(o.ev.title)) || (o.ev.bot && o.ev.layer === 'high'));
+  const own = evs.filter((o) => !o.ev.bot), pauses = evs.filter((o) => o.ev.bot);
+  const evRow = (o) => { const e = o.ev, s = e.allDay ? -1 : toMin(e.start), en = e.allDay ? 1440 : toMin(e.end || fromMin(Math.min(s + 60, 1439))), cur = !e.allDay && s <= nowMin && nowMin < en, past = !e.allDay && en <= nowMin;
+    return `<button class="td-ev${cur ? ' cur' : ''}${past ? ' past' : ''}" style="${cvars(colorOf(e))}" data-ev="${e.id}" data-occ="${o.occ}"><span class="tm">${e.allDay ? 'All day' : fmtTime(e.start)}</span><span class="tt">${esc(e.title)}${e.bot ? ` <span class="by">${esc(e.bot)}</span>` : ''}</span></button>`; };
+  const tr = nqBot && nqBot.trade, nw = nqBot && nqBot.news;
+  const ups = nw ? nw.events.map((e) => { const l = etToLocal(e.date, e.time); return { ...e, ms: Date.parse(`${l.date}T${l.hm}:00`), lt: l.hm }; }).filter((e) => e.ms > Date.now() && e.ms < Date.now() + 36 * 3600e3 && e.impact !== 'low').sort((a, b) => a.ms - b.ms).slice(0, 4) : [];
+  const tks = S.tasks.filter((t) => !t.done && t.date && t.date <= today).sort((a, b) => (a.date.localeCompare(b.date)) || ((b.p || 0) - (a.p || 0)));
+  const doneToday = S.tasks.filter((t) => t.done && t.date === today).length;
+  const habs = S.habits.filter((h) => hDue(h, today));
+  const goals = S.goals.slice().sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999')).slice(0, 2);
+  const j = jrnOf(today), planned = S.planned === today;
+  const risk = (typeof riskAlerts === 'function') ? riskAlerts() : [];
+  return `<div class="tdy">
+    <div class="td-h"><div><h2>${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}</h2><div class="sub">${own.length} event${own.length === 1 ? '' : 's'}, ${tks.length} task${tks.length === 1 ? '' : 's'} to do${doneToday ? `, ${doneToday} done` : ''}</div></div><button class="btn sm ${planned ? '' : 'primary'}" data-tplan>${planned ? 'Re-plan' : 'Plan day'}</button></div>
+    ${risk.length ? `<div class="nw-warn" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">${risk.map((r) => esc(r.text || r)).join(' · ')}</div>` : ''}
+    <section class="td-card"><h3>Schedule<button data-tgo="day">Day view</button></h3>${own.length ? own.map(evRow).join('') : '<div class="empty-s">Nothing scheduled. Tap Plan day to block time for your tasks.</div>'}${pauses.length ? `<div class="hint" style="margin-top:4px">Bot pauses: ${pauses.filter((o) => /bot paused/.test(o.ev.title)).map((o) => `${fmtTime(o.ev.start)} to ${fmtTime(o.ev.end)}`).join(', ') || 'none today'}</div>` : ''}</section>
+    ${ups.length ? `<section class="td-card"><h3>Market news next<button data-tgo="news">All news</button></h3>${ups.map((e) => { const m = Math.round((e.ms - Date.now()) / 60000); return `<div class="nw-row ${e.impact === 'high' ? 'high' : 'med'}" style="grid-template-columns:62px 10px minmax(0,1fr) auto"><span class="nw-t">${fmtTime(e.lt)}</span><span class="nw-i"></span><div class="nw-b"><b>${esc(e.title)}</b>${e.fc || e.prev ? `<small>${e.fc ? 'Forecast ' + esc(e.fc) : ''}${e.fc && e.prev ? ' · ' : ''}${e.prev ? 'Previous ' + esc(e.prev) : ''}</small>` : ''}</div><span class="nw-c">${m < 90 ? `in ${Math.max(m, 1)} min` : `in ${fmtDur(m)}`}</span></div>`; }).join('')}</section>` : ''}
+    <section class="td-card"><h3>Tasks<button data-tgo="projects">All tasks</button></h3>${tks.length ? `<ul class="tasks">${tks.slice(0, 10).map((t) => taskLi(t, { overdue: t.date < today })).join('')}</ul>${tks.length > 10 ? `<div class="sub">+${tks.length - 10} more</div>` : ''}` : '<div class="empty-s">Nothing due. Add one below.</div>'}
+      <form class="add-t" data-tadd><span>+</span><input placeholder="Quick add: call Sam fri 3pm #nq" aria-label="Add a task" autocomplete="off"></form></section>
+    ${habs.length ? `<section class="td-card"><h3>Habits<button data-tgo="habits">All habits</button></h3>${habs.map((h) => { const st = habitStats(h), on = hDone(h, today); return `<div class="td-hab" style="--c:${esc(h.color || '#2563eb')}" data-thab="${esc(h.id)}"><button aria-pressed="${on}" aria-label="${on ? 'Undo' : 'Check in'} ${esc(h.name)}">${on ? ICON_CHECK : ''}</button><span>${esc(h.name)} <small>${st.cur} day streak</small></span></div>`; }).join('')}</section>` : ''}
+    ${tr ? `<section class="td-card"><h3>Trading<button data-tgo="news">Market</button></h3>${(tr.accounts || []).map((a) => `<div class="td-acct"><span><b>${esc(a.strategy === 'LIT' ? 'Zlarior' : a.strategy || a.name)}</b> ${esc(String(a.name || '').replace('MFFU ', ''))}</span><span>${usd(a.profit)} of ${usd(a.target)} · ${a.sessions_left != null ? a.sessions_left + ' sessions left' : ''}</span></div>`).join('')}${tr.month ? `<div class="td-acct" style="color:var(--mute)"><span>${MONTHS[+tr.month.month.slice(5) - 1]} so far</span><span><b style="color:var(--ink)">${usd(tr.month.usd)}</b> · ${tr.month.trades} trade${tr.month.trades === 1 ? '' : 's'}</span></div>` : ''}</section>` : ''}
+    ${goals.length ? `<section class="td-card"><h3>Goals<button data-tgo="projects">All goals</button></h3>${goals.map((g) => { const v = goalValue(g), t = +g.target || 0, pct = t > 0 ? Math.max(0, Math.min(100, v / t * 100)) : 0; return `<div><div class="td-acct"><span><b>${esc(g.title)}</b></span><span>${gnum(g, v)} of ${gnum(g, t)}</span></div><div class="bar2" style="margin-top:5px"><i style="width:${pct}%;background:var(--ok)"></i></div></div>`; }).join('')}</section>` : ''}
+    <section class="td-card"><h3>Journal</h3><div class="sub">${j && (j.note || j.rules) ? 'Written today. Open the Day view to edit it.' : 'Not written yet. End the day by noting what you did and whether you followed your rules.'}</div><div><button class="btn sm" data-tgo="day">Open journal</button></div></section>
+  </div>`;
+}
+$('#main').addEventListener('click', (e) => {
+  if (S.view !== 'today') return;
+  const g = e.target.closest('[data-tgo]');
+  if (g) { const v = g.dataset.tgo; if (v === 'day') { selected = cursor = todayKey(); } setView(v); return; }
+  if (e.target.closest('[data-tplan]')) { selected = todayKey(); openPlan(); return; }
+  const hb = e.target.closest('[data-thab] button'); if (hb) { toggleHabit(hb.closest('[data-thab]').dataset.thab, todayKey()); return; }
+});
+$('#main').addEventListener('submit', (e) => {
+  const f = e.target.closest('[data-tadd]'); if (!f) return; e.preventDefault();
+  const i = f.querySelector('input'), v = i.value.trim(); if (!v) return;
+  addTask(v, todayKey(), ''); const again = document.querySelector('#main [data-tadd] input'); if (again) again.focus();
+});
+
 // ---- trading card ----
 function renderTrade() {
   const box = $('#trade'), tr = nqBot && nqBot.trade;
@@ -2379,12 +2478,20 @@ function goalsMoneyHtml() {
   const ms = S.money.slice().sort((a, b) => b.date.localeCompare(a.date) || (b.created || 0) - (a.created || 0));
   const inM = ms.filter((m) => m.date.slice(0, 7) === mon), sum = (l, k) => l.filter((m) => m.kind === k).reduce((n, m) => n + (+m.amt || 0), 0);
   const mi = sum(inM, 'in'), mo = sum(inM, 'out'), net = mi - mo, all = ms.reduce((n, m) => n + mAmt(m), 0);
+  const trend = (() => {
+    if (!ms.length) return '';
+    const mons = Array.from({ length: 6 }, (_, i) => { const d = parse(mon + '-01'); d.setMonth(d.getMonth() - (5 - i)); return key(d).slice(0, 7); });
+    const nets = mons.map((m) => ms.filter((x) => x.date.slice(0, 7) === m).reduce((n, x) => n + mAmt(x), 0)), mx = Math.max(1, ...nets.map(Math.abs));
+    const short = (n) => (n < 0 ? '-' : '') + '$' + (Math.abs(n) >= 1000 ? (Math.abs(n) / 1000).toFixed(1).replace('.0', '') + 'k' : Math.round(Math.abs(n)));
+    return `<div class="mch" aria-label="Net money by month">${mons.map((m, i) => `<div><small class="v ${nets[i] < 0 ? 'neg' : nets[i] > 0 ? 'pos' : ''}">${nets[i] ? short(nets[i]) : '-'}</small><div class="pl"><div class="up">${nets[i] > 0 ? `<i style="height:${Math.max(6, nets[i] / mx * 100)}%"></i>` : ''}</div><div class="dn">${nets[i] < 0 ? `<i style="height:${Math.max(6, -nets[i] / mx * 100)}%"></i>` : ''}</div></div><small>${MONTHS[+m.slice(5) - 1].slice(0, 3)}</small></div>`).join('')}</div>`;
+  })();
   const show = moneyOpen.has('all') ? ms : ms.slice(0, 6);
   const rows = show.map((m) => `<button type="button" class="m-row" data-medit="${m.id}"><span class="d">${esc(dueLabel(m.date))}</span><span class="n">${esc(m.note || (m.kind === 'out' ? 'Expense' : 'Income'))} ${ptag(m.proj)}</span><span class="a ${m.kind === 'out' ? 'neg' : 'pos'}">${m.kind === 'out' ? '-' : '+'}${usdc(+m.amt || 0).replace('-', '')}</span></button>`).join('');
   return `<div class="gm">
     <section class="card"><div class="sec-h"><h2>Goals</h2><button class="btn sm" data-gnew>+ Goal</button></div>${goals || '<div class="empty-s">Set a target you want to hit, like "First $1,000 payout" or "Pass the 50K eval". Tap a goal to update it.</div>'}</section>
     <section class="card"><div class="sec-h"><h2>Money</h2><div style="display:flex;gap:6px">${ms.length ? '<button class="btn sm" data-mcsv>Export CSV</button>' : ''}<button class="btn sm" data-mnew>+ Entry</button></div></div>
       <div class="m-sum"><div><b class="pos">${usdc(mi)}</b><span>in, ${MONTHS[+mon.slice(5) - 1].slice(0, 3)}</span></div><div><b class="neg">${usdc(mo)}</b><span>out, ${MONTHS[+mon.slice(5) - 1].slice(0, 3)}</span></div><div><b class="${net < 0 ? 'neg' : 'pos'}">${usdc(net)}</b><span>net this month</span></div></div>
+      ${trend}
       ${ms.length ? `<div class="m-list">${rows}</div>${ms.length > 6 ? `<button class="link" data-mmore style="align-self:flex-start">${moneyOpen.has('all') ? 'Show fewer' : `Show all ${ms.length}`}</button>` : ''}<div class="sub">All time: <b class="${all < 0 ? 'neg' : 'pos'}">${usdc(all)}</b></div>` : '<div class="empty-s">Log payouts, eval fees, software and sponsor money here to see your real profit.</div>'}
     </section></div>`;
 }
@@ -2476,13 +2583,18 @@ function toICS() {
   const fold = (l) => { const out = []; while (l.length > 74) { out.push(l.slice(0, 74)); l = ' ' + l.slice(74); } out.push(l); return out.join('\r\n'); };
   const RR = { daily: 'FREQ=DAILY', weekdays: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR', weekly: 'FREQ=WEEKLY', biweekly: 'FREQ=WEEKLY;INTERVAL=2', monthly: 'FREQ=MONTHLY', yearly: 'FREQ=YEARLY' };
   const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Planner//EN', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Planner'];
+  // Alerts: 10 minutes before your own timed events, 15 before high-impact news, 9am on the day for all-day deadlines.
+  const alarm = (trig, text) => ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${ie(text)}`, trig, 'END:VALARM'];
   for (const e of allEvents()) {
+    if (e.layer && S.layersOff.includes(e.layer)) continue;
     L.push('BEGIN:VEVENT', `UID:${e.id}@planner`, `DTSTAMP:${stamp}`, `SUMMARY:${ie(e.title)}`, `CATEGORIES:${ie(cat(e.cat).name)}`);
     if (e.allDay) L.push(`DTSTART;VALUE=DATE:${dt(e.date)}`, `DTEND;VALUE=DATE:${dt(addDays(e.endDate || e.date, 1))}`);
     else L.push(`DTSTART:${dt(e.date)}T${tm(e.start)}`, `DTEND:${dt(e.date)}T${tm(e.end)}`);
     if (RR[e.repeat]) L.push(`RRULE:${RR[e.repeat]}${e.until ? ';UNTIL=' + dt(e.until) + (e.allDay ? '' : 'T235959') : ''}`);
     (e.ex || []).forEach((x) => L.push(e.allDay ? `EXDATE;VALUE=DATE:${dt(x)}` : `EXDATE:${dt(x)}T${tm(e.start)}`));
     if (e.notes) L.push(`DESCRIPTION:${ie(e.notes)}`);
+    if (!e.allDay) L.push(...alarm(e.layer === 'high' ? 'TRIGGER:-PT15M' : e.layer ? 'TRIGGER:-PT5M' : 'TRIGGER:-PT10M', e.title));
+    else if (!e.bot && !e.milestone) L.push(...alarm('TRIGGER:PT9H', e.title));
     L.push('END:VEVENT');
   }
   L.push('END:VCALENDAR');
@@ -2501,8 +2613,8 @@ function toast(msg, canUndo) {
 
 // ===== EXTRAS SHARED BEGIN (hooks used by habits, review, journal, templates, focus, smart lists) =====
 const KEEP_SCROLL = ['projects', 'habits', 'review', 'news'];
-const EXTRA_TITLES = { habits: 'Habits', review: 'Weekly review', news: 'Market news' };
-const NO_NAV = ['projects', 'habits', 'review', 'news'];
+const EXTRA_TITLES = { habits: 'Habits', review: 'Weekly review', news: 'Market news', today: 'Today' };
+const NO_NAV = ['projects', 'habits', 'review', 'news', 'today'];
 const ICON_CHECK = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>';
 const ICON_PENCIL = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg>';
 const ICON_CHEV = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
@@ -3240,7 +3352,7 @@ $('#exportBtn').onclick = async () => { if (await download(`planner-backup-${tod
 $('#icsBtn').hidden = HOSTED; // claude.ai saves only common file types; .ics is not one of them
 $('#icsBtn').onclick = async () => {
   if (!allEvents().length) { toast('No events to export yet'); return; }
-  if (await download(`planner-${todayKey()}.ics`, toICS(), 'text/calendar')) toast('Calendar file downloaded');
+  if (await download(`planner-${todayKey()}.ics`, toICS(), 'text/calendar')) toast('Open the file and tap Add All to get alerts in the Calendar app');
 };
 $('#importBtn').onclick = () => $('#importFile').click();
 $('#importFile').onchange = async (e) => {

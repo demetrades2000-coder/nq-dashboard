@@ -1,6 +1,6 @@
 // Planner offline shell: the page and icons come from the network when online and from this cache when not.
 // Calendar data never passes through here (it lives in localStorage and syncs with api.github.com, a cross-origin call).
-const CACHE = 'planner-v7';
+const CACHE = 'planner-v8';
 const SHELL = ['./', './index.html', './site.webmanifest', './icon.svg', './icon-192.png', './apple-touch-icon.png'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).catch(() => null)); self.skipWaiting(); });
 self.addEventListener('activate', (e) => {

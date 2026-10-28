@@ -159,6 +159,7 @@ const st = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('planne
       ok(await noH(page), 'alerts: no horizontal scroll');
       await page.screenshot({ path: `${SHOTS}/alerts-${size}.png`, fullPage: false });
       if (size === 'phone') {
+        await page.click('#views [data-v=month]'); await page.waitForTimeout(300); // the Today screen shows alerts in its own banner
         const nb = await page.textContent('#nowbar');
         ok(/of room left above the loss floor/.test(nb) && /more\)/.test(nb), 'Now bar carries the top alert and a count: ' + nb.replace(/\s+/g, ' ').slice(0, 140));
       }

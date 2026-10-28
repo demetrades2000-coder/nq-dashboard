@@ -631,6 +631,10 @@ body.focusing .toast{bottom:76px}
   .search{width:150px}
   .seg button{padding:0 10px}
 }
+@media(max-width:1600px){
+  .seg button{padding:0 7px}
+  .search{width:130px}
+}
 @media(max-width:1400px){
   .seg .xtra{display:none}
   #moreBtn{display:inline-block}
@@ -4377,7 +4381,7 @@ setInterval(() => {
 }, 30000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync) syncNow(); });
 addEventListener('online', () => { if (sync) syncNow(); });
-const APP_VERSION = '2026-10-28.6';
+const APP_VERSION = '2026-10-28.7';
 if ($('#verNote')) $('#verNote').textContent = 'Planner ' + APP_VERSION;
 if (!HOSTED && 'serviceWorker' in navigator && window.isSecureContext && location.protocol.startsWith('http')) {
   const hadController = !!navigator.serviceWorker.controller;

@@ -354,6 +354,58 @@ body.offline .brand::after{content:"Offline";font-size:11px;font-weight:600;colo
 .pw-day>b span{font-weight:400;color:var(--mute)}
 .pw-day label{display:flex;gap:8px;align-items:flex-start;padding:4px 0;font-size:13.5px;cursor:pointer}
 .pw-day label input{width:16px;height:16px;margin-top:2px;flex:none;accent-color:var(--ink);padding:0}
+.hx{max-width:900px;margin:0 auto;padding:18px 20px 70px;display:flex;flex-direction:column;gap:14px}
+.hx-tabs{max-width:420px}
+.hx-card{border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;background:#fff}
+.hx-card>h3{font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.hx-card>h3 small{font-weight:400;color:var(--mute);font-size:12px}
+.hx-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:14px;align-items:start}
+.hx-date{display:flex;align-items:center;justify-content:center;gap:14px}
+.hx-date b{font-size:15px;min-width:150px;text-align:center}
+.hx-date button{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);font-size:18px}
+.hx-date button:disabled{opacity:.35}
+.hx-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.hx-row>span.l{font-size:13px;color:var(--ink2);font-weight:500}
+.hx-step{display:flex;align-items:center;gap:10px}
+.hx-step button{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);font-size:20px;line-height:1;background:#fff}
+.hx-step button:hover{background:var(--soft)}
+.hx-step output{min-width:64px;text-align:center;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+.hxc{display:flex;gap:6px;flex-wrap:wrap}
+.hxc button{min-height:36px;min-width:42px;padding:0 12px;border-radius:20px;border:1px solid var(--line);font-size:13px;font-weight:500;background:#fff;color:var(--ink2)}
+.hxc button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+.hx-dots{display:flex;gap:6px;flex-wrap:wrap}
+.hx-dots i{width:22px;height:22px;border-radius:50%;border:2px solid #93c5fd;display:block}
+.hx-dots i.on{background:#3b82f6;border-color:#3b82f6}
+.hx-hint{font-size:12px;color:var(--mute);line-height:1.45}
+.hx-hint b{color:var(--ink)}
+.hx-in{display:flex;gap:10px}
+.hx-in .fld{flex:1}
+.hx-plan{display:grid;grid-template-columns:48px 1fr;gap:6px 10px;align-items:center}
+.hx-plan select{height:38px;border:1px solid var(--line);border-radius:8px;padding:0 8px;background:#fff}
+.hx-wk{display:flex;gap:10px;align-items:baseline;width:100%;text-align:left;padding:10px 4px;border-top:1px solid var(--line2);border-radius:6px}
+.hx-wk:hover{background:var(--soft)}
+.hx-wk .d{font-size:12px;color:var(--mute);width:56px;flex:none}
+.hx-wk .n{flex:1;min-width:0;font-size:13.5px;overflow-wrap:anywhere}
+.hx-wk .n small{display:block;color:var(--mute);font-size:12px}
+.hx-wk .a{font-size:12.5px;color:var(--ink2);white-space:nowrap}
+.hx-ex{border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.hx-ex .top{display:flex;gap:8px}
+.hx-ex .top input{flex:1;min-width:0;height:38px;border:1px solid var(--line);border-radius:8px;padding:0 10px}
+.hx-ex .set{display:grid;grid-template-columns:22px 1fr 1fr 32px;gap:6px;align-items:center}
+.hx-ex .set span{font-size:12px;color:var(--mute);text-align:center}
+.hx-ex .set input{height:36px;border:1px solid var(--line);border-radius:8px;padding:0 8px;width:100%;min-width:0}
+.hx-ex .last{font-size:11.5px;color:var(--mute)}
+.hx-ex button.x{color:var(--faint);padding:4px 8px;border-radius:6px}
+.hx-bars{display:grid;gap:4px;align-items:end}
+.hx-bars>div{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
+.hx-bars .pl{height:70px;width:100%;position:relative;display:flex;align-items:flex-end}
+.hx-bars .pl i{display:block;width:70%;margin:0 auto;border-radius:3px 3px 0 0;background:#6366f1}
+.hx-bars .pl .ln{position:absolute;left:0;right:0;border-top:1.5px dashed #9ca3af;pointer-events:none}
+.hx-bars small{font-size:10px;color:var(--mute);white-space:nowrap}
+.hx-ins{display:flex;flex-direction:column;gap:8px}
+.hx-ins div{font-size:13px;line-height:1.45;padding:8px 10px;border-radius:8px;background:var(--soft)}
+.hx-ins div.dim{color:var(--mute);background:transparent;border:1px dashed var(--line)}
+@media (max-width:640px){.hx{padding:14px 16px 60px}}
 .keys{font-size:11.5px;color:var(--faint);line-height:1.7}
 kbd{font:500 10.5px var(--font);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;color:var(--mute);background:#fff}
 
@@ -689,7 +741,7 @@ body.focusing .toast{bottom:76px}
   <div class="right">
     <label class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search" aria-label="Search events" autocomplete="off"></label>
     <div class="seg" id="views" role="group" aria-label="View">
-      <button data-v="today" title="Today screen">Today</button><button data-v="month" title="Month (M)">Month</button><button data-v="week" title="Week (W)">Week</button><button data-v="day" title="Day (D)">Day</button><button data-v="agenda" title="Agenda (A)">Agenda</button><button data-v="projects" class="xtra" title="Projects (P)">Projects</button><button data-v="habits" class="xtra" title="Habits (H)">Habits</button><button data-v="review" class="xtra" title="Review (R)">Review</button><button data-v="news" class="xtra" title="Market news">News</button><button id="moreBtn" aria-haspopup="true" aria-expanded="false" title="Projects, Habits, Review">More</button>
+      <button data-v="today" title="Today screen">Today</button><button data-v="month" title="Month (M)">Month</button><button data-v="week" title="Week (W)">Week</button><button data-v="day" title="Day (D)">Day</button><button data-v="agenda" title="Agenda (A)">Agenda</button><button data-v="projects" class="xtra" title="Projects (P)">Projects</button><button data-v="habits" class="xtra" title="Habits (H)">Habits</button><button data-v="health" class="xtra" title="Health and fitness">Health</button><button data-v="review" class="xtra" title="Review (R)">Review</button><button data-v="news" class="xtra" title="Market news">News</button><button id="moreBtn" aria-haspopup="true" aria-expanded="false" title="Projects, Habits, Review">More</button>
     </div>
     <button class="btn primary" id="newBtn" title="New event (N)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="newlabel">New event</span></button>
   </div>
@@ -912,9 +964,24 @@ body.focusing .toast{bottom:76px}
   </div>
 </dialog>
 
-<div class="menu" id="moreMenu" hidden><button data-v="projects">Projects</button><button data-v="habits">Habits</button><button data-v="review">Review</button><button data-v="news">News</button></div>
+<div class="menu" id="moreMenu" hidden><button data-v="projects">Projects</button><button data-v="habits">Habits</button><button data-v="health">Health</button><button data-v="review">Review</button><button data-v="news">News</button></div>
 <div class="fbar" id="focusBar" role="status" hidden></div>
 <!-- ===== EXTRAS DIALOGS END ===== -->
+
+<dialog id="wkDlg" aria-labelledby="wkTitle">
+  <form class="dlg" id="wkForm" novalidate>
+    <div class="dlg-h"><h3 id="wkTitle">Log workout</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="frow"><div class="fld"><label for="wkType">Type</label><select id="wkType"></select></div><div class="fld"><label for="wkDate">Date</label><input type="date" id="wkDate"></div></div>
+    <div class="frow"><div class="fld"><label for="wkMins">Minutes</label><input id="wkMins" inputmode="numeric" autocomplete="off" placeholder="45"></div><div class="fld"><label for="wkRpe">Effort</label><select id="wkRpe"><option value="0">Not rated</option><option value="3">3 Easy</option><option value="5">5 Moderate</option><option value="7">7 Hard</option><option value="9">9 Very hard</option><option value="10">10 All out</option></select></div></div>
+    <div class="fld" id="wkTplWrap"><label for="wkTpl">Start from a template</label><select id="wkTpl"></select></div>
+    <div id="wkEx"></div>
+    <div id="wkExAdd"><button type="button" class="btn sm" id="wkAddEx">+ Exercise</button></div>
+    <div class="fld"><label for="wkNotes">Notes</label><textarea id="wkNotes" rows="2" placeholder="How it felt, what to change next time"></textarea></div>
+    <div class="frow" id="wkSaveRow"><label class="check"><input type="checkbox" id="wkSaveTpl"> Save the exercises as a template</label><div class="fld"><input id="wkTplName" maxlength="40" placeholder="Template name" autocomplete="off" aria-label="Template name"></div></div>
+    <div class="err" id="wkErr" hidden></div>
+    <div class="dlg-f"><div><button type="button" class="btn danger" id="wkDelete">Delete</button></div><div><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Save</button></div></div>
+  </form>
+</dialog>
 
 <div class="updbar" id="updBar" hidden><span>A new version is ready.</span><button id="updGo">Reload</button></div>
 
@@ -926,7 +993,7 @@ body.focusing .toast{bottom:76px}
 // HOSTED: running as a claude.ai page; data lives in the page's database (synced to the owner's Claude account).
 const HOSTED = !!window.PLANNER_HOSTED;
 const KEY = HOSTED ? 'planner.hosted.v1' : 'planner.v1';
-const VIEWS = ['today', 'month', 'week', 'day', 'agenda', 'projects', 'habits', 'review', 'news'];
+const VIEWS = ['today', 'month', 'week', 'day', 'agenda', 'projects', 'habits', 'health', 'review', 'news'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const DEFAULT_CATS = [
@@ -988,6 +1055,9 @@ function normalize(s) {
     categories: cats,
     events: Array.isArray(s.events) ? s.events.filter((e) => e && e.id && e.date) : [],
     tasks: Array.isArray(s.tasks) ? s.tasks.filter((t) => t && t.id) : [],
+    health: Array.isArray(s.health) ? s.health.filter((x) => x && x.id) : [],
+    workouts: Array.isArray(s.workouts) ? s.workouts.filter((x) => x && x.id) : [],
+    wtemplates: Array.isArray(s.wtemplates) ? s.wtemplates.filter((x) => x && x.id) : [],
     goals: Array.isArray(s.goals) ? s.goals.filter((x) => x && x.id) : [],
     money: Array.isArray(s.money) ? s.money.filter((x) => x && x.id) : [],
     planned: typeof s.planned === 'string' ? s.planned : '',
@@ -1030,7 +1100,7 @@ function undo() {
 // anything with a newer tombstone in `deleted`, so phone and computer can edit at the same time.
 const SYNC_KEY = 'planner.sync', BOTS_KEY = 'planner.bots', API = 'https://api.github.com';
 const DEFAULT_REPO = 'demetrades2000-coder/planner-data';
-const SYNCED = ['categories', 'events', 'tasks', 'dismissed', 'projects', 'goals', 'money', 'habits', 'journal', 'reviews', 'templates'];
+const SYNCED = ['categories', 'events', 'tasks', 'dismissed', 'projects', 'goals', 'money', 'habits', 'journal', 'reviews', 'templates', 'health', 'workouts', 'wtemplates'];
 const REPEATS = ['none', 'daily', 'weekdays', 'weekly', 'biweekly', 'monthly', 'yearly'];
 const HM = /^([01]\d|2[0-3]):[0-5]\d$/, YMD = /^\d{4}-\d{2}-\d{2}$/;
 const UA = navigator.userAgent;
@@ -1163,7 +1233,7 @@ async function startDb() {
     arrived('bots', snap);
   }, fail);
 }
-const userDoc = () => ({ v: 2, categories: S.categories, events: S.events, tasks: S.tasks, projects: S.projects, goals: S.goals, money: S.money, dismissed: S.dismissed, habits: S.habits, journal: S.journal, reviews: S.reviews, templates: S.templates, deleted: S.deleted, settings: { weekStart: S.weekStart, u: S.settingsU || 0 } });
+const userDoc = () => ({ v: 2, categories: S.categories, events: S.events, tasks: S.tasks, projects: S.projects, goals: S.goals, money: S.money, dismissed: S.dismissed, habits: S.habits, journal: S.journal, reviews: S.reviews, templates: S.templates, health: S.health, workouts: S.workouts, wtemplates: S.wtemplates, deleted: S.deleted, settings: { weekStart: S.weekStart, u: S.settingsU || 0 } });
 function mergeDocs(a, b) {
   const deleted = { ...(a.deleted || {}) };
   for (const [id, t] of Object.entries(b.deleted || {})) if (!(deleted[id] >= t)) deleted[id] = t;
@@ -1176,7 +1246,7 @@ function mergeDocs(a, b) {
   };
   const sa = a.settings || { u: 0 }, sb = b.settings || { u: 0 };
   const cats = ml(a.categories, b.categories);
-  return { v: 2, categories: cats.length ? cats : (b.categories || []), events: ml(a.events, b.events), tasks: ml(a.tasks, b.tasks), projects: ml(a.projects, b.projects), goals: ml(a.goals, b.goals), money: ml(a.money, b.money), dismissed: ml(a.dismissed, b.dismissed), habits: ml(a.habits, b.habits), journal: ml(a.journal, b.journal), reviews: ml(a.reviews, b.reviews), templates: ml(a.templates, b.templates), deleted, settings: (sb.u || 0) > (sa.u || 0) ? sb : sa };
+  return { v: 2, categories: cats.length ? cats : (b.categories || []), events: ml(a.events, b.events), tasks: ml(a.tasks, b.tasks), projects: ml(a.projects, b.projects), goals: ml(a.goals, b.goals), money: ml(a.money, b.money), dismissed: ml(a.dismissed, b.dismissed), habits: ml(a.habits, b.habits), journal: ml(a.journal, b.journal), reviews: ml(a.reviews, b.reviews), templates: ml(a.templates, b.templates), health: ml(a.health, b.health), workouts: ml(a.workouts, b.workouts), wtemplates: ml(a.wtemplates, b.wtemplates), deleted, settings: (sb.u || 0) > (sa.u || 0) ? sb : sa };
 }
 function applyDoc(d) {
   if (Array.isArray(d.categories) && d.categories.length) S.categories = d.categories;
@@ -1184,7 +1254,7 @@ function applyDoc(d) {
   if (Array.isArray(d.projects)) S.projects = d.projects;
   if (Array.isArray(d.goals)) S.goals = d.goals;
   if (Array.isArray(d.money)) S.money = d.money;
-  ['habits', 'journal', 'reviews', 'templates'].forEach((k) => { if (Array.isArray(d[k])) S[k] = d[k]; });
+  ['habits', 'journal', 'reviews', 'templates', 'health', 'workouts', 'wtemplates'].forEach((k) => { if (Array.isArray(d[k])) S[k] = d[k]; });
   if (d.settings && d.settings.weekStart != null && (d.settings.u || 0) >= (S.settingsU || 0)) { S.weekStart = d.settings.weekStart === 1 ? 1 : 0; S.settingsU = d.settings.u || 0; }
   S.hidden = S.hidden.filter((h) => S.categories.some((c) => c.id === h));
   save();
@@ -1755,6 +1825,7 @@ function renderMain() {
   else if (S.view === 'habits') main.innerHTML = renderHabits();
   else if (S.view === 'news') main.innerHTML = renderNews();
   else if (S.view === 'today') main.innerHTML = renderToday();
+  else if (S.view === 'health') main.innerHTML = renderHealth();
   else if (S.view === 'review') main.innerHTML = renderReview();
   else main.innerHTML = renderAgenda();
   if ((S.view === 'week' || S.view === 'day') && !query) {
@@ -2484,6 +2555,7 @@ function renderToday() {
     ${ups.length ? `<section class="td-card"><h3>Market news next<button data-tgo="news">All news</button></h3>${ups.map((e) => { const m = Math.round((e.ms - Date.now()) / 60000); return `<div class="nw-row ${e.impact === 'high' ? 'high' : 'med'}" style="grid-template-columns:62px 10px minmax(0,1fr) auto"><span class="nw-t">${fmtTime(e.lt)}</span><span class="nw-i"></span><div class="nw-b"><b>${esc(e.title)}</b>${e.fc || e.prev ? `<small>${e.fc ? 'Forecast ' + esc(e.fc) : ''}${e.fc && e.prev ? ' · ' : ''}${e.prev ? 'Previous ' + esc(e.prev) : ''}</small>` : ''}</div><span class="nw-c">${m < 90 ? `in ${Math.max(m, 1)} min` : `in ${fmtDur(m)}`}</span></div>`; }).join('')}</section>` : ''}
     <section class="td-card"><h3>Tasks<button data-tgo="projects">All tasks</button></h3>${tks.length ? `<ul class="tasks">${tks.slice(0, 10).map((t) => taskLi(t, { overdue: t.date < today })).join('')}</ul>${tks.length > 10 ? `<div class="sub">+${tks.length - 10} more</div>` : ''}` : '<div class="empty-s">Nothing due. Add one below.</div>'}
       <form class="add-t" data-tadd><span>+</span><input placeholder="Quick add: call Sam fri 3pm #nq" aria-label="Add a task" autocomplete="off"></form></section>
+    ${hxTodayCard()}
     ${habs.length ? `<section class="td-card"><h3>Habits<button data-tgo="habits">All habits</button></h3>${habs.map((h) => { const st = habitStats(h), on = hDone(h, today); return `<div class="td-hab" style="--c:${esc(h.color || '#2563eb')}" data-thab="${esc(h.id)}"><button aria-pressed="${on}" aria-label="${on ? 'Undo' : 'Check in'} ${esc(h.name)}">${on ? ICON_CHECK : ''}</button><span>${esc(h.name)} <small>${st.cur} day streak</small></span></div>`; }).join('')}</section>` : ''}
     ${tr ? `<section class="td-card"><h3>Trading<span style="display:flex;gap:10px;align-items:baseline"><span class="${staleCls}">${staleTxt}</span><button data-refresh>Refresh</button></span></h3>${(tr.accounts || []).map((a) => `<div class="td-acct"><span><b>${esc(a.strategy === 'LIT' ? 'Zlarior' : a.strategy || a.name)}</b> ${esc(String(a.name || '').replace('MFFU ', ''))}</span><span>${usd(a.profit)} of ${usd(a.target)} · ${a.sessions_left != null ? a.sessions_left + ' sessions left' : ''}</span></div>`).join('')}${tr.month ? `<div class="td-acct" style="color:var(--mute)"><span>${MONTHS[+tr.month.month.slice(5) - 1]} so far</span><span><b style="color:var(--ink)">${usd(tr.month.usd)}</b> · ${tr.month.trades} trade${tr.month.trades === 1 ? '' : 's'}</span></div>` : ''}</section>` : ''}
     ${goals.length ? `<section class="td-card"><h3>Goals<button data-tgo="projects">All goals</button></h3>${goals.map((g) => { const v = goalValue(g), t = +g.target || 0, pct = t > 0 ? Math.max(0, Math.min(100, v / t * 100)) : 0; return `<div><div class="td-acct"><span><b>${esc(g.title)}</b></span><span>${gnum(g, v)} of ${gnum(g, t)}</span></div><div class="bar2" style="margin-top:5px"><i style="width:${pct}%;background:var(--ok)"></i></div></div>`; }).join('')}</section>` : ''}
@@ -2534,6 +2606,8 @@ function route() {
   const views = ['month', 'week', 'day', 'agenda', 'projects'];
   if (h === 'today') goToday();
   else if (h === 'plan') { goToday(); openPlan(); }
+  else if (h === 'health') { goToday(); setView('health'); }
+  else if (h === 'log-workout') { goToday(); openWorkout(null, todayKey()); }
   else if (h === 'plan-week') { goToday(); openPlanWeek(); }
   else if (h === 'new-event') { goToday(); newEvent(todayKey()); }
   else if (h === 'new-task') { goToday(); setTimeout(() => $('#taskIn').focus(), 60); }
@@ -2641,6 +2715,296 @@ $('#main').addEventListener('click', (e) => {
 });
 // ===== LEAD2 END =====
 
+
+// ===== HEALTH BEGIN: check-in, workouts, trends, sleep planner =====
+const HX_TYPES = ['Lift', 'Run', 'Walk', 'Mobility', 'Sport', 'Other'];
+const HX_CFG = { unit: 'lb', waterGoal: 8, sleepNeed: 7.5, wake: '07:00', planTime: '06:30', goalWeight: 0, plan: {} };
+const hxCfg = () => { const c = S.health.find((h) => h.id === 'cfg'); return { ...HX_CFG, ...(c || {}), plan: { ...((c && c.plan) || {}) } }; };
+function hxSaveCfg(patch) { commit(() => { let c = S.health.find((h) => h.id === 'cfg'); if (!c) { c = { id: 'cfg' }; S.health.push(c); } Object.assign(c, patch); }); }
+const hxLogs = () => S.health.filter((h) => h.date);
+const hxOn = (k) => S.health.find((h) => h.date === k);
+function hxSet(k, patch) { commit(() => { let h = hxOn(k); if (!h) { h = { id: 'h:' + k, date: k }; S.health.push(h); } Object.assign(h, patch); }); }
+let hxTab = (() => { try { return localStorage.getItem('planner.hxTab'); } catch (e) { return null; } })() || 'today', hxDate = todayKey();
+const fmtH = (h) => (h == null ? '-' : `${Math.floor(h)}h${h % 1 ? ' 30m' : ''}`);
+const hmFromMin = (m) => fromMin(((m % 1440) + 1440) % 1440);
+const nz = (v) => { const n = parseFloat(String(v).replace(/,/g, '')); return isFinite(n) ? n : NaN; };
+const e1rm = (w, r) => w * (1 + r / 30);
+
+function hxLast(name) {
+  const n = String(name).trim().toLowerCase(); if (!n) return null;
+  const ws = S.workouts.slice().sort((a, b) => b.date.localeCompare(a.date) || (b.created || 0) - (a.created || 0));
+  for (const w of ws) { const ex = (w.ex || []).find((e) => String(e.name).trim().toLowerCase() === n); if (ex && ex.sets && ex.sets.length) return { date: w.date, sets: ex.sets }; }
+  return null;
+}
+const setText = (sets, unit) => sets.map((x) => `${x.w ? x.w + (unit ? '' : '') + ' x ' : ''}${x.r}`).join(', ');
+function hxPRs() {
+  const best = new Map();
+  for (const w of S.workouts) for (const ex of w.ex || []) for (const st of ex.sets || []) {
+    const r = +st.r, wt = +st.w; if (!(r > 0) || !(wt > 0)) continue;
+    const key = String(ex.name).trim().toLowerCase(), v = e1rm(wt, r), c = best.get(key);
+    if (!c || v > c.v) best.set(key, { name: String(ex.name).trim(), v, w: wt, r, date: w.date });
+  }
+  return [...best.values()].sort((a, b) => b.v - a.v);
+}
+function weekWorkouts(k) {
+  const a = startOfWeek(k), b = addDays(a, 6);
+  return S.workouts.filter((w) => w.date >= a && w.date <= b);
+}
+
+// ----- tab: Today -----
+function hxSleepPlanner(cfg) {
+  const need = cfg.sleepNeed, wake = toMin(cfg.wake), bed = wake - need * 60;
+  const wins = [['London window (ATLAS)', '03:00'], ['US open and Zlarior killzone', '09:30']];
+  const rows = wins.map(([n, hm]) => { const l = etToLocal(todayKey(), hm), up = toMin(l.hm) - 30; return `<div class="hx-row"><span class="hx-hint"><b>${n}</b> opens ${fmtTime(l.hm)}${localIsET ? ' ET' : ''}. Be up by ${fmtTime(hmFromMin(up))}.</span><span class="hx-hint">Bed by <b>${fmtTime(hmFromMin(up - need * 60))}</b></span></div>`; }).join('');
+  return `<section class="hx-card"><h3>Sleep planner<small>${need} h target</small></h3>
+    <div class="hx-in"><div class="fld"><label for="hxWake">Usual wake time</label><input type="time" id="hxWake" value="${cfg.wake}"></div><div class="fld"><label for="hxNeed">Sleep needed</label><select id="hxNeed">${[6, 6.5, 7, 7.5, 8, 8.5, 9].map((v) => `<option value="${v}"${v === need ? ' selected' : ''}>${v} hours</option>`).join('')}</select></div></div>
+    <div class="hx-hint">For your usual wake time, <b>bed by ${fmtTime(hmFromMin(bed))}</b>. Start winding down around ${fmtTime(hmFromMin(bed - 45))}. Last caffeine about ${fmtTime(hmFromMin(bed - 8 * 60))}.</div>
+    ${rows}</section>`;
+}
+function hxToday() {
+  const today = todayKey(), k = hxDate, h = hxOn(k) || {}, cfg = hxCfg();
+  const chips = (field, labels) => `<div class="hxc">${labels.map((l, i) => `<button type="button" data-hx="set:${field}:${i + 1}" data-hxk="${k}" aria-pressed="${h[field] === i + 1}">${l}</button>`).join('')}</div>`;
+  const water = h.water || 0, wg = cfg.waterGoal;
+  const day = S.workouts.filter((w) => w.date === k), plan = cfg.plan[dow(k)];
+  const wk = day.length ? day.map((w) => `<button type="button" class="hx-wk" data-hx-edit="${w.id}"><span class="d">${esc(w.type)}</span><span class="n">${w.mins ? w.mins + ' min' : 'Logged'}${w.rpe ? ' · effort ' + w.rpe : ''}${(w.ex || []).length ? `<small>${(w.ex || []).slice(0, 3).map((e) => esc(e.name)).join(', ')}</small>` : ''}</span></button>`).join('') : `<div class="hx-hint">${plan && plan !== 'Rest' ? `Planned for ${k === today ? 'today' : 'this day'}: <b>${esc(plan)}</b>.` : 'No workout logged.'}</div>`;
+  return `<div class="hx-date"><button data-hxd="-1" aria-label="Previous day">‹</button><b>${k === today ? 'Today' : esc(longDate(k))}</b><button data-hxd="1" aria-label="Next day" ${k >= today ? 'disabled' : ''}>›</button></div>
+  <div class="hx-grid">
+   <div style="display:flex;flex-direction:column;gap:14px">
+    <section class="hx-card"><h3>Sleep<small>${h.sleepH != null ? (h.sleepH >= cfg.sleepNeed ? 'on target' : `${fmtH(cfg.sleepNeed - h.sleepH)} short`) : `target ${cfg.sleepNeed} h`}</small></h3>
+      <div class="hx-row"><div class="hx-step"><button type="button" data-hx="sleep-" data-hxk="${k}" aria-label="Less sleep">−</button><output>${h.sleepH != null ? fmtH(h.sleepH) : '-'}</output><button type="button" data-hx="sleep+" data-hxk="${k}" aria-label="More sleep">+</button></div></div>
+      <div class="hx-row"><span class="l">Quality</span>${chips('sleepQ', ['Poor', 'OK', 'Great'])}</div></section>
+    <section class="hx-card"><h3>How you feel</h3>
+      <div><div class="hx-row" style="margin-bottom:6px"><span class="l">Energy</span></div>${chips('energy', ['1', '2', '3', '4', '5'])}</div>
+      <div><div class="hx-row" style="margin:6px 0"><span class="l">Stress</span></div>${chips('stress', ['1', '2', '3', '4', '5'])}</div>
+      <div class="hx-hint">1 is drained or calm, 5 is great or maxed out. Log it before the session, not after.</div></section>
+    <section class="hx-card"><h3>Water and caffeine</h3>
+      <div class="hx-row"><span class="l">Water</span><div class="hx-step"><button type="button" data-hx="water-" data-hxk="${k}" aria-label="Less water">−</button><output>${water}/${wg}</output><button type="button" data-hx="water+" data-hxk="${k}" aria-label="More water">+</button></div></div>
+      <div class="hx-dots">${Array.from({ length: Math.max(wg, water) }, (_, i) => `<i class="${i < water ? 'on' : ''}"></i>`).join('')}</div>
+      <div class="hx-row"><span class="l">Caffeine (cups)</span><div class="hx-step"><button type="button" data-hx="caf-" data-hxk="${k}" aria-label="Less caffeine">−</button><output>${h.caf || 0}</output><button type="button" data-hx="caf+" data-hxk="${k}" aria-label="More caffeine">+</button></div></div></section>
+    <section class="hx-card"><h3>Body</h3>
+      <div class="hx-in"><div class="fld"><label for="hxSteps">Steps</label><input id="hxSteps" inputmode="numeric" autocomplete="off" value="${h.steps != null ? h.steps : ''}" placeholder="from your phone's Health app"></div><div class="fld"><label for="hxWeight">Weight (${cfg.unit})</label><input id="hxWeight" inputmode="decimal" autocomplete="off" value="${h.weight != null ? h.weight : ''}"></div></div></section>
+   </div>
+   <div style="display:flex;flex-direction:column;gap:14px">
+    <section class="hx-card"><h3>Workout<small>${S.workouts.length ? weekWorkouts(k).length + ' this week' : ''}</small></h3>${wk}<div><button class="btn sm primary" data-hx="logw" data-hxk="${k}">+ Log workout</button></div></section>
+    ${hxSleepPlanner(cfg)}
+   </div>
+  </div>`;
+}
+
+// ----- tab: Workouts -----
+function hxWorkouts() {
+  const cfg = hxCfg(), today = todayKey(), order = [1, 2, 3, 4, 5, 6, 0];
+  const planned = order.filter((d) => cfg.plan[d] && cfg.plan[d] !== 'Rest').length, done = weekWorkouts(today).length;
+  const planCard = `<section class="hx-card"><h3>Weekly plan<small>${planned ? `${Math.min(done, planned)} of ${planned} this week` : 'not set'}</small></h3>
+    <div class="hx-plan">${order.map((d) => `<span class="hx-hint"><b>${DAYS[d]}</b></span><select data-hxplan="${d}" aria-label="${DAYS[d]} workout">${['Rest', ...HX_TYPES].map((t) => `<option value="${t}"${(cfg.plan[d] || 'Rest') === t ? ' selected' : ''}>${t}</option>`).join('')}</select>`).join('')}</div>
+    <div class="hx-in"><div class="fld"><label for="hxPlanTime">Usual start time</label><input type="time" id="hxPlanTime" value="${cfg.planTime}"></div><div class="fld"><label>&nbsp;</label><button class="btn" data-hx="plan-cal" ${planned ? '' : 'disabled'}>Put plan on calendar</button></div></div>
+    <div class="hx-hint">The plan becomes repeating events on your calendar. Change the plan and tap again to update them.</div></section>`;
+  const recent = S.workouts.slice().sort((a, b) => b.date.localeCompare(a.date) || (b.created || 0) - (a.created || 0)).slice(0, 15);
+  const log = `<section class="hx-card"><h3>Workout log<button class="btn sm primary" data-hx="logw" data-hxk="${today}">+ Log workout</button></h3>${recent.length ? recent.map((w) => `<button type="button" class="hx-wk" data-hx-edit="${w.id}"><span class="d">${esc(dueLabel(w.date))}</span><span class="n">${esc(w.type)}${w.mins ? ' · ' + w.mins + ' min' : ''}${(w.ex || []).length ? `<small>${(w.ex || []).slice(0, 4).map((e) => esc(e.name)).join(', ')}${(w.ex || []).length > 4 ? ' +' + ((w.ex || []).length - 4) : ''}</small>` : ''}</span><span class="a">${w.rpe ? 'effort ' + w.rpe : ''}</span></button>`).join('') : '<div class="hx-hint">Nothing logged yet. Tap Log workout after you train.</div>'}</section>`;
+  const prs = hxPRs().slice(0, 6);
+  const prCard = prs.length ? `<section class="hx-card"><h3>Personal bests<small>estimated 1 rep max</small></h3>${prs.map((x) => `<div class="hx-row"><span class="l">${esc(x.name)}</span><span class="hx-hint"><b>${Math.round(x.v)} ${cfg.unit}</b> (${x.w} x ${x.r}, ${esc(dueLabel(x.date))})</span></div>`).join('')}</section>` : '';
+  const tpls = S.wtemplates.slice().sort((a, b) => a.name.localeCompare(b.name));
+  const tplCard = tpls.length ? `<section class="hx-card"><h3>Templates</h3>${tpls.map((t) => `<div class="hx-row"><span class="l">${esc(t.name)} <span class="hx-hint">${(t.ex || []).length} exercises</span></span><span style="display:flex;gap:6px"><button class="btn sm" data-hx="tpl-use:${t.id}">Use</button><button class="btn sm danger" data-hx="tpl-del:${t.id}">Delete</button></span></div>`).join('')}</section>` : '';
+  return `<div class="hx-grid"><div style="display:flex;flex-direction:column;gap:14px">${planCard}${tplCard}</div><div style="display:flex;flex-direction:column;gap:14px">${log}${prCard}</div></div>`;
+}
+
+// ----- tab: Trends -----
+function hxBars(vals, labels, max, line, color) {
+  const mx = Math.max(max, ...vals.filter((v) => v != null), 1);
+  return `<div class="hx-bars" style="grid-template-columns:repeat(${vals.length},1fr)">${vals.map((v, i) => `<div><div class="pl">${line ? `<span class="ln" style="bottom:${line / mx * 100}%"></span>` : ''}${v != null ? `<i style="height:${Math.max(3, v / mx * 100)}%;${color ? 'background:' + color : ''}" title="${esc(String(v))}"></i>` : ''}</div><small>${labels[i]}</small></div>`).join('')}</div>`;
+}
+function hxInsights() {
+  const today = todayKey(), cfg = hxCfg(), out = [];
+  const rows = hxLogs().filter((h) => h.date <= today).map((h) => ({ h, j: jrnOf(h.date), p: nqPnl[h.date] }));
+  const pct = (a) => Math.round(a.filter((x) => x.j.rules === 'yes').length / a.length * 100);
+  const cmp = (label, A, B, aName, bName) => {
+    if (A.length >= 4 && B.length >= 4) out.push({ t: `Rules followed on <b>${pct(A)}%</b> of days ${aName} vs <b>${pct(B)}%</b> ${bName} (${A.length} and ${B.length} days).` });
+    else out.push({ dim: 1, t: `${label}: needs about 4 journal days on each side to compare. You have ${A.length} and ${B.length}.` });
+  };
+  const withJ = rows.filter((x) => x.j && x.j.rules);
+  cmp('Sleep vs rules', withJ.filter((x) => x.h.sleepH >= 7), withJ.filter((x) => x.h.sleepH != null && x.h.sleepH < 7), 'after 7h+ sleep', 'after less');
+  cmp('Energy vs rules', withJ.filter((x) => x.h.energy >= 4), withJ.filter((x) => x.h.energy && x.h.energy <= 3), 'with energy 4-5', 'with energy 1-3');
+  const wDays = new Set(S.workouts.map((w) => w.date));
+  const jAll = S.journal.filter((j) => j.rules && j.date <= today).map((j) => ({ h: hxOn(j.date) || {}, j }));
+  cmp('Workout vs rules', jAll.filter((x) => wDays.has(x.j.date)), jAll.filter((x) => !wDays.has(x.j.date)), 'on workout days', 'on other days');
+  const pa = rows.filter((x) => x.p != null && x.h.sleepH >= 7), pb = rows.filter((x) => x.p != null && x.h.sleepH != null && x.h.sleepH < 7);
+  if (pa.length >= 3 && pb.length >= 3) { const av = (a) => a.reduce((n, x) => n + x.p, 0) / a.length; out.push({ t: `Bot result averaged <b>${money(av(pa))}</b> a day after 7h+ sleep vs <b>${money(av(pb))}</b> after less (${pa.length} and ${pb.length} bot days).` }); }
+  else out.push({ dim: 1, t: `Sleep vs bot results: needs 3 bot trading days on each side. The app only knows live and paper results since it started saving them.` });
+  return out;
+}
+function hxTrends() {
+  const today = todayKey(), cfg = hxCfg(), days = Array.from({ length: 14 }, (_, i) => addDays(today, i - 13));
+  const sleep = days.map((k) => (hxOn(k) || {}).sleepH), have = sleep.filter((v) => v != null);
+  const avgS = have.length ? have.reduce((a, b) => a + b, 0) / have.length : null;
+  const en = days.map((k) => (hxOn(k) || {}).energy);
+  const weeks = Array.from({ length: 8 }, (_, i) => addDays(startOfWeek(today), (i - 7) * 7)), wc = weeks.map((k) => weekWorkouts(k).length);
+  const wts = hxLogs().filter((h) => h.weight != null && h.date <= today).sort((a, b) => a.date.localeCompare(b.date)).slice(-60);
+  let wsvg = '<div class="hx-hint">Log your weight on the Today tab a few times to see a trend.</div>';
+  if (wts.length >= 2) {
+    const vs = wts.map((x) => +x.weight), lo = Math.min(...vs, cfg.goalWeight || Infinity), hi = Math.max(...vs, cfg.goalWeight || -Infinity), span = Math.max(hi - lo, 1);
+    const pts = vs.map((v, i) => `${(i / (vs.length - 1) * 280 + 10).toFixed(1)},${(80 - (v - lo) / span * 64).toFixed(1)}`).join(' ');
+    const g = cfg.goalWeight ? `<line x1="10" x2="290" y1="${(80 - (cfg.goalWeight - lo) / span * 64).toFixed(1)}" y2="${(80 - (cfg.goalWeight - lo) / span * 64).toFixed(1)}" stroke="#9ca3af" stroke-dasharray="4 4"/>` : '';
+    const ch = vs[vs.length - 1] - vs[0];
+    wsvg = `<svg viewBox="0 0 300 96" width="100%" role="img" aria-label="Weight trend">${g}<polyline points="${pts}" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${pts.split(' ').pop().split(',')[0]}" cy="${pts.split(' ').pop().split(',')[1]}" r="4" fill="#6366f1"/><text x="10" y="94" font-size="10" fill="#6b7280">${esc(longDate(wts[0].date).split(', ')[1])}</text><text x="290" y="94" font-size="10" fill="#6b7280" text-anchor="end">${esc(longDate(wts[wts.length - 1].date).split(', ')[1])}</text></svg><div class="hx-hint">Now <b>${vs[vs.length - 1]} ${cfg.unit}</b>, ${ch === 0 ? 'no change' : (ch > 0 ? '+' : '') + Math.round(ch * 10) / 10 + ' ' + cfg.unit} since ${esc(longDate(wts[0].date))}.${cfg.goalWeight ? ` Goal ${cfg.goalWeight}.` : ''}</div>`;
+  }
+  const ins = hxInsights();
+  return `<div class="hx-grid">
+   <div style="display:flex;flex-direction:column;gap:14px">
+    <section class="hx-card"><h3>Sleep, last 14 days<small>${avgS != null ? 'avg ' + fmtH(Math.round(avgS * 2) / 2) : ''}</small></h3>${hxBars(sleep, days.map((k) => parse(k).getDate()), 10, cfg.sleepNeed)}<div class="hx-hint">The dashed line is your ${cfg.sleepNeed} h target.</div></section>
+    <section class="hx-card"><h3>Energy, last 14 days</h3>${hxBars(en, days.map((k) => parse(k).getDate()), 5, 0, '#10b981')}</section>
+    <section class="hx-card"><h3>Weight</h3>${wsvg}<div class="hx-in" style="margin-top:6px"><div class="fld"><label for="hxGoalW">Goal weight (${cfg.unit})</label><input id="hxGoalW" inputmode="decimal" autocomplete="off" value="${cfg.goalWeight || ''}"></div><div class="fld"><label for="hxUnit">Unit</label><select id="hxUnit"><option value="lb"${cfg.unit === 'lb' ? ' selected' : ''}>Pounds</option><option value="kg"${cfg.unit === 'kg' ? ' selected' : ''}>Kilograms</option></select></div></div></section>
+   </div>
+   <div style="display:flex;flex-direction:column;gap:14px">
+    <section class="hx-card"><h3>Workouts per week<small>last 8 weeks</small></h3>${hxBars(wc.map((v) => v), weeks.map((k) => parse(k).getMonth() + 1 + '/' + parse(k).getDate()), 7, (() => { const n = [1, 2, 3, 4, 5, 6, 0].filter((d) => cfg.plan[d] && cfg.plan[d] !== 'Rest').length; return n || 0; })())}</section>
+    <section class="hx-card"><h3>What your data says</h3><div class="hx-ins">${ins.map((x) => `<div class="${x.dim ? 'dim' : ''}">${x.t}</div>`).join('')}</div><div class="hx-hint">These are patterns in your own logs, not proof of cause. They get more useful after a few weeks of check-ins and journal entries.</div></section>
+   </div>
+  </div>`;
+}
+function renderHealth() {
+  const tabs = [['today', 'Check-in'], ['workouts', 'Workouts'], ['trends', 'Trends']];
+  return `<div class="hx"><div class="seg2 hx-tabs" id="hxTabs">${tabs.map(([k, l]) => `<button type="button" data-hxtab="${k}" aria-pressed="${hxTab === k}">${l}</button>`).join('')}</div>${hxTab === 'today' ? hxToday() : hxTab === 'workouts' ? hxWorkouts() : hxTrends()}</div>`;
+}
+// compact card for the Today screen
+function hxTodayCard() {
+  const k = todayKey(), h = hxOn(k) || {}, cfg = hxCfg(), plan = cfg.plan[dow(k)], done = S.workouts.filter((w) => w.date === k);
+  const water = h.water || 0;
+  return `<section class="td-card"><h3>Health<button data-tgo="health">Open</button></h3>
+    <div class="hx-row"><span class="l">Water ${water}/${cfg.waterGoal}</span><div class="hx-step"><button type="button" data-hx="water-" data-hxk="${k}" aria-label="Less water">−</button><button type="button" data-hx="water+" data-hxk="${k}" aria-label="More water">+</button></div></div>
+    <div class="hx-hint">${h.sleepH != null ? `Slept <b>${fmtH(h.sleepH)}</b>${h.energy ? `, energy <b>${h.energy}/5</b>` : ''}.` : 'Sleep not logged yet.'} ${done.length ? `Workout done: <b>${esc(done[0].type)}</b>.` : plan && plan !== 'Rest' ? `Planned workout: <b>${esc(plan)}</b>.` : 'Rest day.'}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" data-hx="logw" data-hxk="${k}">Log workout</button><button class="btn sm" data-tgo="health">Check in</button></div></section>`;
+}
+
+// ----- workout dialog -----
+const wkDlg = $('#wkDlg');
+let wkDraft = null;
+const blankSet = () => ({ r: '', w: '' });
+function paintWk() {
+  const cfg = hxCfg(), lift = wkDraft.type === 'Lift' || wkDraft.type === 'Other';
+  $('#wkEx').hidden = !lift; $('#wkExAdd').hidden = !lift; $('#wkTplWrap').hidden = !lift || !S.wtemplates.length; $('#wkSaveRow').hidden = !lift;
+  $('#wkEx').innerHTML = (wkDraft.ex || []).map((e, i) => {
+    const last = hxLast(e.name);
+    return `<div class="hx-ex" data-i="${i}"><div class="top"><input list="wkNames" value="${esc(e.name)}" maxlength="60" placeholder="Exercise, e.g. Bench press" aria-label="Exercise name" data-f="name"><button type="button" class="x" data-wk="delex" aria-label="Remove exercise">✕</button></div>
+      ${last ? `<div class="last">Last time (${esc(dueLabel(last.date))}): ${esc(setText(last.sets))}</div>` : ''}
+      ${e.sets.map((st, j) => `<div class="set" data-j="${j}"><span>${j + 1}</span><input inputmode="numeric" placeholder="reps" value="${esc(String(st.r))}" aria-label="Reps" data-f="r"><input inputmode="decimal" placeholder="${cfg.unit}" value="${esc(String(st.w))}" aria-label="Weight in ${cfg.unit}" data-f="w"><button type="button" class="x" data-wk="delset" aria-label="Remove set">✕</button></div>`).join('')}
+      <div><button type="button" class="btn sm" data-wk="addset">+ Set</button></div></div>`;
+  }).join('');
+  let dl = document.getElementById('wkNames');
+  if (!dl) { dl = document.createElement('datalist'); dl.id = 'wkNames'; document.body.appendChild(dl); }
+  dl.innerHTML = [...new Set(S.workouts.flatMap((w) => (w.ex || []).map((e) => String(e.name).trim())).filter(Boolean))].slice(0, 60).map((n) => `<option value="${esc(n)}">`).join('');
+}
+function openWorkout(id, date, type) {
+  const w = id ? S.workouts.find((x) => x.id === id) : null, cfg = hxCfg();
+  wkDraft = w ? JSON.parse(JSON.stringify(w)) : { id: '', date: date || todayKey(), type: type || (cfg.plan[dow(date || todayKey())] && cfg.plan[dow(date || todayKey())] !== 'Rest' ? cfg.plan[dow(date || todayKey())] : 'Lift'), mins: '', rpe: 0, notes: '', ex: [] };
+  wkDraft.ex = wkDraft.ex || [];
+  $('#wkTitle').textContent = w ? 'Edit workout' : 'Log workout';
+  $('#wkType').innerHTML = HX_TYPES.map((t) => `<option${t === wkDraft.type ? ' selected' : ''}>${t}</option>`).join('');
+  $('#wkDate').value = wkDraft.date; $('#wkMins').value = wkDraft.mins || ''; $('#wkRpe').value = String(wkDraft.rpe || 0); $('#wkNotes').value = wkDraft.notes || '';
+  $('#wkTpl').innerHTML = '<option value="">None</option>' + S.wtemplates.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+  $('#wkSaveTpl').checked = false; $('#wkTplName').value = ''; $('#wkDelete').hidden = !w; $('#wkErr').hidden = true;
+  paintWk(); wkDlg.showModal();
+}
+$('#wkType').onchange = () => { wkDraft.type = $('#wkType').value; paintWk(); };
+$('#wkTpl').onchange = () => {
+  const t = S.wtemplates.find((x) => x.id === $('#wkTpl').value); if (!t) return;
+  wkDraft.ex = (t.ex || []).map((e) => { const last = hxLast(e.name); const n = (e.sets && e.sets.length) || 3; return { name: e.name, sets: Array.from({ length: n }, (_, i) => { const l = last && (last.sets[i] || last.sets[last.sets.length - 1]); return { r: l ? l.r : (e.sets && e.sets[i] ? e.sets[i].r : ''), w: l ? l.w : (e.sets && e.sets[i] ? e.sets[i].w : '') }; }) }; });
+  paintWk();
+};
+$('#wkAddEx').onclick = () => { wkDraft.ex.push({ name: '', sets: [blankSet()] }); paintWk(); const ins = document.querySelectorAll('#wkEx [data-f=name]'); if (ins.length) ins[ins.length - 1].focus(); };
+$('#wkEx').addEventListener('input', (e) => {
+  const box = e.target.closest('.hx-ex'); if (!box) return; const ex = wkDraft.ex[+box.dataset.i], f = e.target.dataset.f;
+  if (f === 'name') ex.name = e.target.value; else { const set = ex.sets[+e.target.closest('.set').dataset.j]; set[f] = e.target.value; }
+});
+$('#wkEx').addEventListener('change', (e) => {
+  if (e.target.dataset.f !== 'name') return;
+  // Update only this exercise's "last time" hint; redrawing the form would drop focus and close the keyboard.
+  const box = e.target.closest('.hx-ex'), last = hxLast(e.target.value); let el = box.querySelector('.last');
+  if (!last) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.className = 'last'; box.querySelector('.top').after(el); }
+  el.textContent = `Last time (${dueLabel(last.date)}): ${setText(last.sets)}`;
+});
+$('#wkEx').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-wk]'); if (!b) return; const box = b.closest('.hx-ex'), ex = wkDraft.ex[+box.dataset.i];
+  if (b.dataset.wk === 'delex') wkDraft.ex.splice(+box.dataset.i, 1);
+  else if (b.dataset.wk === 'addset') { const l = ex.sets[ex.sets.length - 1]; ex.sets.push(l ? { r: l.r, w: l.w } : blankSet()); }
+  else if (b.dataset.wk === 'delset') { ex.sets.splice(+b.closest('.set').dataset.j, 1); if (!ex.sets.length) ex.sets.push(blankSet()); }
+  paintWk();
+});
+$('#wkForm').onsubmit = (e) => {
+  e.preventDefault();
+  const err = (m) => { $('#wkErr').textContent = m; $('#wkErr').hidden = false; };
+  const date = $('#wkDate').value, mins = $('#wkMins').value.trim() === '' ? 0 : nz($('#wkMins').value);
+  if (!ymdOk(date)) return err('Pick a date.');
+  if (isNaN(mins) || mins < 0 || mins > 600) return err('Minutes should be a number from 0 to 600.');
+  const ex = (wkDraft.ex || []).map((x) => ({ name: String(x.name).trim(), sets: x.sets.map((st) => ({ r: nz(st.r), w: st.w === '' ? 0 : nz(st.w) })).filter((st) => st.r > 0 && st.w >= 0) })).filter((x) => x.name && x.sets.length);
+  const data = { type: $('#wkType').value, date, mins, rpe: +$('#wkRpe').value, notes: $('#wkNotes').value.trim(), ex: ($('#wkType').value === 'Lift' || $('#wkType').value === 'Other') ? ex : [] };
+  const tname = $('#wkTplName').value.trim();
+  if ($('#wkSaveTpl').checked && !tname) return err('Name the template, or untick Save as template.');
+  if ($('#wkSaveTpl').checked && !data.ex.length) return err('Add at least one exercise with reps to save a template.');
+  snapshot();
+  commit(() => {
+    const w = wkDraft.id ? S.workouts.find((x) => x.id === wkDraft.id) : null;
+    if (w) Object.assign(w, data); else S.workouts.push({ id: uid(), created: Date.now(), ...data });
+    if ($('#wkSaveTpl').checked) {
+      const tex = data.ex.map((x) => ({ name: x.name, sets: x.sets.map((st) => ({ r: st.r, w: st.w })) })), old = S.wtemplates.find((t) => t.name.toLowerCase() === tname.toLowerCase());
+      if (old) old.ex = tex; else S.wtemplates.push({ id: uid(), name: tname, ex: tex });
+    }
+  });
+  wkDlg.close(); hxDate = date <= todayKey() ? date : hxDate; render(); toast(wkDraft.id ? 'Workout updated' : 'Workout logged', true);
+};
+$('#wkDelete').onclick = async () => {
+  if (!(await ask('Delete this workout?', 'It will be removed from your log and personal bests.', 'Delete', { danger: true }))) return;
+  const id = wkDraft.id; snapshot(); commit(() => { S.workouts = S.workouts.filter((x) => x.id !== id); }); wkDlg.close(); render(); toast('Workout deleted', true);
+};
+
+// ----- actions -----
+function hxPlanToCalendar() {
+  const cfg = hxCfg(), today = todayKey(), catId = S.categories.some((c) => c.id === 'personal') ? 'personal' : S.lastCat;
+  snapshot();
+  commit(() => {
+    for (let d = 0; d < 7; d++) {
+      const type = cfg.plan[d], id = 'hxplan-' + d, i = S.events.findIndex((e) => e.id === id);
+      if (!type || type === 'Rest') { if (i >= 0) S.events.splice(i, 1); continue; }
+      let date = today; for (let n = 0; n < 7 && dow(date) !== d; n++) date = addDays(date, 1);
+      const dur = type === 'Lift' ? 60 : type === 'Run' ? 40 : 30, title = type === 'Lift' ? 'Workout: lift' : `Workout: ${type.toLowerCase()}`;
+      const ev = { id, title, cat: catId, date, allDay: false, start: cfg.planTime, end: fromMin(Math.min(toMin(cfg.planTime) + dur, 1439)), endDate: '', repeat: 'weekly', until: '', notes: 'From your workout plan', ex: [] };
+      if (i >= 0) { const old = S.events[i]; Object.assign(old, ev, { date: old.date, ex: old.ex || [] }); } else S.events.push(ev);
+    }
+  });
+  render(); toast('Workout plan is on your calendar', true);
+}
+const hxAfter = () => { if (S.view === 'health' || S.view === 'today') renderMain(); };
+document.addEventListener('click', async (e) => {
+  const tab = e.target.closest('[data-hxtab]');
+  if (tab) { hxTab = tab.dataset.hxtab; try { localStorage.setItem('planner.hxTab', hxTab); } catch (err) { /* convenience */ } renderMain(); return; }
+  const dnav = e.target.closest('[data-hxd]');
+  if (dnav) { const k = addDays(hxDate, +dnav.dataset.hxd); if (k <= todayKey()) { hxDate = k; renderMain(); } return; }
+  const ed = e.target.closest('[data-hx-edit]'); if (ed) { openWorkout(ed.dataset.hxEdit); return; }
+  const b = e.target.closest('[data-hx]'); if (!b) return;
+  const a = b.dataset.hx, k = b.dataset.hxk || hxDate, h = hxOn(k) || {}, cfg = hxCfg();
+  if (a === 'sleep+' || a === 'sleep-') { const base = h.sleepH != null ? h.sleepH : cfg.sleepNeed; hxSet(k, { sleepH: Math.max(0, Math.min(14, base + (a === 'sleep+' ? 0.5 : -0.5))) }); }
+  else if (a === 'water+') hxSet(k, { water: Math.min(30, (h.water || 0) + 1) });
+  else if (a === 'water-') hxSet(k, { water: Math.max(0, (h.water || 0) - 1) });
+  else if (a === 'caf+') hxSet(k, { caf: Math.min(20, (h.caf || 0) + 1) });
+  else if (a === 'caf-') hxSet(k, { caf: Math.max(0, (h.caf || 0) - 1) });
+  else if (a.startsWith('set:')) { const [, f, v] = a.split(':'); hxSet(k, { [f]: h[f] === +v ? 0 : +v }); }
+  else if (a === 'logw') { openWorkout(null, k); return; }
+  else if (a === 'plan-cal') { hxPlanToCalendar(); return; }
+  else if (a.startsWith('tpl-use:')) { const t = S.wtemplates.find((x) => x.id === a.slice(8)); openWorkout(null, todayKey(), 'Lift'); if (t) { $('#wkTpl').value = t.id; $('#wkTpl').onchange(); } return; }
+  else if (a.startsWith('tpl-del:')) { const t = S.wtemplates.find((x) => x.id === a.slice(8)); if (t && await ask(`Delete ${t.name}?`, 'Your logged workouts stay.', 'Delete', { danger: true })) { snapshot(); commit(() => { S.wtemplates = S.wtemplates.filter((x) => x !== t); }); toast('Template deleted', true); } }
+  hxAfter();
+});
+document.addEventListener('change', (e) => {
+  const t = e.target;
+  if (t.id === 'hxSteps' || t.id === 'hxWeight') { const v = t.value.trim(), n = nz(v); if (v === '') hxSet(hxDate, { [t.id === 'hxSteps' ? 'steps' : 'weight']: null }); else if (!isNaN(n) && n >= 0 && n < 100000) hxSet(hxDate, { [t.id === 'hxSteps' ? 'steps' : 'weight']: Math.round(n * 10) / 10 }); else toast('Enter a number'); renderMain(); }
+  else if (t.id === 'hxWake' && HM.test(t.value)) { hxSaveCfg({ wake: t.value }); renderMain(); }
+  else if (t.id === 'hxNeed') { hxSaveCfg({ sleepNeed: +t.value }); renderMain(); }
+  else if (t.id === 'hxPlanTime' && HM.test(t.value)) hxSaveCfg({ planTime: t.value });
+  else if (t.id === 'hxGoalW') { const n = nz(t.value); hxSaveCfg({ goalWeight: isNaN(n) ? 0 : n }); renderMain(); }
+  else if (t.id === 'hxUnit') { hxSaveCfg({ unit: t.value }); renderMain(); }
+  else if (t.dataset && t.dataset.hxplan != null) { const plan = { ...hxCfg().plan, [t.dataset.hxplan]: t.value }; hxSaveCfg({ plan }); renderMain(); }
+});
+// ===== HEALTH END =====
+
 // ---------- backup ----------
 async function download(name, text, type) {
   if (HOSTED) {
@@ -2699,9 +3063,9 @@ function toast(msg, canUndo) {
 }
 
 // ===== EXTRAS SHARED BEGIN (hooks used by habits, review, journal, templates, focus, smart lists) =====
-const KEEP_SCROLL = ['projects', 'habits', 'review', 'news'];
-const EXTRA_TITLES = { habits: 'Habits', review: 'Weekly review', news: 'Market news', today: 'Today' };
-const NO_NAV = ['projects', 'habits', 'review', 'news', 'today'];
+const KEEP_SCROLL = ['projects', 'habits', 'health', 'review', 'news'];
+const EXTRA_TITLES = { habits: 'Habits', review: 'Weekly review', news: 'Market news', today: 'Today', health: 'Health' };
+const NO_NAV = ['projects', 'habits', 'health', 'review', 'news', 'today'];
 const ICON_CHECK = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>';
 const ICON_PENCIL = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg>';
 const ICON_CHEV = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
@@ -3450,8 +3814,7 @@ $('#importFile').onchange = async (e) => {
     if (!data || !Array.isArray(data.events)) throw new Error('not a planner backup');
     if (!(await ask('Restore backup?', `${data.events.length} events and ${(data.tasks || []).length} tasks. This replaces your calendar${sync ? ' on every synced device' : ''}.`, 'Restore', { danger: true }))) return;
     const d = normalize(data);
-    snapshot(); commit(() => { S.categories = d.categories; S.events = d.events; S.tasks = d.tasks; S.projects = d.projects; S.goals = d.goals; S.money = d.money; S.dismissed = d.dismissed; S.weekStart = d.weekStart; }); render(); toast('Backup restored', true);
-    snapshot(); commit(() => { S.categories = d.categories; S.events = d.events; S.tasks = d.tasks; S.projects = d.projects; S.dismissed = d.dismissed; S.habits = d.habits; S.journal = d.journal; S.reviews = d.reviews; S.templates = d.templates; S.weekStart = d.weekStart; }); render(); toast('Backup restored', true);
+    snapshot(); commit(() => { SYNCED.forEach((k) => { S[k] = Array.isArray(d[k]) ? d[k] : S[k]; }); S.weekStart = d.weekStart; }); render(); toast('Backup restored', true);
   } catch (err) { toast('That file is not a Planner backup'); }
 };
 

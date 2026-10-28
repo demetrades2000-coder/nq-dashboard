@@ -871,9 +871,64 @@ function typeToCat(t) {
   const c = S.categories.find((x) => x.id === v || x.name.toLowerCase() === v);
   return c ? c.id : (S.categories.some((x) => x.id === 'bots') ? 'bots' : S.categories[0].id);
 }
+// Installed-app mode: the NQ dashboard's data.json is served from the same site, so the app reads it directly (no keys, no
+// scheduled task) and shows the same events as bot/dashboard_events.py (kept in step with it).
+const NQ_KEY = 'planner.nq';
+let nqBot = readJSON(NQ_KEY) ? readJSON(NQ_KEY).doc : null;
+function nqEventsFromData(data) {
+  const news = data.news || {}, goals = data.goals || {}, cal = goals.calendar || {}, events = [];
+  const hold = new Set((news.days || []).filter((d) => d.holiday).map((d) => d.date));
+  const hmAdd = (hm, m) => { const [h, mi] = hm.split(':').map(Number), t = Math.min(h * 60 + mi + m, 1439); return fromMin(t); };
+  const groups = new Map(), seen = new Set();
+  for (const e of news.events || []) {
+    if (e.impact !== 'high' || !e.date || !e.time_et) continue;
+    const k = e.date + ' ' + e.time_et; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e);
+  }
+  for (const k of [...groups.keys()].sort()) {
+    const es = groups.get(k), [day, hm] = k.split(' '), titles = [...new Set(es.map((e) => e.title))];
+    const pause = es.find((e) => e.blackout_hits_killzone && e.blackout_start && e.blackout_end);
+    const fc = es.filter((e) => e.forecast).map((e) => `${e.title}: forecast ${e.forecast}, previous ${e.previous}`);
+    let start, end, note, title;
+    if (pause) { start = pause.blackout_start; end = pause.blackout_end; note = `Bot pauses new entries ${start}-${end} ET (blackout inside a killzone).`; title = titles.join(' + ') + ' · bot paused'; }
+    else { start = hm; end = hmAdd(hm, 30); note = `Release at ${hm} ET. Outside the killzones: the bot does not pause.`; title = titles.join(' + '); }
+    events.push({ id: `news-${day}-${hm.replace(':', '')}`, title, type: 'trading', date: day, start, end, notes: [note, ...fc].join('\n'), project: 'nq' });
+    seen.add(k);
+  }
+  const extra = new Map();
+  for (const e of cal.news || []) { if (e.day && e.time && !seen.has(e.day + ' ' + e.time)) { const k = e.day + ' ' + e.time; if (!extra.has(k)) extra.set(k, []); extra.get(k).push(e.event || 'USD release'); } }
+  for (const k of [...extra.keys()].sort()) {
+    const [day, hm] = k.split(' '), titles = [...new Set(extra.get(k))];
+    events.push({ id: `news-${day}-${hm.replace(':', '')}`, title: titles.slice(0, 2).join(' + '), type: 'trading', date: day, start: hm, end: hmAdd(hm, 30), notes: `High-impact USD release at ${hm} ET.`, project: 'nq' });
+  }
+  for (const e of cal.early_close || []) if (e.day) events.push({ id: `early-${e.day}`, title: `Early close · futures halt ${e.halt || ''} ET`, type: 'trading', date: e.day, project: 'nq' });
+  for (const e of cal.clocks || []) if (e.day) events.push({ id: `clocks-${e.day}-${e.who || ''}`.replace(/[ /]/g, ''), title: `${e.who || ''} clocks ${String(e.what || 'change').replace('clocks ', '')}`.trim(), type: 'personal', date: e.day, notes: e.note || '' });
+  const today = YMD.test(String(goals.today || '').slice(0, 10)) ? String(goals.today).slice(0, 10) : String(data.built || '').slice(0, 10);
+  if (YMD.test(today)) for (const a of goals.accounts || []) {
+    if (a.stage !== 'eval' || a.status !== 'open' || !Number.isInteger(a.sessions_left) || a.sessions_left < 1) continue;
+    let d = today, n = a.sessions_left - 1;
+    while (n > 0) { d = addDays(d, 1); if (dow(d) > 0 && dow(d) < 6 && !hold.has(d)) n--; }
+    const who = a.strategy === 'LIT' ? 'Zlarior' : (a.strategy || 'Bot');
+    events.push({ id: `eval-${a.id || who}`, title: `${who} · ${a.name || 'eval'}: last session of the 2-week goal`, type: 'deadline', date: d, notes: (a.sentence || '') + ' (Estimated from sessions left.)', project: 'nq' });
+  }
+  events.sort((a, b) => (a.date + (a.start || '')).localeCompare(b.date + (b.start || '')));
+  return { bot: 'NQ bots', events };
+}
+async function loadNq() {
+  const c = readJSON(NQ_KEY);
+  if (c && Date.now() - c.t < 3 * 3600e3) return;
+  try {
+    const r = await fetch('../data.json', { cache: 'no-cache' });
+    if (!r.ok) return;
+    const doc = nqEventsFromData(await r.json());
+    nqBot = doc; try { localStorage.setItem(NQ_KEY, JSON.stringify({ t: Date.now(), doc })); } catch (e) { /* cache only */ }
+    safeRender();
+  } catch (e) { /* offline or not on the dashboard site: keep the last copy */ }
+}
 function buildBotEvents() {
   const out = [], gone = new Set(S.dismissed.map((d) => d.id));
-  for (const [file, f] of Object.entries(botCache)) {
+  const files = Object.entries(botCache);
+  if (nqBot && !HOSTED) files.push(['nq-dashboard.json', { data: nqBot }]);
+  for (const [file, f] of files) {
     const d = f && f.data;
     if (!d || !Array.isArray(d.events)) continue;
     const slug = file.replace(/\.json$/, ''), bot = String(d.bot || slug).slice(0, 40);
@@ -1762,7 +1817,7 @@ setInterval(() => {
 }, 30000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync) syncNow(); });
 addEventListener('online', () => { if (sync) syncNow(); });
-if (!HOSTED && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => null);
+if (!HOSTED && 'serviceWorker' in navigator && window.isSecureContext && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => null);
 
 render();
 paintSync();
@@ -1771,6 +1826,7 @@ else {
   readConnectLink();
   addEventListener('hashchange', readConnectLink);
   if (sync) syncNow();
+  if (location.protocol.startsWith('http') && !PREVIEW) { loadNq(); setInterval(loadNq, 30 * 60e3); }
 }
 })();
 </script>

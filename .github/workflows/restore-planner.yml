@@ -1,0 +1,25 @@
+# The dashboard bot republishes this repo's main branch and can drop folders it doesn't know (it did once to /portfolio).
+# This puts the Planner app back from the planner-app branch within a minute if that ever happens.
+name: Restore Planner
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore planner/ if missing
+        run: |
+          if [ -f planner/index.html ]; then echo "planner present"; exit 0; fi
+          git fetch origin planner-app
+          git checkout origin/planner-app -- planner
+          git config user.name "planner-restore"
+          git config user.email "actions@users.noreply.github.com"
+          git add planner
+          git commit -m "Restore Planner app (planner-app branch)"
+          git push origin HEAD:main

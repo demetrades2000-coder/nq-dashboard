@@ -346,6 +346,8 @@ body.dragging-ev{cursor:grabbing;-webkit-user-select:none;user-select:none}
 .td-acct b{font-weight:600}
 @media (max-width:640px){.tdy{padding:14px 16px 60px}.seg button{padding:0 7px;font-size:12.5px}}
 body.offline .brand::after{content:"Offline";font-size:11px;font-weight:600;color:#92400e;background:#fef3c7;padding:2px 8px;border-radius:10px;margin-left:6px}
+.updbar{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:60;background:var(--ink);color:#fff;border-radius:12px;padding:10px 12px 10px 16px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);max-width:460px;margin:0 auto;font-size:13.5px}
+.updbar span{flex:1}.updbar button{background:#fff;color:var(--ink);font-weight:600;padding:6px 12px;border-radius:8px}
 .keys{font-size:11.5px;color:var(--faint);line-height:1.7}
 kbd{font:500 10.5px var(--font);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;color:var(--mute);background:#fff}
 
@@ -730,6 +732,7 @@ body.focusing .toast{bottom:76px}
       <div class="btns" id="syncMore" hidden><button class="btn sm" id="syncLink" title="A private link that connects your phone or another computer in one tap">Link a device</button><button class="btn sm" id="syncOff">Disconnect</button></div>
       <div class="btns"><button class="btn sm" id="exportBtn">Back up</button><button class="btn sm" id="importBtn">Restore</button><button class="btn sm" id="icsBtn" title="Save a calendar file with alerts, then open it in the iPhone Calendar app">Calendar alerts</button></div>
       <input type="file" id="importFile" accept="application/json,.json" hidden>
+      <div class="sub" id="verNote"></div>
       <div class="keys"><kbd>N</kbd> new &nbsp;<kbd>T</kbd> today &nbsp;<kbd>←</kbd><kbd>→</kbd> move &nbsp;<kbd>M</kbd><kbd>W</kbd><kbd>D</kbd><kbd>A</kbd> views &nbsp;<kbd>/</kbd> search</div>
     </section>
   </aside>
@@ -896,6 +899,8 @@ body.focusing .toast{bottom:76px}
 <div class="menu" id="moreMenu" hidden><button data-v="projects">Projects</button><button data-v="habits">Habits</button><button data-v="review">Review</button><button data-v="news">News</button></div>
 <div class="fbar" id="focusBar" role="status" hidden></div>
 <!-- ===== EXTRAS DIALOGS END ===== -->
+
+<div class="updbar" id="updBar" hidden><span>A new version is ready.</span><button id="updGo">Reload</button></div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastMsg"></span><button id="toastBtn" hidden>Undo</button></div>
 
@@ -3460,7 +3465,15 @@ setInterval(() => {
 }, 30000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync) syncNow(); });
 addEventListener('online', () => { if (sync) syncNow(); });
-if (!HOSTED && 'serviceWorker' in navigator && window.isSecureContext && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => null);
+const APP_VERSION = '2026-10-28.6';
+if ($('#verNote')) $('#verNote').textContent = 'Planner ' + APP_VERSION;
+if (!HOSTED && 'serviceWorker' in navigator && window.isSecureContext && location.protocol.startsWith('http')) {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js').catch(() => null);
+  // A new service worker took over: offer a reload (never reload on its own, a half-typed task would be lost).
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) $('#updBar').hidden = false; });
+  $('#updGo').onclick = () => location.reload();
+}
 
 render();
 focusLoop();

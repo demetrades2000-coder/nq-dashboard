@@ -231,6 +231,31 @@ body.dragging-ev{cursor:grabbing;-webkit-user-select:none;user-select:none}
 .glance div{border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
 .glance b{display:block;font-size:20px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .glance span{font-size:11.5px;color:var(--mute)}
+.gm{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:14px;align-items:start}
+.gm .card{padding:16px;display:flex;flex-direction:column;gap:12px}
+.gm .sec-h{margin:0}
+.goal{display:flex;flex-direction:column;gap:6px;text-align:left;width:100%;padding:10px 10px;border-radius:10px;border:1px solid var(--line2)}
+.goal:hover{border-color:var(--line);background:#fcfcfd}
+.goal .g-h{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.goal b{font-size:13.5px;font-weight:600;overflow-wrap:anywhere}
+.goal .g-v{font-size:12.5px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
+.goal .g-f{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mute)}
+.goal .bar2 i{background:var(--ok)}
+.goal.hit .bar2 i{background:#2563eb}
+.m-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.m-sum div{border:1px solid var(--line);border-radius:10px;padding:9px 10px}
+.m-sum b{display:block;font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.m-sum span{font-size:11.5px;color:var(--mute)}
+.pos{color:#047857}.neg{color:#b91c1c}
+.m-list{display:flex;flex-direction:column}
+.m-row{display:flex;gap:10px;align-items:baseline;padding:8px 4px;border-top:1px solid var(--line2);text-align:left;width:100%;border-radius:6px}
+.m-row:hover{background:var(--soft)}
+.m-row .d{font-size:12px;color:var(--mute);width:56px;flex:none}
+.m-row .n{flex:1;min-width:0;font-size:13px;overflow-wrap:anywhere}
+.m-row .a{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.seg2{display:flex;background:var(--soft2);border-radius:10px;padding:3px}
+.seg2 button{flex:1;height:32px;border-radius:7px;font-weight:500;font-size:13px;color:var(--mute)}
+.seg2 button[aria-pressed=true]{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .keys{font-size:11.5px;color:var(--faint);line-height:1.7}
 kbd{font:500 10.5px var(--font);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;color:var(--mute);background:#fff}
 
@@ -560,6 +585,29 @@ dialog[open]{animation:pop .16s ease-out}
   </form>
 </dialog>
 
+<dialog id="goalDlg" aria-labelledby="gTitle">
+  <form class="dlg" id="goalForm" novalidate>
+    <div class="dlg-h"><input id="gTitle" class="title-in" placeholder="Goal, e.g. First $1,000 payout" maxlength="80" autocomplete="off"><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="fld"><label for="gKind">Tracks</label><select id="gKind"><option value="manual">A number I update myself</option><option value="month_pnl">This month's trading P&amp;L (from the bots)</option><option value="eval_profit">Zlarior eval profit (from the bots)</option></select></div>
+    <div class="frow"><div class="fld"><label for="gTarget">Target</label><input id="gTarget" inputmode="decimal" autocomplete="off" placeholder="1000"></div><div class="fld" id="gCurWrap"><label for="gCur">Right now</label><input id="gCur" inputmode="decimal" autocomplete="off" placeholder="0"></div></div>
+    <div class="frow"><div class="fld"><label for="gUnit">Counts in</label><select id="gUnit"><option value="$">Dollars</option><option value="">Plain number</option></select></div><div class="fld"><label for="gDue">By</label><input type="date" id="gDue"></div></div>
+    <div class="err" id="gErr" hidden></div>
+    <div class="dlg-f"><div><button type="button" class="btn danger" id="gDelete">Delete</button></div><div><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Save</button></div></div>
+  </form>
+</dialog>
+
+<dialog id="moneyDlg" aria-labelledby="moneyTitle">
+  <form class="dlg" id="moneyForm" novalidate>
+    <div class="dlg-h"><h3 id="moneyTitle">Money entry</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="seg2" id="mKind"><button type="button" data-k="in" aria-pressed="true">Money in</button><button type="button" data-k="out" aria-pressed="false">Money out</button></div>
+    <div class="frow"><div class="fld"><label for="mAmt">Amount ($)</label><input id="mAmt" inputmode="decimal" autocomplete="off" placeholder="0.00"></div><div class="fld"><label for="mDate">Date</label><input type="date" id="mDate"></div></div>
+    <div class="fld"><label for="mNote">What for</label><input id="mNote" maxlength="120" autocomplete="off" placeholder="Payout, eval fee, software, clip sponsor"></div>
+    <div class="fld"><label for="mProj">Project</label><select id="mProj"></select></div>
+    <div class="err" id="mErr" hidden></div>
+    <div class="dlg-f"><div><button type="button" class="btn danger" id="mDelete">Delete</button></div><div><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Save</button></div></div>
+  </form>
+</dialog>
+
 <dialog id="projDlg" aria-labelledby="pName">
   <form class="dlg" id="projForm" novalidate>
     <div class="dlg-h"><input id="pName" class="title-in" placeholder="Project name" maxlength="60" autocomplete="off"><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
@@ -651,6 +699,8 @@ function normalize(s) {
     categories: cats,
     events: Array.isArray(s.events) ? s.events.filter((e) => e && e.id && e.date) : [],
     tasks: Array.isArray(s.tasks) ? s.tasks.filter((t) => t && t.id) : [],
+    goals: Array.isArray(s.goals) ? s.goals.filter((x) => x && x.id) : [],
+    money: Array.isArray(s.money) ? s.money.filter((x) => x && x.id) : [],
     planned: typeof s.planned === 'string' ? s.planned : '',
     lastBackup: +s.lastBackup || 0,
     projects: Array.isArray(s.projects) ? s.projects.filter((x) => x && x.id) : DEFAULT_PROJECTS.map((x) => ({ ...x })),
@@ -684,7 +734,7 @@ function undo() {
 // anything with a newer tombstone in `deleted`, so phone and computer can edit at the same time.
 const SYNC_KEY = 'planner.sync', BOTS_KEY = 'planner.bots', API = 'https://api.github.com';
 const DEFAULT_REPO = 'demetrades2000-coder/planner-data';
-const SYNCED = ['categories', 'events', 'tasks', 'dismissed', 'projects'];
+const SYNCED = ['categories', 'events', 'tasks', 'dismissed', 'projects', 'goals', 'money'];
 const REPEATS = ['none', 'daily', 'weekdays', 'weekly', 'biweekly', 'monthly', 'yearly'];
 const HM = /^([01]\d|2[0-3]):[0-5]\d$/, YMD = /^\d{4}-\d{2}-\d{2}$/;
 const UA = navigator.userAgent;
@@ -816,7 +866,7 @@ async function startDb() {
     arrived('bots', snap);
   }, fail);
 }
-const userDoc = () => ({ v: 2, categories: S.categories, events: S.events, tasks: S.tasks, projects: S.projects, dismissed: S.dismissed, deleted: S.deleted, settings: { weekStart: S.weekStart, u: S.settingsU || 0 } });
+const userDoc = () => ({ v: 2, categories: S.categories, events: S.events, tasks: S.tasks, projects: S.projects, goals: S.goals, money: S.money, dismissed: S.dismissed, deleted: S.deleted, settings: { weekStart: S.weekStart, u: S.settingsU || 0 } });
 function mergeDocs(a, b) {
   const deleted = { ...(a.deleted || {}) };
   for (const [id, t] of Object.entries(b.deleted || {})) if (!(deleted[id] >= t)) deleted[id] = t;
@@ -829,12 +879,14 @@ function mergeDocs(a, b) {
   };
   const sa = a.settings || { u: 0 }, sb = b.settings || { u: 0 };
   const cats = ml(a.categories, b.categories);
-  return { v: 2, categories: cats.length ? cats : (b.categories || []), events: ml(a.events, b.events), tasks: ml(a.tasks, b.tasks), projects: ml(a.projects, b.projects), dismissed: ml(a.dismissed, b.dismissed), deleted, settings: (sb.u || 0) > (sa.u || 0) ? sb : sa };
+  return { v: 2, categories: cats.length ? cats : (b.categories || []), events: ml(a.events, b.events), tasks: ml(a.tasks, b.tasks), projects: ml(a.projects, b.projects), goals: ml(a.goals, b.goals), money: ml(a.money, b.money), dismissed: ml(a.dismissed, b.dismissed), deleted, settings: (sb.u || 0) > (sa.u || 0) ? sb : sa };
 }
 function applyDoc(d) {
   if (Array.isArray(d.categories) && d.categories.length) S.categories = d.categories;
   S.events = d.events || []; S.tasks = d.tasks || []; S.dismissed = d.dismissed || []; S.deleted = d.deleted || {};
   if (Array.isArray(d.projects)) S.projects = d.projects;
+  if (Array.isArray(d.goals)) S.goals = d.goals;
+  if (Array.isArray(d.money)) S.money = d.money;
   if (d.settings && d.settings.weekStart != null && (d.settings.u || 0) >= (S.settingsU || 0)) { S.weekStart = d.settings.weekStart === 1 ? 1 : 0; S.settingsU = d.settings.u || 0; }
   S.hidden = S.hidden.filter((h) => S.categories.some((c) => c.id === h));
   save();
@@ -1328,6 +1380,7 @@ function renderProjects() {
     </section>`;
   }).join('');
   return `<div class="projects">
+    ${goalsMoneyHtml()}
     <div class="p-sum"><span><b>${S.projects.length}</b>projects</span><span><b>${open}</b>open tasks</span><span><b>${dueWeek}</b>due in the next 7 days</span>${blocked ? `<span class="bad"><b>${blocked}</b>blocked</span>` : ''}<button class="btn sm" id="pNew" style="margin-left:auto">+ New project</button></div>
     ${cards ? `<div class="p-grid">${cards}</div>` : '<div class="empty"><b>No projects yet</b>Add one to track its milestones and tasks here.</div>'}
   </div>`;
@@ -1899,6 +1952,98 @@ function route() {
 }
 // ===== LEAD END =====
 
+
+// ===== LEAD2 BEGIN: goals and money =====
+const moneyOpen = new Set();
+function goalValue(g) {
+  const tr = nqBot && nqBot.trade;
+  if (g.kind === 'month_pnl' && tr && tr.month) return tr.month.usd || 0;
+  if (g.kind === 'eval_profit' && tr) { const a = (tr.accounts || []).find((x) => x.strategy === 'LIT') || (tr.accounts || [])[0]; if (a) return a.profit || 0; }
+  return +g.cur || 0;
+}
+const gnum = (g, n) => (g.unit === '$' ? usd(n) : Math.round(n * 100) / 100 + '');
+const mAmt = (m) => (m.kind === 'out' ? -1 : 1) * (+m.amt || 0);
+const usdc = (n) => (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function goalsMoneyHtml() {
+  const today = todayKey(), mon = today.slice(0, 7);
+  const goals = S.goals.slice().sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999')).map((g) => {
+    const v = goalValue(g), t = +g.target || 0, pct = t > 0 ? Math.max(0, Math.min(100, v / t * 100)) : 0, hit = t > 0 && v >= t;
+    const days = g.due ? diffDays(today, g.due) : null;
+    const when = g.due ? (hit ? 'Done' : days < 0 ? `${-days} day${days === -1 ? '' : 's'} late` : days === 0 ? 'due today' : `${days} day${days === 1 ? '' : 's'} left · ${longDate(g.due)}`) : (hit ? 'Done' : '');
+    const auto = g.kind && g.kind !== 'manual' ? 'live from the bots' : '';
+    return `<button type="button" class="goal${hit ? ' hit' : ''}" data-gedit="${g.id}"><div class="g-h"><b>${esc(g.title)}</b><span class="g-v">${gnum(g, v)} of ${gnum(g, t)}</span></div><div class="bar2"><i style="width:${pct}%"></i></div><div class="g-f"><span>${Math.round(pct)}%${auto ? ' · ' + auto : ''}</span><span class="${!hit && days != null && days < 0 ? 'neg' : ''}">${esc(when)}</span></div></button>`;
+  }).join('');
+  const ms = S.money.slice().sort((a, b) => b.date.localeCompare(a.date) || (b.created || 0) - (a.created || 0));
+  const inM = ms.filter((m) => m.date.slice(0, 7) === mon), sum = (l, k) => l.filter((m) => m.kind === k).reduce((n, m) => n + (+m.amt || 0), 0);
+  const mi = sum(inM, 'in'), mo = sum(inM, 'out'), net = mi - mo, all = ms.reduce((n, m) => n + mAmt(m), 0);
+  const show = moneyOpen.has('all') ? ms : ms.slice(0, 6);
+  const rows = show.map((m) => `<button type="button" class="m-row" data-medit="${m.id}"><span class="d">${esc(dueLabel(m.date))}</span><span class="n">${esc(m.note || (m.kind === 'out' ? 'Expense' : 'Income'))} ${ptag(m.proj)}</span><span class="a ${m.kind === 'out' ? 'neg' : 'pos'}">${m.kind === 'out' ? '-' : '+'}${usdc(+m.amt || 0).replace('-', '')}</span></button>`).join('');
+  return `<div class="gm">
+    <section class="card"><div class="sec-h"><h2>Goals</h2><button class="btn sm" data-gnew>+ Goal</button></div>${goals || '<div class="empty-s">Set a target you want to hit, like "First $1,000 payout" or "Pass the 50K eval". Tap a goal to update it.</div>'}</section>
+    <section class="card"><div class="sec-h"><h2>Money</h2><div style="display:flex;gap:6px">${ms.length ? '<button class="btn sm" data-mcsv>Export CSV</button>' : ''}<button class="btn sm" data-mnew>+ Entry</button></div></div>
+      <div class="m-sum"><div><b class="pos">${usdc(mi)}</b><span>in, ${MONTHS[+mon.slice(5) - 1].slice(0, 3)}</span></div><div><b class="neg">${usdc(mo)}</b><span>out, ${MONTHS[+mon.slice(5) - 1].slice(0, 3)}</span></div><div><b class="${net < 0 ? 'neg' : 'pos'}">${usdc(net)}</b><span>net this month</span></div></div>
+      ${ms.length ? `<div class="m-list">${rows}</div>${ms.length > 6 ? `<button class="link" data-mmore style="align-self:flex-start">${moneyOpen.has('all') ? 'Show fewer' : `Show all ${ms.length}`}</button>` : ''}<div class="sub">All time: <b class="${all < 0 ? 'neg' : 'pos'}">${usdc(all)}</b></div>` : '<div class="empty-s">Log payouts, eval fees, software and sponsor money here to see your real profit.</div>'}
+    </section></div>`;
+}
+const goalDlg = $('#goalDlg'); let goalEditing = null;
+function syncGoalForm() { $('#gCurWrap').hidden = $('#gKind').value !== 'manual'; }
+function openGoal(id) {
+  const g = S.goals.find((x) => x.id === id); goalEditing = g ? g.id : null;
+  $('#gTitle').value = g ? g.title : ''; $('#gKind').value = g ? g.kind || 'manual' : 'manual';
+  $('#gTarget').value = g ? g.target : ''; $('#gCur').value = g ? g.cur || '' : '';
+  $('#gUnit').value = g ? g.unit || '' : '$'; $('#gDue').value = g ? g.due || '' : '';
+  $('#gDelete').hidden = !g; $('#gErr').hidden = true; syncGoalForm(); goalDlg.showModal();
+  if (!g) setTimeout(() => $('#gTitle').focus(), 30);
+}
+$('#gKind').onchange = () => { syncGoalForm(); if ($('#gKind').value !== 'manual') $('#gUnit').value = '$'; };
+const numOf = (v) => { const n = parseFloat(String(v).replace(/[$,\s]/g, '')); return isFinite(n) ? n : NaN; };
+$('#goalForm').onsubmit = (e) => {
+  e.preventDefault();
+  const title = $('#gTitle').value.trim(), target = numOf($('#gTarget').value), cur = $('#gCur').value.trim() === '' ? 0 : numOf($('#gCur').value);
+  const err = (m) => { $('#gErr').textContent = m; $('#gErr').hidden = false; };
+  if (!title) return err('Give the goal a name.');
+  if (!(target > 0)) return err('Set a target above zero.');
+  if (isNaN(cur)) return err('"Right now" should be a number.');
+  const data = { title, kind: $('#gKind').value, target, cur, unit: $('#gUnit').value, due: $('#gDue').value };
+  snapshot(); commit(() => { const g = S.goals.find((x) => x.id === goalEditing); if (g) Object.assign(g, data); else S.goals.push({ id: uid(), created: Date.now(), ...data }); });
+  goalDlg.close(); renderMain(); toast(goalEditing ? 'Goal saved' : 'Goal added', true);
+};
+$('#gDelete').onclick = () => { snapshot(); commit(() => { S.goals = S.goals.filter((x) => x.id !== goalEditing); }); goalDlg.close(); renderMain(); toast('Goal deleted', true); };
+
+const moneyDlg = $('#moneyDlg'); let moneyEditing = null, mKind = 'in';
+function paintMKind() { document.querySelectorAll('#mKind button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === mKind))); }
+function openMoney(id) {
+  const m = S.money.find((x) => x.id === id); moneyEditing = m ? m.id : null; mKind = m ? m.kind : 'in';
+  $('#mAmt').value = m ? m.amt : ''; $('#mDate').value = m ? m.date : todayKey(); $('#mNote').value = m ? m.note || '' : '';
+  $('#mProj').innerHTML = '<option value="">None</option>' + S.projects.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join(''); $('#mProj').value = m && projOf(m.proj) ? m.proj : '';
+  $('#mDelete').hidden = !m; $('#mErr').hidden = true; paintMKind(); moneyDlg.showModal(); if (!m) setTimeout(() => $('#mAmt').focus(), 30);
+}
+$('#mKind').onclick = (e) => { const b = e.target.closest('[data-k]'); if (b) { mKind = b.dataset.k; paintMKind(); } };
+$('#moneyForm').onsubmit = (e) => {
+  e.preventDefault();
+  const amt = numOf($('#mAmt').value), date = $('#mDate').value, err = (m) => { $('#mErr').textContent = m; $('#mErr').hidden = false; };
+  if (!(amt > 0)) return err('Enter an amount above zero. Pick Money in or Money out above.');
+  if (!ymdOk(date)) return err('Pick a date.');
+  const data = { kind: mKind, amt: Math.round(amt * 100) / 100, date, note: $('#mNote').value.trim(), proj: $('#mProj').value };
+  snapshot(); commit(() => { const m = S.money.find((x) => x.id === moneyEditing); if (m) Object.assign(m, data); else S.money.push({ id: uid(), created: Date.now(), ...data }); });
+  moneyDlg.close(); renderMain(); toast(moneyEditing ? 'Entry saved' : mKind === 'in' ? 'Money in logged' : 'Money out logged', true);
+};
+$('#mDelete').onclick = () => { snapshot(); commit(() => { S.money = S.money.filter((x) => x.id !== moneyEditing); }); moneyDlg.close(); renderMain(); toast('Entry deleted', true); };
+$('#main').addEventListener('click', (e) => {
+  const t = e.target;
+  if (t.closest('[data-gnew]')) openGoal(null);
+  else if (t.closest('[data-gedit]')) openGoal(t.closest('[data-gedit]').dataset.gedit);
+  else if (t.closest('[data-mnew]')) openMoney(null);
+  else if (t.closest('[data-medit]')) openMoney(t.closest('[data-medit]').dataset.medit);
+  else if (t.closest('[data-mmore]')) { moneyOpen.has('all') ? moneyOpen.delete('all') : moneyOpen.add('all'); renderMain(); }
+  else if (t.closest('[data-mcsv]')) {
+    const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+    const rows = [['date', 'type', 'amount', 'note', 'project'], ...S.money.slice().sort((a, b) => a.date.localeCompare(b.date)).map((m) => [m.date, m.kind === 'out' ? 'out' : 'in', m.amt, m.note || '', (projOf(m.proj) || {}).name || ''])];
+    download(`planner-money-${todayKey()}.csv`, rows.map((r) => r.map(q).join(',')).join('\n') + '\n', 'text/csv');
+  }
+});
+// ===== LEAD2 END =====
+
 // ---------- backup ----------
 async function download(name, text, type) {
   if (HOSTED) {
@@ -2132,7 +2277,7 @@ $('#importFile').onchange = async (e) => {
     if (!data || !Array.isArray(data.events)) throw new Error('not a planner backup');
     if (!(await ask('Restore backup?', `${data.events.length} events and ${(data.tasks || []).length} tasks. This replaces your calendar${sync ? ' on every synced device' : ''}.`, 'Restore', { danger: true }))) return;
     const d = normalize(data);
-    snapshot(); commit(() => { S.categories = d.categories; S.events = d.events; S.tasks = d.tasks; S.projects = d.projects; S.dismissed = d.dismissed; S.weekStart = d.weekStart; }); render(); toast('Backup restored', true);
+    snapshot(); commit(() => { S.categories = d.categories; S.events = d.events; S.tasks = d.tasks; S.projects = d.projects; S.goals = d.goals; S.money = d.money; S.dismissed = d.dismissed; S.weekStart = d.weekStart; }); render(); toast('Backup restored', true);
   } catch (err) { toast('That file is not a Planner backup'); }
 };
 

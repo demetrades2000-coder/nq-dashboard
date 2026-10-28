@@ -348,6 +348,12 @@ body.dragging-ev{cursor:grabbing;-webkit-user-select:none;user-select:none}
 body.offline .brand::after{content:"Offline";font-size:11px;font-weight:600;color:#92400e;background:#fef3c7;padding:2px 8px;border-radius:10px;margin-left:6px}
 .updbar{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:60;background:var(--ink);color:#fff;border-radius:12px;padding:10px 12px 10px 16px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);max-width:460px;margin:0 auto;font-size:13.5px}
 .updbar span{flex:1}.updbar button{background:#fff;color:var(--ink);font-weight:600;padding:6px 12px;border-radius:8px}
+.pw-days{display:flex;flex-direction:column;gap:8px;max-height:46vh;overflow:auto}
+.pw-day{border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.pw-day>b{font-size:12.5px;font-weight:600;display:flex;justify-content:space-between}
+.pw-day>b span{font-weight:400;color:var(--mute)}
+.pw-day label{display:flex;gap:8px;align-items:flex-start;padding:4px 0;font-size:13.5px;cursor:pointer}
+.pw-day label input{width:16px;height:16px;margin-top:2px;flex:none;accent-color:var(--ink);padding:0}
 .keys{font-size:11.5px;color:var(--faint);line-height:1.7}
 kbd{font:500 10.5px var(--font);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;color:var(--mute);background:#fff}
 
@@ -698,7 +704,7 @@ body.focusing .toast{bottom:76px}
     </section>
 
     <section class="card" id="plan">
-      <div class="sec-h" style="margin-bottom:2px"><div><div class="plan-title" id="planTitle"></div><div class="sub" id="planSub"></div></div><div style="display:flex;gap:6px"><button class="btn sm" id="planGoBtn" title="Pick today's tasks and block time for them">Plan day</button><button class="btn sm" id="planAdd" title="New event on this day">+ Event</button></div></div>
+      <div class="sec-h" style="margin-bottom:2px"><div><div class="plan-title" id="planTitle"></div><div class="sub" id="planSub"></div></div><div style="display:flex;gap:6px"><button class="btn sm" id="planGoBtn" title="Pick today's tasks and block time for them">Plan day</button><button class="btn sm" id="planWeekBtn" title="Spread open tasks over the week">Week</button><button class="btn sm" id="planAdd" title="New event on this day">+ Event</button></div></div>
       <div class="label">Schedule</div>
       <div class="sched" id="sched"></div>
       <div class="label" style="display:flex;justify-content:space-between"><span>Tasks</span><span id="taskCount" style="letter-spacing:0;text-transform:none;font-weight:500"></span></div>
@@ -806,6 +812,16 @@ body.focusing .toast{bottom:76px}
     <div class="fld"><span class="flabel" id="gapLabel">Free time</span><div class="gaps" id="bGaps"></div></div>
     <div class="err" id="bErr" hidden></div>
     <div class="dlg-f"><div></div><div><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Add to calendar</button></div></div>
+  </form>
+</dialog>
+
+<dialog id="weekDlg" aria-labelledby="weekDlgTitle">
+  <form class="dlg" id="weekForm" novalidate>
+    <div class="dlg-h"><h3 id="weekDlgTitle">Plan my week</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="hint" id="weekHint"></div>
+    <div class="pw-days" id="weekDays"></div>
+    <div class="hint" id="weekLeft"></div>
+    <div class="dlg-f"><div></div><div><button type="button" class="btn" data-close>Not now</button><button type="submit" class="btn primary">Schedule these</button></div></div>
   </form>
 </dialog>
 
@@ -2265,6 +2281,7 @@ $('#planForm').onsubmit = (e) => {
   toast(`${chosen.length} task${chosen.length === 1 ? '' : 's'} planned${blocked ? `, ${blocked} time-blocked` : ''}${skipped.length ? `. No room for ${skipped.length}` : ''}`, true);
 };
 $('#planGoBtn').onclick = openPlan;
+$('#planWeekBtn').onclick = () => openPlanWeek();
 
 function paintBackup() {
   const n = $('#bkNote'); if (!n) return;
@@ -2407,6 +2424,42 @@ $('#main').addEventListener('click', (e) => {
   });
 }
 
+// ---- plan my week: spread open tasks over Mon-Fri by priority and free time ----
+const weekDlg = $('#weekDlg');
+let weekPlan = [];
+function openPlanWeek() {
+  const today = todayKey();
+  let mon = addDays(today, -((dow(today) + 6) % 7)); if (dow(today) === 0 || dow(today) === 6) mon = addDays(mon, 7);
+  const days = [0, 1, 2, 3, 4].map((i) => addDays(mon, i)).filter((k) => k >= today);
+  if (!days.length) { toast('No working days left this week'); return; }
+  const cap = {};
+  days.forEach((k) => {
+    const free = freeGaps(k, 7 * 60, 21 * 60, 15).reduce((n, [a, b]) => n + (b - a), 0);
+    const used = S.tasks.filter((t) => !t.done && t.date === k).reduce((n, t) => n + (t.est || 30), 0);
+    cap[k] = Math.max(0, Math.round(free * 0.7) - used);
+  });
+  const open = S.tasks.filter((t) => !t.done && (!t.date || t.date < today));
+  open.sort((a, b) => ((b.p || 0) - (a.p || 0)) || ((a.date ? 0 : 1) - (b.date ? 0 : 1)) || (a.created - b.created));
+  weekPlan = days.map((k) => ({ k, items: [], left: cap[k] })); const unplaced = [];
+  for (const t of open) {
+    const need = t.est || 30, d = weekPlan.find((x) => x.left >= need);
+    if (d) { d.items.push({ t, on: true }); d.left -= need; } else unplaced.push(t);
+  }
+  $('#weekHint').textContent = `${longDate(days[0])} to ${longDate(days[days.length - 1])}. Days with less free time get fewer tasks; about 30% of each day is kept spare.`;
+  paintWeek(unplaced); weekDlg.showModal();
+}
+function paintWeek(unplaced) {
+  $('#weekDays').innerHTML = weekPlan.map((d, di) => `<div class="pw-day"><b>${longDate(d.k)}<span>${fmtDur(Math.max(0, d.left)) || '0m'} spare</span></b>${d.items.length ? d.items.map((it, ii) => `<label><input type="checkbox" data-di="${di}" data-ii="${ii}" ${it.on ? 'checked' : ''}><span>${esc(it.t.title)}${it.t.est ? ` <span class="t-chip">${fmtDur(it.t.est)}</span>` : ''} ${ptag(it.t.proj)}${(it.t.p || 0) >= 3 ? ' <span class="t-chip">high</span>' : ''}</span></label>`).join('') : '<div class="empty-s">Nothing assigned.</div>'}</div>`).join('');
+  $('#weekLeft').textContent = unplaced && unplaced.length ? `${unplaced.length} task${unplaced.length === 1 ? '' : 's'} did not fit this week and stay as they are.` : '';
+}
+$('#weekDays').addEventListener('change', (e) => { const c = e.target.closest('[data-di]'); if (c) weekPlan[+c.dataset.di].items[+c.dataset.ii].on = c.checked; });
+$('#weekForm').onsubmit = (e) => {
+  e.preventDefault();
+  const chosen = weekPlan.flatMap((d) => d.items.filter((it) => it.on).map((it) => ({ t: it.t, k: d.k })));
+  snapshot(); commit(() => { chosen.forEach(({ t, k }) => { t.date = k; }); });
+  weekDlg.close(); render(); toast(`${chosen.length} task${chosen.length === 1 ? '' : 's'} scheduled across the week`, true);
+};
+
 // ---- Today: the phone's home screen ----
 function renderToday() {
   const today = todayKey(), n = new Date(), nowMin = n.getHours() * 60 + n.getMinutes(), d = parse(today);
@@ -2425,7 +2478,7 @@ function renderToday() {
   const hrsOld = tr && tr.built ? Math.round((Date.now() - Date.parse(tr.built)) / 3600e3) : null;
   const staleTxt = hrsOld == null ? '' : hrsOld < 2 ? 'live' : hrsOld < 48 ? `${hrsOld} h old` : `${Math.round(hrsOld / 24)} days old`, staleCls = hrsOld != null && hrsOld >= 6 ? 'neg' : 'sub';
   return `<div class="tdy">
-    <div class="td-h"><div><h2>${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}</h2><div class="sub">${own.length} event${own.length === 1 ? '' : 's'}, ${tks.length} task${tks.length === 1 ? '' : 's'} to do${doneToday ? `, ${doneToday} done` : ''}</div></div><button class="btn sm ${planned ? '' : 'primary'}" data-tplan>${planned ? 'Re-plan' : 'Plan day'}</button></div>
+    <div class="td-h"><div><h2>${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}</h2><div class="sub">${own.length} event${own.length === 1 ? '' : 's'}, ${tks.length} task${tks.length === 1 ? '' : 's'} to do${doneToday ? `, ${doneToday} done` : ''}</div></div><div style="display:flex;gap:6px"><button class="btn sm" data-tweek>Plan week</button><button class="btn sm ${planned ? '' : 'primary'}" data-tplan>${planned ? 'Re-plan' : 'Plan day'}</button></div></div>
     ${risk.length ? `<div class="nw-warn" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">${risk.map((r) => esc(r.text || r)).join(' · ')}</div>` : ''}
     <section class="td-card"><h3>Schedule<button data-tgo="day">Day view</button></h3>${own.length ? own.map(evRow).join('') : '<div class="empty-s">Nothing scheduled. Tap Plan day to block time for your tasks.</div>'}${pauses.length ? `<div class="hint" style="margin-top:4px">Bot pauses: ${pauses.filter((o) => /bot paused/.test(o.ev.title)).map((o) => `${fmtTime(o.ev.start)} to ${fmtTime(o.ev.end)}`).join(', ') || 'none today'}</div>` : ''}</section>
     ${ups.length ? `<section class="td-card"><h3>Market news next<button data-tgo="news">All news</button></h3>${ups.map((e) => { const m = Math.round((e.ms - Date.now()) / 60000); return `<div class="nw-row ${e.impact === 'high' ? 'high' : 'med'}" style="grid-template-columns:62px 10px minmax(0,1fr) auto"><span class="nw-t">${fmtTime(e.lt)}</span><span class="nw-i"></span><div class="nw-b"><b>${esc(e.title)}</b>${e.fc || e.prev ? `<small>${e.fc ? 'Forecast ' + esc(e.fc) : ''}${e.fc && e.prev ? ' · ' : ''}${e.prev ? 'Previous ' + esc(e.prev) : ''}</small>` : ''}</div><span class="nw-c">${m < 90 ? `in ${Math.max(m, 1)} min` : `in ${fmtDur(m)}`}</span></div>`; }).join('')}</section>` : ''}
@@ -2442,6 +2495,7 @@ $('#main').addEventListener('click', (e) => {
   const g = e.target.closest('[data-tgo]');
   if (g) { const v = g.dataset.tgo; if (v === 'day') { selected = cursor = todayKey(); } setView(v); return; }
   if (e.target.closest('[data-tplan]')) { selected = todayKey(); openPlan(); return; }
+  if (e.target.closest('[data-tweek]')) { openPlanWeek(); return; }
   const hb = e.target.closest('[data-thab] button'); if (hb) { toggleHabit(hb.closest('[data-thab]').dataset.thab, todayKey()); return; }
 });
 $('#main').addEventListener('submit', (e) => {
@@ -2480,6 +2534,7 @@ function route() {
   const views = ['month', 'week', 'day', 'agenda', 'projects'];
   if (h === 'today') goToday();
   else if (h === 'plan') { goToday(); openPlan(); }
+  else if (h === 'plan-week') { goToday(); openPlanWeek(); }
   else if (h === 'new-event') { goToday(); newEvent(todayKey()); }
   else if (h === 'new-task') { goToday(); setTimeout(() => $('#taskIn').focus(), 60); }
   else if (views.includes(h)) { goToday(); setView(h); }

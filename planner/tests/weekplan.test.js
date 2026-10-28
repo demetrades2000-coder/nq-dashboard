@@ -1,0 +1,32 @@
+const { chromium } = require('playwright');
+const URL = 'http://127.0.0.1:8777/nq-dashboard/planner/index.html';
+(async () => {
+  const errs = [], ok = (c, m) => { if (!c) errs.push(m); }, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: 1440, height: 900 }, timezoneId: 'America/New_York' });
+  await ctx.addInitScript(() => { const T = Date.now(), fixed = new Date(2026, 9, 26, 8, 0, 0).getTime(), R = Date; window.Date = class extends R { constructor(...a) { if (a.length) super(...a); else super(fixed + (R.now() - T)); } static now() { return fixed + (R.now() - T); } }; });
+  const p = await ctx.newPage(); p.on('pageerror', (e) => errs.push(e.message));
+  await p.goto(URL); await wait(300);
+  await p.evaluate(() => { const ev = (id, d, a, b) => ({ id, title: 'Busy ' + id, cat: 'meetings', date: d, allDay: false, start: a, end: b, repeat: 'none', ex: [] });
+    const s = { events: [ev('m', '2026-10-26', '08:00', '20:00'), ev('t', '2026-10-27', '09:00', '15:00')],
+      tasks: [{ id: 'a', title: 'High priority big', date: '', done: false, p: 3, est: 120, created: 1 }, { id: 'b', title: 'Medium', date: '', done: false, p: 2, est: 60, created: 2 }, { id: 'c', title: 'Old overdue', date: '2026-10-20', done: false, p: 1, est: 30, created: 3 }, { id: 'd', title: 'Huge', date: '', done: false, p: 0, est: 180, created: 4 }, { id: 'e', title: 'Fill1', date: '', done: false, p: 0, est: 180, created: 5 }, { id: 'f', title: 'Fill2', date: '', done: false, p: 0, est: 180, created: 6 }, { id: 'g', title: 'Fill3', date: '', done: false, p: 0, est: 180, created: 7 }, { id: 'h', title: 'Fill4', date: '', done: false, p: 0, est: 180, created: 8 }, { id: 'i', title: 'Fill5', date: '', done: false, p: 0, est: 180, created: 9 }], view: 'today' }; for (let i = 0; i < 8; i++) s.tasks.push({ id: 'x' + i, title: 'Extra' + i, date: '', done: false, p: 0, est: 180, created: 20 + i });
+    localStorage.setItem('planner.v1', JSON.stringify(s)); });
+  await p.reload(); await wait(1500);
+  await p.click('[data-tweek]'); await wait(300);
+  ok(await p.isVisible('#weekDlg') && (await p.locator('.pw-day').count()) === 5, 'week dialog with 5 days: ' + await p.locator('.pw-day').count());
+  const first = await p.locator('.pw-day').first().textContent(); ok(!/High priority big/.test(first), 'Monday is fully booked so gets no big task: ' + first.slice(0, 80));
+  const tue = await p.locator('.pw-day').nth(1).textContent(); ok(/High priority big|Medium/.test(tue) === true || /High priority big/.test(await p.locator('.pw-day').nth(2).textContent()), 'high priority placed early');
+  const all = (await p.locator('#weekDays').textContent()); ok(/High priority big/.test(all) && /Medium/.test(all) && /Old overdue/.test(all), 'priority tasks placed');
+  ok(/did not fit/.test(await p.textContent('#weekLeft')), 'unplaced note: ' + await p.textContent('#weekLeft'));
+  await p.screenshot({ path: 'shots/W-dialog.png' });
+  await p.locator('.pw-day label', { hasText: 'Medium' }).locator('input').uncheck();
+  await p.click('#weekForm button[type=submit]'); await wait(400);
+  const st = await p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')).tasks);
+  ok(st.find((t) => t.id === 'a').date >= '2026-10-27' && st.find((t) => t.id === 'a').date <= '2026-10-30', 'high task scheduled: ' + st.find((t) => t.id === 'a').date);
+  ok(st.find((t) => t.id === 'b').date === '', 'unchecked task untouched');
+  ok(st.find((t) => t.id === 'c').date >= '2026-10-26', 'overdue task moved forward');
+  const perDay = {}; st.filter((t) => t.date >= '2026-10-26').forEach((t) => { perDay[t.date] = (perDay[t.date] || 0) + (t.est || 30); });
+  ok(Object.values(perDay).every((m) => m <= 14 * 60 * 0.7 + 1), 'no day overbooked beyond 70% of free time ' + JSON.stringify(perDay));
+  await p.goto(URL + '#plan-week'); await wait(1200); ok(await p.isVisible('#weekDlg'), '#plan-week deep link');
+  console.log(errs.length ? 'FAIL\n' + errs.join('\n') : 'WEEKPLAN OK');
+  await b.close();
+})().catch((e) => { console.error(e.message.split('\n').slice(0, 4).join('\n')); process.exit(1); });

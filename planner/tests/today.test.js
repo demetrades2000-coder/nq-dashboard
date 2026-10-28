@@ -1,0 +1,30 @@
+const { chromium } = require('playwright');
+const URL = 'http://127.0.0.1:8777/nq-dashboard/planner/index.html';
+(async () => {
+  const errs = [], ok = (c, m) => { if (!c) errs.push(m); }, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  const p = await ctx.newPage(); p.on('pageerror', (e) => errs.push(e.message));
+  await p.goto(URL); await wait(5500);
+  ok(await p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1') || '{}').view === 'today' || document.querySelector('#views [aria-pressed=true]').dataset.v === 'today'), 'phone defaults to Today');
+  ok(await p.locator('.tdy .td-card').count() >= 3, 'today cards');
+  const k = await p.evaluate(() => { const d = new Date(), pad = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; });
+  await p.evaluate((k) => { const s = JSON.parse(localStorage.getItem('planner.v1') || '{}'); s.events = [{ id: 'e', title: 'Prop call', cat: 'meetings', date: k, allDay: false, start: '23:00', end: '23:30', repeat: 'none', ex: [] }]; s.tasks = [{ id: 't1', title: 'Overdue one', date: '2026-10-01', done: false, created: 1, p: 3 }, { id: 't2', title: 'Due today', date: k, done: false, created: 2 }]; s.habits = [{ id: 'h', name: 'Pre-market routine', color: '#2563eb', days: [0, 1, 2, 3, 4, 5, 6], done: [], created: '2026-10-01' }]; s.goals = [{ id: 'g', title: 'First payout', target: 1000, cur: 250, kind: 'manual', unit: '$' }]; localStorage.setItem('planner.v1', JSON.stringify(s)); }, k);
+  await p.reload(); await wait(6000);
+  console.log('TODAY TEXT:', (await p.textContent('.tdy')).replace(/\s+/g,' ').slice(0,400), '| view', await p.evaluate(() => document.querySelector('#views [aria-pressed=true]')?.dataset.v)); ok(await p.locator('.td-ev').count() >= 1 && /Prop call/.test(await p.textContent('.tdy')), 'event shown');
+  ok(await p.locator('.tdy .tasks li').count() === 2, 'tasks shown: ' + await p.locator('.tdy .tasks li').count());
+  await p.locator('.tdy .tasks li', { hasText: 'Due today' }).locator('input[type=checkbox]').click(); await wait(300);
+  ok((await p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')).tasks.find((t) => t.id === 't2').done)), 'task completes from Today');
+  ok(await p.locator('.tdy .tasks li').count() === 1, 'completed task leaves the list');
+  await p.click('.td-hab button'); await wait(300);
+  ok(await p.evaluate((k) => JSON.parse(localStorage.getItem('planner.v1')).habits[0].done.includes(k), k), 'habit check-in from Today');
+  await p.fill('.tdy [data-tadd] input', 'film clip tomorrow #clip'); await p.press('.tdy [data-tadd] input', 'Enter'); await wait(300);
+  ok(await p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')).tasks.some((t) => t.title === 'film clip' && t.proj === 'clipper')), 'quick add from Today');
+  ok(/Trading/.test(await p.textContent('.tdy')) && /First payout/.test(await p.textContent('.tdy')), 'trading + goals');
+  await p.screenshot({ path: 'shots/T-phone.png' });
+  await p.click('.tdy [data-tplan]'); await wait(300); ok(await p.isVisible('#planDlg'), 'plan from Today'); await p.keyboard.press('Escape');
+  await p.click('#views [data-v=month]'); await wait(300); ok(await p.isVisible('#nowbar'), 'now bar visible outside Today');
+  { const w = await p.evaluate(() => document.documentElement.scrollWidth); ok(w <= 390, 'no overflow ' + w + ' ' + await p.evaluate(() => [...document.querySelectorAll('body *')].filter((e) => e.getBoundingClientRect().right > 392 && e.offsetParent).slice(0, 4).map((e) => e.tagName + '.' + e.className).join(' | '))); }
+  const tabs = await p.evaluate(() => { const s = document.getElementById('views'); return s.scrollWidth <= s.clientWidth + 1; }); ok(tabs, 'tab bar fits on phone');
+  console.log(errs.length ? 'FAIL\n' + errs.join('\n') : 'TODAY OK');
+  await b.close();
+})().catch((e) => { console.error(e.message.split('\n').slice(0, 4).join('\n')); process.exit(1); });

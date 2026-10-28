@@ -1,0 +1,1834 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Planner</title>
+<meta name="description" content="Calendar and planner: color-coded events, a daily task plan, month / week / day / agenda views.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Planner">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#ffffff; --soft:#f7f8fa; --soft2:#f1f3f6; --line:#e6e8ec; --line2:#f0f1f4;
+  --ink:#111827; --ink2:#374151; --mute:#6b7280; --faint:#9ca3af;
+  --now:#ef4444; --ok:#059669; --h:48px; --r:10px;
+  --shadow:0 1px 2px rgba(17,24,39,.04),0 8px 24px rgba(17,24,39,.08);
+  --font:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:400 14px/1.45 var(--font);-webkit-font-smoothing:antialiased;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:6px}
+svg{display:block}
+
+/* ---------- top bar ---------- */
+.top{height:64px;display:flex;align-items:center;gap:16px;padding:0 20px;border-bottom:1px solid var(--line);background:#fff}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;letter-spacing:-.01em;width:248px;flex:none}
+.logo{width:28px;height:28px;border-radius:8px;background:var(--ink);display:grid;place-items:center;color:#fff}
+.nav{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.nav h1{font-size:18px;font-weight:600;letter-spacing:-.015em;margin-left:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.right{display:flex;align-items:center;gap:10px}
+.btn{height:36px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:#fff;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:background .15s,border-color .15s}
+.btn:hover{background:var(--soft);border-color:#d9dce2}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn.primary:hover{background:#000}
+.btn.danger{color:#b91c1c;border-color:#f3d4d4}
+.btn.danger:hover{background:#fef2f2}
+.btn.sm{height:30px;padding:0 10px;font-size:13px}
+.ib{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;color:var(--ink2)}
+.ib:hover{background:var(--soft)}
+.seg{display:flex;background:var(--soft2);border-radius:10px;padding:3px}
+.seg button{height:30px;padding:0 12px;border-radius:7px;font-weight:500;color:var(--mute);font-size:13px}
+.seg button[aria-pressed=true]{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.search{position:relative;width:200px}
+.search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--faint)}
+.search input{width:100%;height:36px;border:1px solid var(--line);border-radius:9px;padding:0 10px 0 32px;background:#fff;outline:none}
+.search input:focus{border-color:var(--ink)}
+
+/* ---------- layout ---------- */
+.layout{display:grid;grid-template-columns:288px minmax(0,1fr);height:calc(100vh - 64px);height:calc(100dvh - 64px)}
+.side{border-right:1px solid var(--line);overflow-y:auto;padding:16px 16px 32px;display:flex;flex-direction:column;gap:14px;background:#fff}
+main{overflow:auto;min-width:0;position:relative}
+.card{border:1px solid var(--line);border-radius:var(--r);padding:14px;background:#fff}
+.sec-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.sec-h h2{font-size:13px;font-weight:600;letter-spacing:-.005em}
+.sub{font-size:12px;color:var(--mute)}
+.link{font-size:12px;font-weight:500;color:var(--mute)}
+.link:hover{color:var(--ink)}
+.label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin:12px 0 6px}
+
+/* mini month */
+.mini-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.mini-h b{font-size:13px;font-weight:600}
+.mini-h .ib{width:28px;height:28px}
+.mini-g{display:grid;grid-template-columns:repeat(7,1fr);text-align:center}
+.mini-g .wd{font-size:10px;font-weight:600;color:var(--faint);padding:2px 0 4px}
+.mini-g button{height:30px;font-size:12px;border-radius:50%;position:relative;color:var(--ink2);width:30px;margin:0 auto}
+.mini-g button:hover{background:var(--soft2)}
+.mini-g button.out{color:#c4c8cf}
+.mini-g button.has::after{content:"";position:absolute;bottom:3px;left:50%;width:3px;height:3px;border-radius:50%;background:var(--faint);transform:translateX(-50%)}
+.mini-g button.sel{background:var(--soft2);font-weight:600;color:var(--ink)}
+.mini-g button.today{background:var(--ink);color:#fff;font-weight:600}
+.mini-g button.today::after{background:#fff}
+
+/* day plan */
+.plan-title{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.prog{height:4px;border-radius:4px;background:var(--soft2);overflow:hidden;margin:8px 0 2px}
+.prog i{display:block;height:100%;background:var(--ok);border-radius:4px;transition:width .3s}
+.sched{display:flex;flex-direction:column;gap:4px}
+.srow{display:flex;gap:10px;align-items:flex-start;padding:7px 8px;border-radius:8px;text-align:left;width:100%;background:var(--bg-c,#fff)}
+.srow:hover{filter:brightness(.98)}
+.srow .bar{width:3px;align-self:stretch;border-radius:3px;background:var(--c);flex:none}
+.srow .tm{font-size:12px;color:var(--mute);width:52px;flex:none;padding-top:1px}
+.srow .tt{font-size:13px;font-weight:500;color:var(--fg);line-height:1.3;min-width:0;overflow-wrap:anywhere}
+.empty-s{font-size:12.5px;color:var(--faint);padding:2px 0}
+.tasks{list-style:none;display:flex;flex-direction:column;gap:1px}
+.tasks li{display:flex;align-items:flex-start;gap:8px;padding:5px 4px;border-radius:7px}
+.tasks li:hover{background:var(--soft)}
+.tasks input[type=checkbox]{appearance:none;margin-top:1px;width:17px;height:17px;border:1.5px solid #c9cdd4;border-radius:5px;flex:none;cursor:pointer;display:grid;place-items:center;transition:all .15s}
+.tasks input[type=checkbox]:checked{background:var(--ok);border-color:var(--ok)}
+.tasks input[type=checkbox]:checked::after{content:"";width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.t-in{flex:1;min-width:0;outline:none;font-size:13px;padding:2px 3px;margin:0 -3px;border-radius:4px;overflow-wrap:anywhere;line-height:1.35;cursor:text}
+.t-in:focus{background:#fff;box-shadow:0 0 0 1.5px var(--ink)}
+.tasks li.done .t-in{color:var(--faint);text-decoration:line-through}
+.pri{width:22px;height:22px;display:grid;place-items:center;border-radius:6px;flex:none}
+.pri i{width:8px;height:8px;border-radius:50%;border:1.5px solid #d1d5db}
+.pri[data-p="1"] i{background:#9ca3af;border-color:#9ca3af}
+.pri[data-p="2"] i{background:#f59e0b;border-color:#f59e0b}
+.pri[data-p="3"] i{background:#ef4444;border-color:#ef4444}
+.tdel,.tmove{opacity:0;font-size:12px;color:var(--faint);padding:2px 4px;border-radius:5px;flex:none}
+.tasks li:hover .tdel,.tasks li:hover .tmove,.tasks li:focus-within .tdel,.tasks li:focus-within .tmove{opacity:1}
+.tdel:hover{color:#b91c1c}.tmove:hover{color:var(--ink)}
+@media(hover:none){.tdel,.tmove{opacity:1}}
+.overdue .t-in{color:#b45309}
+.add-t{display:flex;align-items:center;gap:8px;margin-top:6px;border:1px dashed var(--line);border-radius:8px;padding:0 10px;height:36px}
+.add-t:focus-within{border-style:solid;border-color:var(--ink)}
+.add-t span{color:var(--faint);font-size:16px;line-height:1}
+.add-t input{flex:1;border:0;outline:none;background:transparent;font-size:13px;height:100%}
+
+/* categories */
+.cats{list-style:none;display:flex;flex-direction:column;gap:1px}
+.cats button{display:flex;align-items:center;gap:10px;width:100%;padding:6px 6px;border-radius:7px;text-align:left;font-size:13px}
+.cats button:hover{background:var(--soft)}
+.cats .sw{width:14px;height:14px;border-radius:4px;background:var(--c);border:2px solid var(--c);flex:none;transition:background .15s}
+.cats button.off .sw{background:#fff}
+.cats button.off .nm{color:var(--faint)}
+.cats .nm{flex:1}
+.cats .ct{font-size:12px;color:var(--faint)}
+.tools{display:flex;flex-direction:column;gap:8px}
+.tools .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tools .btns{display:flex;flex-wrap:wrap;gap:6px}
+.sync-row{display:flex;align-items:center;gap:8px}
+.sdot{width:8px;height:8px;border-radius:50%;background:#d1d5db;flex:none}
+.sdot.ok{background:var(--ok)}.sdot.busy{background:#f59e0b;animation:pulse 1s infinite alternate}.sdot.error{background:#dc2626}.sdot.offline{background:#9ca3af}
+@keyframes pulse{to{opacity:.35}}
+#syncText{flex:1;font-size:12.5px;color:var(--ink2);font-weight:500;min-width:0}
+#syncText.error{color:#b91c1c}
+.steps{padding-left:18px;display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--ink2)}
+.steps a{color:var(--ink);font-weight:600}
+.by{font-weight:500;font-size:12px;color:var(--mute)}
+.ptag{font-size:10.5px;font-weight:600;color:var(--fg);background:var(--bg-c);padding:2px 7px;border-radius:10px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;flex:none;margin-top:1px}
+.tags{display:flex;gap:6px;align-items:center}
+.t-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.t-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.t-meta .ptag{margin:0}
+.t-due{position:relative;display:inline-flex}
+.t-dbtn{font-size:11px;font-weight:500;color:var(--faint);padding:1px 6px;border-radius:5px;border:1px dashed #dfe2e7;line-height:16px}
+.t-dbtn.set{color:var(--ink2);border:1px solid var(--line);background:var(--soft)}
+.t-dbtn.late{color:#b91c1c;border-color:#f3d4d4;background:#fef2f2}
+.t-dbtn:hover{color:var(--ink);border-color:#cfd3da}
+.t-date{position:absolute;inset:0;width:100%;height:100%;opacity:0;pointer-events:none;border:0;font-size:11px}
+.t-date.show{position:static;opacity:1;pointer-events:auto;width:132px;height:24px;border:1px solid var(--line);border-radius:6px}
+.tasks .tmove{opacity:1;padding:0;font-weight:500;color:#b45309}
+.projects{max-width:1200px;margin:0 auto;padding:22px 24px 60px;display:flex;flex-direction:column;gap:14px}
+.p-sum{display:flex;flex-wrap:wrap;gap:6px 22px;align-items:baseline;font-size:13px;color:var(--mute)}
+.p-sum b{color:var(--ink);font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;margin-right:3px}
+.p-sum .bad,.p-sum .bad b{color:#b91c1c}
+.p-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr));gap:14px;align-items:start}
+.pc{border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;background:#fff;min-width:0}
+.pc-h{display:flex;align-items:center;gap:10px}
+.pc-h .dot{width:11px;height:11px;border-radius:50%;background:var(--c);flex:none}
+.pc-h h3{font-size:16px;font-weight:600;flex:1;min-width:0;letter-spacing:-.01em;overflow-wrap:anywhere}
+.pc-h .ib{width:30px;height:30px}
+.pstat{appearance:none;-webkit-appearance:none;border:0;border-radius:20px;font-size:11.5px;font-weight:600;padding:5px 12px;cursor:pointer;background:#f3f4f6;color:#4b5563}
+.pstat[data-s=active]{background:#dcfce7;color:#166534}
+.pstat[data-s=blocked]{background:#fee2e2;color:#991b1b}
+.pstat[data-s=live]{background:#dbeafe;color:#1e40af}
+.ms{font-size:13px;color:var(--ink2);display:flex;gap:4px 8px;align-items:baseline;flex-wrap:wrap}
+.ms b{font-weight:600;color:var(--ink)}
+.ms .when{font-size:12px;color:var(--mute)}
+.ms .late{color:#b91c1c;font-weight:600}
+.pc .prog{margin:6px 0 0}
+.pc-stats{display:flex;justify-content:space-between;font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+.pc .add-t{margin-top:0}
+.pnotes{font-size:12.5px;color:var(--mute);white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.pc-link{font-size:12.5px;color:var(--ink2);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none}
+.pc-link:hover{color:var(--ink);text-decoration:underline}
+.srow .tm.wide{width:auto;min-width:92px}
+.swatches button[aria-pressed=true]{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--c)}
+.keys{font-size:11.5px;color:var(--faint);line-height:1.7}
+kbd{font:500 10.5px var(--font);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;color:var(--mute);background:#fff}
+
+/* chips (month / all-day) */
+.chip{display:flex;align-items:center;gap:5px;width:100%;height:21px;padding:0 6px;border-radius:5px;font-size:12px;text-align:left;color:var(--fg);min-width:0;flex:none}
+.chip:hover{background:var(--bg-c)}
+.chip i{width:7px;height:7px;border-radius:50%;background:var(--c);flex:none}
+.chip .t{color:var(--mute);flex:none;font-size:11.5px}
+.chip .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.chip.ad{background:var(--bg-c);box-shadow:inset 3px 0 0 var(--c);font-weight:500;padding-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;line-height:21px}
+.chip.ad:hover{filter:brightness(.97)}
+.chip.cont{border-radius:0 5px 5px 0;box-shadow:none;opacity:.85}
+
+/* month view */
+.month{display:flex;flex-direction:column;height:100%;min-height:560px}
+.m-wd{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-bottom:1px solid var(--line)}
+.m-wd div{padding:10px 10px 8px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.m-g{flex:1;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:minmax(104px,1fr)}
+.mc{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:6px 6px 4px;display:flex;flex-direction:column;gap:2px;min-width:0;overflow:hidden;cursor:pointer;transition:background .12s}
+.mc:nth-child(7n){border-right:0}
+.mc:hover{background:#fcfcfd}
+.mc.out{background:#fafbfc}
+.mc.out .dn{color:#c4c8cf}
+.mc.sel{background:#f6f7f9;box-shadow:inset 0 0 0 1.5px #d6d9df}
+.mc-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;padding-left:2px}
+.dn{font-size:12.5px;font-weight:500;width:26px;height:26px;display:grid;place-items:center;border-radius:50%;color:var(--ink2)}
+.mc.today .dn{background:var(--ink);color:#fff;font-weight:600}
+.tb{font-size:10.5px;color:var(--faint);display:flex;align-items:center;gap:3px;padding-right:2px}
+.tb.all{color:var(--ok)}
+.more{font-size:11.5px;font-weight:500;color:var(--mute);text-align:left;padding:1px 6px;border-radius:5px}
+.more:hover{background:var(--soft2);color:var(--ink)}
+
+/* time grid (week / day) */
+.tg{min-width:0}
+.tg-top{position:sticky;top:0;z-index:5;background:#fff}
+.tg-head,.tg-ad,.tg-body{display:grid;grid-template-columns:60px repeat(var(--n),minmax(0,1fr))}
+.tg-head{border-bottom:1px solid var(--line)}
+.tg-day{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 4px;border-left:1px solid var(--line2);min-width:0}
+.tg-day span{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.tg-day b{font-size:18px;font-weight:600;width:34px;height:34px;display:grid;place-items:center;border-radius:50%;color:var(--ink2)}
+.tg-day:hover b{background:var(--soft2)}
+.tg-day.today span{color:var(--ink)}
+.tg-day.today b{background:var(--ink);color:#fff}
+.tg-ad{border-bottom:1px solid var(--line);box-shadow:0 1px 0 var(--line2)}
+.tg-gut{font-size:10.5px;color:var(--faint);padding:8px 8px 0 0;text-align:right}
+.tg-adc{border-left:1px solid var(--line2);padding:4px;display:flex;flex-direction:column;gap:2px;min-height:32px;min-width:0;cursor:pointer}
+.tg-body{position:relative;height:calc(24 * var(--h))}
+.tg-hours{position:relative}
+.tg-hours span{position:absolute;right:8px;font-size:10.5px;color:var(--faint);transform:translateY(-50%);white-space:nowrap}
+.tg-col{position:relative;border-left:1px solid var(--line2);cursor:pointer;background-image:repeating-linear-gradient(to bottom,var(--line2) 0,var(--line2) 1px,transparent 1px,transparent var(--h))}
+.tg-col.today{background-color:#fcfcfd}
+.blk{position:absolute;border-radius:7px;padding:4px 7px;background:var(--bg-c);box-shadow:inset 3px 0 0 var(--c),0 0 0 1px #fff;text-align:left;overflow:hidden;color:var(--fg);display:flex;flex-direction:column;gap:1px;z-index:1;transition:filter .12s}
+.blk:hover{filter:brightness(.96);z-index:2}
+.blk b{font-size:12px;font-weight:600;line-height:1.25;overflow:hidden;text-overflow:ellipsis}
+.blk span{font-size:11px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.blk.short{flex-direction:row;align-items:center;gap:6px;padding-top:0;padding-bottom:0}
+.blk.short b{white-space:nowrap}
+.now{position:absolute;left:0;right:0;height:2px;background:var(--now);z-index:3;pointer-events:none}
+.now::before{content:"";position:absolute;left:-5px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--now)}
+
+/* agenda / search */
+.agenda{max-width:880px;margin:0 auto;padding:24px 28px 60px}
+.ag-day{display:grid;grid-template-columns:110px minmax(0,1fr);gap:16px;padding:14px 0;border-bottom:1px solid var(--line2)}
+.ag-date{cursor:pointer}
+.ag-date b{display:block;font-size:22px;font-weight:600;letter-spacing:-.02em;line-height:1.1}
+.ag-date span{font-size:12px;color:var(--mute);font-weight:500}
+.ag-date.today b{color:var(--ink)}
+.ag-date.today span{color:var(--ink);font-weight:600}
+.ag-list{display:flex;flex-direction:column;gap:6px}
+.ag-ev{display:grid;grid-template-columns:4px 120px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;border-radius:9px;text-align:left;width:100%;border:1px solid var(--line);background:#fff;transition:border-color .12s,background .12s}
+.ag-ev:hover{border-color:#d4d7dd;background:#fcfcfd}
+.ag-ev .bar{height:100%;min-height:28px;border-radius:3px;background:var(--c)}
+.ag-ev .tm{font-size:12.5px;color:var(--mute)}
+.ag-ev .tt{font-weight:600;font-size:14px;line-height:1.3}
+.ag-ev .nt{font-size:12.5px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.tag{font-size:11px;font-weight:600;color:var(--fg);background:var(--bg-c);padding:3px 8px;border-radius:20px;white-space:nowrap}
+.ag-h{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+.ag-h h2{font-size:20px;font-weight:600;letter-spacing:-.02em}
+.empty{padding:60px 20px;text-align:center;color:var(--mute)}
+.empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
+.ag-more{margin:20px auto 0;display:flex}
+
+/* dialogs */
+dialog{border:0;border-radius:14px;padding:0;box-shadow:0 20px 60px rgba(17,24,39,.2),0 0 0 1px rgba(17,24,39,.05);width:min(520px,calc(100vw - 24px));max-height:calc(100dvh - 24px);margin:auto;color:var(--ink);background:#fff}
+dialog::backdrop{background:rgba(17,24,39,.28);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+dialog[open]{animation:pop .16s ease-out}
+@keyframes pop{from{opacity:0;transform:translateY(6px) scale(.985)}to{opacity:1;transform:none}}
+.dlg{padding:20px 22px 18px;display:flex;flex-direction:column;gap:14px}
+.dlg-h{display:flex;align-items:flex-start;gap:10px}
+.dlg-h .ib{margin:-4px -8px 0 0;flex:none}
+.title-in{flex:1;font-size:20px;font-weight:600;letter-spacing:-.015em;border:0;outline:none;padding:4px 0;border-bottom:1.5px solid var(--line);border-radius:0}
+.title-in:focus{border-bottom-color:var(--ink)}
+.dlg h3{font-size:18px;font-weight:600;flex:1}
+.fld{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0}
+.fld>label,.flabel{font-size:12px;font-weight:600;color:var(--mute)}
+.fld input,.fld select,.fld textarea{height:38px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:#fff;outline:none;width:100%;min-width:0}
+.fld textarea{height:auto;padding:9px 10px;resize:vertical;min-height:72px;line-height:1.45}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--ink)}
+.frow{display:flex;gap:12px;align-items:flex-end}
+.check{display:flex;align-items:center;gap:8px;height:38px;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;user-select:none}
+.check input{width:16px;height:16px;accent-color:var(--ink)}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:20px;border:1px solid var(--line);font-size:12.5px;font-weight:500;color:var(--ink2);background:#fff}
+.pill i{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.pill:hover{border-color:var(--c)}
+.pill[aria-pressed=true]{background:var(--bg-c);border-color:var(--c);color:var(--fg)}
+.hint{font-size:12px;color:var(--mute)}
+.err{font-size:12.5px;color:#b91c1c}
+.dlg-f{display:flex;justify-content:space-between;align-items:center;gap:8px;padding-top:6px;flex-wrap:wrap}
+.dlg-f>div{display:flex;gap:8px;flex-wrap:wrap}
+.cat-ed{list-style:none;display:flex;flex-direction:column;gap:8px}
+.cat-ed li{display:flex;gap:8px;align-items:center}
+.cat-ed input[type=color]{width:38px;height:38px;border:1px solid var(--line);border-radius:8px;padding:3px;background:#fff;cursor:pointer;flex:none}
+.cat-ed input[type=text]{flex:1;height:38px;border:1px solid var(--line);border-radius:8px;padding:0 10px;outline:none;min-width:0}
+.cat-ed input[type=text]:focus{border-color:var(--ink)}
+.swatches{display:flex;flex-wrap:wrap;gap:6px}
+.swatches button{width:22px;height:22px;border-radius:6px;background:var(--c)}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--ink);color:#fff;padding:10px 12px 10px 16px;border-radius:10px;font-size:13px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:all .2s;z-index:50;max-width:calc(100vw - 32px)}
+.toast.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.toast button{color:#fff;font-weight:600;padding:4px 8px;border-radius:6px;background:rgba(255,255,255,.12)}
+.toast button:hover{background:rgba(255,255,255,.2)}
+
+/* ---------- responsive ---------- */
+@media (max-width:1180px){
+  .search{width:150px}
+  .brand{width:auto}
+}
+@media (max-width:960px){
+  body{overflow:auto}
+  .top{height:auto;flex-wrap:wrap;padding:12px 16px;gap:10px}
+  .brand{order:1;flex:1}
+  .right{display:contents}
+  #newBtn{order:2}
+  .nav{order:3;flex:1 1 100%}
+  .nav h1{font-size:17px}
+  .seg{order:4;flex:1}
+  .seg button{flex:1;padding:0 6px}
+  .search{order:5;width:auto;flex:1 1 140px}
+  .layout{display:flex;flex-direction:column-reverse;height:auto}
+  .side{border-right:0;border-top:1px solid var(--line);overflow:visible;padding:16px}
+  main{overflow:visible}
+  .month{min-height:0;height:auto}
+  .m-g{grid-auto-rows:minmax(84px,auto)}
+  #plan{order:-1}
+  main.grid{overflow:auto;max-height:78vh;max-height:78dvh;border-bottom:1px solid var(--line)}
+}
+@media (max-width:640px){
+  .newlabel{display:none}
+  #newBtn{width:36px;padding:0;justify-content:center}
+  .m-wd div{padding:8px 4px;text-align:center;font-size:10px;letter-spacing:.03em}
+  .m-g{grid-auto-rows:minmax(72px,auto)}
+  .mc{padding:3px 2px;gap:1px}
+  .mc-h{justify-content:center;padding:0}
+  .tb{display:none}
+  .dn{width:22px;height:22px;font-size:11.5px}
+  .chip{height:16px;padding:0 3px;font-size:10px;border-radius:3px;gap:3px}
+  .chip .t,.chip i{display:none}
+  .chip:not(.ad){background:var(--bg-c);box-shadow:inset 2px 0 0 var(--c)}
+  .chip.ad{line-height:16px;padding-left:4px;box-shadow:inset 2px 0 0 var(--c)}
+  .more{font-size:10px;padding:0 3px}
+  .tg-head,.tg-ad,.tg-body{grid-template-columns:44px repeat(var(--n),minmax(0,1fr))}
+  .tg-day{flex-direction:column;gap:2px;padding:6px 0}
+  .tg-day span{font-size:9.5px;letter-spacing:.02em}
+  .tg-day b{font-size:14px;width:28px;height:28px}
+  .tg-hours span{right:5px;font-size:9.5px}
+  .tg[style*="--n:7"] .blk{padding:2px 3px}
+  .tg[style*="--n:7"] .blk span{display:none}
+  .tg[style*="--n:7"] .blk b{font-size:10px}
+  .agenda{padding:16px 16px 40px}
+  .ag-day{grid-template-columns:1fr;gap:8px}
+  .ag-date{display:flex;align-items:baseline;gap:8px}
+  .ag-date b{font-size:18px;display:inline}
+  .ag-ev{grid-template-columns:4px minmax(0,1fr);row-gap:2px}
+  .ag-ev .tm{grid-column:2}
+  .ag-ev .tg2{grid-column:2;grid-row:1}
+  .ag-ev .tag,.ag-ev .tags{display:none}
+  .projects{padding:16px 16px 40px}
+  .frow{flex-wrap:wrap}
+  .dlg{padding:18px 16px 16px}
+}
+@media print{
+  .top .right,.side,.nav button{display:none}
+  body,main,.layout{overflow:visible;height:auto;display:block}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="logo" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>
+    Planner
+  </div>
+  <div class="nav">
+    <button class="btn" id="todayBtn" title="Go to today (T)">Today</button>
+    <button class="ib" id="prevBtn" aria-label="Previous" title="Previous (←)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <button class="ib" id="nextBtn" aria-label="Next" title="Next (→)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+    <h1 id="title"></h1>
+  </div>
+  <div class="right">
+    <label class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search" aria-label="Search events" autocomplete="off"></label>
+    <div class="seg" id="views" role="group" aria-label="View">
+      <button data-v="month" title="Month (M)">Month</button><button data-v="week" title="Week (W)">Week</button><button data-v="day" title="Day (D)">Day</button><button data-v="agenda" title="Agenda (A)">Agenda</button><button data-v="projects" title="Projects (P)">Projects</button>
+    </div>
+    <button class="btn primary" id="newBtn" title="New event (N)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="newlabel">New event</span></button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="side">
+    <section class="card">
+      <div class="mini-h"><b id="miniTitle"></b><div style="display:flex"><button class="ib" id="miniPrev" aria-label="Previous month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg></button><button class="ib" id="miniNext" aria-label="Next month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button></div></div>
+      <div class="mini-g" id="mini"></div>
+    </section>
+
+    <section class="card" id="plan">
+      <div class="sec-h" style="margin-bottom:2px"><div><div class="plan-title" id="planTitle"></div><div class="sub" id="planSub"></div></div><button class="btn sm" id="planAdd" title="New event on this day">+ Event</button></div>
+      <div class="label">Schedule</div>
+      <div class="sched" id="sched"></div>
+      <div class="label" style="display:flex;justify-content:space-between"><span>Tasks</span><span id="taskCount" style="letter-spacing:0;text-transform:none;font-weight:500"></span></div>
+      <div class="prog" id="progWrap"><i id="prog"></i></div>
+      <ul class="tasks" id="tasks"></ul>
+      <form class="add-t" id="taskForm"><span>+</span><input id="taskIn" placeholder="Quick add: call Sam fri 3pm #nq" autocomplete="off" aria-label="Add a task"></form>
+    </section>
+
+    <section class="card">
+      <div class="sec-h"><h2>Event types</h2><div style="display:flex;gap:10px"><button class="link" id="showAll" hidden>Show all</button><button class="link" id="editCats">Edit</button></div></div>
+      <ul class="cats" id="cats"></ul>
+    </section>
+
+    <section class="card tools">
+      <div class="row"><span class="sub" style="color:var(--ink2);font-weight:500">Week starts</span><div class="seg" id="wkStart"><button data-w="0">Sun</button><button data-w="1">Mon</button></div></div>
+      <div class="sync-row"><span class="sdot" id="syncDot"></span><span id="syncText">Only on this device</span><button class="btn sm" id="syncBtn">Connect</button></div>
+      <div class="btns" id="syncMore" hidden><button class="btn sm" id="syncLink" title="A private link that connects your phone or another computer in one tap">Link a device</button><button class="btn sm" id="syncOff">Disconnect</button></div>
+      <div class="btns"><button class="btn sm" id="exportBtn">Back up</button><button class="btn sm" id="importBtn">Restore</button><button class="btn sm" id="icsBtn" title="Download a .ics file for Google / Apple / Outlook Calendar">Export .ics</button></div>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+      <div class="keys"><kbd>N</kbd> new &nbsp;<kbd>T</kbd> today &nbsp;<kbd>←</kbd><kbd>→</kbd> move &nbsp;<kbd>M</kbd><kbd>W</kbd><kbd>D</kbd><kbd>A</kbd> views &nbsp;<kbd>/</kbd> search</div>
+    </section>
+  </aside>
+  <main id="main"></main>
+</div>
+
+<dialog id="evDlg" aria-labelledby="fTitle">
+  <form class="dlg" id="evForm" novalidate>
+    <div class="dlg-h"><input id="fTitle" class="title-in" placeholder="Add title" autocomplete="off" maxlength="200"><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="fld"><span class="flabel">Type</span><div class="pills" id="fCats"></div></div>
+    <div class="fld"><label for="fProj">Project</label><select id="fProj"></select></div>
+    <div class="frow"><div class="fld"><label for="fDate">Date</label><input type="date" id="fDate"></div><label class="check"><input type="checkbox" id="fAllDay"> All day</label></div>
+    <div class="frow" id="timeRow"><div class="fld"><label for="fStart">Starts</label><input type="time" id="fStart" step="300"></div><div class="fld"><label for="fEnd">Ends</label><input type="time" id="fEnd" step="300"></div></div>
+    <div class="frow" id="endDateRow" hidden><div class="fld"><label for="fEndDate">Ends on</label><input type="date" id="fEndDate"></div></div>
+    <div class="frow"><div class="fld"><label for="fRepeat">Repeats</label><select id="fRepeat"><option value="none">Does not repeat</option><option value="daily">Every day</option><option value="weekdays">Every weekday (Mon–Fri)</option><option value="weekly">Every week</option><option value="biweekly">Every 2 weeks</option><option value="monthly">Every month</option><option value="yearly">Every year</option></select></div><div class="fld" id="untilWrap" hidden><label for="fUntil">Until (optional)</label><input type="date" id="fUntil"></div></div>
+    <div class="fld"><label for="fNotes">Notes</label><textarea id="fNotes" rows="3" placeholder="Agenda, links, targets…"></textarea></div>
+    <div class="hint" id="seriesHint" hidden>Changes apply to every repeat of this event.</div>
+    <div class="hint" id="botNote" hidden></div>
+    <div class="err" id="fErr" hidden></div>
+    <div class="dlg-f">
+      <div><button type="button" class="btn danger" id="fDelete">Delete</button><button type="button" class="btn danger" id="fDeleteOne" hidden>Delete this day only</button><button type="button" class="btn" id="fDup" hidden>Duplicate</button></div>
+      <div><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn" id="fDismiss" hidden>Dismiss</button><button type="submit" class="btn primary" id="fSave">Save</button></div>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="syncDlg" aria-labelledby="syncTitle">
+  <form class="dlg" id="syncForm" novalidate>
+    <div class="dlg-h"><h3 id="syncTitle">Sync phone, computer and bots</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <ol class="steps">
+      <li>Your calendar is kept in your <b>private</b> GitHub repo below. Every device and bot reads and writes it there.</li>
+      <li>Make a key once: <a href="https://github.com/settings/personal-access-tokens/new?name=Planner%20sync&amp;description=Planner%20app%20and%20bots%3A%20read%2Fwrite%20planner-data&amp;target_name=demetrades2000-coder&amp;expires_in=365&amp;contents=write" target="_blank" rel="noopener">GitHub → New fine-grained token</a> (name, expiry and permission come pre-filled). Repository access: <b>Only select repositories → planner-data</b>. Permissions: <b>Contents → Read and write</b>. Pick the longest expiration.</li>
+      <li>Paste the key here. On your other devices, tap <b>Link a device</b> instead of pasting again.</li>
+    </ol>
+    <div class="fld"><label for="sToken">Access key</label><input id="sToken" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…"></div>
+    <div class="fld"><label for="sRepo">Data repo</label><input id="sRepo" autocomplete="off" spellcheck="false"></div>
+    <div class="err" id="sErr" hidden></div>
+    <div class="dlg-f"><div></div><div><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary" id="sGo">Connect</button></div></div>
+  </form>
+</dialog>
+
+<dialog id="catDlg" aria-labelledby="catDlgTitle">
+  <form class="dlg" id="catForm">
+    <div class="dlg-h"><h3 id="catDlgTitle">Event types</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="hint">Rename, recolor, add or remove types. Every event takes its type's color.</div>
+    <ul class="cat-ed" id="catEd"></ul>
+    <div><button type="button" class="btn sm" id="catAdd">+ Add type</button></div>
+    <div class="dlg-f"><div></div><div><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Save</button></div></div>
+  </form>
+</dialog>
+
+<dialog id="projDlg" aria-labelledby="pName">
+  <form class="dlg" id="projForm" novalidate>
+    <div class="dlg-h"><input id="pName" class="title-in" placeholder="Project name" maxlength="60" autocomplete="off"><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="frow"><div class="fld" style="flex:0 0 140px"><label for="pStatus">Status</label><select id="pStatus"><option value="active">Active</option><option value="blocked">Blocked</option><option value="paused">Paused</option><option value="live">Live</option></select></div><div class="fld"><span class="flabel">Color</span><div class="swatches" id="pSw"></div></div></div>
+    <div class="frow"><div class="fld" style="flex:2"><label for="pMs">Next milestone</label><input id="pMs" maxlength="120" autocomplete="off" placeholder="What has to happen next"></div><div class="fld"><label for="pDue">Due</label><input type="date" id="pDue"></div></div>
+    <div class="fld"><label for="pLink">Link</label><input id="pLink" type="url" autocomplete="off" placeholder="Repo, site or doc"></div>
+    <div class="fld"><label for="pNotes">Notes</label><textarea id="pNotes" rows="3" placeholder="Where it stands, blockers, ideas"></textarea></div>
+    <div class="err" id="pErr" hidden></div>
+    <div class="dlg-f"><div><button type="button" class="btn danger" id="pDelete">Delete project</button></div><div><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Save</button></div></div>
+  </form>
+</dialog>
+
+<dialog id="askDlg" aria-labelledby="askTitle">
+  <form class="dlg" id="askForm">
+    <div class="dlg-h"><h3 id="askTitle"></h3></div>
+    <div id="askMsg" style="font-size:13.5px;color:var(--ink2)"></div>
+    <div class="fld" id="askValWrap" hidden><input id="askVal" readonly aria-label="Link"></div>
+    <div class="dlg-f"><div></div><div><button type="button" class="btn" id="askNo">Cancel</button><button type="submit" class="btn primary" id="askYes">OK</button></div></div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastMsg"></span><button id="toastBtn" hidden>Undo</button></div>
+
+<script>
+(() => {
+'use strict';
+// HOSTED: running as a claude.ai page; data lives in the page's database (synced to the owner's Claude account).
+const HOSTED = !!window.PLANNER_HOSTED;
+const KEY = HOSTED ? 'planner.hosted.v1' : 'planner.v1';
+const VIEWS = ['month', 'week', 'day', 'agenda', 'projects'];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const DEFAULT_CATS = [
+  { id: 'trading',  name: 'Trading',   color: '#2563eb' },
+  { id: 'bots',     name: 'Bot ops',   color: '#7c3aed' },
+  { id: 'meetings', name: 'Meetings',  color: '#0891b2' },
+  { id: 'business', name: 'Business',  color: '#059669' },
+  { id: 'content',  name: 'Content',   color: '#db2777' },
+  { id: 'deadline', name: 'Deadlines', color: '#dc2626' },
+  { id: 'learning', name: 'Learning',  color: '#d97706' },
+  { id: 'personal', name: 'Personal',  color: '#64748b' },
+];
+const DEFAULT_PROJECTS = [
+  { id: 'kalshi',    name: 'Kalshi bot', color: '#0d9488', status: 'active', milestone: '', due: '', link: '', notes: '' },
+  { id: 'nq',        name: 'NQ bot',     color: '#4f46e5', status: 'active', milestone: '', due: '', link: 'https://github.com/demetrades2000-coder/nq-liquidity-engine', notes: '' },
+  { id: 'jarvis',    name: 'Jarvis',     color: '#9333ea', status: 'active', milestone: '', due: '', link: '', notes: '' },
+  { id: 'clipper',   name: 'Clipper',    color: '#ea580c', status: 'active', milestone: '', due: '', link: '', notes: '' },
+  { id: 'portfolio', name: 'Portfolio',  color: '#b08d3e', status: 'active', milestone: '', due: '', link: 'https://github.com/demetrades2000-coder/nq-dashboard/tree/main/portfolio', notes: '' },
+];
+const PROJ_COLORS = ['#0d9488', '#4f46e5', '#9333ea', '#ea580c', '#b08d3e', '#2563eb', '#db2777', '#dc2626', '#16a34a', '#0891b2', '#64748b', '#111827'];
+const SWATCHES = ['#2563eb','#7c3aed','#0891b2','#059669','#65a30d','#db2777','#dc2626','#ea580c','#d97706','#64748b','#111827','#0d9488'];
+const HOUR = 48;
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+// ---------- dates (local, keyed YYYY-MM-DD) ----------
+const pad = (n) => String(n).padStart(2, '0');
+const key = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parse = (k) => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+const addDays = (k, n) => { const d = parse(k); d.setDate(d.getDate() + n); return key(d); };
+const diffDays = (a, b) => Math.round((parse(b) - parse(a)) / 864e5);
+const dow = (k) => parse(k).getDay();
+const todayKey = () => key(new Date());
+const toMin = (hm) => { const [h, m] = hm.split(':').map(Number); return h * 60 + m; };
+const fromMin = (n) => `${pad(Math.floor(n / 60) % 24)}:${pad(n % 60)}`;
+const fmtTime = (hm) => { if (!hm) return ''; let [h, m] = hm.split(':').map(Number); const ap = h < 12 ? 'am' : 'pm'; h = h % 12 || 12; return (m ? `${h}:${pad(m)}` : `${h}`) + ap; };
+const fmtRange = (e) => e.allDay ? 'All day' : `${fmtTime(e.start)} – ${fmtTime(e.end)}`;
+const startOfWeek = (k) => addDays(k, -((dow(k) - S.weekStart + 7) % 7));
+const longDate = (k) => { const d = parse(k); return `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}`; };
+
+// ---------- colors ----------
+const rgb = (hex) => { const h = hex.replace('#', ''); const n = parseInt(h.length === 3 ? h.replace(/./g, '$&$&') : h, 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const tint = (hex, a) => { const [r, g, b] = rgb(hex); return `rgb(${Math.round(255 - (255 - r) * a)},${Math.round(255 - (255 - g) * a)},${Math.round(255 - (255 - b) * a)})`; };
+const shade = (hex, f) => { const [r, g, b] = rgb(hex); return `rgb(${Math.round(r * (1 - f))},${Math.round(g * (1 - f))},${Math.round(b * (1 - f))})`; };
+const cvars = (hex) => `--c:${hex};--bg-c:${tint(hex, .13)};--fg:${shade(hex, .42)}`;
+
+// ---------- state ----------
+let S = load();
+let cursor = todayKey(), selected = cursor, miniMonth = cursor.slice(0, 7);
+let query = '', agendaDays = 30, undoSnap = null, editing = null, lastScrollView = null;
+
+function normalize(s) {
+  s = s && typeof s === 'object' ? s : {};
+  const cats = Array.isArray(s.categories) && s.categories.length ? s.categories : DEFAULT_CATS.map((c) => ({ ...c }));
+  return {
+    v: 1,
+    categories: cats,
+    events: Array.isArray(s.events) ? s.events.filter((e) => e && e.id && e.date) : [],
+    tasks: Array.isArray(s.tasks) ? s.tasks.filter((t) => t && t.id) : [],
+    projects: Array.isArray(s.projects) ? s.projects.filter((x) => x && x.id) : DEFAULT_PROJECTS.map((x) => ({ ...x })),
+    hidden: Array.isArray(s.hidden) ? s.hidden : [],
+    dismissed: Array.isArray(s.dismissed) ? s.dismissed.filter((d) => d && d.id) : [],
+    deleted: s.deleted && typeof s.deleted === 'object' ? s.deleted : {},
+    settingsU: s.settingsU || 0,
+    view: VIEWS.includes(s.view) ? s.view : 'month',
+    weekStart: s.weekStart === 1 ? 1 : 0,
+    lastCat: s.lastCat || cats[0].id,
+  };
+}
+function load() {
+  try { const raw = localStorage.getItem(KEY); if (raw) return normalize(JSON.parse(raw)); } catch (e) { /* fall through */ }
+  return normalize(null);
+}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(S)); }
+  catch (e) { toast('Could not save on this device (storage blocked or full). Use Back up.'); }
+}
+function snapshot() { undoSnap = JSON.stringify(S); }
+function undo() {
+  if (!undoSnap) return;
+  const snap = JSON.parse(undoSnap); undoSnap = null;
+  commit(() => { SYNCED.forEach((k) => { S[k] = snap[k] || []; }); S.weekStart = snap.weekStart; });
+  render(); toast('Restored');
+}
+
+// ---------- sync: a private GitHub repo holds planner.json (yours) and bots/*.json (one file per bot) ----------
+// Every synced item carries u (last change, ms). Merging keeps the newest copy of each item and drops
+// anything with a newer tombstone in `deleted`, so phone and computer can edit at the same time.
+const SYNC_KEY = 'planner.sync', BOTS_KEY = 'planner.bots', API = 'https://api.github.com';
+const DEFAULT_REPO = 'demetrades2000-coder/planner-data';
+const SYNCED = ['categories', 'events', 'tasks', 'dismissed', 'projects'];
+const REPEATS = ['none', 'daily', 'weekdays', 'weekly', 'biweekly', 'monthly', 'yearly'];
+const HM = /^([01]\d|2[0-3]):[0-5]\d$/, YMD = /^\d{4}-\d{2}-\d{2}$/;
+const UA = navigator.userAgent;
+const DEVICE = /iPhone|iPad/.test(UA) ? 'iPhone' : /Android/.test(UA) ? 'Android' : /Mac/.test(UA) ? 'Mac' : /Windows/.test(UA) ? 'Windows PC' : 'browser';
+const readJSON = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
+let sync = (() => { const v = readJSON(SYNC_KEY); return v && v.token && v.repo ? v : null; })();
+let botCache = readJSON(BOTS_KEY) || {};
+let extraEvents = [], syncing = false, syncAgain = false, syncTimer = null, syncState = sync ? 'busy' : 'off', syncMsg = '', lastSynced = 0, pendingRender = false;
+
+const canon = (o) => Array.isArray(o) ? '[' + o.map(canon).join(',') + ']'
+  : o && typeof o === 'object' ? '{' + Object.keys(o).filter((k) => o[k] !== undefined).sort().map((k) => JSON.stringify(k) + ':' + canon(o[k])).join(',') + '}'
+  : JSON.stringify(o ?? null);
+const b64e = (str) => { const b = new TextEncoder().encode(str); let bin = ''; for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(bin); };
+const b64d = (b) => new TextDecoder().decode(Uint8Array.from(atob(String(b).replace(/\s/g, '')), (c) => c.charCodeAt(0)));
+
+// Every change to synced data goes through commit(): it stamps what changed, tombstones what was removed, saves, and syncs.
+function commit(fn) {
+  const before = {};
+  SYNCED.forEach((k) => { before[k] = new Map(S[k].map((x) => [x.id, canon({ ...x, u: 0 })])); });
+  const ws = S.weekStart;
+  fn();
+  const now = Date.now(), changed = {}, removed = {};
+  SYNCED.forEach((k) => {
+    const seen = new Set();
+    changed[k] = []; removed[k] = [];
+    S[k].forEach((x) => {
+      seen.add(x.id);
+      if (before[k].get(x.id) !== canon({ ...x, u: 0 })) { x.u = now; delete S.deleted[x.id]; changed[k].push(x); }
+    });
+    before[k].forEach((_, id) => { if (!seen.has(id)) { S.deleted[id] = now; removed[k].push(id); } });
+  });
+  if (S.weekStart !== ws) S.settingsU = now;
+  save();
+  scheduleSync();
+  if (DB) dbPush(changed, removed, S.weekStart !== ws);
+}
+
+// ---------- hosted storage: one database document per item (collections events, tasks, projects, categories,
+// dismissed), settings/main, and bots/<bot> documents written by the bot sync. Live on every signed-in device.
+let DB = null, dbInflight = 0, dbSeeded = false;
+const dbHas = {}, dbChains = {};
+const ORDERED = ['categories', 'projects'];
+const docId = (id) => String(id).replace(/[^A-Za-z0-9_\-.~:@+]/g, '_').slice(0, 180) || 'x';
+const PEND_KEY = 'planner.pending';
+let pending = (() => { try { return JSON.parse(localStorage.getItem(PEND_KEY)) || {}; } catch (e) { return {}; } })();
+let flushing = false, flushTimer = null;
+const savePending = () => { try { localStorage.setItem(PEND_KEY, JSON.stringify(pending)); } catch (e) { /* queue stays in memory */ } };
+const pendCount = () => Object.keys(pending).length;
+// Every change is queued first, then sent. If the signal drops, the queue stays (and survives closing the app)
+// and is sent when the connection returns.
+function enqueue(k, id) { pending[k + '/' + id] = 1; savePending(); }
+async function flush() {
+  if (!DB || flushing) return;
+  flushing = true;
+  try {
+    while (pendCount()) {
+      const path = Object.keys(pending)[0], [k, ...rest] = path.split('/'), id = rest.join('/');
+      const run = async () => {
+        if (k === 'settings') return DB.doc('settings/main').set({ weekStart: S.weekStart, seeded: true });
+        const x = S[k].find((it) => String(it.id) === id);
+        if (!x) return DB.collection(k).doc(docId(id)).delete();
+        const body = JSON.parse(JSON.stringify({ ...x, key: x.id, ord: S[k].indexOf(x) })); delete body.id;
+        return DB.collection(k).doc(docId(id)).set(body);
+      };
+      try { await run(); } catch (e) {
+        if (e && e.code === 'unavailable') { await new Promise((r) => setTimeout(r, 700 + Math.random() * 900)); await run(); } else throw e;
+      }
+      delete pending[path]; savePending();
+    }
+    setSync('ok');
+  } catch (e) {
+    if (e && e.code === 'quota_exceeded') { setSync('error', 'Storage is full. Delete old events or tasks.'); }
+    else { setSync('offline'); clearTimeout(flushTimer); flushTimer = setTimeout(flush, 15000); }
+  } finally { flushing = false; }
+}
+function dbPush(changed, removed, settings) {
+  for (const k of SYNCED) {
+    // An ordered list the database doesn't hold yet (first save) goes up whole, so defaults aren't lost.
+    const items = ORDERED.includes(k) && !dbHas[k] ? S[k] : changed[k];
+    items.forEach((x) => enqueue(k, x.id));
+    removed[k].forEach((id) => enqueue(k, id));
+  }
+  if (settings || !dbSeeded) { dbSeeded = true; enqueue('settings', 'main'); }
+  setSync('busy'); flush();
+}
+function dbApply(k, snap) {
+  const rows = snap.docs.map((d) => { const b = { ...d.data() }, ord = typeof b.ord === 'number' ? b.ord : 0, id = b.key || d.id; delete b.key; delete b.ord; return { ord, item: { ...b, id } }; });
+  if (ORDERED.includes(k)) rows.sort((a, b) => a.ord - b.ord);
+  const list = rows.map((r) => r.item);
+  dbHas[k] = list.length > 0;
+  // Empty on the server: keep the built-in event types (always) and projects (until the first save).
+  if (!list.length && (k === 'categories' || (k === 'projects' && !dbSeeded)) && !pendCount()) return;
+  // Changes still waiting to be sent win over what the server shows, so a slow connection never undoes them.
+  if (pendCount()) {
+    const merged = list.filter((it) => !pending[k + '/' + it.id] || S[k].some((l) => l.id === it.id));
+    S[k].forEach((l) => { if (pending[k + '/' + l.id] && !merged.some((m) => m.id === l.id)) merged.push(l); });
+    S[k].forEach((l) => { const i = merged.findIndex((m) => m.id === l.id); if (i >= 0 && pending[k + '/' + l.id]) merged[i] = l; });
+    S[k] = merged;
+  } else S[k] = list;
+  save(); safeRender();
+}
+async function startDb() {
+  setSync('off');
+  addEventListener('online', flush);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') flush(); });
+  DB = window.claude && window.claude.use ? await window.claude.use('db') : null;
+  if (!DB) { setSync('error', 'Your Claude account storage is not available here. Changes stay on this device.'); return; }
+  const fail = (e) => { if (e && e.code !== 'revoked') setSync('error', 'Live sync stopped. Reload the page.'); };
+  // "Synced" once every list has arrived from the server the first time.
+  const waiting = new Set([...SYNCED, 'settings', 'bots']);
+  const arrived = (name, snap) => {
+    if (!waiting.has(name) || (snap.metadata && snap.metadata.fromCache)) return;
+    waiting.delete(name);
+    if (!waiting.size) { if (pendCount()) flush(); else setSync('ok'); }
+  };
+  SYNCED.forEach((k) => DB.collection(k).onSnapshot((snap) => { dbApply(k, snap); arrived(k, snap); }, fail));
+  DB.doc('settings/main').onSnapshot((snap) => {
+    arrived('settings', snap);
+    if (!snap.exists) return;
+    const v = snap.data();
+    dbSeeded = !!v.seeded;
+    if (v.weekStart === 0 || v.weekStart === 1) S.weekStart = v.weekStart;
+    save(); safeRender();
+  }, fail);
+  DB.collection('bots').onSnapshot((snap) => {
+    const next = {};
+    snap.docs.forEach((d) => { next[d.id + '.json'] = { sha: '', data: d.data() }; });
+    botCache = next; safeRender();
+    arrived('bots', snap);
+  }, fail);
+}
+const userDoc = () => ({ v: 2, categories: S.categories, events: S.events, tasks: S.tasks, projects: S.projects, dismissed: S.dismissed, deleted: S.deleted, settings: { weekStart: S.weekStart, u: S.settingsU || 0 } });
+function mergeDocs(a, b) {
+  const deleted = { ...(a.deleted || {}) };
+  for (const [id, t] of Object.entries(b.deleted || {})) if (!(deleted[id] >= t)) deleted[id] = t;
+  const cut = Date.now() - 180 * 864e5;
+  for (const id in deleted) if (deleted[id] < cut) delete deleted[id];
+  const ml = (x, y) => {
+    const m = new Map();
+    for (const it of [...(x || []), ...(y || [])]) { if (!it || !it.id) continue; const c = m.get(it.id); if (!c || (it.u || 0) > (c.u || 0)) m.set(it.id, it); }
+    return [...m.values()].filter((it) => !(deleted[it.id] >= (it.u || 0)));
+  };
+  const sa = a.settings || { u: 0 }, sb = b.settings || { u: 0 };
+  const cats = ml(a.categories, b.categories);
+  return { v: 2, categories: cats.length ? cats : (b.categories || []), events: ml(a.events, b.events), tasks: ml(a.tasks, b.tasks), projects: ml(a.projects, b.projects), dismissed: ml(a.dismissed, b.dismissed), deleted, settings: (sb.u || 0) > (sa.u || 0) ? sb : sa };
+}
+function applyDoc(d) {
+  if (Array.isArray(d.categories) && d.categories.length) S.categories = d.categories;
+  S.events = d.events || []; S.tasks = d.tasks || []; S.dismissed = d.dismissed || []; S.deleted = d.deleted || {};
+  if (Array.isArray(d.projects)) S.projects = d.projects;
+  if (d.settings && d.settings.weekStart != null && (d.settings.u || 0) >= (S.settingsU || 0)) { S.weekStart = d.settings.weekStart === 1 ? 1 : 0; S.settingsU = d.settings.u || 0; }
+  S.hidden = S.hidden.filter((h) => S.categories.some((c) => c.id === h));
+  save();
+}
+
+function gh(path, opts = {}, token = sync && sync.token) {
+  return fetch(API + path, { ...opts, cache: 'no-cache', headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', ...(opts.body ? { 'Content-Type': 'application/json' } : {}) } });
+}
+function ghError(r) {
+  const m = { 401: 'Sync key rejected (expired or revoked). Reconnect with a new key.', 403: 'Sync key cannot write to the data repo. Give it Contents: Read and write.', 404: 'Data repo not found for this key.' };
+  return new Error(m[r.status] || `GitHub error ${r.status}`);
+}
+function scheduleSync(ms = 1200) { if (!sync) return; clearTimeout(syncTimer); setSync('busy'); syncTimer = setTimeout(syncNow, ms); }
+let renderQueued = false;
+function safeRender() {
+  if (document.activeElement && document.activeElement.classList.contains('t-in')) { pendingRender = true; return; }
+  if (renderQueued) return;
+  renderQueued = true;
+  setTimeout(() => { renderQueued = false; render(); }, 30);
+}
+async function pullBots() {
+  const r = await gh(`/repos/${sync.repo}/contents/bots`);
+  let list = [];
+  if (r.status !== 404) { if (!r.ok) throw ghError(r); const j = await r.json(); list = Array.isArray(j) ? j.filter((f) => f.type === 'file' && /\.json$/.test(f.name)) : []; }
+  const next = {};
+  for (const f of list) {
+    if (botCache[f.name] && botCache[f.name].sha === f.sha) { next[f.name] = botCache[f.name]; continue; }
+    const fr = await gh(`/repos/${sync.repo}/contents/bots/${encodeURIComponent(f.name)}`);
+    if (!fr.ok) { if (botCache[f.name]) next[f.name] = botCache[f.name]; continue; }
+    let data = null;
+    try { data = JSON.parse(b64d((await fr.json()).content)); } catch (e) { /* a broken bot file shows nothing */ }
+    next[f.name] = { sha: f.sha, data };
+  }
+  const changed = canon(next) !== canon(botCache);
+  botCache = next;
+  try { localStorage.setItem(BOTS_KEY, JSON.stringify(botCache)); } catch (e) { /* cache only */ }
+  return changed;
+}
+async function syncNow() {
+  if (!sync) return;
+  if (syncing) { syncAgain = true; return; }
+  syncing = true; syncAgain = false; clearTimeout(syncTimer); setSync('busy');
+  try {
+    let changed = false;
+    for (let attempt = 0; ; attempt++) {
+      const r = await gh(`/repos/${sync.repo}/contents/planner.json`);
+      let remote = null, sha = null;
+      if (r.ok) { const j = await r.json(); sha = j.sha; remote = JSON.parse(b64d(j.content)); }
+      else if (r.status !== 404) throw ghError(r);
+      const local = userDoc(), merged = remote ? mergeDocs(remote, local) : local;
+      if (canon(merged) !== canon(local)) { applyDoc(merged); changed = true; }
+      if (remote && canon(merged) === canon(remote)) break;
+      const body = { message: `Planner: update from ${DEVICE}`, content: b64e(JSON.stringify(merged, null, 1) + '\n') };
+      if (sha) body.sha = sha;
+      const put = await gh(`/repos/${sync.repo}/contents/planner.json`, { method: 'PUT', body: JSON.stringify(body) });
+      if (put.ok) break;
+      if ((put.status === 409 || put.status === 422) && attempt < 4) continue; // another device wrote first: merge again
+      throw ghError(put);
+    }
+    if (await pullBots()) changed = true;
+    if (changed) safeRender();
+    setSync('ok');
+  } catch (e) {
+    setSync(!navigator.onLine || e instanceof TypeError ? 'offline' : 'error', e.message);
+  } finally {
+    syncing = false;
+    if (syncAgain) syncNow();
+  }
+}
+function setSync(state, msg) { syncState = state; syncMsg = msg || ''; if (state === 'ok') lastSynced = Date.now(); paintSync(); }
+function paintSync() {
+  if (HOSTED) {
+    const n = pendCount();
+    const t = syncState === 'offline' ? `Offline${n ? ` · ${n} change${n === 1 ? '' : 's'} waiting` : ''}. Saved on this device, sends when you're back online.` : syncState === 'busy' ? 'Saving…' : syncState === 'ok' ? 'Synced to your Claude account' : syncState === 'off' ? 'Connecting…' : syncMsg;
+    $('#syncDot').className = 'sdot ' + (syncState === 'off' ? '' : syncState);
+    $('#syncText').textContent = t;
+    $('#syncText').className = syncState === 'error' ? 'error' : '';
+    $('#syncText').title = 'Every device signed into your Claude account sees the same calendar, live.';
+    $('#syncBtn').hidden = true; $('#syncMore').hidden = true;
+    return;
+  }
+  const s = Math.round((Date.now() - lastSynced) / 1000);
+  const ago = s < 45 ? 'just now' : s < 3600 ? `${Math.round(s / 60)} min ago` : `${Math.round(s / 3600)} h ago`;
+  const text = !sync ? 'Only on this device'
+    : syncState === 'busy' ? 'Syncing…'
+    : syncState === 'ok' ? `Synced ${ago}`
+    : syncState === 'offline' ? 'Offline. Changes are saved and will sync.'
+    : syncMsg || 'Sync problem';
+  $('#syncDot').className = 'sdot ' + (sync ? syncState : '');
+  $('#syncText').textContent = text;
+  $('#syncText').className = sync && syncState === 'error' ? 'error' : '';
+  $('#syncText').title = sync ? `Data repo: ${sync.repo}` : 'Connect to see this calendar on your phone, computer and from your bots';
+  $('#syncBtn').textContent = sync ? 'Sync now' : 'Connect';
+  $('#syncMore').hidden = !sync;
+}
+async function connect(token, repo) {
+  token = String(token || '').trim();
+  repo = String(repo || '').trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').replace(/\/+$/, '');
+  if (!token) throw new Error('Paste the access key.');
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new Error('Data repo should look like owner/name.');
+  let r;
+  try { r = await gh(`/repos/${repo}`, {}, token); } catch (e) { throw new Error('Could not reach GitHub. Check the connection.'); }
+  if (r.status === 401) throw new Error('GitHub rejected that key. Copy it again.');
+  if (r.status === 403 || r.status === 404) throw new Error(`This key cannot see ${repo}. Add that repo to the key.`);
+  if (!r.ok) throw new Error(`GitHub error ${r.status}.`);
+  sync = { token, repo };
+  try { localStorage.setItem(SYNC_KEY, JSON.stringify(sync)); } catch (e) { throw new Error('This browser blocks storage, so it cannot stay connected.'); }
+  await syncNow();
+  if (syncState === 'error') throw new Error(syncMsg);
+}
+async function disconnect() {
+  if (!(await ask('Disconnect this device?', 'Your calendar stays here and in the data repo. This device stops syncing.', 'Disconnect', { danger: true }))) return;
+  sync = null; botCache = {};
+  try { localStorage.removeItem(SYNC_KEY); localStorage.removeItem(BOTS_KEY); } catch (e) { /* nothing to clear */ }
+  setSync('off'); render();
+}
+function readConnectLink() {
+  const m = location.hash.match(/^#connect=(.+)$/);
+  if (!m) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  let v;
+  try { v = JSON.parse(atob(decodeURIComponent(m[1]))); } catch (e) { toast('That device link is broken. Make a new one.'); return; }
+  connect(v.t, v.r).then(() => toast('Connected. This device now syncs.')).catch((e) => toast(e.message));
+}
+
+// Bot files: { "bot": "Zlarior", "events": [{ "id", "title", "type", "date", "start", "end", "end_date", "repeat", "until", "skip", "notes" }] }
+function typeToCat(t) {
+  const v = String(t || '').toLowerCase().trim();
+  const c = S.categories.find((x) => x.id === v || x.name.toLowerCase() === v);
+  return c ? c.id : (S.categories.some((x) => x.id === 'bots') ? 'bots' : S.categories[0].id);
+}
+// Installed-app mode: the NQ dashboard's data.json is served from the same site, so the app reads it directly (no keys, no
+// scheduled task) and shows the same events as bot/dashboard_events.py (kept in step with it).
+const NQ_KEY = 'planner.nq';
+let nqBot = readJSON(NQ_KEY) ? readJSON(NQ_KEY).doc : null;
+function nqEventsFromData(data) {
+  const news = data.news || {}, goals = data.goals || {}, cal = goals.calendar || {}, events = [];
+  const hold = new Set((news.days || []).filter((d) => d.holiday).map((d) => d.date));
+  const hmAdd = (hm, m) => { const [h, mi] = hm.split(':').map(Number), t = Math.min(h * 60 + mi + m, 1439); return fromMin(t); };
+  const groups = new Map(), seen = new Set();
+  for (const e of news.events || []) {
+    if (e.impact !== 'high' || !e.date || !e.time_et) continue;
+    const k = e.date + ' ' + e.time_et; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e);
+  }
+  for (const k of [...groups.keys()].sort()) {
+    const es = groups.get(k), [day, hm] = k.split(' '), titles = [...new Set(es.map((e) => e.title))];
+    const pause = es.find((e) => e.blackout_hits_killzone && e.blackout_start && e.blackout_end);
+    const fc = es.filter((e) => e.forecast).map((e) => `${e.title}: forecast ${e.forecast}, previous ${e.previous}`);
+    let start, end, note, title;
+    if (pause) { start = pause.blackout_start; end = pause.blackout_end; note = `Bot pauses new entries ${start}-${end} ET (blackout inside a killzone).`; title = titles.join(' + ') + ' · bot paused'; }
+    else { start = hm; end = hmAdd(hm, 30); note = `Release at ${hm} ET. Outside the killzones: the bot does not pause.`; title = titles.join(' + '); }
+    events.push({ id: `news-${day}-${hm.replace(':', '')}`, title, type: 'trading', date: day, start, end, notes: [note, ...fc].join('\n'), project: 'nq' });
+    seen.add(k);
+  }
+  const extra = new Map();
+  for (const e of cal.news || []) { if (e.day && e.time && !seen.has(e.day + ' ' + e.time)) { const k = e.day + ' ' + e.time; if (!extra.has(k)) extra.set(k, []); extra.get(k).push(e.event || 'USD release'); } }
+  for (const k of [...extra.keys()].sort()) {
+    const [day, hm] = k.split(' '), titles = [...new Set(extra.get(k))];
+    events.push({ id: `news-${day}-${hm.replace(':', '')}`, title: titles.slice(0, 2).join(' + '), type: 'trading', date: day, start: hm, end: hmAdd(hm, 30), notes: `High-impact USD release at ${hm} ET.`, project: 'nq' });
+  }
+  for (const e of cal.early_close || []) if (e.day) events.push({ id: `early-${e.day}`, title: `Early close · futures halt ${e.halt || ''} ET`, type: 'trading', date: e.day, project: 'nq' });
+  for (const e of cal.clocks || []) if (e.day) events.push({ id: `clocks-${e.day}-${e.who || ''}`.replace(/[ /]/g, ''), title: `${e.who || ''} clocks ${String(e.what || 'change').replace('clocks ', '')}`.trim(), type: 'personal', date: e.day, notes: e.note || '' });
+  const today = YMD.test(String(goals.today || '').slice(0, 10)) ? String(goals.today).slice(0, 10) : String(data.built || '').slice(0, 10);
+  if (YMD.test(today)) for (const a of goals.accounts || []) {
+    if (a.stage !== 'eval' || a.status !== 'open' || !Number.isInteger(a.sessions_left) || a.sessions_left < 1) continue;
+    let d = today, n = a.sessions_left - 1;
+    while (n > 0) { d = addDays(d, 1); if (dow(d) > 0 && dow(d) < 6 && !hold.has(d)) n--; }
+    const who = a.strategy === 'LIT' ? 'Zlarior' : (a.strategy || 'Bot');
+    events.push({ id: `eval-${a.id || who}`, title: `${who} · ${a.name || 'eval'}: last session of the 2-week goal`, type: 'deadline', date: d, notes: (a.sentence || '') + ' (Estimated from sessions left.)', project: 'nq' });
+  }
+  events.sort((a, b) => (a.date + (a.start || '')).localeCompare(b.date + (b.start || '')));
+  return { bot: 'NQ bots', events };
+}
+async function loadNq() {
+  const c = readJSON(NQ_KEY);
+  if (c && Date.now() - c.t < 3 * 3600e3) return;
+  try {
+    const r = await fetch('../data.json', { cache: 'no-cache' });
+    if (!r.ok) return;
+    const doc = nqEventsFromData(await r.json());
+    nqBot = doc; try { localStorage.setItem(NQ_KEY, JSON.stringify({ t: Date.now(), doc })); } catch (e) { /* cache only */ }
+    safeRender();
+  } catch (e) { /* offline or not on the dashboard site: keep the last copy */ }
+}
+function buildBotEvents() {
+  const out = [], gone = new Set(S.dismissed.map((d) => d.id));
+  const files = Object.entries(botCache);
+  if (nqBot && !HOSTED) files.push(['nq-dashboard.json', { data: nqBot }]);
+  for (const [file, f] of files) {
+    const d = f && f.data;
+    if (!d || !Array.isArray(d.events)) continue;
+    const slug = file.replace(/\.json$/, ''), bot = String(d.bot || slug).slice(0, 40);
+    for (const e of d.events) {
+      if (!e || !e.title || !YMD.test(e.date || '')) continue;
+      const id = `bot:${slug}:${e.id || e.date + ':' + e.title}`;
+      if (gone.has('d:' + id)) continue;
+      const timed = HM.test(e.start || '');
+      out.push({
+        id, bot, title: String(e.title).slice(0, 200), cat: typeToCat(e.type), date: e.date, allDay: !timed,
+        start: timed ? e.start : '', end: timed ? (HM.test(e.end || '') && e.end > e.start ? e.end : fromMin(Math.min(toMin(e.start) + 30, 1439))) : '',
+        endDate: !timed && YMD.test(e.end_date || '') && e.end_date > e.date ? e.end_date : '',
+        repeat: REPEATS.includes(e.repeat) ? e.repeat : 'none', until: YMD.test(e.until || '') ? e.until : '',
+        ex: Array.isArray(e.skip) ? e.skip.filter((x) => YMD.test(x)) : [], notes: String(e.notes || '').slice(0, 2000),
+        proj: findProj(e.project),
+      });
+    }
+  }
+  // Project milestones show on the calendar in the project's color; clicking one opens the project.
+  for (const p of S.projects) {
+    if (!p.milestone || !YMD.test(p.due || '')) continue;
+    out.push({ id: 'ms:' + p.id, title: `${p.name}: ${p.milestone}`, cat: typeToCat('deadline'), color: p.color, date: p.due, allDay: true, start: '', end: '', endDate: '', repeat: 'none', until: '', ex: [], notes: p.notes || '', proj: p.id, milestone: true });
+  }
+  extraEvents = out;
+}
+const projOf = (id) => (id ? S.projects.find((x) => x.id === id) : null);
+const squash = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+// "nq", "NQ bot", "kalshi" or a project id -> that project's id ('' when nothing matches).
+function findProj(word) {
+  const w = squash(word);
+  if (!w) return '';
+  const p = S.projects.find((x) => x.id === String(word)) || S.projects.find((x) => squash(x.name) === w) || S.projects.find((x) => squash(x.name).startsWith(w));
+  return p ? p.id : '';
+}
+const colorOf = (e) => e.color || cat(e.cat).color;
+const ptag = (id) => { const p = projOf(id); return p ? `<span class="ptag" style="${cvars(p.color)}" title="${esc(p.name)}">${esc(p.name)}</span>` : ''; };
+const PRI = ['No priority', 'Low', 'Medium', 'High'];
+function dueLabel(k) {
+  const today = todayKey();
+  if (k === today) return 'Today';
+  if (k === addDays(today, 1)) return 'Tomorrow';
+  const d = parse(k); return `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}`;
+}
+function taskLi(t, { overdue = false, showProj = true, showDate = false } = {}) {
+  const late = t.date && !t.done && t.date < todayKey();
+  const meta = [
+    showProj ? ptag(t.proj) : '',
+    showDate ? `<span class="t-due"><button type="button" class="t-dbtn${t.date ? ' set' : ''}${late ? ' late' : ''}" data-tdue title="${t.date ? 'Due ' + longDate(t.date) : 'Set a due date'}">${t.date ? (late ? 'Overdue · ' : '') + dueLabel(t.date) : 'Due date'}</button><input type="date" class="t-date" value="${t.date || ''}" tabindex="-1" aria-label="Due date"></span>` : '',
+    overdue ? `<button class="tmove" data-tmove title="Move to today">${dueLabel(t.date)} → move to today</button>` : '',
+  ].join('');
+  return `<li class="${t.done ? 'done' : ''}${overdue ? ' overdue' : ''}" data-t="${t.id}">
+      <input type="checkbox" ${t.done ? 'checked' : ''} aria-label="Done">
+      <div class="t-body">
+        <span class="t-in" contenteditable="true" role="textbox" aria-label="Task" spellcheck="false" title="${overdue ? 'From ' + longDate(t.date) : 'Tap to edit'}">${esc(t.title)}</span>
+        ${meta ? `<div class="t-meta">${meta}</div>` : ''}
+      </div>
+      <button class="pri" data-tp data-p="${t.p || 0}" title="Priority: ${PRI[t.p || 0]} (tap to change)" aria-label="Priority ${PRI[t.p || 0]}"><i></i></button>
+      <button class="tdel" data-tdel aria-label="Delete task" title="Delete">✕</button></li>`;
+}
+function schedRow(o, withDate) {
+  const e = o.ev, t = e.allDay ? 'All day' : fmtTime(e.start);
+  return `<button class="srow" style="${cvars(colorOf(e))}" data-ev="${e.id}" data-occ="${o.occ}"><span class="bar"></span><span class="tm${withDate ? ' wide' : ''}">${withDate ? longDate(o.occ) + (e.allDay ? '' : ' · ' + t) : t}</span><span class="tt">${esc(e.title)}</span></button>`;
+}
+const allEvents = () => (extraEvents.length ? S.events.concat(extraEvents) : S.events);
+
+// In-page confirm (native confirm/prompt look out of place in a home-screen app, and some viewers block them).
+function ask(title, msg, yes = 'OK', { danger = false, value = '', cancel = true } = {}) {
+  return new Promise((resolve) => {
+    const d = $('#askDlg');
+    $('#askTitle').textContent = title; $('#askMsg').textContent = msg;
+    $('#askYes').textContent = yes; $('#askYes').className = 'btn ' + (danger ? 'danger' : 'primary');
+    $('#askNo').hidden = !cancel;
+    $('#askValWrap').hidden = !value; $('#askVal').value = value;
+    let answer = false;
+    $('#askForm').onsubmit = (e) => { e.preventDefault(); answer = true; d.close(); };
+    $('#askNo').onclick = () => d.close();
+    d.onclose = () => resolve(answer);
+    d.showModal();
+    setTimeout(() => (value ? $('#askVal').select() : $('#askYes').focus()), 30);
+  });
+}
+const PREVIEW = !!window.PLANNER_PREVIEW;
+
+const cat = (id) => S.categories.find((c) => c.id === id) || { id, name: 'Other', color: '#64748b' };
+
+// ---------- occurrences ----------
+function isStart(ev, k) {
+  if (k < ev.date) return false;
+  if (ev.until && k > ev.until) return false;
+  if (ev.ex && ev.ex.includes(k)) return false;
+  switch (ev.repeat) {
+    case 'daily': return true;
+    case 'weekdays': { const w = dow(k); return w > 0 && w < 6; }
+    case 'weekly': return dow(k) === dow(ev.date);
+    case 'biweekly': return dow(k) === dow(ev.date) && diffDays(ev.date, k) % 14 === 0;
+    case 'monthly': return parse(k).getDate() === parse(ev.date).getDate();
+    case 'yearly': return k.slice(5) === ev.date.slice(5);
+    default: return k === ev.date;
+  }
+}
+const span = (ev) => (ev.allDay && ev.endDate && ev.endDate > ev.date ? diffDays(ev.date, ev.endDate) : 0);
+function occStart(ev, k) {
+  const n = span(ev);
+  for (let i = 0; i <= n; i++) { const s = addDays(k, -i); if (isStart(ev, s)) return s; }
+  return null;
+}
+function eventsOn(k, includeHidden) {
+  const out = [];
+  for (const ev of allEvents()) {
+    if (!includeHidden && S.hidden.includes(ev.cat)) continue;
+    const s = occStart(ev, k);
+    if (s) out.push({ ev, occ: s, cont: s !== k });
+  }
+  return out.sort((a, b) => (b.ev.allDay - a.ev.allDay) || (a.ev.allDay ? 0 : toMin(a.ev.start) - toMin(b.ev.start)) || a.ev.title.localeCompare(b.ev.title));
+}
+const tasksOn = (k) => S.tasks.filter((t) => t.date === k).sort((a, b) => (a.done - b.done) || ((b.p || 0) - (a.p || 0)) || (a.created - b.created));
+const overdue = () => S.tasks.filter((t) => !t.done && t.date && t.date < todayKey()).sort((a, b) => a.date.localeCompare(b.date));
+
+// ---------- render ----------
+function render() {
+  buildBotEvents();
+  renderHeader();
+  renderMain();
+  renderSide();
+}
+
+function renderHeader() {
+  const d = parse(cursor);
+  let t;
+  if (query) t = 'Search';
+  else if (S.view === 'month') t = `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  else if (S.view === 'week') {
+    const a = parse(startOfWeek(cursor)), b = parse(addDays(startOfWeek(cursor), 6));
+    t = a.getMonth() === b.getMonth()
+      ? `${MONTHS[a.getMonth()]} ${a.getDate()} – ${b.getDate()}, ${b.getFullYear()}`
+      : `${MONTHS[a.getMonth()].slice(0, 3)} ${a.getDate()} – ${MONTHS[b.getMonth()].slice(0, 3)} ${b.getDate()}, ${b.getFullYear()}`;
+  } else if (S.view === 'day') t = `${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+  else if (S.view === 'projects') t = 'Projects';
+  else t = `Upcoming from ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}`;
+  $('#title').textContent = t;
+  $('#prevBtn').hidden = $('#nextBtn').hidden = !query && S.view === 'projects';
+  document.title = `${t} · Planner`;
+  document.querySelectorAll('#views button').forEach((b) => b.setAttribute('aria-pressed', String(!query && b.dataset.v === S.view)));
+  document.querySelectorAll('#wkStart button').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.w === S.weekStart)));
+}
+
+function chip(o) {
+  const e = o.ev, c = cat(e.cat);
+  const tip = esc(`${fmtRange(e)} · ${e.title}${e.bot ? ' · from ' + e.bot : ''}`);
+  if (e.allDay) return `<button class="chip ad${o.cont ? ' cont' : ''}" style="${cvars(colorOf(e))}" data-ev="${e.id}" data-occ="${o.occ}" title="${tip}">${esc(e.title)}</button>`;
+  return `<button class="chip" style="${cvars(colorOf(e))}" data-ev="${e.id}" data-occ="${o.occ}" title="${tip}"><i></i><span class="t">${fmtTime(e.start)}</span><span class="n">${esc(e.title)}</span></button>`;
+}
+
+function renderMonth() {
+  const d = parse(cursor), first = key(new Date(d.getFullYear(), d.getMonth(), 1));
+  const off = (dow(first) - S.weekStart + 7) % 7;
+  const dim = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  const cells = Math.ceil((off + dim) / 7) * 7, start = addDays(first, -off), today = todayKey();
+  const max = innerWidth < 640 ? 3 : 4;
+  let wd = '';
+  for (let i = 0; i < 7; i++) wd += `<div>${DAYS[(i + S.weekStart) % 7]}</div>`;
+  let g = '';
+  for (let i = 0; i < cells; i++) {
+    const k = addDays(start, i), evs = eventsOn(k), ts = tasksOn(k);
+    const out = k.slice(0, 7) !== cursor.slice(0, 7);
+    const shown = evs.length > max ? evs.slice(0, max - 1) : evs;
+    const done = ts.filter((t) => t.done).length;
+    const tb = ts.length ? `<span class="tb${done === ts.length ? ' all' : ''}" title="${done} of ${ts.length} tasks done"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>${done}/${ts.length}</span>` : '';
+    g += `<div class="mc${out ? ' out' : ''}${k === today ? ' today' : ''}${k === selected ? ' sel' : ''}" data-date="${k}">
+      <div class="mc-h"><span class="dn">${parse(k).getDate()}</span>${tb}</div>
+      ${shown.map(chip).join('')}
+      ${evs.length > shown.length ? `<button class="more" data-more="${k}">+${evs.length - shown.length} more</button>` : ''}
+    </div>`;
+  }
+  return `<div class="month"><div class="m-wd">${wd}</div><div class="m-g">${g}</div></div>`;
+}
+
+function layoutDay(items) {
+  items.sort((a, b) => a.s - b.s || b.e - a.e);
+  let cluster = [], cols = [], end = -1;
+  const flush = () => { cluster.forEach((it) => { it.n = cols.length; }); cluster = []; cols = []; };
+  for (const it of items) {
+    if (cluster.length && it.s >= end) flush();
+    let c = cols.findIndex((x) => x <= it.s);
+    if (c < 0) { c = cols.length; cols.push(it.e); } else cols[c] = it.e;
+    it.col = c; cluster.push(it); end = Math.max(end, it.e);
+  }
+  flush();
+  return items;
+}
+
+function renderGrid(days) {
+  const today = todayKey(), n = days.length;
+  const now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes();
+  let head = '<div></div>', ad = '<div class="tg-gut">all-day</div>', cols = '';
+  for (const k of days) {
+    const d = parse(k), evs = eventsOn(k);
+    head += `<button class="tg-day${k === today ? ' today' : ''}" data-goto="${k}" title="Open ${longDate(k)}"><span>${DAYS[d.getDay()]}</span><b>${d.getDate()}</b></button>`;
+    ad += `<div class="tg-adc" data-date="${k}">${evs.filter((o) => o.ev.allDay).map(chip).join('')}</div>`;
+    const items = layoutDay(evs.filter((o) => !o.ev.allDay).map((o) => {
+      const s = toMin(o.ev.start); let e = toMin(o.ev.end || fromMin(s + 60));
+      if (e <= s) e = 1440;
+      return { o, s, e: Math.max(e, s + 20), realE: e };
+    }));
+    const blocks = items.map(({ o, s, e, realE, col, n: cn }) => {
+      const h = (e - s) / 60 * HOUR, short = (realE - s) < 45;
+      return `<button class="blk${short ? ' short' : ''}" data-ev="${o.ev.id}" data-occ="${o.occ}" title="${esc(fmtRange(o.ev) + ' · ' + o.ev.title)}" style="${cvars(colorOf(o.ev))};top:${s / 60 * HOUR + 1}px;height:${h - 2}px;left:calc(${col / cn * 100}% + 2px);width:calc(${100 / cn}% - 4px)"><b>${esc(o.ev.title)}</b><span>${fmtTime(o.ev.start)}${short ? '' : ' – ' + fmtTime(o.ev.end)}${o.ev.repeat && o.ev.repeat !== 'none' ? ' ↻' : ''}</span></button>`;
+    }).join('');
+    cols += `<div class="tg-col${k === today ? ' today' : ''}" data-date="${k}">${blocks}${k === today ? `<div class="now" style="top:${nowMin / 60 * HOUR}px"></div>` : ''}</div>`;
+  }
+  let hours = '';
+  for (let h = 1; h < 24; h++) hours += `<span style="top:${h * HOUR}px">${fmtTime(fromMin(h * 60))}</span>`;
+  return `<div class="tg" style="--n:${n};--h:${HOUR}px"><div class="tg-top"><div class="tg-head">${head}</div><div class="tg-ad">${ad}</div></div><div class="tg-body"><div class="tg-hours">${hours}</div>${cols}</div></div>`;
+}
+
+function agendaRow(o, showDate) {
+  const e = o.ev, c = cat(e.cat);
+  const when = showDate ? `${longDate(o.occ)}${e.allDay ? '' : ' · ' + fmtTime(e.start)}` : fmtRange(e);
+  const rep = e.repeat && e.repeat !== 'none' ? ' ↻' : '';
+  return `<button class="ag-ev" style="${cvars(colorOf(e))}" data-ev="${e.id}" data-occ="${o.occ}"><span class="bar"></span><span class="tm">${esc(when)}${rep}</span><span class="tg2"><div class="tt">${esc(e.title)}${e.bot ? ` <span class="by">· ${esc(e.bot)}</span>` : ''}</div>${e.notes ? `<div class="nt">${esc(e.notes.split('\n')[0])}</div>` : ''}</span><span class="tags">${ptag(e.proj)}${e.milestone ? '' : `<span class="tag" style="${cvars(c.color)}">${esc(c.name)}</span>`}</span></button>`;
+}
+
+function renderAgenda() {
+  const today = todayKey();
+  let html = '', count = 0;
+  for (let i = 0; i < agendaDays; i++) {
+    const k = addDays(cursor, i), evs = eventsOn(k);
+    if (!evs.length) continue;
+    count += evs.length;
+    const d = parse(k);
+    html += `<div class="ag-day"><div class="ag-date${k === today ? ' today' : ''}" data-goto="${k}"><b>${d.getDate()}</b><span>${k === today ? 'Today' : k === addDays(today, 1) ? 'Tomorrow' : DAYS[d.getDay()]} · ${MONTHS[d.getMonth()].slice(0, 3)}</span></div><div class="ag-list">${evs.map((o) => agendaRow(o)).join('')}</div></div>`;
+  }
+  if (!count) html = `<div class="empty"><b>Nothing scheduled in the next ${agendaDays} days</b>Press <kbd>N</kbd> or tap New event to add one.</div>`;
+  return `<div class="agenda">${html}<button class="btn ag-more" id="agMore">Show ${agendaDays < 365 ? '30 more days' : 'more'}</button></div>`;
+}
+
+function renderSearch() {
+  const q = query.toLowerCase();
+  const hits = allEvents().filter((e) => (e.title + ' ' + (e.notes || '') + ' ' + cat(e.cat).name + ' ' + (projOf(e.proj) ? projOf(e.proj).name : '')).toLowerCase().includes(q));
+  const today = todayKey();
+  // Each hit at its next occurrence from today (or its start date when it is all in the past).
+  const rows = hits.map((e) => {
+    let occ = e.date;
+    if (e.repeat && e.repeat !== 'none' && e.date < today) {
+      for (let i = 0; i < 400; i++) { const k = addDays(today, i); if (e.until && k > e.until) break; if (isStart(e, k)) { occ = k; break; } }
+    }
+    return { ev: e, occ };
+  }).sort((a, b) => a.occ.localeCompare(b.occ));
+  const up = rows.filter((r) => r.occ >= today), past = rows.filter((r) => r.occ < today).reverse();
+  const list = (rs) => `<div class="ag-list">${rs.map((r) => agendaRow(r, true)).join('')}</div>`;
+  let html = `<div class="ag-h"><h2>“${esc(query)}”</h2><span class="sub">${rows.length} event${rows.length === 1 ? '' : 's'}</span></div>`;
+  if (!rows.length) html += '<div class="empty"><b>No matches</b>Search looks at titles, notes and event types.</div>';
+  if (up.length) html += `<div class="label">Upcoming</div>${list(up)}`;
+  if (past.length) html += `<div class="label">Past</div>${list(past)}`;
+  return `<div class="agenda">${html}</div>`;
+}
+
+const expanded = new Set();
+function renderProjects() {
+  const today = todayKey(), wk = addDays(today, 7);
+  let open = 0, dueWeek = 0, blocked = 0;
+  const pencil = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg>';
+  const cards = S.projects.map((p) => {
+    const ts = S.tasks.filter((t) => t.proj === p.id), done = ts.filter((t) => t.done);
+    const op = ts.filter((t) => !t.done).sort((a, b) => ((b.p || 0) - (a.p || 0)) || (a.date || '9999').localeCompare(b.date || '9999') || (a.created - b.created));
+    open += op.length;
+    dueWeek += op.filter((t) => t.date && t.date <= wk).length + (p.milestone && p.due && p.due <= wk ? 1 : 0);
+    if (p.status === 'blocked') blocked++;
+    const all = expanded.has(p.id), pct = ts.length ? Math.round(done.length / ts.length * 100) : 0;
+    const list = (all ? op : op.slice(0, 5)).map((t) => taskLi(t, { showProj: false, showDate: true }))
+      .concat(all ? done.sort((a, b) => (b.u || 0) - (a.u || 0)).map((t) => taskLi(t, { showProj: false, showDate: true })) : []).join('');
+    const more = op.length > 5 || done.length
+      ? `<button class="link" data-pmore style="align-self:flex-start">${all ? 'Show less' : [op.length > 5 && `Show all ${op.length} open`, done.length && `${op.length > 5 ? '+' : 'Show'} ${done.length} done`].filter(Boolean).join(' ')}</button>` : '';
+    const ups = [];
+    for (let i = 0; i < 30 && ups.length < 3; i++) eventsOn(addDays(today, i)).forEach((o) => { if (o.ev.proj === p.id && !o.ev.milestone && !o.cont && ups.length < 3) ups.push(o); });
+    const days = p.due ? diffDays(today, p.due) : null;
+    const when = !p.due ? '' : days < 0 ? `<span class="late">${-days} day${days === -1 ? '' : 's'} late</span>` : days === 0 ? '<span class="late">due today</span>' : `${longDate(p.due)} · ${days === 1 ? 'tomorrow' : 'in ' + days + ' days'}`;
+    const link = /^https?:\/\//i.test(p.link || '') ? `<a class="pc-link" href="${esc(p.link)}" target="_blank" rel="noopener">${esc(p.link.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, ''))} ↗</a>` : '';
+    return `<section class="pc" style="${cvars(p.color)}" data-pid="${p.id}">
+      <div class="pc-h"><span class="dot"></span><h3>${esc(p.name)}</h3>
+        <select class="pstat" data-pstat data-s="${p.status}" aria-label="Status of ${esc(p.name)}">${[['active', 'Active'], ['blocked', 'Blocked'], ['paused', 'Paused'], ['live', 'Live']].map(([v, l]) => `<option value="${v}"${v === p.status ? ' selected' : ''}>${l}</option>`).join('')}</select>
+        <button class="ib" data-pedit title="Edit project" aria-label="Edit ${esc(p.name)}">${pencil}</button></div>
+      <div class="ms">${p.milestone ? `<span>Next: <b>${esc(p.milestone)}</b></span>${when ? `<span class="when">${when}</span>` : ''}` : '<button class="link" data-pedit>+ Set the next milestone</button>'}</div>
+      <div><div class="pc-stats"><span>${ts.length ? `${done.length} of ${ts.length} tasks done` : 'No tasks yet'}</span><span>${ts.length ? pct + '%' : ''}</span></div><div class="prog"><i style="width:${pct}%;background:var(--c)"></i></div></div>
+      ${list ? `<ul class="tasks">${list}</ul>` : ''}${more}
+      <form class="add-t" data-padd="${p.id}"><span>+</span><input placeholder="Add a task" aria-label="Add a task to ${esc(p.name)}" autocomplete="off"></form>
+      ${ups.length ? `<div><div class="label" style="margin-top:0">Coming up</div><div class="sched">${ups.map((o) => schedRow(o, true)).join('')}</div></div>` : ''}
+      ${p.notes ? `<div class="pnotes">${esc(p.notes)}</div>` : ''}${link}
+    </section>`;
+  }).join('');
+  return `<div class="projects">
+    <div class="p-sum"><span><b>${S.projects.length}</b>projects</span><span><b>${open}</b>open tasks</span><span><b>${dueWeek}</b>due in the next 7 days</span>${blocked ? `<span class="bad"><b>${blocked}</b>blocked</span>` : ''}<button class="btn sm" id="pNew" style="margin-left:auto">+ New project</button></div>
+    ${cards ? `<div class="p-grid">${cards}</div>` : '<div class="empty"><b>No projects yet</b>Add one to track its milestones and tasks here.</div>'}
+  </div>`;
+}
+
+function renderMain() {
+  const main = $('#main');
+  main.classList.toggle('grid', !query && (S.view === 'week' || S.view === 'day'));
+  const keepScroll = (S.view === 'week' || S.view === 'day') && lastScrollView === S.view && !query ? main.scrollTop : null;
+  if (query) main.innerHTML = renderSearch();
+  else if (S.view === 'month') main.innerHTML = renderMonth();
+  else if (S.view === 'week') main.innerHTML = renderGrid(Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(cursor), i)));
+  else if (S.view === 'day') main.innerHTML = renderGrid([cursor]);
+  else if (S.view === 'projects') main.innerHTML = renderProjects();
+  else main.innerHTML = renderAgenda();
+  if ((S.view === 'week' || S.view === 'day') && !query) {
+    if (keepScroll != null) main.scrollTop = keepScroll;
+    else {
+      // Open on the working day: the first event of the range, or 7am, whichever is earlier.
+      const days = S.view === 'day' ? [cursor] : Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(cursor), i));
+      let first = 7 * 60;
+      days.forEach((k) => eventsOn(k).forEach((o) => { if (!o.ev.allDay) first = Math.min(first, toMin(o.ev.start)); }));
+      main.scrollTop = Math.max(0, Math.floor(first / 60) * HOUR - 16);
+    }
+    lastScrollView = S.view;
+  } else { if (!query && !(S.view === 'projects' && lastScrollView === 'projects')) main.scrollTop = 0; lastScrollView = query ? null : S.view === 'projects' ? 'projects' : null; }
+}
+
+function renderSide() {
+  // mini month
+  const [y, m] = miniMonth.split('-').map(Number);
+  const first = key(new Date(y, m - 1, 1)), off = (dow(first) - S.weekStart + 7) % 7, start = addDays(first, -off), today = todayKey();
+  $('#miniTitle').textContent = `${MONTHS[m - 1]} ${y}`;
+  let g = '';
+  for (let i = 0; i < 7; i++) g += `<div class="wd">${DAYS[(i + S.weekStart) % 7][0]}</div>`;
+  for (let i = 0; i < 42; i++) {
+    const k = addDays(start, i), cls = [k.slice(0, 7) !== miniMonth && 'out', k === today && 'today', k === selected && 'sel', eventsOn(k).length && 'has'].filter(Boolean).join(' ');
+    g += `<button class="${cls}" data-date="${k}" aria-label="${longDate(k)}">${parse(k).getDate()}</button>`;
+  }
+  $('#mini').innerHTML = g;
+
+  // day plan
+  const isToday = selected === today;
+  $('#planTitle').textContent = isToday ? 'Today' : selected === addDays(today, 1) ? 'Tomorrow' : longDate(selected);
+  $('#planSub').textContent = isToday || selected === addDays(today, 1) ? longDate(selected) + ', ' + selected.slice(0, 4) : selected.slice(0, 4);
+  const evs = eventsOn(selected);
+  $('#sched').innerHTML = evs.length ? evs.map((o) => schedRow(o)).join('') : '<div class="empty-s">Nothing scheduled.</div>';
+
+  const ts = tasksOn(selected), od = isToday ? overdue() : [];
+  const done = ts.filter((t) => t.done).length;
+  $('#taskCount').textContent = ts.length ? `${done} of ${ts.length} done` : '';
+  $('#progWrap').hidden = !ts.length;
+  $('#prog').style.width = ts.length ? `${done / ts.length * 100}%` : '0';
+  const li = (t, isOd) => taskLi(t, { overdue: isOd });
+  $('#tasks').innerHTML = (od.length ? `<li class="label" style="margin:2px 0 0;padding:0 4px">Carried over</li>${od.map((t) => li(t, true)).join('')}${ts.length ? '<li class="label" style="margin:8px 0 0;padding:0 4px">This day</li>' : ''}` : '') + ts.map((t) => li(t)).join('');
+
+  // categories
+  const counts = {};
+  allEvents().forEach((e) => { counts[e.cat] = (counts[e.cat] || 0) + 1; });
+  $('#cats').innerHTML = S.categories.map((c) => `<li><button class="${S.hidden.includes(c.id) ? 'off' : ''}" style="--c:${c.color}" data-cat="${c.id}" aria-pressed="${!S.hidden.includes(c.id)}" title="${S.hidden.includes(c.id) ? 'Show' : 'Hide'} ${esc(c.name)}"><span class="sw"></span><span class="nm">${esc(c.name)}</span><span class="ct">${counts[c.id] || ''}</span></button></li>`).join('');
+  $('#showAll').hidden = !S.hidden.length;
+}
+
+// ---------- navigation ----------
+function setView(v) { query = ''; $('#q').value = ''; S.view = v; if (v === 'day') cursor = selected; save(); render(); }
+function go(dir) {
+  if (query || S.view === 'projects') return;
+  const d = parse(cursor);
+  if (S.view === 'month') cursor = key(new Date(d.getFullYear(), d.getMonth() + dir, 1));
+  else if (S.view === 'week') cursor = addDays(cursor, 7 * dir);
+  else if (S.view === 'day') { cursor = addDays(cursor, dir); selected = cursor; }
+  else cursor = addDays(cursor, 7 * dir);
+  miniMonth = cursor.slice(0, 7);
+  render();
+}
+function select(k, moveCursor = true) {
+  selected = k;
+  if (moveCursor) cursor = k;
+  miniMonth = k.slice(0, 7);
+  render();
+}
+function goToday() { query = ''; $('#q').value = ''; select(todayKey()); }
+function openDay(k) { query = ''; $('#q').value = ''; selected = cursor = k; miniMonth = k.slice(0, 7); S.view = 'day'; save(); render(); }
+
+// ---------- event editor ----------
+const dlg = $('#evDlg');
+let fCat = null, fDur = 60;
+function paintCats() {
+  $('#fCats').innerHTML = S.categories.map((c) => `<button type="button" class="pill" style="${cvars(c.color)}" data-fc="${c.id}" aria-pressed="${c.id === fCat}"><i></i>${esc(c.name)}</button>`).join('');
+}
+function syncForm() {
+  const ad = $('#fAllDay').checked, rep = $('#fRepeat').value !== 'none';
+  $('#timeRow').hidden = ad;
+  $('#endDateRow').hidden = !ad;
+  $('#untilWrap').hidden = !rep;
+}
+function openEditor(e, occ, isNew) {
+  const ev = isNew ? null : e;
+  editing = ev ? { id: ev.id, occ } : { id: null };
+  $('#fTitle').value = e.title || '';
+  fCat = e.cat || (S.categories.some((c) => c.id === S.lastCat) ? S.lastCat : S.categories[0].id);
+  paintCats();
+  $('#fProj').innerHTML = '<option value="">None</option>' + S.projects.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
+  $('#fProj').value = projOf(e.proj) ? e.proj : '';
+  $('#fDate').value = e.date;
+  $('#fAllDay').checked = !!e.allDay;
+  $('#fStart').value = e.start || '09:00';
+  $('#fEnd').value = e.end || '10:00';
+  fDur = toMin($('#fEnd').value) - toMin($('#fStart').value);
+  if (fDur <= 0) fDur = 60;
+  $('#fEndDate').value = e.endDate || '';
+  $('#fRepeat').value = e.repeat || 'none';
+  $('#fUntil').value = e.until || '';
+  $('#fNotes').value = e.notes || '';
+  const rec = !!(ev && ev.repeat && ev.repeat !== 'none');
+  $('#fDelete').hidden = !ev;
+  $('#fDup').hidden = !ev || !!ev.bot || !!ev.milestone;
+  $('#fDelete').textContent = rec ? 'Delete all' : 'Delete';
+  $('#fDeleteOne').hidden = !rec;
+  $('#seriesHint').hidden = !rec;
+  $('#fErr').hidden = true;
+  const ro = !!(ev && ev.bot);
+  dlg.querySelectorAll('#evForm input, #evForm select, #evForm textarea, #fCats button').forEach((i) => { i.disabled = ro; });
+  $('#botNote').hidden = !ro;
+  if (ro) {
+    $('#botNote').textContent = `Added by ${ev.bot}. The bot keeps it up to date. Dismiss hides it on every device.`;
+    $('#fDelete').hidden = $('#fDeleteOne').hidden = $('#seriesHint').hidden = true;
+  }
+  $('#fSave').hidden = ro; $('#fDismiss').hidden = !ro;
+  syncForm();
+  dlg.showModal();
+  setTimeout(() => { if (!ev) $('#fTitle').focus(); }, 30);
+}
+function newEvent(date, start, allDay) {
+  const s = start || (date === todayKey() ? fromMin(Math.min(22 * 60, (new Date().getHours() + 1) * 60)) : '09:00');
+  openEditor({ title: '', date, allDay: !!allDay, start: s, end: fromMin(Math.min(toMin(s) + 60, 23 * 60 + 59)), repeat: 'none' }, null, true);
+}
+function formErr(msg) { $('#fErr').textContent = msg; $('#fErr').hidden = false; }
+function saveEditor() {
+  const title = $('#fTitle').value.trim(), date = $('#fDate').value, allDay = $('#fAllDay').checked;
+  const start = $('#fStart').value, end = $('#fEnd').value, endDate = $('#fEndDate').value;
+  const repeat = $('#fRepeat').value, until = $('#fUntil').value;
+  if (!title) { formErr('Give the event a title.'); $('#fTitle').focus(); return; }
+  if (!date) { formErr('Pick a date.'); return; }
+  if (!allDay && (!start || !end)) { formErr('Set a start and end time.'); return; }
+  if (!allDay && toMin(end) <= toMin(start)) { formErr('End time must be after the start time.'); return; }
+  if (allDay && endDate && endDate < date) { formErr('“Ends on” is before the start date.'); return; }
+  if (repeat !== 'none' && until && until < date) { formErr('“Until” is before the start date.'); return; }
+  const data = {
+    title, cat: fCat, date, allDay,
+    start: allDay ? '' : start, end: allDay ? '' : end,
+    endDate: allDay && endDate > date ? endDate : '',
+    repeat, until: repeat !== 'none' ? until : '',
+    notes: $('#fNotes').value.trim(),
+    proj: $('#fProj').value,
+  };
+  snapshot();
+  commit(() => {
+    if (editing.id) {
+      const ev = S.events.find((e) => e.id === editing.id);
+      if (ev) { Object.assign(ev, data); if (repeat === 'none') ev.ex = []; }
+    } else S.events.push({ id: uid(), ...data, ex: [], created: Date.now() });
+  });
+  toast(editing.id ? 'Event updated' : `Added to ${longDate(date)}`, true);
+  S.lastCat = fCat;
+  if (S.hidden.includes(fCat)) S.hidden = S.hidden.filter((h) => h !== fCat);
+  save();
+  dlg.close();
+  selected = date; miniMonth = (S.view === 'month' ? cursor : date).slice(0, 7);
+  if (S.view !== 'month' && S.view !== 'agenda') cursor = date;
+  render();
+}
+
+// ---------- categories editor ----------
+const catDlg = $('#catDlg');
+let catDraft = [];
+function paintCatEd() {
+  $('#catEd').innerHTML = catDraft.map((c, i) => `<li data-i="${i}"><input type="color" value="${c.color}" aria-label="Color"><input type="text" value="${esc(c.name)}" aria-label="Name" maxlength="40"><button type="button" class="ib" data-cdel title="Remove" aria-label="Remove ${esc(c.name)}"${catDraft.length < 2 ? ' disabled' : ''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></li>`).join('');
+}
+function openCats() { catDraft = S.categories.map((c) => ({ ...c })); paintCatEd(); catDlg.showModal(); }
+async function saveCats() {
+  const draft = catDraft.map((c) => ({ ...c, name: c.name.trim() || 'Untitled' }));
+  const ids = new Set(draft.map((c) => c.id));
+  const orphans = S.events.filter((e) => !ids.has(e.cat));
+  if (orphans.length && !(await ask('Remove event types?', `${orphans.length} event${orphans.length === 1 ? '' : 's'} use a removed type and will move to “${draft[0].name}”.`, 'Move and save'))) return;
+  snapshot();
+  commit(() => { orphans.forEach((e) => { e.cat = draft[0].id; }); S.categories = draft; });
+  S.hidden = S.hidden.filter((h) => ids.has(h));
+  if (!ids.has(S.lastCat)) S.lastCat = draft[0].id;
+  save(); catDlg.close(); render(); toast('Event types saved', true);
+}
+
+// ---------- project editor ----------
+const projDlg = $('#projDlg');
+let projEditing = null, pColor = null;
+function paintSw() {
+  const list = PROJ_COLORS.includes(pColor) ? PROJ_COLORS : [pColor, ...PROJ_COLORS];
+  $('#pSw').innerHTML = list.map((c) => `<button type="button" style="--c:${c}" data-sw="${c}" aria-pressed="${c === pColor}" aria-label="Color ${c}"></button>`).join('');
+}
+function openProject(id) {
+  const p = projOf(id);
+  projEditing = p ? p.id : null;
+  $('#pName').value = p ? p.name : '';
+  $('#pStatus').value = p ? p.status || 'active' : 'active';
+  pColor = p ? p.color : (PROJ_COLORS.find((c) => !S.projects.some((x) => x.color === c)) || PROJ_COLORS[0]);
+  $('#pMs').value = p ? p.milestone || '' : '';
+  $('#pDue').value = p ? p.due || '' : '';
+  $('#pLink').value = p ? p.link || '' : '';
+  $('#pNotes').value = p ? p.notes || '' : '';
+  $('#pDelete').hidden = !p; $('#pErr').hidden = true;
+  paintSw();
+  projDlg.showModal();
+  setTimeout(() => (p ? null : $('#pName').focus()), 30);
+}
+$('#pSw').onclick = (e) => { const b = e.target.closest('[data-sw]'); if (b) { pColor = b.dataset.sw; paintSw(); } };
+$('#projForm').onsubmit = (e) => {
+  e.preventDefault();
+  const name = $('#pName').value.trim();
+  if (!name) { $('#pErr').textContent = 'Give the project a name.'; $('#pErr').hidden = false; $('#pName').focus(); return; }
+  let link = $('#pLink').value.trim();
+  if (link && !/^https?:\/\//i.test(link)) link = 'https://' + link.replace(/^[a-z]+:\/*/i, '');
+  const data = { name, status: $('#pStatus').value, color: pColor, milestone: $('#pMs').value.trim(), due: $('#pDue').value, link, notes: $('#pNotes').value.trim() };
+  if (data.due && !data.milestone) { $('#pErr').textContent = 'Name the milestone that is due.'; $('#pErr').hidden = false; $('#pMs').focus(); return; }
+  snapshot();
+  commit(() => { const p = projOf(projEditing); if (p) Object.assign(p, data); else S.projects.push({ id: uid(), ...data }); });
+  projDlg.close(); render(); toast(projEditing ? 'Project saved' : 'Project added', true);
+};
+$('#pDelete').onclick = async () => {
+  const p = projOf(projEditing); if (!p) return;
+  const n = S.tasks.filter((t) => t.proj === p.id).length;
+  if (!(await ask(`Delete ${p.name}?`, `${n} task${n === 1 ? '' : 's'} and any tagged events stay in your planner without a project.`, 'Delete', { danger: true }))) return;
+  snapshot();
+  commit(() => {
+    S.projects = S.projects.filter((x) => x !== p);
+    S.tasks.forEach((t) => { if (t.proj === p.id) t.proj = ''; });
+    S.events.forEach((ev) => { if (ev.proj === p.id) ev.proj = ''; });
+  });
+  projDlg.close(); render(); toast('Project deleted', true);
+};
+
+// ---------- tasks ----------
+// "#nq fix fills" -> task "fix fills" on the NQ bot project.
+function parseTag(title) {
+  const m = title.match(/(^|\s)#([\w-]+)/), proj = m ? findProj(m[2]) : '';
+  if (!proj) return { title, proj: '' };
+  const rest = (title.slice(0, m.index) + ' ' + title.slice(m.index + m[0].length)).replace(/\s+/g, ' ').trim();
+  return { title: rest || title, proj };
+}
+function refreshTasks() { renderSide(); if (!query && (S.view === 'month' || S.view === 'projects')) renderMain(); }
+const WDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+// "call Sam fri 3pm #nq" -> { title, date, start, rep }. Dates: today, tomorrow, mon..sun, in N days, 10/30.
+function parseWhen(text) {
+  let t = ' ' + text + ' ', date = '', start = '', rep = '';
+  const cut = (m) => { t = t.slice(0, m.index) + ' ' + t.slice(m.index + m[0].length); };
+  let m;
+  if ((m = t.match(/\s(every ?day|daily)(?=\s)/i))) { rep = 'daily'; cut(m); }
+  else if ((m = t.match(/\s(every weekday|weekdays)(?=\s)/i))) { rep = 'weekdays'; cut(m); }
+  else if ((m = t.match(/\s(every week|weekly)(?=\s)/i))) { rep = 'weekly'; cut(m); }
+  if ((m = t.match(/\s(\d{1,2})(?::(\d{2}))?\s?(am|pm)(?=\s|$)/i))) {
+    let h = +m[1] % 12; if (/pm/i.test(m[3])) h += 12;
+    if (+m[1] >= 1 && +m[1] <= 12) { start = `${pad(h)}:${m[2] || '00'}`; cut(m); }
+  } else if ((m = t.match(/\s([01]?\d|2[0-3]):([0-5]\d)(?=\s|$)/))) { start = `${pad(+m[1])}:${m[2]}`; cut(m); }
+  const today = todayKey();
+  if ((m = t.match(/\s(today|tonight)(?=\s)/i))) { date = today; cut(m); }
+  else if ((m = t.match(/\s(tomorrow|tmrw)(?=\s)/i))) { date = addDays(today, 1); cut(m); }
+  else if ((m = t.match(/\sin (\d{1,3}) days?(?=\s)/i))) { date = addDays(today, +m[1]); cut(m); }
+  else if ((m = t.match(/\s(?:next |on )?(sun|mon|tue|wed|thu|fri|sat)[a-z]*(?=\s)/i))) {
+    const w = WDAYS.indexOf(m[1].toLowerCase()); let d = (w - dow(today) + 7) % 7; if (d === 0) d = 7;
+    date = addDays(today, d); cut(m);
+  } else if ((m = t.match(/\s(\d{1,2})\/(\d{1,2})(?=\s)/))) {
+    const now = new Date(); let y = now.getFullYear(); let k = `${y}-${pad(+m[1])}-${pad(+m[2])}`;
+    if (k < today) k = `${y + 1}-${pad(+m[1])}-${pad(+m[2])}`;
+    if (YMD.test(k) && +m[1] <= 12 && +m[2] <= 31) { date = k; cut(m); }
+  }
+  return { title: t.replace(/\s+/g, ' ').trim(), date, start, rep };
+}
+function addTask(raw, date = selected, proj = '') {
+  const tag = parseTag(raw), w = parseWhen(tag.title);
+  const title = w.title || tag.title;
+  if (w.start) {
+    // A time means it's an appointment: make it an event.
+    const d = w.date || date || todayKey();
+    snapshot();
+    commit(() => { S.events.push({ id: uid(), title, cat: S.lastCat, date: d, allDay: false, start: w.start, end: fromMin(Math.min(toMin(w.start) + 60, 1439)), endDate: '', repeat: w.rep || 'none', until: '', notes: '', ex: [], proj: tag.proj || proj, created: Date.now() }); });
+    selected = d; miniMonth = d.slice(0, 7); if (S.view !== 'month' && S.view !== 'agenda' && S.view !== 'projects') cursor = d;
+    render(); toast(`Event added: ${longDate(d)}, ${fmtTime(w.start)}`, true);
+    return;
+  }
+  commit(() => { S.tasks.push({ id: uid(), title, date: w.date || date || '', done: false, p: 0, proj: tag.proj || proj, rep: w.rep, created: Date.now() }); });
+  refreshTasks();
+  if (w.date && w.date !== selected && !proj) toast(`Task set for ${longDate(w.date)}`);
+}
+// A finished repeating task puts the next one on the calendar.
+function nextRep(t) {
+  if (!t.rep) return null;
+  let d = addDays(t.date && t.date > todayKey() ? t.date : todayKey(), 1);
+  if (t.rep === 'weekly') d = addDays(t.date || todayKey(), 7);
+  if (t.rep === 'weekdays') while (dow(d) === 0 || dow(d) === 6) d = addDays(d, 1);
+  return d;
+}
+function taskAction(id, fn) { const t = S.tasks.find((x) => x.id === id); if (t) { commit(() => fn(t)); refreshTasks(); } }
+
+// ---------- backup ----------
+async function download(name, text, type) {
+  if (HOSTED) {
+    const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    if (!dl) { toast('Downloads are not available in this view.'); return false; }
+    try { await dl.save({ filename: name, data: text }); return true; } catch (e) {
+      if (e && e.code !== 'declined') toast('Could not save the file here.');
+      return false;
+    }
+  }
+  if (PREVIEW) { toast('Downloads work in the installed app, not in this preview.'); return false; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  return true;
+}
+function toICS() {
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const dt = (k) => k.replace(/-/g, ''), tm = (hm) => hm.replace(':', '') + '00';
+  const ie = (s) => String(s).replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n').replace(/([,;])/g, '\\$1');
+  const fold = (l) => { const out = []; while (l.length > 74) { out.push(l.slice(0, 74)); l = ' ' + l.slice(74); } out.push(l); return out.join('\r\n'); };
+  const RR = { daily: 'FREQ=DAILY', weekdays: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR', weekly: 'FREQ=WEEKLY', biweekly: 'FREQ=WEEKLY;INTERVAL=2', monthly: 'FREQ=MONTHLY', yearly: 'FREQ=YEARLY' };
+  const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Planner//EN', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Planner'];
+  for (const e of allEvents()) {
+    L.push('BEGIN:VEVENT', `UID:${e.id}@planner`, `DTSTAMP:${stamp}`, `SUMMARY:${ie(e.title)}`, `CATEGORIES:${ie(cat(e.cat).name)}`);
+    if (e.allDay) L.push(`DTSTART;VALUE=DATE:${dt(e.date)}`, `DTEND;VALUE=DATE:${dt(addDays(e.endDate || e.date, 1))}`);
+    else L.push(`DTSTART:${dt(e.date)}T${tm(e.start)}`, `DTEND:${dt(e.date)}T${tm(e.end)}`);
+    if (RR[e.repeat]) L.push(`RRULE:${RR[e.repeat]}${e.until ? ';UNTIL=' + dt(e.until) + (e.allDay ? '' : 'T235959') : ''}`);
+    (e.ex || []).forEach((x) => L.push(e.allDay ? `EXDATE;VALUE=DATE:${dt(x)}` : `EXDATE:${dt(x)}T${tm(e.start)}`));
+    if (e.notes) L.push(`DESCRIPTION:${ie(e.notes)}`);
+    L.push('END:VEVENT');
+  }
+  L.push('END:VCALENDAR');
+  return L.map(fold).join('\r\n') + '\r\n';
+}
+
+// ---------- toast ----------
+let toastT;
+function toast(msg, canUndo) {
+  $('#toastMsg').textContent = msg;
+  $('#toastBtn').hidden = !(canUndo && undoSnap);
+  $('#toast').classList.add('on');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => $('#toast').classList.remove('on'), canUndo ? 5000 : 2600);
+}
+
+// ---------- wiring ----------
+$('#todayBtn').onclick = goToday;
+$('#prevBtn').onclick = () => go(-1);
+$('#nextBtn').onclick = () => go(1);
+$('#newBtn').onclick = () => newEvent(selected);
+$('#planAdd').onclick = () => newEvent(selected);
+$('#views').onclick = (e) => { const b = e.target.closest('[data-v]'); if (b) setView(b.dataset.v); };
+$('#wkStart').onclick = (e) => { const b = e.target.closest('[data-w]'); if (b) { commit(() => { S.weekStart = +b.dataset.w; }); render(); } };
+$('#q').oninput = (e) => { query = e.target.value.trim(); render(); };
+$('#q').onkeydown = (e) => { if (e.key === 'Escape') { e.target.value = ''; query = ''; render(); e.target.blur(); } };
+$('#miniPrev').onclick = () => { const [y, m] = miniMonth.split('-').map(Number); miniMonth = key(new Date(y, m - 2, 1)).slice(0, 7); renderSide(); };
+$('#miniNext').onclick = () => { const [y, m] = miniMonth.split('-').map(Number); miniMonth = key(new Date(y, m, 1)).slice(0, 7); renderSide(); };
+$('#toastBtn').onclick = undo;
+
+function openEvent(id, occ) { const ev = allEvents().find((e) => e.id === id); if (!ev) return; if (ev.milestone) openProject(ev.proj); else openEditor(ev, occ); }
+
+$('#main').addEventListener('submit', (e) => {
+  const f = e.target.closest('[data-padd]'); if (!f) return;
+  e.preventDefault();
+  const v = f.querySelector('input').value.trim(), pid = f.dataset.padd;
+  if (!v) return;
+  addTask(v, '', pid);
+  const again = document.querySelector(`#main form[data-padd="${pid}"] input`); if (again) again.focus();
+});
+$('#main').addEventListener('click', (e) => {
+  if (e.target.closest('.tasks [data-t], .add-t, [data-pstat]')) return;
+  if (e.target.closest('#pNew')) { openProject(null); return; }
+  const pc = e.target.closest('[data-pid]');
+  if (pc && e.target.closest('[data-pedit]')) { openProject(pc.dataset.pid); return; }
+  if (pc && e.target.closest('[data-pmore]')) { const id = pc.dataset.pid; expanded.has(id) ? expanded.delete(id) : expanded.add(id); renderMain(); return; }
+  const evb = e.target.closest('[data-ev]');
+  if (evb) { openEvent(evb.dataset.ev, evb.dataset.occ); return; }
+  const more = e.target.closest('[data-more]');
+  if (more) { openDay(more.dataset.more); return; }
+  const g = e.target.closest('[data-goto]');
+  if (g) { openDay(g.dataset.goto); return; }
+  if (e.target.id === 'agMore') { agendaDays += 30; renderMain(); return; }
+  const adc = e.target.closest('.tg-adc');
+  if (adc) { newEvent(adc.dataset.date, null, true); return; }
+  const col = e.target.closest('.tg-col');
+  if (col) {
+    const y = e.clientY - col.getBoundingClientRect().top;
+    const m = Math.max(0, Math.min(23 * 60 + 30, Math.floor(y / HOUR * 2) * 30));
+    selected = col.dataset.date;
+    newEvent(col.dataset.date, fromMin(m));
+    return;
+  }
+  const mc = e.target.closest('.mc');
+  if (mc) {
+    if (mc.dataset.date === selected && e.detail < 2) { newEvent(mc.dataset.date); return; }
+    select(mc.dataset.date, mc.classList.contains('out'));
+  }
+});
+
+$('.side').addEventListener('click', (e) => {
+  const evb = e.target.closest('[data-ev]');
+  if (evb) { openEvent(evb.dataset.ev, evb.dataset.occ); return; }
+  const md = e.target.closest('#mini [data-date]');
+  if (md) { query = ''; $('#q').value = ''; select(md.dataset.date); return; }
+  const cb = e.target.closest('[data-cat]');
+  if (cb) {
+    const id = cb.dataset.cat;
+    S.hidden = S.hidden.includes(id) ? S.hidden.filter((h) => h !== id) : [...S.hidden, id];
+    save(); render(); return;
+  }
+});
+document.addEventListener('click', (e) => {
+  const li = e.target.closest('.tasks [data-t]');
+  if (!li) return;
+  const id = li.dataset.t;
+  const due = e.target.closest('[data-tdue]');
+  if (due) {
+    const inp = due.nextElementSibling;
+    try { inp.showPicker(); } catch (err) { inp.classList.add('show'); due.hidden = true; inp.focus(); }
+    return;
+  }
+  if (e.target.closest('[data-tp]')) taskAction(id, (t) => { t.p = ((t.p || 0) + 1) % 4; });
+  else if (e.target.closest('[data-tmove]')) taskAction(id, (t) => { t.date = todayKey(); });
+  else if (e.target.closest('[data-tdel]')) { snapshot(); taskAction(id, (t) => { S.tasks = S.tasks.filter((x) => x !== t); }); toast('Task deleted', true); }
+});
+document.addEventListener('change', (e) => {
+  const li = e.target.closest('.tasks [data-t]');
+  if (li && e.target.type === 'checkbox') {
+    const done = e.target.checked, src = S.tasks.find((x) => x.id === li.dataset.t);
+    taskAction(li.dataset.t, (t) => { t.done = done; });
+    if (done && src && src.rep) { const d = nextRep(src); commit(() => { S.tasks.push({ id: uid(), title: src.title, date: d, done: false, p: src.p || 0, proj: src.proj || '', rep: src.rep, created: Date.now() }); }); refreshTasks(); toast(`Repeats ${longDate(d)}`); }
+  }
+  else if (li && e.target.classList.contains('t-date')) taskAction(li.dataset.t, (t) => { t.date = e.target.value; });
+  const ps = e.target.closest('[data-pstat]');
+  if (ps) { const p = projOf(ps.closest('[data-pid]').dataset.pid); if (p) { commit(() => { p.status = ps.value; }); render(); } }
+});
+document.addEventListener('focusout', (e) => {
+  const li = e.target.closest('.tasks [data-t]'); if (!li || !e.target.classList.contains('t-in')) return;
+  const v = e.target.textContent.replace(/\s+/g, ' ').trim(), t = S.tasks.find((x) => x.id === li.dataset.t);
+  if (!t || v === t.title) return;
+  if (v) taskAction(t.id, (x) => { x.title = v; });
+  else { snapshot(); taskAction(t.id, () => { S.tasks = S.tasks.filter((x) => x !== t); }); toast('Task deleted', true); }
+});
+document.addEventListener('keydown', (e) => {
+  if (!e.target.classList || !e.target.classList.contains('t-in')) return;
+  if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
+  else if (e.key === 'Escape') { const t = S.tasks.find((x) => x.id === e.target.closest('[data-t]').dataset.t); if (t) e.target.textContent = t.title; e.target.blur(); }
+});
+document.addEventListener('paste', (e) => {
+  if (!e.target.classList || !e.target.classList.contains('t-in')) return;
+  e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').replace(/\s+/g, ' '));
+});
+$('#taskForm').onsubmit = (e) => { e.preventDefault(); const v = $('#taskIn').value.trim(); if (v) { addTask(v); $('#taskIn').value = ''; $('#taskIn').focus(); } };
+$('#showAll').onclick = () => { S.hidden = []; save(); render(); };
+$('#editCats').onclick = openCats;
+
+// editor wiring
+$('#fCats').onclick = (e) => { const b = e.target.closest('[data-fc]'); if (b) { fCat = b.dataset.fc; paintCats(); } };
+$('#fAllDay').onchange = syncForm;
+$('#fRepeat').onchange = syncForm;
+$('#fStart').onchange = () => { if ($('#fStart').value) $('#fEnd').value = fromMin(Math.min(toMin($('#fStart').value) + fDur, 23 * 60 + 59)); };
+$('#fEnd').onchange = () => { const d = toMin($('#fEnd').value) - toMin($('#fStart').value); if (d > 0) fDur = d; };
+$('#evForm').onsubmit = (e) => { e.preventDefault(); saveEditor(); };
+$('#evForm').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); saveEditor(); } });
+$('#fDelete').onclick = () => {
+  snapshot();
+  commit(() => { S.events = S.events.filter((x) => x.id !== editing.id); });
+  dlg.close(); render(); toast('Event deleted', true);
+};
+$('#fDup').onclick = () => {
+  const ev = S.events.find((x) => x.id === editing.id); if (!ev) return;
+  const copy = { ...JSON.parse(JSON.stringify(ev)), id: uid(), title: ev.title + ' (copy)', ex: [], created: Date.now() };
+  delete copy.u;
+  snapshot(); commit(() => { S.events.push(copy); });
+  dlg.close(); render(); toast('Duplicated', true);
+};
+$('#fDismiss').onclick = () => {
+  const id = 'd:' + editing.id;
+  snapshot();
+  commit(() => { if (!S.dismissed.some((d) => d.id === id)) S.dismissed.push({ id }); });
+  dlg.close(); render(); toast('Bot event dismissed', true);
+};
+$('#fDeleteOne').onclick = () => {
+  const ev = S.events.find((x) => x.id === editing.id); if (!ev) return;
+  snapshot();
+  commit(() => { ev.ex = [...(ev.ex || []), editing.occ]; });
+  dlg.close(); render(); toast(`Removed ${longDate(editing.occ)} only`, true);
+};
+document.querySelectorAll('dialog').forEach((d) => {
+  d.addEventListener('click', (e) => { if (e.target === d || e.target.closest('[data-close]')) d.close(); });
+});
+
+// categories editor wiring
+$('#catEd').addEventListener('input', (e) => {
+  const li = e.target.closest('[data-i]'); if (!li) return;
+  const c = catDraft[+li.dataset.i];
+  if (e.target.type === 'color') c.color = e.target.value; else c.name = e.target.value;
+});
+$('#catEd').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-cdel]'); if (!b || catDraft.length < 2) return;
+  catDraft.splice(+b.closest('[data-i]').dataset.i, 1); paintCatEd();
+});
+$('#catAdd').onclick = () => {
+  const used = new Set(catDraft.map((c) => c.color));
+  catDraft.push({ id: uid(), name: '', color: SWATCHES.find((s) => !used.has(s)) || '#64748b' });
+  paintCatEd();
+  const ins = $('#catEd').querySelectorAll('input[type=text]'); ins[ins.length - 1].focus();
+};
+$('#catForm').onsubmit = (e) => { e.preventDefault(); saveCats(); };
+
+// backup wiring
+$('#exportBtn').onclick = async () => { if (await download(`planner-backup-${todayKey()}.json`, JSON.stringify(S, null, 1), 'application/json')) toast('Backup downloaded'); };
+$('#icsBtn').hidden = HOSTED; // claude.ai saves only common file types; .ics is not one of them
+$('#icsBtn').onclick = async () => {
+  if (!allEvents().length) { toast('No events to export yet'); return; }
+  if (await download(`planner-${todayKey()}.ics`, toICS(), 'text/calendar')) toast('Calendar file downloaded');
+};
+$('#importBtn').onclick = () => $('#importFile').click();
+$('#importFile').onchange = async (e) => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    if (!data || !Array.isArray(data.events)) throw new Error('not a planner backup');
+    if (!(await ask('Restore backup?', `${data.events.length} events and ${(data.tasks || []).length} tasks. This replaces your calendar${sync ? ' on every synced device' : ''}.`, 'Restore', { danger: true }))) return;
+    const d = normalize(data);
+    snapshot(); commit(() => { S.categories = d.categories; S.events = d.events; S.tasks = d.tasks; S.projects = d.projects; S.dismissed = d.dismissed; S.weekStart = d.weekStart; }); render(); toast('Backup restored', true);
+  } catch (err) { toast('That file is not a Planner backup'); }
+};
+
+// keyboard
+document.addEventListener('keydown', (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey || document.querySelector('dialog[open]')) return;
+  if (e.target.closest('input,textarea,select,[contenteditable]')) return;
+  const k = e.key.toLowerCase();
+  if (k === 'n') { e.preventDefault(); newEvent(selected); }
+  else if (k === 't') goToday();
+  else if (k === 'arrowleft' || k === 'j') go(-1);
+  else if (k === 'arrowright' || k === 'k') go(1);
+  else if (k === 'm') setView('month');
+  else if (k === 'w') setView('week');
+  else if (k === 'd') setView('day');
+  else if (k === 'a') setView('agenda');
+  else if (k === 'p') setView('projects');
+  else if (k === '/') { e.preventDefault(); $('#q').focus(); }
+});
+
+// keep "now" and "today" current
+let lastDay = todayKey();
+setInterval(() => {
+  if (todayKey() !== lastDay) { lastDay = todayKey(); render(); return; }
+  const now = new Date(), line = document.querySelector('.now');
+  if (line) line.style.top = `${(now.getHours() * 60 + now.getMinutes()) / 60 * HOUR}px`;
+}, 30000);
+let rz;
+addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (S.view === 'month' && !query) renderMain(); }, 150); });
+addEventListener('storage', (e) => { if (e.key === KEY) { S = load(); render(); } });
+
+// sync wiring
+const syncDlg = $('#syncDlg');
+$('#syncBtn').onclick = () => {
+  if (PREVIEW) { toast('Sync turns on in the installed app. This preview keeps everything in this browser.'); return; }
+  if (sync) { syncNow(); return; }
+  $('#sToken').value = ''; $('#sRepo').value = DEFAULT_REPO; $('#sErr').hidden = true;
+  syncDlg.showModal(); setTimeout(() => $('#sToken').focus(), 30);
+};
+$('#syncForm').onsubmit = async (e) => {
+  e.preventDefault();
+  $('#sGo').disabled = true; $('#sGo').textContent = 'Connecting…'; $('#sErr').hidden = true;
+  try { await connect($('#sToken').value, $('#sRepo').value); syncDlg.close(); toast('Connected. Everything now syncs.'); }
+  catch (err) { $('#sErr').textContent = err.message; $('#sErr').hidden = false; }
+  finally { $('#sGo').disabled = false; $('#sGo').textContent = 'Connect'; }
+};
+$('#syncOff').onclick = disconnect;
+$('#syncLink').onclick = async () => {
+  const link = location.href.split('#')[0] + '#connect=' + encodeURIComponent(btoa(JSON.stringify({ t: sync.token, r: sync.repo })));
+  const note = 'Open on your other device to connect it. Keep this link private: it carries your sync key.';
+  try {
+    if (navigator.share && /iPhone|iPad|Android/.test(UA)) await navigator.share({ title: 'Planner device link', text: note, url: link });
+    else { await navigator.clipboard.writeText(link); toast('Device link copied. Open it on your phone. Keep it private.'); }
+  } catch (err) { if (err && err.name !== 'AbortError') ask('Device link', note, 'Done', { value: link, cancel: false }); }
+};
+document.addEventListener('focusout', () => setTimeout(() => {
+  if (pendingRender && !(document.activeElement && document.activeElement.classList.contains('t-in'))) { pendingRender = false; render(); }
+}, 0));
+let ticks = 0;
+setInterval(() => {
+  ticks++;
+  paintSync();
+  if (sync && document.visibilityState === 'visible' && !syncing && ticks % 2 === 0) syncNow();
+}, 30000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync) syncNow(); });
+addEventListener('online', () => { if (sync) syncNow(); });
+if (!HOSTED && 'serviceWorker' in navigator && window.isSecureContext && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => null);
+
+render();
+paintSync();
+if (HOSTED) startDb();
+else {
+  readConnectLink();
+  addEventListener('hashchange', readConnectLink);
+  if (sync) syncNow();
+  if (location.protocol.startsWith('http') && !PREVIEW) { loadNq(); setInterval(loadNq, 30 * 60e3); }
+}
+})();
+</script>
+</body>
+</html>

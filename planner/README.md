@@ -112,3 +112,16 @@ Fields:
 - `skip`: dates where a repeating event doesn't happen.
 - `project`: a project name or id (optional).
 - Leave out `start`/`end` for an all-day event.
+
+## Features (installed app)
+
+- **Plan my day:** pick tasks (overdue and undated ones included), star the top ones, and auto-block them into free time. A "Now" bar on the phone shows what's happening now or next.
+- **Time blocking:** tap a task, then Block time. Drag events to move them and drag the bottom edge to resize (long-press on touch). Swipe left and right to change day, week or month.
+- **Task details:** steps, notes, link, time estimate and repeat. Quick add understands `call Sam fri 3pm #nq`.
+- **Trading card:** eval progress, room above the floor, sessions left, bot status and the month's P&L, from the dashboard data.
+- **Goals and Money:** targets with progress (manual, or live from the bots), plus an income and expense log with CSV export.
+- **Habits, Journal, Weekly review, Day templates, Focus timer, Smart lists.** Bot P&L in the journal and review is the live and paper bots' results only, never the backtest. The app saves each day it sees, so the history grows over time.
+- **Deep links** for the iOS Shortcuts app and Back Tap: `#today`, `#plan`, `#new-event`, `#new-task`, `#week`, `#day`, `#agenda`, `#projects`.
+- **Backup:** Back up opens the share sheet so you can save the file to iCloud Drive. The app reminds you if it's been 14 days.
+
+Tests: `node planner/tests/<name>.test.js` (Playwright). `lead`, `money`, `swipe` and `now` need the app served next to `data.json` (see the header of each).

@@ -129,6 +129,8 @@ Fields:
 - **Work shifts:** the Shifts button (or `S`, or `#shifts`) adds weekly shifts for Outback, Electric or any job you add: pick the job, tap the days, choose how many weeks. It shows hours and pay per week from your hourly rate, and each job gets its own calendar color.
 - **Paste a schedule:** in Shifts, paste lines like `Fri 10/30 4-10pm` and they become shifts for the selected job. Lines it can't read are listed, not guessed.
 - **Tips:** Shifts has a one-tap tip log (it goes into Money) and shows tips and tips per hour for the last 30 days.
+- **Week balance:** a Today card (and a sheet, `#week-balance`) that adds up the hours of your timed events per type for any week, shows bars against weekly targets you set once (Set targets), flags over/under, and shows free hours left assuming 8 h of sleep a day. All-day, bot and market events are skipped; targets sync as the `budgets` collection.
+- **Earnings:** a Today card (and a sheet, `#earnings`) answering what you will make this week and this month, before tax: shift pay (hours x each job's hourly rate, including recurring shifts), live and paper bot P&L (never the backtest) and Money log "money in" entries, split by source, plus an editable monthly income goal (`incomegoal` collection) with a progress bar and the amount needed per week.
 - **Backup:** Back up opens the share sheet so you can save the file to iCloud Drive. The app reminds you if it's been 14 days.
 
 Tests: `node planner/tests/<name>.test.js` (Playwright). `lead`, `money`, `swipe` and `now` need the app served next to `data.json` (see the header of each).

@@ -1105,10 +1105,10 @@ body.focusing .toast{bottom:76px}
     <h4>Markets</h4>
     <ul><li>Market layers on the calendar: high, medium and low USD releases, Fed speakers, mega-cap earnings and session shading. Turn them on or off in <b>Market on the calendar</b>.</li><li><b>News</b> lists releases with forecast and previous, and headlines tagged risk-on or risk-off. Tap Refresh for the newest data your dashboard has published.</li><li>All market times are converted from New York time to your phone's time zone.</li><li>If a banner says the data is old, your bot PC has not published recently. Check the bots and ForexFactory directly.</li></ul>
     <h4>Discipline and money</h4>
-    <ul><li><b>Rules</b>: your pre-trade checklist, run once per trading day. <b>Trades</b>: notes and tags on each live or paper trade, plus a payout planner.</li><li><b>Review</b>: your week at a glance. <b>Journal</b>: note, mood and whether you followed your rules.</li><li><b>Projects</b> holds Goals and the Money log. <b>Health</b> holds sleep, workouts and trends.</li></ul>
+    <ul><li><b>Rules</b>: your pre-trade checklist, run once per trading day. <b>Trades</b>: notes and tags on each live or paper trade, plus a payout planner.</li><li><b>Review</b>: your week at a glance. <b>Journal</b>: note, mood and whether you followed your rules.</li><li><b>Projects</b> holds Goals and the Money log. <b>Health</b> holds sleep, workouts and trends.</li><li><b>Week balance</b> (card on Today): hours planned per event type against weekly targets you set, with free hours left after 8 h of sleep a day. <b>Earnings</b> (card on Today): estimated pay this week and month from shifts (hours x hourly rate), live and paper trading, and the money log, with a monthly income goal and what you need per week. Both are before tax.</li></ul>
     <h4>Shortcuts and Back Tap</h4>
     <p>In the iPhone Shortcuts app, add an <b>Open URL</b> action with this app's address plus one of these endings, then set Back Tap (Settings, Accessibility, Touch) to run it:</p>
-    <ul><li><code>#today</code> <code>#plan</code> <code>#plan-week</code> <code>#new-event</code> <code>#new-task</code> <code>#shifts</code></li><li><code>#log-workout</code> <code>#health</code> <code>#projects</code> <code>#week</code> <code>#agenda</code></li></ul>
+    <ul><li><code>#today</code> <code>#plan</code> <code>#plan-week</code> <code>#new-event</code> <code>#new-task</code> <code>#shifts</code> <code>#week-balance</code> <code>#earnings</code></li><li><code>#log-workout</code> <code>#health</code> <code>#projects</code> <code>#week</code> <code>#agenda</code></li></ul>
     <h4>Your data</h4>
     <ul><li>Everything is stored on this phone. Use <b>Back up</b> in Settings and save the file to iCloud Drive about once a week.</li><li><b>Calendar alerts</b> exports a file you open in the iPhone Calendar app, which then sends alerts. It is a snapshot, so tap it again after big changes.</li><li>Reminders inside this app only appear while it is open. Apple does not let web apps send alerts on their own.</li></ul>
   </div>
@@ -1180,7 +1180,7 @@ const shade = (hex, f) => { const [r, g, b] = rgb(hex); return `rgb(${Math.round
 const cvars = (hex) => `--c:${hex};--bg-c:${tint(hex, .13)};--fg:${shade(hex, .42)}`;
 
 // ---------- state ----------
-const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs']; // collections added by the Rules and Trades features
+const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal']; // collections added by the Rules and Trades features
 let S = load();
 let cursor = todayKey(), selected = cursor, miniMonth = cursor.slice(0, 7);
 let query = '', agendaDays = 30, undoSnap = null, editing = null, lastScrollView = null;
@@ -2701,6 +2701,7 @@ function renderToday() {
     <section class="td-card"><h3>Tasks<button data-tgo="projects">All tasks</button></h3>${tks.length ? `<ul class="tasks">${tks.slice(0, 10).map((t) => taskLi(t, { overdue: t.date < today })).join('')}</ul>${tks.length > 10 ? `<div class="sub">+${tks.length - 10} more</div>` : ''}` : '<div class="empty-s">Nothing due. Add one below.</div>'}
       <form class="add-t" data-tadd><span>+</span><input placeholder="Quick add: call Sam fri 3pm #nq" aria-label="Add a task" autocomplete="off"></form></section>
     ${hxTodayCard()}
+    ${wbTodayCard()}${earnTodayCard()}
     ${habs.length ? `<section class="td-card"><h3>Habits<button data-tgo="habits">All habits</button></h3>${habs.map((h) => { const st = habitStats(h), on = hDone(h, today); return `<div class="td-hab" style="--c:${esc(h.color || '#2563eb')}" data-thab="${esc(h.id)}"><button aria-pressed="${on}" aria-label="${on ? 'Undo' : 'Check in'} ${esc(h.name)}">${on ? ICON_CHECK : ''}</button><span>${esc(h.name)} <small>${st.cur} day streak</small></span></div>`; }).join('')}</section>` : ''}
     ${tr ? `<section class="td-card"><h3>Trading<span style="display:flex;gap:10px;align-items:baseline"><span class="${staleCls}">${staleTxt}</span><button data-refresh>Refresh</button></span></h3>${(tr.accounts || []).map((a) => `<div class="td-acct"><span><b>${esc(a.strategy === 'LIT' ? 'Zlarior' : a.strategy || a.name)}</b> ${esc(String(a.name || '').replace('MFFU ', ''))}</span><span>${usd(a.profit)} of ${usd(a.target)} · ${a.sessions_left != null ? a.sessions_left + ' sessions left' : ''}</span></div>`).join('')}${tr.month ? `<div class="td-acct" style="color:var(--mute)"><span>${MONTHS[+tr.month.month.slice(5) - 1]} so far</span><span><b style="color:var(--ink)">${usd(tr.month.usd)}</b> · ${tr.month.trades} trade${tr.month.trades === 1 ? '' : 's'}</span></div>` : ''}</section>` : ''}
     ${goals.length ? `<section class="td-card"><h3>Goals<button data-tgo="projects">All goals</button></h3>${goals.map((g) => { const v = goalValue(g), t = +g.target || 0, pct = t > 0 ? Math.max(0, Math.min(100, v / t * 100)) : 0; return `<div><div class="td-acct"><span><b>${esc(g.title)}</b></span><span>${gnum(g, v)} of ${gnum(g, t)}</span></div><div class="bar2" style="margin-top:5px"><i style="width:${pct}%;background:var(--ok)"></i></div></div>`; }).join('')}</section>` : ''}
@@ -2757,6 +2758,8 @@ function route() {
   else if (h === 'plan-week') { goToday(); openPlanWeek(); }
   else if (h === 'new-event') { goToday(); newEvent(todayKey()); }
   else if (h === 'shifts') { goToday(); openShifts(); }
+  else if (h === 'week-balance') { goToday(); openWeekBal(); }
+  else if (h === 'earnings') { goToday(); openEarn(); }
   else if (h === 'new-task') { goToday(); setTimeout(() => $('#taskIn').focus(), 60); }
   else if (views.includes(h)) { goToday(); setView(h); }
 }
@@ -2949,6 +2952,179 @@ $('#shTipAdd').onclick = () => {
   $('#shTip').value = ''; shTipPaint(); toast(`Logged $${amt.toFixed(2)} for ${j.name}`, true);
 };
 // ===== SHIFTS END =====
+
+// ===== WEEKBAL BEGIN: weekly time budget (hours planned vs targets, free hours left) =====
+const WB_SLEEP = 8; // assumed sleep per day, stated on screen
+document.head.insertAdjacentHTML('beforeend', `<style>
+.wb-row{display:flex;flex-direction:column;gap:5px;padding:9px 0;border-top:1px solid var(--line2)}
+.wb-h{display:flex;justify-content:space-between;gap:8px;font-size:14px;font-variant-numeric:tabular-nums}
+.wb-h b{font-weight:600;overflow-wrap:anywhere}.wb-h span{white-space:nowrap}
+.wb-bar{position:relative;height:8px;border-radius:5px;background:var(--soft2)}
+.wb-bar i{display:block;height:100%;border-radius:5px;background:var(--c,#111827)}
+.wb-bar.over i{background:#dc2626}
+.wb-bar s{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);text-decoration:none}
+.wb-f{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--mute)}
+.wb-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px;font-weight:500}
+.wb-tg{display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:8px;align-items:center;font-size:14px}
+.wb-tg label{display:flex;align-items:center;gap:7px;overflow-wrap:anywhere}.wb-tg label i{width:9px;height:9px;border-radius:50%;background:var(--c);flex:none}
+.er{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px 14px;font-size:14px;font-variant-numeric:tabular-nums;align-items:baseline}
+.er>.h{font-size:11.5px;color:var(--mute)}.er>.n{text-align:right}.er>.sub{font-size:12px;color:var(--mute);padding-left:10px}
+.er>.t{font-weight:600;border-top:1px solid var(--line);padding-top:6px}
+.er-bar{height:10px;border-radius:6px;background:var(--soft2);position:relative;overflow:hidden}
+.er-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:6px}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="wbDlg" aria-labelledby="wbTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="wbTitle">Week balance</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="wbBody" style="display:flex;flex-direction:column;gap:12px"></div>
+</div></dialog>`);
+const wbDlg = $('#wbDlg');
+let wbWeek = null, wbEdit = false;
+function evHours(e) { // length of a timed event in hours (no end = 1 h, like the Today list; ends past midnight wrap)
+  if (e.allDay || !e.start) return 0;
+  const s = toMin(e.start); let en = e.end ? toMin(e.end) : s + 60;
+  if (en < s) en += 1440;
+  return (en - s) / 60;
+}
+const wbTarget = (id) => { const b = S.budgets.find((x) => x.id === id); return b ? +b.hours || 0 : 0; };
+const wbName = (id) => { const j = S.jobs.find((x) => x.id === id); return j ? j.name : cat(id).name; };
+const wbColor = (id) => { const j = S.jobs.find((x) => x.id === id); return j ? j.color : cat(id).color; };
+function wbCompute(ws) { // hours per event type for the 7 days from ws; own timed events only (no all-day, no bot or market events)
+  const by = {}; let total = 0;
+  for (let i = 0; i < 7; i++) for (const o of eventsOn(addDays(ws, i), true)) {
+    const e = o.ev; if (e.bot || e.layer || e.allDay || o.cont) continue;
+    const h = evHours(e); if (!h) continue;
+    by[e.cat] = (by[e.cat] || 0) + h; total += h;
+  }
+  const ids = [...new Set([...Object.keys(by), ...S.budgets.filter((b) => +b.hours > 0).map((b) => b.id)])].sort((a, b) => (by[b] || 0) - (by[a] || 0));
+  const targetTotal = S.budgets.reduce((n, b) => n + (+b.hours || 0), 0);
+  const awake = 7 * (24 - WB_SLEEP);
+  const over = ids.filter((id) => wbTarget(id) > 0 && (by[id] || 0) > wbTarget(id) + 0.25).length;
+  return { by, ids, total, targetTotal, awake, free: awake - total, over };
+}
+function wbRowHtml(id, h) {
+  const t = wbTarget(id), isOver = t > 0 && h > t + 0.25, isOn = t > 0 && Math.abs(h - t) <= 0.25;
+  const scale = Math.max(h, t, 0.1), pct = Math.min(100, h / scale * 100);
+  const flag = !t ? '<span>No target</span>' : isOver ? `<span class="neg">${fmtHrs(h - t)} h over</span>` : isOn ? '<span class="pos">On target</span>' : `<span>${fmtHrs(t - h)} h under</span>`;
+  return `<div class="wb-row" data-wbid="${esc(id)}" style="${cvars(wbColor(id))}"><div class="wb-h"><b>${esc(wbName(id))}</b><span>${fmtHrs(h)} h${t ? ` of ${fmtHrs(t)} h` : ''}</span></div><div class="wb-bar${isOver ? ' over' : ''}"><i style="width:${pct}%"></i>${t && isOver ? `<s style="left:${t / scale * 100}%"></s>` : ''}</div><div class="wb-f">${flag}<span>${t ? Math.round(h / t * 100) + '% of target' : ''}</span></div></div>`;
+}
+function wbPaint() {
+  const body = $('#wbBody'); if (!wbWeek) wbWeek = startOfWeek(todayKey());
+  const w = wbCompute(wbWeek);
+  if (wbEdit) {
+    const ids = [...new Set([...S.categories.map((c) => c.id), ...S.jobs.map((j) => j.id)])];
+    body.innerHTML = `<div class="hint">Hours per week you want to spend on each event type. Leave blank for no target.</div>
+      <div style="display:flex;flex-direction:column;gap:8px">${ids.map((id) => `<div class="wb-tg" style="${cvars(wbColor(id))}"><label for="wbt-${esc(id)}"><i></i>${esc(wbName(id))}</label><input type="number" id="wbt-${esc(id)}" data-wbt="${esc(id)}" min="0" max="168" step="0.5" inputmode="decimal" placeholder="none" value="${wbTarget(id) || ''}"></div>`).join('')}</div>
+      <div class="dlg-f"><div><button type="button" class="btn sm" id="wbFill">Use this week's hours</button><button type="button" class="btn sm" id="wbClear">Clear all</button></div><div><button type="button" class="btn" id="wbBack">Cancel</button><button type="button" class="btn primary" id="wbSave">Save targets</button></div></div>`;
+    return;
+  }
+  const isNow = wbWeek === startOfWeek(todayKey());
+  const tile = (v, l, cls) => `<div><b class="${cls || ''}">${v}</b><span>${l}</span></div>`;
+  body.innerHTML = `<div class="wb-nav"><button type="button" class="btn sm" data-wbnav="-1" aria-label="Previous week">&lsaquo;</button><span id="wbLabel">${isNow ? 'This week: ' : ''}${longDate(wbWeek)} to ${longDate(addDays(wbWeek, 6))}</span><button type="button" class="btn sm" data-wbnav="1" aria-label="Next week">&rsaquo;</button></div>
+    <div class="glance" id="wbTiles">${tile(fmtHrs(w.total) + ' h', 'planned')}${tile(w.targetTotal ? fmtHrs(w.targetTotal) + ' h' : '-', 'targets total')}${tile(fmtHrs(w.free) + ' h', 'free hours left', w.free < 0 ? 'neg' : '')}</div>
+    <div>${w.ids.length ? w.ids.map((id) => wbRowHtml(id, w.by[id] || 0)).join('') : '<div class="empty-s">Nothing timed on the calendar this week.</div>'}</div>
+    <div class="hint" id="wbNote">${w.over ? `${w.over} type${w.over === 1 ? ' is' : 's are'} over target. ` : ''}Free hours assume ${WB_SLEEP} h of sleep a day, so ${w.awake} awake hours a week minus everything planned. All-day events and market or bot events are not counted; events that overlap are counted twice.</div>
+    <div class="dlg-f"><div><button type="button" class="btn sm" data-wbnav="0">This week</button></div><div><button type="button" class="btn primary" id="wbSet">Set targets</button></div></div>`;
+}
+function openWeekBal(ws) { wbWeek = ws || startOfWeek(todayKey()); wbEdit = false; wbPaint(); if (!wbDlg.open) wbDlg.showModal(); }
+wbDlg.addEventListener('click', (e) => {
+  const t = e.target;
+  const nv = t.closest('[data-wbnav]');
+  if (nv) { const n = +nv.dataset.wbnav; wbWeek = n === 0 ? startOfWeek(todayKey()) : addDays(wbWeek, n * 7); wbPaint(); return; }
+  if (t.closest('#wbSet')) { wbEdit = true; wbPaint(); return; }
+  if (t.closest('#wbBack')) { wbEdit = false; wbPaint(); return; }
+  if (t.closest('#wbClear')) { wbDlg.querySelectorAll('[data-wbt]').forEach((i) => { i.value = ''; }); return; }
+  if (t.closest('#wbFill')) { const w = wbCompute(wbWeek); wbDlg.querySelectorAll('[data-wbt]').forEach((i) => { const h = Math.round((w.by[i.dataset.wbt] || 0) * 2) / 2; i.value = h || ''; }); return; }
+  if (t.closest('#wbSave')) {
+    const vals = [...wbDlg.querySelectorAll('[data-wbt]')].map((i) => [i.dataset.wbt, Math.min(168, Math.max(0, Math.round((+i.value || 0) * 100) / 100))]);
+    snapshot();
+    commit(() => {
+      for (const [id, h] of vals) {
+        const b = S.budgets.find((x) => x.id === id);
+        if (h > 0) { if (b) b.hours = h; else S.budgets.push({ id, hours: h }); } else if (b) S.budgets = S.budgets.filter((x) => x.id !== id);
+      }
+    });
+    wbEdit = false; wbPaint(); render(); toast('Weekly targets saved', true);
+  }
+});
+wbDlg.addEventListener('close', () => { wbEdit = false; render(); });
+function wbTodayCard() {
+  const w = wbCompute(startOfWeek(todayKey()));
+  return `<section class="td-card" id="wbCard"><h3>Week balance<button data-wbopen>Details and targets</button></h3><div class="glance"><div><b>${fmtHrs(w.total)} h</b><span>planned this week</span></div><div><b>${w.targetTotal ? fmtHrs(w.targetTotal) + ' h' : '-'}</b><span>targets</span></div><div><b class="${w.free < 0 ? 'neg' : ''}">${fmtHrs(w.free)} h</b><span>free hours left</span></div></div>${w.over ? `<div class="hint neg">${w.over} type${w.over === 1 ? '' : 's'} over target this week.</div>` : `<div class="hint">Assumes ${WB_SLEEP} h of sleep a day.</div>`}</section>`;
+}
+$('#main').addEventListener('click', (e) => { if (S.view === 'today' && e.target.closest('[data-wbopen]')) openWeekBal(); });
+// ===== WEEKBAL END =====
+
+// ===== EARN BEGIN: what will I make this week and this month =====
+document.body.insertAdjacentHTML('beforeend', `<dialog id="erDlg" aria-labelledby="erTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="erTitle">Earnings</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="erBody" style="display:flex;flex-direction:column;gap:12px"></div>
+</div></dialog>`);
+const erDlg = $('#erDlg');
+const erGoal = () => { const g = S.incomegoal.find((x) => x.id === 'month'); return g ? +g.amt || 0 : 0; };
+function earnCalc(a, b) { // a, b = first and last day (inclusive)
+  const today = todayKey(), n = new Date(), nowMin = n.getHours() * 60 + n.getMinutes();
+  const jobs = {}; S.jobs.forEach((j) => { jobs[j.id] = { j, hours: 0, pay: 0 }; });
+  let shAll = 0, shDone = 0, trade = 0, tradeDays = 0, manIn = 0, manInDone = 0, manOut = 0;
+  for (let k = a; k <= b; k = addDays(k, 1)) {
+    for (const o of eventsOn(k, true)) {
+      const e = o.ev, J = jobs[e.cat]; if (!J || e.allDay || e.bot || o.cont) continue;
+      const h = evHours(e), pay = h * (+J.j.rate || 0);
+      J.hours += h; J.pay += pay; shAll += pay;
+      if (k < today || (k === today && toMin(e.end || e.start) <= nowMin)) shDone += pay;
+    }
+    if (typeof nqPnl[k] === 'number' && k <= today) { trade += nqPnl[k]; tradeDays++; }
+  }
+  for (const m of S.money) {
+    if (!m.date || m.date < a || m.date > b) continue;
+    if (m.kind === 'out') manOut += +m.amt || 0;
+    else { manIn += +m.amt || 0; if (m.date <= today) manInDone += +m.amt || 0; }
+  }
+  return { jobs: Object.values(jobs).filter((x) => x.hours > 0), shAll, shDone, trade, tradeDays, manIn, manOut, total: shAll + trade + manIn, earned: shDone + trade + manInDone };
+}
+function earnRanges() {
+  const today = todayKey(), ws = startOfWeek(today), d = parse(today);
+  const m0 = today.slice(0, 7) + '-01', m1 = key(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+  return { today, W: earnCalc(ws, addDays(ws, 6)), M: earnCalc(m0, m1), m1, ws };
+}
+function earnPaint() {
+  const { today, W, M, m1 } = earnRanges(), goal = erGoal();
+  const daysLeft = diffDays(today, m1) + 1, weeksLeft = daysLeft / 7;
+  const toGo = Math.max(0, goal - M.earned), ahead = Math.max(0, M.shAll - M.shDone), rest = Math.max(0, toGo - ahead);
+  const per = (x) => (daysLeft >= 7 ? `${usd(x / weeksLeft)} a week` : `${usd(x)} in the last ${daysLeft} day${daysLeft === 1 ? '' : 's'}`);
+  const cls = (v) => (v < 0 ? 'neg' : '');
+  const rowsFor = (label, vw, vm, sub) => `<div>${label}</div><div class="n ${cls(vw)}">${usd(vw)}</div><div class="n ${cls(vm)}">${usd(vm)}</div>${sub || ''}`;
+  const jobSub = S.jobs.map((j) => { const w = W.jobs.find((x) => x.j.id === j.id), m = M.jobs.find((x) => x.j.id === j.id); if (!w && !m) return ''; return `<div class="sub">${esc(j.name)}${+j.rate ? ` (${fmtHrs((w || { hours: 0 }).hours)} h / ${fmtHrs((m || { hours: 0 }).hours)} h at $${+j.rate}/h)` : ' (no hourly rate yet)'}</div><div class="n sub">${usd(w ? w.pay : 0)}</div><div class="n sub">${usd(m ? m.pay : 0)}</div>`; }).join('');
+  const noRate = S.jobs.filter((j) => !+j.rate && (W.jobs.some((x) => x.j.id === j.id) || M.jobs.some((x) => x.j.id === j.id)));
+  const pct = goal > 0 ? Math.min(100, Math.max(0, M.earned / goal * 100)) : 0, pctAll = goal > 0 ? Math.min(100, Math.max(0, M.total / goal * 100)) : 0;
+  $('#erBody').innerHTML = `<div class="er" id="erTable"><div class="h">Source</div><div class="h n">This week</div><div class="h n">${MONTHS[parse(today).getMonth()].slice(0, 3)}</div>
+      ${rowsFor('Shifts (hours x rate)', W.shAll, M.shAll, jobSub)}
+      ${rowsFor('Trading (live + paper)', W.trade, M.trade)}
+      ${rowsFor('Money log (money in)', W.manIn, M.manIn)}
+      <div class="t">Total</div><div class="t n ${cls(W.total)}" id="erWeek">${usd(W.total)}</div><div class="t n ${cls(M.total)}" id="erMonth">${usd(M.total)}</div></div>
+    ${noRate.length ? `<div class="hint">${noRate.map((j) => esc(j.name)).join(' and ')} ha${noRate.length === 1 ? 's' : 've'} no hourly rate yet, so ${noRate.length === 1 ? 'it adds' : 'they add'} $0. <button type="button" class="btn sm" id="erRates">Set rates in Shifts</button></div>` : ''}
+    <div class="fld"><label for="erGoalIn">Monthly income goal ($)</label><input type="number" id="erGoalIn" min="0" step="50" inputmode="decimal" placeholder="e.g. 6000" value="${goal || ''}"></div>
+    ${goal > 0 ? `<div id="erProg"><div class="g-h" style="display:flex;justify-content:space-between;font-size:14px"><b>${usd(M.earned)} earned so far</b><span>${usd(goal)} goal</span></div><div class="er-bar" style="margin-top:6px"><i style="width:${pctAll}%;background:#a7f3d0"></i><i style="width:${pct}%;background:var(--ok)"></i></div><div class="hint" style="margin-top:5px">${Math.round(pct)}% earned; ${Math.round(pctAll)}% once the shifts still scheduled this month are worked (${usd(M.total)} expected).</div></div>
+      <div id="erNeed" style="font-size:14px;line-height:1.5">${toGo <= 0 ? '<b class="pos">Goal reached for this month.</b>' : `<b>Still to make: ${usd(toGo)} (${per(toGo)}).</b> Scheduled shifts still ahead cover ${usd(ahead)}${rest > 0 ? `; the other ${usd(rest)} (${per(rest)}) has to come from trading or other income.` : ', so you are covered if you work them.'}`}</div>` : '<div class="hint">Set a monthly goal to see your progress and what you need to make per week.</div>'}
+    <div class="hint" id="erNote">An estimate before tax. Shifts are your calendar hours times each job's hourly rate (future shifts count as expected). Trading is the live and paper bot results this app has saved${M.tradeDays ? ` (${M.tradeDays} trading day${M.tradeDays === 1 ? '' : 's'} this month)` : ' (none saved yet)'}, never the backtest. The money log counts only "Money in"${M.manOut ? `; ${usd(M.manOut)} logged as money out this month is not subtracted` : ''}.</div>`;
+}
+function openEarn() { earnPaint(); if (!erDlg.open) erDlg.showModal(); }
+erDlg.addEventListener('change', (e) => {
+  if (e.target.id !== 'erGoalIn') return;
+  const v = Math.max(0, Math.round((+e.target.value || 0) * 100) / 100);
+  commit(() => {
+    const g = S.incomegoal.find((x) => x.id === 'month');
+    if (v > 0) { if (g) g.amt = v; else S.incomegoal.push({ id: 'month', amt: v }); } else if (g) S.incomegoal = S.incomegoal.filter((x) => x.id !== 'month');
+  });
+  earnPaint();
+});
+erDlg.addEventListener('click', (e) => { if (e.target.closest('#erRates')) { erDlg.close(); openShifts(); } });
+erDlg.addEventListener('close', () => render());
+function earnTodayCard() {
+  const { W, M } = earnRanges(), goal = erGoal(), pct = goal > 0 ? Math.round(Math.max(0, M.earned) / goal * 100) : null;
+  return `<section class="td-card" id="erCard"><h3>Earnings<button data-eropen>Details and goal</button></h3><div class="glance"><div><b class="${W.total < 0 ? 'neg' : ''}">${usd(W.total)}</b><span>this week</span></div><div><b class="${M.total < 0 ? 'neg' : ''}">${usd(M.total)}</b><span>this month</span></div><div><b>${pct == null ? '-' : pct + '%'}</b><span>${pct == null ? 'no goal set' : 'of ' + usd(goal)}</span></div></div><div class="hint">Estimate before tax: shifts, bot trading and money log.</div></section>`;
+}
+$('#main').addEventListener('click', (e) => { if (S.view === 'today' && e.target.closest('[data-eropen]')) openEarn(); });
+// ===== EARN END =====
 
 // ===== LEAD2 BEGIN: goals and money =====
 const moneyOpen = new Set();

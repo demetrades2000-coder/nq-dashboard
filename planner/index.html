@@ -1054,6 +1054,12 @@ body.focusing .toast{bottom:76px}
       <div class="row" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button type="button" class="btn sm" data-shp="wk">Weekdays</button><button type="button" class="btn sm" data-shp="we">Weekends</button><button type="button" class="btn sm" data-shp="all">Every day</button><button type="button" class="btn sm" data-shp="none">Clear</button></div></div>
     <div class="frow"><div class="fld"><label for="shFrom">Starting</label><input type="date" id="shFrom"></div><div class="fld"><label for="shFor">For</label><select id="shFor"><option value="1">This week only</option><option value="4">4 weeks</option><option value="8" selected>8 weeks</option><option value="12">12 weeks</option><option value="26">6 months</option><option value="0">No end date</option></select></div></div>
     <div class="hint" id="shSum"></div>
+    <div class="fld"><span class="flabel">Log tips or pay for this job</span><div class="frow" style="align-items:flex-end"><div class="fld"><label for="shTip">Amount ($)</label><input id="shTip" inputmode="decimal" autocomplete="off" placeholder="0.00"></div><button type="button" class="btn" id="shTipAdd" style="height:40px">Log it</button></div><div class="hint" id="shTipOut"></div></div>
+    <details id="shPasteBox"><summary style="cursor:pointer;font-weight:600;font-size:13px">Paste a schedule</summary>
+      <div class="fld" style="margin-top:8px"><label for="shPaste">One shift per line, like “Fri 10/30 4-10pm” or “Sat 7:00am-3:30pm”. It uses the job selected above.</label><textarea id="shPaste" rows="5" placeholder="Fri 10/30 4-10pm&#10;Sat 10/31 4pm-10pm&#10;Sun 11/1 11am-5pm"></textarea></div>
+      <div class="hint" id="shPasteOut"></div>
+      <button type="button" class="btn" id="shPasteAdd" style="margin-top:6px">Add pasted shifts</button>
+    </details>
     <div class="err" id="shErr" hidden></div>
     <div class="dlg-f"><button type="button" class="btn danger" id="shDel">Delete job</button><span style="flex:1"></span><button type="button" class="btn" data-close>Close</button><button type="button" class="btn primary" id="shAdd">Add shifts</button></div>
   </div>
@@ -1099,10 +1105,10 @@ body.focusing .toast{bottom:76px}
     <h4>Markets</h4>
     <ul><li>Market layers on the calendar: high, medium and low USD releases, Fed speakers, mega-cap earnings and session shading. Turn them on or off in <b>Market on the calendar</b>.</li><li><b>News</b> lists releases with forecast and previous, and headlines tagged risk-on or risk-off. Tap Refresh for the newest data your dashboard has published.</li><li>All market times are converted from New York time to your phone's time zone.</li><li>If a banner says the data is old, your bot PC has not published recently. Check the bots and ForexFactory directly.</li></ul>
     <h4>Discipline and money</h4>
-    <ul><li><b>Rules</b>: your pre-trade checklist, run once per trading day. <b>Trades</b>: notes and tags on each live or paper trade, plus a payout planner.</li><li><b>Review</b>: your week at a glance. <b>Journal</b>: note, mood and whether you followed your rules.</li><li><b>Projects</b> holds Goals and the Money log. <b>Health</b> holds sleep, workouts and trends.</li></ul>
+    <ul><li><b>Rules</b>: your pre-trade checklist, run once per trading day. <b>Trades</b>: notes and tags on each live or paper trade, plus a payout planner.</li><li><b>Review</b>: your week at a glance. <b>Journal</b>: note, mood and whether you followed your rules.</li><li><b>Projects</b> holds Goals and the Money log. <b>Health</b> holds sleep, workouts and trends.</li><li><b>Week balance</b> (card on Today): hours planned per event type against weekly targets you set, with free hours left after 8 h of sleep a day. <b>Earnings</b> (card on Today): estimated pay this week and month from shifts (hours x hourly rate), live and paper trading, and the money log, with a monthly income goal and what you need per week. Both are before tax.</li><li><b>Check my week</b> (shield button, or the banner on Today) lists clashes for today and the next 7 days: events that overlap (red) and work shifts that run into a New York killzone or a high-impact news pause (amber). Tap one to open the event.</li><li><b>When can I trade today?</b> on Today shows the free parts of each killzone after shifts, events and news pauses, plus the best free block of the week for deep work.</li><li><b>Bedtime</b> (evening on Today, and a line in Plan day) takes tomorrow's first event, shift or marked trading session, subtracts your get-ready minutes and sleep hours, and says when to be asleep. Change the numbers with the Change button.</li></ul>
     <h4>Shortcuts and Back Tap</h4>
     <p>In the iPhone Shortcuts app, add an <b>Open URL</b> action with this app's address plus one of these endings, then set Back Tap (Settings, Accessibility, Touch) to run it:</p>
-    <ul><li><code>#today</code> <code>#plan</code> <code>#plan-week</code> <code>#new-event</code> <code>#new-task</code> <code>#shifts</code></li><li><code>#log-workout</code> <code>#health</code> <code>#projects</code> <code>#week</code> <code>#agenda</code></li></ul>
+    <ul><li><code>#today</code> <code>#plan</code> <code>#plan-week</code> <code>#new-event</code> <code>#new-task</code> <code>#shifts</code> <code>#week-balance</code> <code>#earnings</code></li><li><code>#log-workout</code> <code>#health</code> <code>#projects</code> <code>#week</code> <code>#agenda</code></li></ul>
     <h4>Your data</h4>
     <ul><li>Everything is stored on this phone. Use <b>Back up</b> in Settings and save the file to iCloud Drive about once a week.</li><li><b>Calendar alerts</b> exports a file you open in the iPhone Calendar app, which then sends alerts. It is a snapshot, so tap it again after big changes.</li><li>Reminders inside this app only appear while it is open. Apple does not let web apps send alerts on their own.</li></ul>
   </div>
@@ -1174,7 +1180,7 @@ const shade = (hex, f) => { const [r, g, b] = rgb(hex); return `rgb(${Math.round
 const cvars = (hex) => `--c:${hex};--bg-c:${tint(hex, .13)};--fg:${shade(hex, .42)}`;
 
 // ---------- state ----------
-const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs']; // collections added by the Rules and Trades features
+const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard']; // collections added by the Rules and Trades features
 let S = load();
 let cursor = todayKey(), selected = cursor, miniMonth = cursor.slice(0, 7);
 let query = '', agendaDays = 30, undoSnap = null, editing = null, lastScrollView = null;
@@ -2455,6 +2461,7 @@ function openPlan() {
   $('#planGaps').innerHTML = gaps.length ? gaps.map((g) => `<span class="t-chip">${esc(gapText(g))}</span>`).join('') : '<span class="hint">No free blocks of 30 minutes or more.</span>';
   $('#planAuto').checked = gaps.length > 0; $('#planAuto').disabled = !gaps.length;
   $('#planNote').textContent = '';
+  guardPlanLine(); // GUARD hook: bedtime line
   planDlg.showModal();
 }
 function paintPick() {
@@ -2690,11 +2697,13 @@ function renderToday() {
     <div class="td-h"><div><h2>${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}</h2><div class="sub">${own.length} event${own.length === 1 ? '' : 's'}, ${tks.length} task${tks.length === 1 ? '' : 's'} to do${doneToday ? `, ${doneToday} done` : ''}</div></div><div style="display:flex;gap:6px"><button class="btn sm" data-tweek>Plan week</button><button class="btn sm ${planned ? '' : 'primary'}" data-tplan>${planned ? 'Re-plan' : 'Plan day'}</button></div></div>
     ${risk.filter((r) => r.level !== 'info').length ? `<div class="nw-warn" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">${risk.filter((r) => r.level !== 'info').map((r) => esc(r.text)).join(' · ')}</div>` : ''}
     ${risk.filter((r) => r.level === 'info').map((r) => `<div class="nw-warn">${esc(r.text)}</div>`).join('')}
+    ${guardTodayCard()}
     <section class="td-card"><h3>Schedule<button data-tgo="day">Day view</button></h3>${own.length ? own.map(evRow).join('') : '<div class="empty-s">Nothing scheduled. Tap Plan day to block time for your tasks.</div>'}${pauses.length ? `<div class="hint" style="margin-top:4px">Bot pauses: ${pauses.filter((o) => /bot paused/.test(o.ev.title)).map((o) => `${fmtTime(o.ev.start)} to ${fmtTime(o.ev.end)}`).join(', ') || 'none today'}</div>` : ''}</section>
     ${ups.length ? `<section class="td-card"><h3>Market news next<button data-tgo="news">All news</button></h3>${ups.map((e) => { const m = Math.round((e.ms - Date.now()) / 60000); return `<div class="nw-row ${e.impact === 'high' ? 'high' : 'med'}" style="grid-template-columns:62px 10px minmax(0,1fr) auto"><span class="nw-t">${fmtTime(e.lt)}</span><span class="nw-i"></span><div class="nw-b"><b>${esc(e.title)}</b>${e.fc || e.prev ? `<small>${e.fc ? 'Forecast ' + esc(e.fc) : ''}${e.fc && e.prev ? ' · ' : ''}${e.prev ? 'Previous ' + esc(e.prev) : ''}</small>` : ''}</div><span class="nw-c">${m < 90 ? `in ${Math.max(m, 1)} min` : `in ${fmtDur(m)}`}</span></div>`; }).join('')}</section>` : ''}
     <section class="td-card"><h3>Tasks<button data-tgo="projects">All tasks</button></h3>${tks.length ? `<ul class="tasks">${tks.slice(0, 10).map((t) => taskLi(t, { overdue: t.date < today })).join('')}</ul>${tks.length > 10 ? `<div class="sub">+${tks.length - 10} more</div>` : ''}` : '<div class="empty-s">Nothing due. Add one below.</div>'}
       <form class="add-t" data-tadd><span>+</span><input placeholder="Quick add: call Sam fri 3pm #nq" aria-label="Add a task" autocomplete="off"></form></section>
     ${hxTodayCard()}
+    ${wbTodayCard()}${earnTodayCard()}
     ${habs.length ? `<section class="td-card"><h3>Habits<button data-tgo="habits">All habits</button></h3>${habs.map((h) => { const st = habitStats(h), on = hDone(h, today); return `<div class="td-hab" style="--c:${esc(h.color || '#2563eb')}" data-thab="${esc(h.id)}"><button aria-pressed="${on}" aria-label="${on ? 'Undo' : 'Check in'} ${esc(h.name)}">${on ? ICON_CHECK : ''}</button><span>${esc(h.name)} <small>${st.cur} day streak</small></span></div>`; }).join('')}</section>` : ''}
     ${tr ? `<section class="td-card"><h3>Trading<span style="display:flex;gap:10px;align-items:baseline"><span class="${staleCls}">${staleTxt}</span><button data-refresh>Refresh</button></span></h3>${(tr.accounts || []).map((a) => `<div class="td-acct"><span><b>${esc(a.strategy === 'LIT' ? 'Zlarior' : a.strategy || a.name)}</b> ${esc(String(a.name || '').replace('MFFU ', ''))}</span><span>${usd(a.profit)} of ${usd(a.target)} · ${a.sessions_left != null ? a.sessions_left + ' sessions left' : ''}</span></div>`).join('')}${tr.month ? `<div class="td-acct" style="color:var(--mute)"><span>${MONTHS[+tr.month.month.slice(5) - 1]} so far</span><span><b style="color:var(--ink)">${usd(tr.month.usd)}</b> · ${tr.month.trades} trade${tr.month.trades === 1 ? '' : 's'}</span></div>` : ''}</section>` : ''}
     ${goals.length ? `<section class="td-card"><h3>Goals<button data-tgo="projects">All goals</button></h3>${goals.map((g) => { const v = goalValue(g), t = +g.target || 0, pct = t > 0 ? Math.max(0, Math.min(100, v / t * 100)) : 0; return `<div><div class="td-acct"><span><b>${esc(g.title)}</b></span><span>${gnum(g, v)} of ${gnum(g, t)}</span></div><div class="bar2" style="margin-top:5px"><i style="width:${pct}%;background:var(--ok)"></i></div></div>`; }).join('')}</section>` : ''}
@@ -2751,6 +2760,8 @@ function route() {
   else if (h === 'plan-week') { goToday(); openPlanWeek(); }
   else if (h === 'new-event') { goToday(); newEvent(todayKey()); }
   else if (h === 'shifts') { goToday(); openShifts(); }
+  else if (h === 'week-balance') { goToday(); openWeekBal(); }
+  else if (h === 'earnings') { goToday(); openEarn(); }
   else if (h === 'new-task') { goToday(); setTimeout(() => $('#taskIn').focus(), 60); }
   else if (views.includes(h)) { goToday(); setView(h); }
 }
@@ -2797,7 +2808,7 @@ function shLoad() {
   const j = shCur(); if (!j) return;
   $('#shName').value = j.name; $('#shColor').value = j.color; $('#shStart').value = j.start; $('#shEnd').value = j.end; $('#shRate').value = j.rate || '';
   shDays = [...(j.days || [])];
-  shPaint();
+  shPaint(); shTipPaint();
 }
 function openShifts() {
   if (!S.jobs.length) commit(() => { S.jobs = defaultJobs(); });
@@ -2863,7 +2874,471 @@ shDlg.addEventListener('close', () => { try { shSave(shCur()); } catch (err) { /
 document.addEventListener('keydown', (e) => {
   if ((e.key === 's' || e.key === 'S') && !e.metaKey && !e.ctrlKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '') && !document.querySelector('dialog[open]')) { e.preventDefault(); openShifts(); }
 });
+// ---- paste a schedule: one shift per line ("Fri 10/30 4-10pm") ----
+const WD = { sun: 0, mon: 1, tue: 2, tues: 2, wed: 3, thu: 4, thur: 4, thurs: 4, fri: 5, sat: 6 };
+function parseTimeRange(line) {
+  const m = line.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm|a|p)?\s*(?:-|–|—|to|until)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm|a|p)?/i);
+  if (!m) return null;
+  let h1 = +m[1], m1 = +(m[2] || 0), h2 = +m[4], m2 = +(m[5] || 0);
+  const a1 = m[3] && m[3][0].toLowerCase(), a2 = m[6] && m[6][0].toLowerCase();
+  if (h1 > 23 || h2 > 23 || m1 > 59 || m2 > 59) return null;
+  const to24 = (h, a) => (a === 'p' ? (h % 12) + 12 : a === 'a' ? h % 12 : h);
+  if (h1 > 12 || h2 > 12 || m[2] && !a1 && !a2 && h1 >= 13) { /* already 24h */ } else {
+    const e2 = a2 || null; let s1 = a1 || null;
+    if (!s1) s1 = e2 && !(h1 > h2 && e2 === 'p' && h1 !== 12) ? e2 : (h1 >= 7 && h1 <= 11 ? 'a' : 'p');
+    h1 = to24(h1, s1);
+    let t2 = e2 ? to24(h2, e2) : to24(h2, h2 >= 1 && h2 <= 6 ? 'p' : h2 >= 7 && h2 <= 11 ? 'a' : 'p');
+    if (!e2 && t2 * 60 + m2 <= h1 * 60 + m1) t2 = (t2 + 12) % 24;
+    h2 = t2;
+  }
+  const f = (h, mi) => String(h).padStart(2, '0') + ':' + String(mi).padStart(2, '0');
+  const start = f(h1, m1), end = f(h2, m2);
+  return toMin(end) > toMin(start) ? { start, end, rest: line.replace(m[0], ' ') } : null;
+}
+function parseShiftLines(text, today) {
+  const out = [], bad = [];
+  const ty = parse(today).getFullYear();
+  text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).forEach((line) => {
+    const tr = parseTimeRange(line.replace(/\d{4}-\d{2}-\d{2}/g, ' ').replace(/\d{1,2}\/\d{1,2}(?:\/\d{2,4})?/g, ' ')); let date = null;
+    if (tr) {
+      const rest = line;
+      let m = rest.match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (m) date = m[0];
+      else if ((m = rest.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/))) {
+        let y = m[3] ? +m[3] : ty; if (y < 100) y += 2000;
+        date = `${y}-${String(+m[1]).padStart(2, '0')}-${String(+m[2]).padStart(2, '0')}`;
+        if (!m[3] && date < addDays(today, -30)) date = `${y + 1}-${date.slice(5)}`;
+      } else if ((m = rest.toLowerCase().match(/\b(sun|mon|tues?|wed|thu(?:rs?)?|fri|sat)[a-z]*\b/))) {
+        const d = WD[m[1]]; date = addDays(today, (d - parse(today).getDay() + 7) % 7);
+      }
+      if (date && Number.isNaN(parse(date).getTime())) date = null;
+    }
+    if (tr && date) out.push({ date, start: tr.start, end: tr.end }); else bad.push(line);
+  });
+  return { shifts: out, bad };
+}
+function shPasteAdd() {
+  const j = shCur(); if (!j) return;
+  const { shifts, bad } = parseShiftLines($('#shPaste').value, todayKey());
+  if (!shifts.length) { $('#shPasteOut').textContent = 'I could not find a date and time in any line. Try “Fri 10/30 4-10pm”.'; return; }
+  snapshot(); shSave(j);
+  let made = 0;
+  commit(() => {
+    shifts.forEach((x) => {
+      if (S.events.some((e) => e.cat === j.id && e.date === x.date && e.start === x.start && e.end === x.end && e.repeat === 'none')) return;
+      S.events.push({ id: uid(), title: j.name, cat: j.id, date: x.date, allDay: false, start: x.start, end: x.end, endDate: '', repeat: 'none', until: '', notes: '', proj: '', ex: [], created: Date.now() });
+      made++;
+    });
+  });
+  S.hidden = S.hidden.filter((h) => h !== j.id); save(); render(); shSum();
+  $('#shPasteOut').textContent = `Added ${made} shift${made === 1 ? '' : 's'}${shifts.length - made ? `, ${shifts.length - made} already there` : ''}.${bad.length ? ` Skipped ${bad.length} line${bad.length === 1 ? '' : 's'} I could not read: ${bad.slice(0, 3).join(' | ')}` : ''}`;
+  if (made) { $('#shPaste').value = ''; toast(`Added ${made} shift${made === 1 ? '' : 's'} for ${j.name}`, true); }
+}
+$('#shPasteAdd').onclick = shPasteAdd;
+// ---- tips: one tap to log money in for the job, and a look at the last 30 days ----
+function shTipStats(j) {
+  const since = addDays(todayKey(), -30), tag = `${j.name} tips`;
+  const tips = S.money.filter((m) => m.kind === 'in' && m.date >= since && (m.note || '').startsWith(tag)).reduce((a, m) => a + m.amt, 0);
+  let h = 0; for (let i = -30; i <= 0; i++) eventsOn(addDays(todayKey(), i), true).forEach((o) => { if (o.ev.cat === j.id && !o.cont && !o.ev.allDay) h += hrsOf(o.ev.start, o.ev.end); });
+  return { tips, h };
+}
+function shTipPaint() {
+  const j = shCur(); if (!j) { $('#shTipOut').textContent = ''; return; }
+  const { tips, h } = shTipStats(j);
+  $('#shTipOut').textContent = tips ? `Last 30 days: $${Math.round(tips).toLocaleString('en-US')} in tips over ${fmtHrs(h)} h${h ? ` (about $${(tips / h).toFixed(2)} an hour)` : ''}.` : 'Nothing logged in the last 30 days.';
+}
+$('#shTipAdd').onclick = () => {
+  const j = shCur(), amt = Math.round((parseFloat($('#shTip').value) || 0) * 100) / 100; if (!j) return;
+  if (!(amt > 0)) { $('#shTipOut').textContent = 'Enter an amount above zero.'; return; }
+  snapshot(); commit(() => { S.money.push({ id: uid(), created: Date.now(), kind: 'in', amt, date: todayKey(), note: `${j.name} tips`, proj: '' }); });
+  $('#shTip').value = ''; shTipPaint(); toast(`Logged $${amt.toFixed(2)} for ${j.name}`, true);
+};
 // ===== SHIFTS END =====
+
+// ===== WEEKBAL BEGIN: weekly time budget (hours planned vs targets, free hours left) =====
+const WB_SLEEP = 8; // assumed sleep per day, stated on screen
+document.head.insertAdjacentHTML('beforeend', `<style>
+.wb-row{display:flex;flex-direction:column;gap:5px;padding:9px 0;border-top:1px solid var(--line2)}
+.wb-h{display:flex;justify-content:space-between;gap:8px;font-size:14px;font-variant-numeric:tabular-nums}
+.wb-h b{font-weight:600;overflow-wrap:anywhere}.wb-h span{white-space:nowrap}
+.wb-bar{position:relative;height:8px;border-radius:5px;background:var(--soft2)}
+.wb-bar i{display:block;height:100%;border-radius:5px;background:var(--c,#111827)}
+.wb-bar.over i{background:#dc2626}
+.wb-bar s{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);text-decoration:none}
+.wb-f{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--mute)}
+.wb-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px;font-weight:500}
+.wb-tg{display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:8px;align-items:center;font-size:14px}
+.wb-tg label{display:flex;align-items:center;gap:7px;overflow-wrap:anywhere}.wb-tg label i{width:9px;height:9px;border-radius:50%;background:var(--c);flex:none}
+.er{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px 14px;font-size:14px;font-variant-numeric:tabular-nums;align-items:baseline}
+.er>.h{font-size:11.5px;color:var(--mute)}.er>.n{text-align:right}.er>.sub{font-size:12px;color:var(--mute);padding-left:10px}
+.er>.t{font-weight:600;border-top:1px solid var(--line);padding-top:6px}
+.er-bar{height:10px;border-radius:6px;background:var(--soft2);position:relative;overflow:hidden}
+.er-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:6px}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="wbDlg" aria-labelledby="wbTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="wbTitle">Week balance</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="wbBody" style="display:flex;flex-direction:column;gap:12px"></div>
+</div></dialog>`);
+const wbDlg = $('#wbDlg');
+let wbWeek = null, wbEdit = false;
+function evHours(e) { // length of a timed event in hours (no end = 1 h, like the Today list; ends past midnight wrap)
+  if (e.allDay || !e.start) return 0;
+  const s = toMin(e.start); let en = e.end ? toMin(e.end) : s + 60;
+  if (en < s) en += 1440;
+  return (en - s) / 60;
+}
+const wbTarget = (id) => { const b = S.budgets.find((x) => x.id === id); return b ? +b.hours || 0 : 0; };
+const wbName = (id) => { const j = S.jobs.find((x) => x.id === id); return j ? j.name : cat(id).name; };
+const wbColor = (id) => { const j = S.jobs.find((x) => x.id === id); return j ? j.color : cat(id).color; };
+function wbCompute(ws) { // hours per event type for the 7 days from ws; own timed events only (no all-day, no bot or market events)
+  const by = {}; let total = 0;
+  for (let i = 0; i < 7; i++) for (const o of eventsOn(addDays(ws, i), true)) {
+    const e = o.ev; if (e.bot || e.layer || e.allDay || o.cont) continue;
+    const h = evHours(e); if (!h) continue;
+    by[e.cat] = (by[e.cat] || 0) + h; total += h;
+  }
+  const ids = [...new Set([...Object.keys(by), ...S.budgets.filter((b) => +b.hours > 0).map((b) => b.id)])].sort((a, b) => (by[b] || 0) - (by[a] || 0));
+  const targetTotal = S.budgets.reduce((n, b) => n + (+b.hours || 0), 0);
+  const awake = 7 * (24 - WB_SLEEP);
+  const over = ids.filter((id) => wbTarget(id) > 0 && (by[id] || 0) > wbTarget(id) + 0.25).length;
+  return { by, ids, total, targetTotal, awake, free: awake - total, over };
+}
+function wbRowHtml(id, h) {
+  const t = wbTarget(id), isOver = t > 0 && h > t + 0.25, isOn = t > 0 && Math.abs(h - t) <= 0.25;
+  const scale = Math.max(h, t, 0.1), pct = Math.min(100, h / scale * 100);
+  const flag = !t ? '<span>No target</span>' : isOver ? `<span class="neg">${fmtHrs(h - t)} h over</span>` : isOn ? '<span class="pos">On target</span>' : `<span>${fmtHrs(t - h)} h under</span>`;
+  return `<div class="wb-row" data-wbid="${esc(id)}" style="${cvars(wbColor(id))}"><div class="wb-h"><b>${esc(wbName(id))}</b><span>${fmtHrs(h)} h${t ? ` of ${fmtHrs(t)} h` : ''}</span></div><div class="wb-bar${isOver ? ' over' : ''}"><i style="width:${pct}%"></i>${t && isOver ? `<s style="left:${t / scale * 100}%"></s>` : ''}</div><div class="wb-f">${flag}<span>${t ? Math.round(h / t * 100) + '% of target' : ''}</span></div></div>`;
+}
+function wbPaint() {
+  const body = $('#wbBody'); if (!wbWeek) wbWeek = startOfWeek(todayKey());
+  const w = wbCompute(wbWeek);
+  if (wbEdit) {
+    const ids = [...new Set([...S.categories.map((c) => c.id), ...S.jobs.map((j) => j.id)])];
+    body.innerHTML = `<div class="hint">Hours per week you want to spend on each event type. Leave blank for no target.</div>
+      <div style="display:flex;flex-direction:column;gap:8px">${ids.map((id) => `<div class="wb-tg" style="${cvars(wbColor(id))}"><label for="wbt-${esc(id)}"><i></i>${esc(wbName(id))}</label><input type="number" id="wbt-${esc(id)}" data-wbt="${esc(id)}" min="0" max="168" step="0.5" inputmode="decimal" placeholder="none" value="${wbTarget(id) || ''}"></div>`).join('')}</div>
+      <div class="dlg-f"><div><button type="button" class="btn sm" id="wbFill">Use this week's hours</button><button type="button" class="btn sm" id="wbClear">Clear all</button></div><div><button type="button" class="btn" id="wbBack">Cancel</button><button type="button" class="btn primary" id="wbSave">Save targets</button></div></div>`;
+    return;
+  }
+  const isNow = wbWeek === startOfWeek(todayKey());
+  const tile = (v, l, cls) => `<div><b class="${cls || ''}">${v}</b><span>${l}</span></div>`;
+  body.innerHTML = `<div class="wb-nav"><button type="button" class="btn sm" data-wbnav="-1" aria-label="Previous week">&lsaquo;</button><span id="wbLabel">${isNow ? 'This week: ' : ''}${longDate(wbWeek)} to ${longDate(addDays(wbWeek, 6))}</span><button type="button" class="btn sm" data-wbnav="1" aria-label="Next week">&rsaquo;</button></div>
+    <div class="glance" id="wbTiles">${tile(fmtHrs(w.total) + ' h', 'planned')}${tile(w.targetTotal ? fmtHrs(w.targetTotal) + ' h' : '-', 'targets total')}${tile(fmtHrs(w.free) + ' h', 'free hours left', w.free < 0 ? 'neg' : '')}</div>
+    <div>${w.ids.length ? w.ids.map((id) => wbRowHtml(id, w.by[id] || 0)).join('') : '<div class="empty-s">Nothing timed on the calendar this week.</div>'}</div>
+    <div class="hint" id="wbNote">${w.over ? `${w.over} type${w.over === 1 ? ' is' : 's are'} over target. ` : ''}Free hours assume ${WB_SLEEP} h of sleep a day, so ${w.awake} awake hours a week minus everything planned. All-day events and market or bot events are not counted; events that overlap are counted twice.</div>
+    <div class="dlg-f"><div><button type="button" class="btn sm" data-wbnav="0">This week</button></div><div><button type="button" class="btn primary" id="wbSet">Set targets</button></div></div>`;
+}
+function openWeekBal(ws) { wbWeek = ws || startOfWeek(todayKey()); wbEdit = false; wbPaint(); if (!wbDlg.open) wbDlg.showModal(); }
+wbDlg.addEventListener('click', (e) => {
+  const t = e.target;
+  const nv = t.closest('[data-wbnav]');
+  if (nv) { const n = +nv.dataset.wbnav; wbWeek = n === 0 ? startOfWeek(todayKey()) : addDays(wbWeek, n * 7); wbPaint(); return; }
+  if (t.closest('#wbSet')) { wbEdit = true; wbPaint(); return; }
+  if (t.closest('#wbBack')) { wbEdit = false; wbPaint(); return; }
+  if (t.closest('#wbClear')) { wbDlg.querySelectorAll('[data-wbt]').forEach((i) => { i.value = ''; }); return; }
+  if (t.closest('#wbFill')) { const w = wbCompute(wbWeek); wbDlg.querySelectorAll('[data-wbt]').forEach((i) => { const h = Math.round((w.by[i.dataset.wbt] || 0) * 2) / 2; i.value = h || ''; }); return; }
+  if (t.closest('#wbSave')) {
+    const vals = [...wbDlg.querySelectorAll('[data-wbt]')].map((i) => [i.dataset.wbt, Math.min(168, Math.max(0, Math.round((+i.value || 0) * 100) / 100))]);
+    snapshot();
+    commit(() => {
+      for (const [id, h] of vals) {
+        const b = S.budgets.find((x) => x.id === id);
+        if (h > 0) { if (b) b.hours = h; else S.budgets.push({ id, hours: h }); } else if (b) S.budgets = S.budgets.filter((x) => x.id !== id);
+      }
+    });
+    wbEdit = false; wbPaint(); render(); toast('Weekly targets saved', true);
+  }
+});
+wbDlg.addEventListener('close', () => { wbEdit = false; render(); });
+function wbTodayCard() {
+  const w = wbCompute(startOfWeek(todayKey()));
+  return `<section class="td-card" id="wbCard"><h3>Week balance<button data-wbopen>Details and targets</button></h3><div class="glance"><div><b>${fmtHrs(w.total)} h</b><span>planned this week</span></div><div><b>${w.targetTotal ? fmtHrs(w.targetTotal) + ' h' : '-'}</b><span>targets</span></div><div><b class="${w.free < 0 ? 'neg' : ''}">${fmtHrs(w.free)} h</b><span>free hours left</span></div></div>${w.over ? `<div class="hint neg">${w.over} type${w.over === 1 ? '' : 's'} over target this week.</div>` : `<div class="hint">Assumes ${WB_SLEEP} h of sleep a day.</div>`}</section>`;
+}
+$('#main').addEventListener('click', (e) => { if (S.view === 'today' && e.target.closest('[data-wbopen]')) openWeekBal(); });
+// ===== WEEKBAL END =====
+
+// ===== EARN BEGIN: what will I make this week and this month =====
+document.body.insertAdjacentHTML('beforeend', `<dialog id="erDlg" aria-labelledby="erTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="erTitle">Earnings</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="erBody" style="display:flex;flex-direction:column;gap:12px"></div>
+</div></dialog>`);
+const erDlg = $('#erDlg');
+const erGoal = () => { const g = S.incomegoal.find((x) => x.id === 'month'); return g ? +g.amt || 0 : 0; };
+function earnCalc(a, b) { // a, b = first and last day (inclusive)
+  const today = todayKey(), n = new Date(), nowMin = n.getHours() * 60 + n.getMinutes();
+  const jobs = {}; S.jobs.forEach((j) => { jobs[j.id] = { j, hours: 0, pay: 0 }; });
+  let shAll = 0, shDone = 0, trade = 0, tradeDays = 0, manIn = 0, manInDone = 0, manOut = 0;
+  for (let k = a; k <= b; k = addDays(k, 1)) {
+    for (const o of eventsOn(k, true)) {
+      const e = o.ev, J = jobs[e.cat]; if (!J || e.allDay || e.bot || o.cont) continue;
+      const h = evHours(e), pay = h * (+J.j.rate || 0);
+      J.hours += h; J.pay += pay; shAll += pay;
+      if (k < today || (k === today && toMin(e.end || e.start) <= nowMin)) shDone += pay;
+    }
+    if (typeof nqPnl[k] === 'number' && k <= today) { trade += nqPnl[k]; tradeDays++; }
+  }
+  for (const m of S.money) {
+    if (!m.date || m.date < a || m.date > b) continue;
+    if (m.kind === 'out') manOut += +m.amt || 0;
+    else { manIn += +m.amt || 0; if (m.date <= today) manInDone += +m.amt || 0; }
+  }
+  return { jobs: Object.values(jobs).filter((x) => x.hours > 0), shAll, shDone, trade, tradeDays, manIn, manOut, total: shAll + trade + manIn, earned: shDone + trade + manInDone };
+}
+function earnRanges() {
+  const today = todayKey(), ws = startOfWeek(today), d = parse(today);
+  const m0 = today.slice(0, 7) + '-01', m1 = key(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+  return { today, W: earnCalc(ws, addDays(ws, 6)), M: earnCalc(m0, m1), m1, ws };
+}
+function earnPaint() {
+  const { today, W, M, m1 } = earnRanges(), goal = erGoal();
+  const daysLeft = diffDays(today, m1) + 1, weeksLeft = daysLeft / 7;
+  const toGo = Math.max(0, goal - M.earned), ahead = Math.max(0, M.shAll - M.shDone), rest = Math.max(0, toGo - ahead);
+  const per = (x) => (daysLeft >= 7 ? `${usd(x / weeksLeft)} a week` : `${usd(x)} in the last ${daysLeft} day${daysLeft === 1 ? '' : 's'}`);
+  const cls = (v) => (v < 0 ? 'neg' : '');
+  const rowsFor = (label, vw, vm, sub) => `<div>${label}</div><div class="n ${cls(vw)}">${usd(vw)}</div><div class="n ${cls(vm)}">${usd(vm)}</div>${sub || ''}`;
+  const jobSub = S.jobs.map((j) => { const w = W.jobs.find((x) => x.j.id === j.id), m = M.jobs.find((x) => x.j.id === j.id); if (!w && !m) return ''; return `<div class="sub">${esc(j.name)}${+j.rate ? ` (${fmtHrs((w || { hours: 0 }).hours)} h / ${fmtHrs((m || { hours: 0 }).hours)} h at $${+j.rate}/h)` : ' (no hourly rate yet)'}</div><div class="n sub">${usd(w ? w.pay : 0)}</div><div class="n sub">${usd(m ? m.pay : 0)}</div>`; }).join('');
+  const noRate = S.jobs.filter((j) => !+j.rate && (W.jobs.some((x) => x.j.id === j.id) || M.jobs.some((x) => x.j.id === j.id)));
+  const pct = goal > 0 ? Math.min(100, Math.max(0, M.earned / goal * 100)) : 0, pctAll = goal > 0 ? Math.min(100, Math.max(0, M.total / goal * 100)) : 0;
+  $('#erBody').innerHTML = `<div class="er" id="erTable"><div class="h">Source</div><div class="h n">This week</div><div class="h n">${MONTHS[parse(today).getMonth()].slice(0, 3)}</div>
+      ${rowsFor('Shifts (hours x rate)', W.shAll, M.shAll, jobSub)}
+      ${rowsFor('Trading (live + paper)', W.trade, M.trade)}
+      ${rowsFor('Money log (money in)', W.manIn, M.manIn)}
+      <div class="t">Total</div><div class="t n ${cls(W.total)}" id="erWeek">${usd(W.total)}</div><div class="t n ${cls(M.total)}" id="erMonth">${usd(M.total)}</div></div>
+    ${noRate.length ? `<div class="hint">${noRate.map((j) => esc(j.name)).join(' and ')} ha${noRate.length === 1 ? 's' : 've'} no hourly rate yet, so ${noRate.length === 1 ? 'it adds' : 'they add'} $0. <button type="button" class="btn sm" id="erRates">Set rates in Shifts</button></div>` : ''}
+    <div class="fld"><label for="erGoalIn">Monthly income goal ($)</label><input type="number" id="erGoalIn" min="0" step="50" inputmode="decimal" placeholder="e.g. 6000" value="${goal || ''}"></div>
+    ${goal > 0 ? `<div id="erProg"><div class="g-h" style="display:flex;justify-content:space-between;font-size:14px"><b>${usd(M.earned)} earned so far</b><span>${usd(goal)} goal</span></div><div class="er-bar" style="margin-top:6px"><i style="width:${pctAll}%;background:#a7f3d0"></i><i style="width:${pct}%;background:var(--ok)"></i></div><div class="hint" style="margin-top:5px">${Math.round(pct)}% earned; ${Math.round(pctAll)}% once the shifts still scheduled this month are worked (${usd(M.total)} expected).</div></div>
+      <div id="erNeed" style="font-size:14px;line-height:1.5">${toGo <= 0 ? '<b class="pos">Goal reached for this month.</b>' : `<b>Still to make: ${usd(toGo)} (${per(toGo)}).</b> Scheduled shifts still ahead cover ${usd(ahead)}${rest > 0 ? `; the other ${usd(rest)} (${per(rest)}) has to come from trading or other income.` : ', so you are covered if you work them.'}`}</div>` : '<div class="hint">Set a monthly goal to see your progress and what you need to make per week.</div>'}
+    <div class="hint" id="erNote">An estimate before tax. Shifts are your calendar hours times each job's hourly rate (future shifts count as expected). Trading is the live and paper bot results this app has saved${M.tradeDays ? ` (${M.tradeDays} trading day${M.tradeDays === 1 ? '' : 's'} this month)` : ' (none saved yet)'}, never the backtest. The money log counts only "Money in"${M.manOut ? `; ${usd(M.manOut)} logged as money out this month is not subtracted` : ''}.</div>`;
+}
+function openEarn() { earnPaint(); if (!erDlg.open) erDlg.showModal(); }
+erDlg.addEventListener('change', (e) => {
+  if (e.target.id !== 'erGoalIn') return;
+  const v = Math.max(0, Math.round((+e.target.value || 0) * 100) / 100);
+  commit(() => {
+    const g = S.incomegoal.find((x) => x.id === 'month');
+    if (v > 0) { if (g) g.amt = v; else S.incomegoal.push({ id: 'month', amt: v }); } else if (g) S.incomegoal = S.incomegoal.filter((x) => x.id !== 'month');
+  });
+  earnPaint();
+});
+erDlg.addEventListener('click', (e) => { if (e.target.closest('#erRates')) { erDlg.close(); openShifts(); } });
+erDlg.addEventListener('close', () => render());
+function earnTodayCard() {
+  const { W, M } = earnRanges(), goal = erGoal(), pct = goal > 0 ? Math.round(Math.max(0, M.earned) / goal * 100) : null;
+  return `<section class="td-card" id="erCard"><h3>Earnings<button data-eropen>Details and goal</button></h3><div class="glance"><div><b class="${W.total < 0 ? 'neg' : ''}">${usd(W.total)}</b><span>this week</span></div><div><b class="${M.total < 0 ? 'neg' : ''}">${usd(M.total)}</b><span>this month</span></div><div><b>${pct == null ? '-' : pct + '%'}</b><span>${pct == null ? 'no goal set' : 'of ' + usd(goal)}</span></div></div><div class="hint">Estimate before tax: shifts, bot trading and money log.</div></section>`;
+}
+$('#main').addEventListener('click', (e) => { if (S.view === 'today' && e.target.closest('[data-eropen]')) openEarn(); });
+// ===== EARN END =====
+// ===== GUARD BEGIN: conflict guard, trading windows, bedtime planner (settings in the synced collection `guard`) =====
+// Works only from what is already on the calendar: your own timed events (shifts have a cat starting with 'job-'),
+// the NY killzones from sessList() converted to local time, and the bots' high-impact news pauses. All-day events are ignored.
+// Its own styles and dialogs are added by this block so the rest of the file stays untouched; the only hooks elsewhere are
+// guardTodayCard() in renderToday, guardPlanLine() in openPlan and the 'guard' name in XSYNC.
+const GD_NY = ['NY AM', 'NY PM'];
+(function gdStyle() {
+  const st = document.createElement('style');
+  st.textContent = `.gd-ban{display:block;width:100%;text-align:left;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12.5px;background:#fff;color:var(--ink);cursor:pointer}
+.gd-ban b{display:block;font-size:13px}.gd-ban small{display:block;margin-top:2px;font-size:12px;overflow-wrap:anywhere}
+.gd-ban.red{background:#fef2f2;border-color:#fecaca;color:#991b1b}.gd-ban.amber{background:#fffaf0;border-color:#f3d9a4;color:#92400e}.gd-ban.ok{color:var(--mute)}
+.gd-chips{display:flex;flex-wrap:wrap;gap:6px}
+.gd-chip{font-size:12.5px;font-weight:500;padding:5px 10px;border-radius:16px;border:1px solid var(--line);color:var(--ink2);background:#fff;line-height:1.3}
+.gd-chip.free{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}.gd-chip.blk{background:#fef2f2;border-color:#fecaca;color:#991b1b}.gd-chip.part{background:#fffaf0;border-color:#f3d9a4;color:#92400e}.gd-chip.done{color:var(--mute)}
+.gd-best{display:block;width:100%;text-align:left;font-size:12.5px;color:var(--ink2);padding:2px 0}
+.gd-bed b{font-size:15px;display:block}.gd-bed .hint{margin-top:2px}
+.gd-row{display:flex;gap:8px;align-items:stretch;border-left:3px solid #f59e0b;background:var(--soft);border-radius:8px;padding:8px 10px;margin-bottom:6px}
+.gd-row.red{border-left-color:#dc2626;background:#fef2f2}
+.gd-row .gd-main{flex:1;min-width:0;text-align:left;font-size:13px;line-height:1.35;overflow-wrap:anywhere;color:var(--ink)}
+.gd-row .gd-alt{flex:none;align-self:center;font-size:12px;color:var(--mute);text-decoration:underline;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gd-day{font-size:12px;font-weight:600;color:var(--mute);margin:10px 0 6px}
+#planBed{border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:12.5px}#planBed button{text-decoration:underline;color:var(--mute);font-size:12px;margin-left:4px}
+#guardBtn{order:2}@media (max-width:640px){#guardBtn{width:36px;padding:0;justify-content:center}}
+.gd-dlg input,.gd-dlg select{font-size:16px}`;
+  document.head.appendChild(st);
+  document.body.insertAdjacentHTML('beforeend', `<dialog id="gdDlg" aria-labelledby="gdTitle"><div class="dlg gd-dlg">
+    <div class="dlg-h"><h3 id="gdTitle">Check my week</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div id="gdBody"></div>
+    <div class="dlg-f"><div></div><div><button type="button" class="btn" data-close>Close</button></div></div></div></dialog>
+  <dialog id="gbDlg" aria-labelledby="gbTitle"><div class="dlg gd-dlg">
+    <div class="dlg-h"><h3 id="gbTitle">Bedtime settings</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="frow"><div class="fld"><label for="gbBuf">Minutes to get ready and travel</label><input type="number" id="gbBuf" min="0" max="240" step="5" inputmode="numeric"></div><div class="fld"><label for="gbSleep">Hours of sleep</label><input type="number" id="gbSleep" min="4" max="12" step="0.5" inputmode="decimal"></div></div>
+    <div class="fld"><label for="gbTrade">Also wake for a trading session</label><select id="gbTrade"><option value="none">No, only events and shifts</option><option value="ldn">London session (ATLAS)</option><option value="am">NY AM killzone</option></select></div>
+    <div class="hint">Bedtime = first thing tomorrow, minus the minutes above, minus the sleep hours.</div>
+    <div class="dlg-f"><div></div><div><button type="button" class="btn primary" data-close>Done</button></div></div></div></dialog>`);
+})();
+
+// Killzone windows of local day k as minutes, for the named sessions (weekdays in New York only).
+function gdSessions(k, names) {
+  const out = [];
+  for (const off of [-1, 0, 1]) {
+    const ek = addDays(k, off), wd = dow(ek); if (wd === 0 || wd === 6) continue;
+    for (const [name, a, b] of sessList()) {
+      if (!names.includes(name)) continue;
+      const A = etToLocal(ek, a), B = etToLocal(ek, b);
+      const s = A.date < k ? 0 : A.date > k ? null : toMin(A.hm), e = B.date < k ? null : B.date > k ? 1440 : toMin(B.hm);
+      if (s == null || e == null || e <= s) continue;
+      out.push({ name, s, e, cont: A.date < k });
+    }
+  }
+  return out.sort((x, y) => x.s - y.s);
+}
+// Your own timed events of day k (never all-day, never the bots' events).
+function gdOwn(k) {
+  return eventsOn(k, true).filter((o) => !o.ev.allDay && !o.ev.bot && !o.ev.milestone && !o.cont && HM.test(o.ev.start || '')).map((o) => {
+    const e = o.ev, s = toMin(e.start); let en = HM.test(e.end || '') ? toMin(e.end) : Math.min(s + 60, 1439); if (en <= s) en = 1440;
+    return { ev: e, occ: o.occ, s, e: en, shift: /^job-/.test(e.cat || '') };
+  }).sort((a, b) => a.s - b.s || a.e - b.e);
+}
+// High-impact release windows (the bot's pause when it hits a killzone, else the 30 minute release).
+function gdNews(k) {
+  return extraEvents.filter((e) => e.bot && e.layer === 'high' && e.date === k && !e.allDay && HM.test(e.start || '')).map((e) => ({ s: toMin(e.start), e: HM.test(e.end || '') && e.end > e.start ? toMin(e.end) : toMin(e.start) + 30, title: String(e.title).replace(' · bot paused', ''), paused: /bot paused/.test(e.title) }));
+}
+const gdT = (m) => (m >= 1440 ? 'midnight' : fmtTime(fromMin(m)));
+const gdRng = (s, e) => `${gdT(s)}–${gdT(e)}`;
+const gdLbl = (x) => `${x.ev.title} ${gdRng(x.s, x.e)}`;
+const gdName = (k) => { const t = todayKey(); return k === t ? 'Today' : k === addDays(t, 1) ? 'Tomorrow' : longDate(k); };
+const gdHow = (x, w) => (x.s >= w.s ? (x.e <= w.e ? 'runs during' : 'starts during') : x.e <= w.e ? 'ends during' : 'covers');
+
+// (a) overlapping events, (b) shifts that overlap a NY killzone or a high-impact news window. Today and the next 7 days.
+function guardIssues(days = 8) {
+  const today = todayKey(), n = new Date(), nowMin = n.getHours() * 60 + n.getMinutes(), out = [];
+  for (let i = 0; i < days; i++) {
+    const k = addDays(today, i);
+    const own = gdOwn(k).filter((x) => i > 0 || x.e > nowMin);
+    for (let a = 0; a < own.length; a++) for (let b = a + 1; b < own.length; b++) {
+      const x = own[a], y = own[b];
+      if (x.s < y.e && y.s < x.e) out.push({ k, sev: 'red', s: Math.max(x.s, y.s), text: `${gdLbl(x)} overlaps ${gdLbl(y)}`, a: { id: x.ev.id, occ: x.occ }, b: { id: y.ev.id, occ: y.occ, title: y.ev.title } });
+    }
+    const sess = gdSessions(k, GD_NY), news = gdNews(k).filter((w) => i > 0 || w.e > nowMin);
+    for (const x of own) {
+      if (!x.shift) continue;
+      for (const w of sess) if (x.s < w.e && w.s < x.e) out.push({ k, sev: 'amber', s: x.s, text: `${gdLbl(x)} ${gdHow(x, w)} ${w.name} session (${gdRng(w.s, w.e)})`, a: { id: x.ev.id, occ: x.occ } });
+      for (const w of news) if (x.s < w.e && w.s < x.e) out.push({ k, sev: 'amber', s: x.s, text: `${gdLbl(x)} ${gdHow(x, w)} the ${w.title} ${w.paused ? 'bot pause' : 'news release'} (${gdRng(w.s, w.e)})`, a: { id: x.ev.id, occ: x.occ } });
+    }
+  }
+  const rank = { red: 0, amber: 1 };
+  return out.sort((p, q) => p.k.localeCompare(q.k) || rank[p.sev] - rank[q.sev] || p.s - q.s);
+}
+
+// 2. When can I trade today? Each NY killzone minus shifts, events and bot news pauses.
+function gdWindows(k, nowMin) {
+  const sess = gdSessions(k, GD_NY);
+  if (!sess.length) return { closed: true, items: [], free: 0 };
+  const blk = gdOwn(k).map((x) => ({ s: x.s, e: x.e, why: x.shift ? (/shift/i.test(x.ev.title) ? x.ev.title : x.ev.title + ' shift') : x.ev.title }))
+    .concat(gdNews(k).filter((w) => w.paused).map((w) => ({ s: w.s, e: w.e, why: 'the news pause' })));
+  let total = 0;
+  const items = sess.map((w) => {
+    if (nowMin != null && nowMin >= w.e) return { name: w.name, kind: 'done' };
+    const lo = nowMin != null ? Math.max(w.s, Math.ceil(nowMin / 5) * 5) : w.s;
+    const hit = blk.filter((b) => b.s < w.e && b.e > lo).sort((a, b) => a.s - b.s), free = [];
+    let cur = lo;
+    for (const b of hit) { if (b.s - cur >= 15) free.push([cur, b.s]); cur = Math.max(cur, b.e); }
+    if (w.e - cur >= 15) free.push([cur, w.e]);
+    free.forEach(([a, b]) => { total += b - a; });
+    return { name: w.name, kind: free.length ? 'free' : 'blocked', free, why: [...new Set(hit.map((b) => b.why))], partial: !!(free.length && hit.length) };
+  });
+  return { closed: false, items, free: total };
+}
+// The longest block of free time in the next 7 days outside the killzones (capped at 4 hours; deep work).
+function gdBest() {
+  const today = todayKey(); let best = null;
+  for (let i = 0; i < 7; i++) {
+    const k = addDays(today, i), kz = gdSessions(k, GD_NY).map((w) => [w.s, w.e]);
+    for (const [a, b] of freeGaps(k, 7 * 60, 21 * 60, 60, kz)) { const len = Math.min(b - a, 240); if (!best || len > best.len) best = { k, a, b: a + len, len }; }
+  }
+  return best;
+}
+
+// 3. Bedtime planner (settings in the synced collection `guard`, item id 'bed').
+function gdCfg() {
+  const c = S.guard.find((x) => x.id === 'bed') || {}, num = (v, lo, hi, d) => (v != null && v !== '' && Number.isFinite(+v) ? Math.min(hi, Math.max(lo, +v)) : d);
+  return { buffer: num(c.buffer, 0, 240, 45), sleep: num(c.sleep, 4, 12, 8), trade: ['none', 'ldn', 'am'].includes(c.trade) ? c.trade : 'none' };
+}
+function gdBed(k) {
+  const cfg = gdCfg(), c = gdOwn(k).map((x) => ({ s: x.s, what: x.ev.title }));
+  if (cfg.trade !== 'none') { const w = gdSessions(k, [cfg.trade === 'am' ? 'NY AM' : 'London']).find((x) => !x.cont); if (w) c.push({ s: w.s, what: `${w.name} session` }); }
+  c.sort((a, b) => a.s - b.s);
+  if (!c.length) return { cfg, none: true };
+  const wake = c[0].s - cfg.buffer, asleep = wake - Math.round(cfg.sleep * 60);
+  return { cfg, first: c[0], wake, asleep };
+}
+const gdAp = (m) => { const t = ((m % 1440) + 1440) % 1440, h = Math.floor(t / 60); return `${h % 12 || 12}:${pad(t % 60)} ${h < 12 ? 'AM' : 'PM'}`; };
+function gdBedText(b) { return `Be asleep by ${gdAp(b.asleep)}, wake ${gdAp(b.wake)}`; }
+const gdBedSub = (b) => `First up: ${b.first.what} at ${fmtTime(fromMin(b.first.s))}. ${b.cfg.buffer} min to get ready, ${b.cfg.sleep} h of sleep.${b.asleep >= 0 ? ' That is after midnight.' : ''}`;
+
+function guardTodayCard() {
+  const n = new Date(), nowMin = n.getHours() * 60 + n.getMinutes(), today = todayKey();
+  const iss = guardIssues(), red = iss.filter((x) => x.sev === 'red').length, amb = iss.length - red;
+  const first = iss[0];
+  const ban = iss.length
+    ? `<button class="gd-ban ${red ? 'red' : 'amber'}" data-gopen><b>${[red && `${red} double-booked`, amb && `${amb} trading clash${amb === 1 ? '' : 'es'}`].filter(Boolean).join(', ')} in the next 7 days</b><small>${esc(gdName(first.k))}: ${esc(first.text)}${iss.length > 1 ? ` (+${iss.length - 1} more)` : ''}. Tap to check my week.</small></button>`
+    : '<button class="gd-ban ok" data-gopen><b>No clashes in the next 7 days</b><small>Events, shifts, killzones and news pauses all line up. Tap to check my week.</small></button>';
+  const w = gdWindows(today, nowMin), best = gdBest();
+  const chips = w.closed ? '<span class="gd-chip done">US markets are closed today</span>' : w.items.map((it) => {
+    if (it.kind === 'done') return `<span class="gd-chip done">${it.name} is over</span>`;
+    if (it.kind === 'blocked') return `<span class="gd-chip blk">${it.name} blocked by ${esc(it.why.slice(0, 2).join(' and '))}</span>`;
+    return it.free.map(([a, b]) => `<span class="gd-chip free">${it.name} ${gdRng(a, b)} free</span>`).join('') + (it.partial ? `<span class="gd-chip part">${it.name} partly taken by ${esc(it.why.slice(0, 2).join(' and '))}</span>` : '');
+  }).join('');
+  let h = `${ban}<section class="td-card" id="gdTrade"><h3>When can I trade today?<span class="sub">${w.closed ? '' : w.free ? fmtDur(w.free) + ' free' : 'no free time'}</span></h3><div class="gd-chips">${chips}</div>`
+    + (best ? `<button class="gd-best" data-gday="${best.k}">Best deep-work block this week: <b>${esc(gdName(best.k))} ${gdRng(best.a, best.b)}</b> (${fmtDur(best.len)}), outside your trading sessions.</button>` : '<div class="hint">No free block of an hour or more this week outside your trading sessions.</div>')
+    + '</section>';
+  if (n.getHours() >= 17) {
+    const b = gdBed(addDays(today, 1));
+    h += `<section class="td-card gd-bed" id="gdBed"><h3>Bedtime<button data-gbed>Change</button></h3>`
+      + (b.none ? `<div class="hint">Nothing timed tomorrow. Sleep in, or set a trading session to wake for in Change.</div>`
+        : `<div><b>${gdBedText(b)}</b><div class="hint">${esc(gdBedSub(b))}</div>${b.asleep < 0 && 1440 + b.asleep <= nowMin ? `<div class="hint">That time has passed. Going to bed now still gives you ${fmtDur(Math.max(0, 1440 + b.wake - nowMin))} of sleep.</div>` : ''}</div>`)
+      + '</section>';
+  }
+  return h;
+}
+function guardPlanLine() {
+  let el = $('#planBed');
+  if (!el) { el = document.createElement('div'); el.id = 'planBed'; $('#planGlance').insertAdjacentElement('afterend', el); }
+  const t = todayKey(), b = gdBed(addDays(planDay || t, 1)), lbl = (planDay || t) === t ? 'Tonight' : `The night of ${longDate(planDay)}`;
+  el.innerHTML = b.none ? `<b>${lbl}:</b> nothing timed the next morning. <button type="button" data-gbed>Change</button>` : `<b>${lbl}:</b> ${esc(gdBedText(b))} <span class="hint">(first up: ${esc(b.first.what)} ${fmtTime(fromMin(b.first.s))})</span> <button type="button" data-gbed>Change</button>`;
+}
+function guardSheet() {
+  const iss = guardIssues(), best = gdBest(), t = todayKey();
+  let h = '';
+  if (!iss.length) h += '<div class="empty-s">No clashes today or in the next 7 days. Nothing overlaps, and no shift runs into a killzone or a news pause.</div>';
+  else {
+    const red = iss.filter((x) => x.sev === 'red').length;
+    h += `<div class="hint">${red ? `${red} double-booked (red), ` : ''}${iss.length - red} trading clash${iss.length - red === 1 ? '' : 'es'} (amber). Tap one to open the event.</div>`;
+    let day = '';
+    for (const x of iss) {
+      if (x.k !== day) { day = x.k; h += `<div class="gd-day">${esc(gdName(x.k))}</div>`; }
+      h += `<div class="gd-row ${x.sev}"><button type="button" class="gd-main" data-gev="${esc(x.a.id)}" data-gocc="${x.a.occ}">${esc(x.text)}</button>${x.b ? `<button type="button" class="gd-alt" data-gev="${esc(x.b.id)}" data-gocc="${x.b.occ}">Open ${esc(x.b.title)}</button>` : ''}</div>`;
+    }
+  }
+  h += `<div class="gd-day">Deep work</div>${best ? `<button type="button" class="gd-best" data-gday="${best.k}">Best free block: <b>${esc(gdName(best.k))} ${gdRng(best.a, best.b)}</b> (${fmtDur(best.len)}), outside your trading sessions.</button>` : '<div class="hint">No free block of an hour or more in the next 7 days.</div>'}`;
+  const b = gdBed(addDays(t, 1));
+  h += `<div class="gd-day">Bedtime tonight</div>${b.none ? '<div class="hint">Nothing timed tomorrow.</div>' : `<div><b>${gdBedText(b)}</b><div class="hint">${esc(gdBedSub(b))}</div></div>`}<div style="margin-top:6px"><button type="button" class="btn sm" data-gbed>Bedtime settings</button></div>`;
+  $('#gdBody').innerHTML = h;
+}
+function openGuard() { guardSheet(); const d = $('#gdDlg'); if (!d.open) d.showModal(); }
+function openBedSettings() {
+  const c = gdCfg(); $('#gbBuf').value = c.buffer; $('#gbSleep').value = c.sleep; $('#gbTrade').value = c.trade;
+  if (!$('#gbDlg').open) $('#gbDlg').showModal();
+}
+function saveBed() {
+  const buf = $('#gbBuf').value, sl = $('#gbSleep').value;
+  if (buf === '' || sl === '' || !Number.isFinite(+buf) || !Number.isFinite(+sl)) return;
+  const v = { buffer: Math.min(240, Math.max(0, Math.round(+buf))), sleep: Math.min(12, Math.max(4, +sl)), trade: $('#gbTrade').value }, c = gdCfg();
+  if (v.buffer === c.buffer && v.sleep === c.sleep && v.trade === c.trade) return;
+  commit(() => { upsert(S.guard, 'bed', () => ({ id: 'bed' }), v); });
+  render(); if ($('#planDlg').open) guardPlanLine(); if ($('#gdDlg').open) guardSheet();
+}
+$('#gbDlg').addEventListener('change', saveBed);
+$('#gbDlg').addEventListener('close', () => { saveBed(); if ($('#planDlg').open) guardPlanLine(); });
+document.addEventListener('click', (e) => {
+  const g = e.target.closest('[data-gopen],[data-gbed],[data-gday],[data-gev],#guardBtn'); if (!g) return;
+  if (g.matches('[data-gev]')) { const id = g.dataset.gev, occ = g.dataset.gocc; $('#gdDlg').close(); openEvent(id, occ); return; }
+  if (g.matches('[data-gday]')) { const k = g.dataset.gday; if ($('#gdDlg').open) $('#gdDlg').close(); openDay(k); return; }
+  if (g.matches('[data-gbed]')) { openBedSettings(); return; }
+  openGuard();
+});
+(function gdButton() {
+  const sb = $('#shiftBtn'); if (!sb) return;
+  sb.insertAdjacentHTML('afterend', '<button class="btn" id="guardBtn" title="Check my week for clashes"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg><span class="newlabel">Check week</span></button>');
+})();
+// ===== GUARD END =====
 
 // ===== LEAD2 BEGIN: goals and money =====
 const moneyOpen = new Set();
@@ -4542,7 +5017,7 @@ setInterval(() => {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync) syncNow(); });
 addEventListener('online', () => { if (sync) syncNow(); });
 $('#helpBtn').onclick = () => $('#helpDlg').showModal();
-const APP_VERSION = '2026-10-28.10';
+const APP_VERSION = '2026-10-29.11';
 if ($('#verNote')) $('#verNote').textContent = 'Planner ' + APP_VERSION;
 if (!HOSTED && 'serviceWorker' in navigator && window.isSecureContext && location.protocol.startsWith('http')) {
   const hadController = !!navigator.serviceWorker.controller;

@@ -1054,6 +1054,11 @@ body.focusing .toast{bottom:76px}
       <div class="row" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button type="button" class="btn sm" data-shp="wk">Weekdays</button><button type="button" class="btn sm" data-shp="we">Weekends</button><button type="button" class="btn sm" data-shp="all">Every day</button><button type="button" class="btn sm" data-shp="none">Clear</button></div></div>
     <div class="frow"><div class="fld"><label for="shFrom">Starting</label><input type="date" id="shFrom"></div><div class="fld"><label for="shFor">For</label><select id="shFor"><option value="1">This week only</option><option value="4">4 weeks</option><option value="8" selected>8 weeks</option><option value="12">12 weeks</option><option value="26">6 months</option><option value="0">No end date</option></select></div></div>
     <div class="hint" id="shSum"></div>
+    <details id="shPasteBox"><summary style="cursor:pointer;font-weight:600;font-size:13px">Paste a schedule</summary>
+      <div class="fld" style="margin-top:8px"><label for="shPaste">One shift per line, like “Fri 10/30 4-10pm” or “Sat 7:00am-3:30pm”. It uses the job selected above.</label><textarea id="shPaste" rows="5" placeholder="Fri 10/30 4-10pm&#10;Sat 10/31 4pm-10pm&#10;Sun 11/1 11am-5pm"></textarea></div>
+      <div class="hint" id="shPasteOut"></div>
+      <button type="button" class="btn" id="shPasteAdd" style="margin-top:6px">Add pasted shifts</button>
+    </details>
     <div class="err" id="shErr" hidden></div>
     <div class="dlg-f"><button type="button" class="btn danger" id="shDel">Delete job</button><span style="flex:1"></span><button type="button" class="btn" data-close>Close</button><button type="button" class="btn primary" id="shAdd">Add shifts</button></div>
   </div>
@@ -2863,6 +2868,67 @@ shDlg.addEventListener('close', () => { try { shSave(shCur()); } catch (err) { /
 document.addEventListener('keydown', (e) => {
   if ((e.key === 's' || e.key === 'S') && !e.metaKey && !e.ctrlKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '') && !document.querySelector('dialog[open]')) { e.preventDefault(); openShifts(); }
 });
+// ---- paste a schedule: one shift per line ("Fri 10/30 4-10pm") ----
+const WD = { sun: 0, mon: 1, tue: 2, tues: 2, wed: 3, thu: 4, thur: 4, thurs: 4, fri: 5, sat: 6 };
+function parseTimeRange(line) {
+  const m = line.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm|a|p)?\s*(?:-|–|—|to|until)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm|a|p)?/i);
+  if (!m) return null;
+  let h1 = +m[1], m1 = +(m[2] || 0), h2 = +m[4], m2 = +(m[5] || 0);
+  const a1 = m[3] && m[3][0].toLowerCase(), a2 = m[6] && m[6][0].toLowerCase();
+  if (h1 > 23 || h2 > 23 || m1 > 59 || m2 > 59) return null;
+  const to24 = (h, a) => (a === 'p' ? (h % 12) + 12 : a === 'a' ? h % 12 : h);
+  if (h1 > 12 || h2 > 12 || m[2] && !a1 && !a2 && h1 >= 13) { /* already 24h */ } else {
+    const e2 = a2 || null; let s1 = a1 || null;
+    if (!s1) s1 = e2 && !(h1 > h2 && e2 === 'p' && h1 !== 12) ? e2 : (h1 >= 7 && h1 <= 11 ? 'a' : 'p');
+    h1 = to24(h1, s1);
+    let t2 = e2 ? to24(h2, e2) : to24(h2, h2 >= 1 && h2 <= 6 ? 'p' : h2 >= 7 && h2 <= 11 ? 'a' : 'p');
+    if (!e2 && t2 * 60 + m2 <= h1 * 60 + m1) t2 = (t2 + 12) % 24;
+    h2 = t2;
+  }
+  const f = (h, mi) => String(h).padStart(2, '0') + ':' + String(mi).padStart(2, '0');
+  const start = f(h1, m1), end = f(h2, m2);
+  return toMin(end) > toMin(start) ? { start, end, rest: line.replace(m[0], ' ') } : null;
+}
+function parseShiftLines(text, today) {
+  const out = [], bad = [];
+  const ty = parse(today).getFullYear();
+  text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).forEach((line) => {
+    const tr = parseTimeRange(line.replace(/\d{4}-\d{2}-\d{2}/g, ' ').replace(/\d{1,2}\/\d{1,2}(?:\/\d{2,4})?/g, ' ')); let date = null;
+    if (tr) {
+      const rest = line;
+      let m = rest.match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (m) date = m[0];
+      else if ((m = rest.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/))) {
+        let y = m[3] ? +m[3] : ty; if (y < 100) y += 2000;
+        date = `${y}-${String(+m[1]).padStart(2, '0')}-${String(+m[2]).padStart(2, '0')}`;
+        if (!m[3] && date < addDays(today, -30)) date = `${y + 1}-${date.slice(5)}`;
+      } else if ((m = rest.toLowerCase().match(/\b(sun|mon|tues?|wed|thu(?:rs?)?|fri|sat)[a-z]*\b/))) {
+        const d = WD[m[1]]; date = addDays(today, (d - parse(today).getDay() + 7) % 7);
+      }
+      if (date && Number.isNaN(parse(date).getTime())) date = null;
+    }
+    if (tr && date) out.push({ date, start: tr.start, end: tr.end }); else bad.push(line);
+  });
+  return { shifts: out, bad };
+}
+function shPasteAdd() {
+  const j = shCur(); if (!j) return;
+  const { shifts, bad } = parseShiftLines($('#shPaste').value, todayKey());
+  if (!shifts.length) { $('#shPasteOut').textContent = 'I could not find a date and time in any line. Try “Fri 10/30 4-10pm”.'; return; }
+  snapshot(); shSave(j);
+  let made = 0;
+  commit(() => {
+    shifts.forEach((x) => {
+      if (S.events.some((e) => e.cat === j.id && e.date === x.date && e.start === x.start && e.end === x.end && e.repeat === 'none')) return;
+      S.events.push({ id: uid(), title: j.name, cat: j.id, date: x.date, allDay: false, start: x.start, end: x.end, endDate: '', repeat: 'none', until: '', notes: '', proj: '', ex: [], created: Date.now() });
+      made++;
+    });
+  });
+  S.hidden = S.hidden.filter((h) => h !== j.id); save(); render(); shSum();
+  $('#shPasteOut').textContent = `Added ${made} shift${made === 1 ? '' : 's'}${shifts.length - made ? `, ${shifts.length - made} already there` : ''}.${bad.length ? ` Skipped ${bad.length} line${bad.length === 1 ? '' : 's'} I could not read: ${bad.slice(0, 3).join(' | ')}` : ''}`;
+  if (made) { $('#shPaste').value = ''; toast(`Added ${made} shift${made === 1 ? '' : 's'} for ${j.name}`, true); }
+}
+$('#shPasteAdd').onclick = shPasteAdd;
 // ===== SHIFTS END =====
 
 // ===== LEAD2 BEGIN: goals and money =====

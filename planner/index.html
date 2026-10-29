@@ -1105,7 +1105,7 @@ body.focusing .toast{bottom:76px}
     <h4>Markets</h4>
     <ul><li>Market layers on the calendar: high, medium and low USD releases, Fed speakers, mega-cap earnings and session shading. Turn them on or off in <b>Market on the calendar</b>.</li><li><b>News</b> lists releases with forecast and previous, and headlines tagged risk-on or risk-off. Tap Refresh for the newest data your dashboard has published.</li><li>All market times are converted from New York time to your phone's time zone.</li><li>If a banner says the data is old, your bot PC has not published recently. Check the bots and ForexFactory directly.</li></ul>
     <h4>Discipline and money</h4>
-    <ul><li><b>Rules</b>: your pre-trade checklist, run once per trading day. <b>Trades</b>: notes and tags on each live or paper trade, plus a payout planner.</li><li><b>Review</b>: your week at a glance. <b>Journal</b>: note, mood and whether you followed your rules.</li><li><b>Projects</b> holds Goals and the Money log. <b>Health</b> holds sleep, workouts and trends.</li><li><b>Week balance</b> (card on Today): hours planned per event type against weekly targets you set, with free hours left after 8 h of sleep a day. <b>Earnings</b> (card on Today): estimated pay this week and month from shifts (hours x hourly rate), live and paper trading, and the money log, with a monthly income goal and what you need per week. Both are before tax.</li></ul>
+    <ul><li><b>Rules</b>: your pre-trade checklist, run once per trading day. <b>Trades</b>: notes and tags on each live or paper trade, plus a payout planner.</li><li><b>Review</b>: your week at a glance. <b>Journal</b>: note, mood and whether you followed your rules.</li><li><b>Projects</b> holds Goals and the Money log. <b>Health</b> holds sleep, workouts and trends.</li><li><b>Week balance</b> (card on Today): hours planned per event type against weekly targets you set, with free hours left after 8 h of sleep a day. <b>Earnings</b> (card on Today): estimated pay this week and month from shifts (hours x hourly rate), live and paper trading, and the money log, with a monthly income goal and what you need per week. Both are before tax.</li><li><b>Check my week</b> (shield button, or the banner on Today) lists clashes for today and the next 7 days: events that overlap (red) and work shifts that run into a New York killzone or a high-impact news pause (amber). Tap one to open the event.</li><li><b>When can I trade today?</b> on Today shows the free parts of each killzone after shifts, events and news pauses, plus the best free block of the week for deep work.</li><li><b>Bedtime</b> (evening on Today, and a line in Plan day) takes tomorrow's first event, shift or marked trading session, subtracts your get-ready minutes and sleep hours, and says when to be asleep. Change the numbers with the Change button.</li></ul>
     <h4>Shortcuts and Back Tap</h4>
     <p>In the iPhone Shortcuts app, add an <b>Open URL</b> action with this app's address plus one of these endings, then set Back Tap (Settings, Accessibility, Touch) to run it:</p>
     <ul><li><code>#today</code> <code>#plan</code> <code>#plan-week</code> <code>#new-event</code> <code>#new-task</code> <code>#shifts</code> <code>#week-balance</code> <code>#earnings</code></li><li><code>#log-workout</code> <code>#health</code> <code>#projects</code> <code>#week</code> <code>#agenda</code></li></ul>
@@ -1180,7 +1180,7 @@ const shade = (hex, f) => { const [r, g, b] = rgb(hex); return `rgb(${Math.round
 const cvars = (hex) => `--c:${hex};--bg-c:${tint(hex, .13)};--fg:${shade(hex, .42)}`;
 
 // ---------- state ----------
-const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal']; // collections added by the Rules and Trades features
+const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard']; // collections added by the Rules and Trades features
 let S = load();
 let cursor = todayKey(), selected = cursor, miniMonth = cursor.slice(0, 7);
 let query = '', agendaDays = 30, undoSnap = null, editing = null, lastScrollView = null;
@@ -2461,6 +2461,7 @@ function openPlan() {
   $('#planGaps').innerHTML = gaps.length ? gaps.map((g) => `<span class="t-chip">${esc(gapText(g))}</span>`).join('') : '<span class="hint">No free blocks of 30 minutes or more.</span>';
   $('#planAuto').checked = gaps.length > 0; $('#planAuto').disabled = !gaps.length;
   $('#planNote').textContent = '';
+  guardPlanLine(); // GUARD hook: bedtime line
   planDlg.showModal();
 }
 function paintPick() {
@@ -2696,6 +2697,7 @@ function renderToday() {
     <div class="td-h"><div><h2>${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}</h2><div class="sub">${own.length} event${own.length === 1 ? '' : 's'}, ${tks.length} task${tks.length === 1 ? '' : 's'} to do${doneToday ? `, ${doneToday} done` : ''}</div></div><div style="display:flex;gap:6px"><button class="btn sm" data-tweek>Plan week</button><button class="btn sm ${planned ? '' : 'primary'}" data-tplan>${planned ? 'Re-plan' : 'Plan day'}</button></div></div>
     ${risk.filter((r) => r.level !== 'info').length ? `<div class="nw-warn" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">${risk.filter((r) => r.level !== 'info').map((r) => esc(r.text)).join(' · ')}</div>` : ''}
     ${risk.filter((r) => r.level === 'info').map((r) => `<div class="nw-warn">${esc(r.text)}</div>`).join('')}
+    ${guardTodayCard()}
     <section class="td-card"><h3>Schedule<button data-tgo="day">Day view</button></h3>${own.length ? own.map(evRow).join('') : '<div class="empty-s">Nothing scheduled. Tap Plan day to block time for your tasks.</div>'}${pauses.length ? `<div class="hint" style="margin-top:4px">Bot pauses: ${pauses.filter((o) => /bot paused/.test(o.ev.title)).map((o) => `${fmtTime(o.ev.start)} to ${fmtTime(o.ev.end)}`).join(', ') || 'none today'}</div>` : ''}</section>
     ${ups.length ? `<section class="td-card"><h3>Market news next<button data-tgo="news">All news</button></h3>${ups.map((e) => { const m = Math.round((e.ms - Date.now()) / 60000); return `<div class="nw-row ${e.impact === 'high' ? 'high' : 'med'}" style="grid-template-columns:62px 10px minmax(0,1fr) auto"><span class="nw-t">${fmtTime(e.lt)}</span><span class="nw-i"></span><div class="nw-b"><b>${esc(e.title)}</b>${e.fc || e.prev ? `<small>${e.fc ? 'Forecast ' + esc(e.fc) : ''}${e.fc && e.prev ? ' · ' : ''}${e.prev ? 'Previous ' + esc(e.prev) : ''}</small>` : ''}</div><span class="nw-c">${m < 90 ? `in ${Math.max(m, 1)} min` : `in ${fmtDur(m)}`}</span></div>`; }).join('')}</section>` : ''}
     <section class="td-card"><h3>Tasks<button data-tgo="projects">All tasks</button></h3>${tks.length ? `<ul class="tasks">${tks.slice(0, 10).map((t) => taskLi(t, { overdue: t.date < today })).join('')}</ul>${tks.length > 10 ? `<div class="sub">+${tks.length - 10} more</div>` : ''}` : '<div class="empty-s">Nothing due. Add one below.</div>'}
@@ -3125,6 +3127,218 @@ function earnTodayCard() {
 }
 $('#main').addEventListener('click', (e) => { if (S.view === 'today' && e.target.closest('[data-eropen]')) openEarn(); });
 // ===== EARN END =====
+// ===== GUARD BEGIN: conflict guard, trading windows, bedtime planner (settings in the synced collection `guard`) =====
+// Works only from what is already on the calendar: your own timed events (shifts have a cat starting with 'job-'),
+// the NY killzones from sessList() converted to local time, and the bots' high-impact news pauses. All-day events are ignored.
+// Its own styles and dialogs are added by this block so the rest of the file stays untouched; the only hooks elsewhere are
+// guardTodayCard() in renderToday, guardPlanLine() in openPlan and the 'guard' name in XSYNC.
+const GD_NY = ['NY AM', 'NY PM'];
+(function gdStyle() {
+  const st = document.createElement('style');
+  st.textContent = `.gd-ban{display:block;width:100%;text-align:left;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12.5px;background:#fff;color:var(--ink);cursor:pointer}
+.gd-ban b{display:block;font-size:13px}.gd-ban small{display:block;margin-top:2px;font-size:12px;overflow-wrap:anywhere}
+.gd-ban.red{background:#fef2f2;border-color:#fecaca;color:#991b1b}.gd-ban.amber{background:#fffaf0;border-color:#f3d9a4;color:#92400e}.gd-ban.ok{color:var(--mute)}
+.gd-chips{display:flex;flex-wrap:wrap;gap:6px}
+.gd-chip{font-size:12.5px;font-weight:500;padding:5px 10px;border-radius:16px;border:1px solid var(--line);color:var(--ink2);background:#fff;line-height:1.3}
+.gd-chip.free{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}.gd-chip.blk{background:#fef2f2;border-color:#fecaca;color:#991b1b}.gd-chip.part{background:#fffaf0;border-color:#f3d9a4;color:#92400e}.gd-chip.done{color:var(--mute)}
+.gd-best{display:block;width:100%;text-align:left;font-size:12.5px;color:var(--ink2);padding:2px 0}
+.gd-bed b{font-size:15px;display:block}.gd-bed .hint{margin-top:2px}
+.gd-row{display:flex;gap:8px;align-items:stretch;border-left:3px solid #f59e0b;background:var(--soft);border-radius:8px;padding:8px 10px;margin-bottom:6px}
+.gd-row.red{border-left-color:#dc2626;background:#fef2f2}
+.gd-row .gd-main{flex:1;min-width:0;text-align:left;font-size:13px;line-height:1.35;overflow-wrap:anywhere;color:var(--ink)}
+.gd-row .gd-alt{flex:none;align-self:center;font-size:12px;color:var(--mute);text-decoration:underline;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gd-day{font-size:12px;font-weight:600;color:var(--mute);margin:10px 0 6px}
+#planBed{border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:12.5px}#planBed button{text-decoration:underline;color:var(--mute);font-size:12px;margin-left:4px}
+#guardBtn{order:2}@media (max-width:640px){#guardBtn{width:36px;padding:0;justify-content:center}}
+.gd-dlg input,.gd-dlg select{font-size:16px}`;
+  document.head.appendChild(st);
+  document.body.insertAdjacentHTML('beforeend', `<dialog id="gdDlg" aria-labelledby="gdTitle"><div class="dlg gd-dlg">
+    <div class="dlg-h"><h3 id="gdTitle">Check my week</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div id="gdBody"></div>
+    <div class="dlg-f"><div></div><div><button type="button" class="btn" data-close>Close</button></div></div></div></dialog>
+  <dialog id="gbDlg" aria-labelledby="gbTitle"><div class="dlg gd-dlg">
+    <div class="dlg-h"><h3 id="gbTitle">Bedtime settings</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="frow"><div class="fld"><label for="gbBuf">Minutes to get ready and travel</label><input type="number" id="gbBuf" min="0" max="240" step="5" inputmode="numeric"></div><div class="fld"><label for="gbSleep">Hours of sleep</label><input type="number" id="gbSleep" min="4" max="12" step="0.5" inputmode="decimal"></div></div>
+    <div class="fld"><label for="gbTrade">Also wake for a trading session</label><select id="gbTrade"><option value="none">No, only events and shifts</option><option value="ldn">London session (ATLAS)</option><option value="am">NY AM killzone</option></select></div>
+    <div class="hint">Bedtime = first thing tomorrow, minus the minutes above, minus the sleep hours.</div>
+    <div class="dlg-f"><div></div><div><button type="button" class="btn primary" data-close>Done</button></div></div></div></dialog>`);
+})();
+
+// Killzone windows of local day k as minutes, for the named sessions (weekdays in New York only).
+function gdSessions(k, names) {
+  const out = [];
+  for (const off of [-1, 0, 1]) {
+    const ek = addDays(k, off), wd = dow(ek); if (wd === 0 || wd === 6) continue;
+    for (const [name, a, b] of sessList()) {
+      if (!names.includes(name)) continue;
+      const A = etToLocal(ek, a), B = etToLocal(ek, b);
+      const s = A.date < k ? 0 : A.date > k ? null : toMin(A.hm), e = B.date < k ? null : B.date > k ? 1440 : toMin(B.hm);
+      if (s == null || e == null || e <= s) continue;
+      out.push({ name, s, e, cont: A.date < k });
+    }
+  }
+  return out.sort((x, y) => x.s - y.s);
+}
+// Your own timed events of day k (never all-day, never the bots' events).
+function gdOwn(k) {
+  return eventsOn(k, true).filter((o) => !o.ev.allDay && !o.ev.bot && !o.ev.milestone && !o.cont && HM.test(o.ev.start || '')).map((o) => {
+    const e = o.ev, s = toMin(e.start); let en = HM.test(e.end || '') ? toMin(e.end) : Math.min(s + 60, 1439); if (en <= s) en = 1440;
+    return { ev: e, occ: o.occ, s, e: en, shift: /^job-/.test(e.cat || '') };
+  }).sort((a, b) => a.s - b.s || a.e - b.e);
+}
+// High-impact release windows (the bot's pause when it hits a killzone, else the 30 minute release).
+function gdNews(k) {
+  return extraEvents.filter((e) => e.bot && e.layer === 'high' && e.date === k && !e.allDay && HM.test(e.start || '')).map((e) => ({ s: toMin(e.start), e: HM.test(e.end || '') && e.end > e.start ? toMin(e.end) : toMin(e.start) + 30, title: String(e.title).replace(' · bot paused', ''), paused: /bot paused/.test(e.title) }));
+}
+const gdT = (m) => (m >= 1440 ? 'midnight' : fmtTime(fromMin(m)));
+const gdRng = (s, e) => `${gdT(s)}–${gdT(e)}`;
+const gdLbl = (x) => `${x.ev.title} ${gdRng(x.s, x.e)}`;
+const gdName = (k) => { const t = todayKey(); return k === t ? 'Today' : k === addDays(t, 1) ? 'Tomorrow' : longDate(k); };
+const gdHow = (x, w) => (x.s >= w.s ? (x.e <= w.e ? 'runs during' : 'starts during') : x.e <= w.e ? 'ends during' : 'covers');
+
+// (a) overlapping events, (b) shifts that overlap a NY killzone or a high-impact news window. Today and the next 7 days.
+function guardIssues(days = 8) {
+  const today = todayKey(), n = new Date(), nowMin = n.getHours() * 60 + n.getMinutes(), out = [];
+  for (let i = 0; i < days; i++) {
+    const k = addDays(today, i);
+    const own = gdOwn(k).filter((x) => i > 0 || x.e > nowMin);
+    for (let a = 0; a < own.length; a++) for (let b = a + 1; b < own.length; b++) {
+      const x = own[a], y = own[b];
+      if (x.s < y.e && y.s < x.e) out.push({ k, sev: 'red', s: Math.max(x.s, y.s), text: `${gdLbl(x)} overlaps ${gdLbl(y)}`, a: { id: x.ev.id, occ: x.occ }, b: { id: y.ev.id, occ: y.occ, title: y.ev.title } });
+    }
+    const sess = gdSessions(k, GD_NY), news = gdNews(k).filter((w) => i > 0 || w.e > nowMin);
+    for (const x of own) {
+      if (!x.shift) continue;
+      for (const w of sess) if (x.s < w.e && w.s < x.e) out.push({ k, sev: 'amber', s: x.s, text: `${gdLbl(x)} ${gdHow(x, w)} ${w.name} session (${gdRng(w.s, w.e)})`, a: { id: x.ev.id, occ: x.occ } });
+      for (const w of news) if (x.s < w.e && w.s < x.e) out.push({ k, sev: 'amber', s: x.s, text: `${gdLbl(x)} ${gdHow(x, w)} the ${w.title} ${w.paused ? 'bot pause' : 'news release'} (${gdRng(w.s, w.e)})`, a: { id: x.ev.id, occ: x.occ } });
+    }
+  }
+  const rank = { red: 0, amber: 1 };
+  return out.sort((p, q) => p.k.localeCompare(q.k) || rank[p.sev] - rank[q.sev] || p.s - q.s);
+}
+
+// 2. When can I trade today? Each NY killzone minus shifts, events and bot news pauses.
+function gdWindows(k, nowMin) {
+  const sess = gdSessions(k, GD_NY);
+  if (!sess.length) return { closed: true, items: [], free: 0 };
+  const blk = gdOwn(k).map((x) => ({ s: x.s, e: x.e, why: x.shift ? (/shift/i.test(x.ev.title) ? x.ev.title : x.ev.title + ' shift') : x.ev.title }))
+    .concat(gdNews(k).filter((w) => w.paused).map((w) => ({ s: w.s, e: w.e, why: 'the news pause' })));
+  let total = 0;
+  const items = sess.map((w) => {
+    if (nowMin != null && nowMin >= w.e) return { name: w.name, kind: 'done' };
+    const lo = nowMin != null ? Math.max(w.s, Math.ceil(nowMin / 5) * 5) : w.s;
+    const hit = blk.filter((b) => b.s < w.e && b.e > lo).sort((a, b) => a.s - b.s), free = [];
+    let cur = lo;
+    for (const b of hit) { if (b.s - cur >= 15) free.push([cur, b.s]); cur = Math.max(cur, b.e); }
+    if (w.e - cur >= 15) free.push([cur, w.e]);
+    free.forEach(([a, b]) => { total += b - a; });
+    return { name: w.name, kind: free.length ? 'free' : 'blocked', free, why: [...new Set(hit.map((b) => b.why))], partial: !!(free.length && hit.length) };
+  });
+  return { closed: false, items, free: total };
+}
+// The longest block of free time in the next 7 days outside the killzones (capped at 4 hours; deep work).
+function gdBest() {
+  const today = todayKey(); let best = null;
+  for (let i = 0; i < 7; i++) {
+    const k = addDays(today, i), kz = gdSessions(k, GD_NY).map((w) => [w.s, w.e]);
+    for (const [a, b] of freeGaps(k, 7 * 60, 21 * 60, 60, kz)) { const len = Math.min(b - a, 240); if (!best || len > best.len) best = { k, a, b: a + len, len }; }
+  }
+  return best;
+}
+
+// 3. Bedtime planner (settings in the synced collection `guard`, item id 'bed').
+function gdCfg() {
+  const c = S.guard.find((x) => x.id === 'bed') || {}, num = (v, lo, hi, d) => (v != null && v !== '' && Number.isFinite(+v) ? Math.min(hi, Math.max(lo, +v)) : d);
+  return { buffer: num(c.buffer, 0, 240, 45), sleep: num(c.sleep, 4, 12, 8), trade: ['none', 'ldn', 'am'].includes(c.trade) ? c.trade : 'none' };
+}
+function gdBed(k) {
+  const cfg = gdCfg(), c = gdOwn(k).map((x) => ({ s: x.s, what: x.ev.title }));
+  if (cfg.trade !== 'none') { const w = gdSessions(k, [cfg.trade === 'am' ? 'NY AM' : 'London']).find((x) => !x.cont); if (w) c.push({ s: w.s, what: `${w.name} session` }); }
+  c.sort((a, b) => a.s - b.s);
+  if (!c.length) return { cfg, none: true };
+  const wake = c[0].s - cfg.buffer, asleep = wake - Math.round(cfg.sleep * 60);
+  return { cfg, first: c[0], wake, asleep };
+}
+const gdAp = (m) => { const t = ((m % 1440) + 1440) % 1440, h = Math.floor(t / 60); return `${h % 12 || 12}:${pad(t % 60)} ${h < 12 ? 'AM' : 'PM'}`; };
+function gdBedText(b) { return `Be asleep by ${gdAp(b.asleep)}, wake ${gdAp(b.wake)}`; }
+const gdBedSub = (b) => `First up: ${b.first.what} at ${fmtTime(fromMin(b.first.s))}. ${b.cfg.buffer} min to get ready, ${b.cfg.sleep} h of sleep.${b.asleep >= 0 ? ' That is after midnight.' : ''}`;
+
+function guardTodayCard() {
+  const n = new Date(), nowMin = n.getHours() * 60 + n.getMinutes(), today = todayKey();
+  const iss = guardIssues(), red = iss.filter((x) => x.sev === 'red').length, amb = iss.length - red;
+  const first = iss[0];
+  const ban = iss.length
+    ? `<button class="gd-ban ${red ? 'red' : 'amber'}" data-gopen><b>${[red && `${red} double-booked`, amb && `${amb} trading clash${amb === 1 ? '' : 'es'}`].filter(Boolean).join(', ')} in the next 7 days</b><small>${esc(gdName(first.k))}: ${esc(first.text)}${iss.length > 1 ? ` (+${iss.length - 1} more)` : ''}. Tap to check my week.</small></button>`
+    : '<button class="gd-ban ok" data-gopen><b>No clashes in the next 7 days</b><small>Events, shifts, killzones and news pauses all line up. Tap to check my week.</small></button>';
+  const w = gdWindows(today, nowMin), best = gdBest();
+  const chips = w.closed ? '<span class="gd-chip done">US markets are closed today</span>' : w.items.map((it) => {
+    if (it.kind === 'done') return `<span class="gd-chip done">${it.name} is over</span>`;
+    if (it.kind === 'blocked') return `<span class="gd-chip blk">${it.name} blocked by ${esc(it.why.slice(0, 2).join(' and '))}</span>`;
+    return it.free.map(([a, b]) => `<span class="gd-chip free">${it.name} ${gdRng(a, b)} free</span>`).join('') + (it.partial ? `<span class="gd-chip part">${it.name} partly taken by ${esc(it.why.slice(0, 2).join(' and '))}</span>` : '');
+  }).join('');
+  let h = `${ban}<section class="td-card" id="gdTrade"><h3>When can I trade today?<span class="sub">${w.closed ? '' : w.free ? fmtDur(w.free) + ' free' : 'no free time'}</span></h3><div class="gd-chips">${chips}</div>`
+    + (best ? `<button class="gd-best" data-gday="${best.k}">Best deep-work block this week: <b>${esc(gdName(best.k))} ${gdRng(best.a, best.b)}</b> (${fmtDur(best.len)}), outside your trading sessions.</button>` : '<div class="hint">No free block of an hour or more this week outside your trading sessions.</div>')
+    + '</section>';
+  if (n.getHours() >= 17) {
+    const b = gdBed(addDays(today, 1));
+    h += `<section class="td-card gd-bed" id="gdBed"><h3>Bedtime<button data-gbed>Change</button></h3>`
+      + (b.none ? `<div class="hint">Nothing timed tomorrow. Sleep in, or set a trading session to wake for in Change.</div>`
+        : `<div><b>${gdBedText(b)}</b><div class="hint">${esc(gdBedSub(b))}</div>${b.asleep < 0 && 1440 + b.asleep <= nowMin ? `<div class="hint">That time has passed. Going to bed now still gives you ${fmtDur(Math.max(0, 1440 + b.wake - nowMin))} of sleep.</div>` : ''}</div>`)
+      + '</section>';
+  }
+  return h;
+}
+function guardPlanLine() {
+  let el = $('#planBed');
+  if (!el) { el = document.createElement('div'); el.id = 'planBed'; $('#planGlance').insertAdjacentElement('afterend', el); }
+  const t = todayKey(), b = gdBed(addDays(planDay || t, 1)), lbl = (planDay || t) === t ? 'Tonight' : `The night of ${longDate(planDay)}`;
+  el.innerHTML = b.none ? `<b>${lbl}:</b> nothing timed the next morning. <button type="button" data-gbed>Change</button>` : `<b>${lbl}:</b> ${esc(gdBedText(b))} <span class="hint">(first up: ${esc(b.first.what)} ${fmtTime(fromMin(b.first.s))})</span> <button type="button" data-gbed>Change</button>`;
+}
+function guardSheet() {
+  const iss = guardIssues(), best = gdBest(), t = todayKey();
+  let h = '';
+  if (!iss.length) h += '<div class="empty-s">No clashes today or in the next 7 days. Nothing overlaps, and no shift runs into a killzone or a news pause.</div>';
+  else {
+    const red = iss.filter((x) => x.sev === 'red').length;
+    h += `<div class="hint">${red ? `${red} double-booked (red), ` : ''}${iss.length - red} trading clash${iss.length - red === 1 ? '' : 'es'} (amber). Tap one to open the event.</div>`;
+    let day = '';
+    for (const x of iss) {
+      if (x.k !== day) { day = x.k; h += `<div class="gd-day">${esc(gdName(x.k))}</div>`; }
+      h += `<div class="gd-row ${x.sev}"><button type="button" class="gd-main" data-gev="${esc(x.a.id)}" data-gocc="${x.a.occ}">${esc(x.text)}</button>${x.b ? `<button type="button" class="gd-alt" data-gev="${esc(x.b.id)}" data-gocc="${x.b.occ}">Open ${esc(x.b.title)}</button>` : ''}</div>`;
+    }
+  }
+  h += `<div class="gd-day">Deep work</div>${best ? `<button type="button" class="gd-best" data-gday="${best.k}">Best free block: <b>${esc(gdName(best.k))} ${gdRng(best.a, best.b)}</b> (${fmtDur(best.len)}), outside your trading sessions.</button>` : '<div class="hint">No free block of an hour or more in the next 7 days.</div>'}`;
+  const b = gdBed(addDays(t, 1));
+  h += `<div class="gd-day">Bedtime tonight</div>${b.none ? '<div class="hint">Nothing timed tomorrow.</div>' : `<div><b>${gdBedText(b)}</b><div class="hint">${esc(gdBedSub(b))}</div></div>`}<div style="margin-top:6px"><button type="button" class="btn sm" data-gbed>Bedtime settings</button></div>`;
+  $('#gdBody').innerHTML = h;
+}
+function openGuard() { guardSheet(); const d = $('#gdDlg'); if (!d.open) d.showModal(); }
+function openBedSettings() {
+  const c = gdCfg(); $('#gbBuf').value = c.buffer; $('#gbSleep').value = c.sleep; $('#gbTrade').value = c.trade;
+  if (!$('#gbDlg').open) $('#gbDlg').showModal();
+}
+function saveBed() {
+  const buf = $('#gbBuf').value, sl = $('#gbSleep').value;
+  if (buf === '' || sl === '' || !Number.isFinite(+buf) || !Number.isFinite(+sl)) return;
+  const v = { buffer: Math.min(240, Math.max(0, Math.round(+buf))), sleep: Math.min(12, Math.max(4, +sl)), trade: $('#gbTrade').value }, c = gdCfg();
+  if (v.buffer === c.buffer && v.sleep === c.sleep && v.trade === c.trade) return;
+  commit(() => { upsert(S.guard, 'bed', () => ({ id: 'bed' }), v); });
+  render(); if ($('#planDlg').open) guardPlanLine(); if ($('#gdDlg').open) guardSheet();
+}
+$('#gbDlg').addEventListener('change', saveBed);
+$('#gbDlg').addEventListener('close', () => { saveBed(); if ($('#planDlg').open) guardPlanLine(); });
+document.addEventListener('click', (e) => {
+  const g = e.target.closest('[data-gopen],[data-gbed],[data-gday],[data-gev],#guardBtn'); if (!g) return;
+  if (g.matches('[data-gev]')) { const id = g.dataset.gev, occ = g.dataset.gocc; $('#gdDlg').close(); openEvent(id, occ); return; }
+  if (g.matches('[data-gday]')) { const k = g.dataset.gday; if ($('#gdDlg').open) $('#gdDlg').close(); openDay(k); return; }
+  if (g.matches('[data-gbed]')) { openBedSettings(); return; }
+  openGuard();
+});
+(function gdButton() {
+  const sb = $('#shiftBtn'); if (!sb) return;
+  sb.insertAdjacentHTML('afterend', '<button class="btn" id="guardBtn" title="Check my week for clashes"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg><span class="newlabel">Check week</span></button>');
+})();
+// ===== GUARD END =====
 
 // ===== LEAD2 BEGIN: goals and money =====
 const moneyOpen = new Set();

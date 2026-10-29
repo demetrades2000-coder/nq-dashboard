@@ -1054,6 +1054,7 @@ body.focusing .toast{bottom:76px}
       <div class="row" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button type="button" class="btn sm" data-shp="wk">Weekdays</button><button type="button" class="btn sm" data-shp="we">Weekends</button><button type="button" class="btn sm" data-shp="all">Every day</button><button type="button" class="btn sm" data-shp="none">Clear</button></div></div>
     <div class="frow"><div class="fld"><label for="shFrom">Starting</label><input type="date" id="shFrom"></div><div class="fld"><label for="shFor">For</label><select id="shFor"><option value="1">This week only</option><option value="4">4 weeks</option><option value="8" selected>8 weeks</option><option value="12">12 weeks</option><option value="26">6 months</option><option value="0">No end date</option></select></div></div>
     <div class="hint" id="shSum"></div>
+    <div class="fld"><span class="flabel">Log tips or pay for this job</span><div class="frow" style="align-items:flex-end"><div class="fld"><label for="shTip">Amount ($)</label><input id="shTip" inputmode="decimal" autocomplete="off" placeholder="0.00"></div><button type="button" class="btn" id="shTipAdd" style="height:40px">Log it</button></div><div class="hint" id="shTipOut"></div></div>
     <details id="shPasteBox"><summary style="cursor:pointer;font-weight:600;font-size:13px">Paste a schedule</summary>
       <div class="fld" style="margin-top:8px"><label for="shPaste">One shift per line, like “Fri 10/30 4-10pm” or “Sat 7:00am-3:30pm”. It uses the job selected above.</label><textarea id="shPaste" rows="5" placeholder="Fri 10/30 4-10pm&#10;Sat 10/31 4pm-10pm&#10;Sun 11/1 11am-5pm"></textarea></div>
       <div class="hint" id="shPasteOut"></div>
@@ -2802,7 +2803,7 @@ function shLoad() {
   const j = shCur(); if (!j) return;
   $('#shName').value = j.name; $('#shColor').value = j.color; $('#shStart').value = j.start; $('#shEnd').value = j.end; $('#shRate').value = j.rate || '';
   shDays = [...(j.days || [])];
-  shPaint();
+  shPaint(); shTipPaint();
 }
 function openShifts() {
   if (!S.jobs.length) commit(() => { S.jobs = defaultJobs(); });
@@ -2929,6 +2930,24 @@ function shPasteAdd() {
   if (made) { $('#shPaste').value = ''; toast(`Added ${made} shift${made === 1 ? '' : 's'} for ${j.name}`, true); }
 }
 $('#shPasteAdd').onclick = shPasteAdd;
+// ---- tips: one tap to log money in for the job, and a look at the last 30 days ----
+function shTipStats(j) {
+  const since = addDays(todayKey(), -30), tag = `${j.name} tips`;
+  const tips = S.money.filter((m) => m.kind === 'in' && m.date >= since && (m.note || '').startsWith(tag)).reduce((a, m) => a + m.amt, 0);
+  let h = 0; for (let i = -30; i <= 0; i++) eventsOn(addDays(todayKey(), i), true).forEach((o) => { if (o.ev.cat === j.id && !o.cont && !o.ev.allDay) h += hrsOf(o.ev.start, o.ev.end); });
+  return { tips, h };
+}
+function shTipPaint() {
+  const j = shCur(); if (!j) { $('#shTipOut').textContent = ''; return; }
+  const { tips, h } = shTipStats(j);
+  $('#shTipOut').textContent = tips ? `Last 30 days: $${Math.round(tips).toLocaleString('en-US')} in tips over ${fmtHrs(h)} h${h ? ` (about $${(tips / h).toFixed(2)} an hour)` : ''}.` : 'Nothing logged in the last 30 days.';
+}
+$('#shTipAdd').onclick = () => {
+  const j = shCur(), amt = Math.round((parseFloat($('#shTip').value) || 0) * 100) / 100; if (!j) return;
+  if (!(amt > 0)) { $('#shTipOut').textContent = 'Enter an amount above zero.'; return; }
+  snapshot(); commit(() => { S.money.push({ id: uid(), created: Date.now(), kind: 'in', amt, date: todayKey(), note: `${j.name} tips`, proj: '' }); });
+  $('#shTip').value = ''; shTipPaint(); toast(`Logged $${amt.toFixed(2)} for ${j.name}`, true);
+};
 // ===== SHIFTS END =====
 
 // ===== LEAD2 BEGIN: goals and money =====

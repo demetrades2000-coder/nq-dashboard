@@ -127,6 +127,8 @@ Fields:
 - **Risk alerts:** room above the loss floor under 25% (red) or 45% (amber), daily loss limit over 70% used, bot not running or a bot issue. They show in the Trading card and the Now bar, and say so when the dashboard data is stale.
 - **Deep links** for the iOS Shortcuts app and Back Tap: `#today`, `#plan`, `#new-event`, `#new-task`, `#week`, `#day`, `#agenda`, `#projects`.
 - **Work shifts:** the Shifts button (or `S`, or `#shifts`) adds weekly shifts for Outback, Electric or any job you add: pick the job, tap the days, choose how many weeks. It shows hours and pay per week from your hourly rate, and each job gets its own calendar color.
+- **Paste a schedule:** in Shifts, paste lines like `Fri 10/30 4-10pm` and they become shifts for the selected job. Lines it can't read are listed, not guessed.
+- **Tips:** Shifts has a one-tap tip log (it goes into Money) and shows tips and tips per hour for the last 30 days.
 - **Backup:** Back up opens the share sheet so you can save the file to iCloud Drive. The app reminds you if it's been 14 days.
 
 Tests: `node planner/tests/<name>.test.js` (Playwright). `lead`, `money`, `swipe` and `now` need the app served next to `data.json` (see the header of each).

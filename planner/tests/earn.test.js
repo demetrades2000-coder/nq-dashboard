@@ -51,8 +51,8 @@ const URL = 'http://127.0.0.1:' + (process.env.PORT || 8777) + '/nq-dashboard/pl
   ok(/goal/.test(await p.textContent('#erProg')) && /\$2,000/.test(await p.textContent('#erProg')), 'progress line');
   await p.screenshot({ path: '/tmp/earn.png' });
   const w = await p.evaluate(() => document.documentElement.scrollWidth); ok(w <= 390, 'no sideways scroll ' + w);
-  await p.click('#erDlg [data-close]'); ok(!(await p.isVisible('#erDlg')), 'closes');
-  ok(/%/.test(await p.textContent('#erCard')), 'card shows % of goal after closing');
+  await p.click('#erDlg [data-close]'); ok(!(await p.isVisible('#erDlg')), 'closes'); await wait(600);
+  ok(/%/.test(await p.textContent('#erCard')), 'card shows % of goal after closing: ' + (await p.textContent('#erCard')).replace(/\s+/g,' '));
   // a goal already met
   await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('planner.v1')); s.incomegoal = [{ id: 'month', amt: 50, u: Date.now() }]; localStorage.setItem('planner.v1', JSON.stringify(s)); });
   await p.reload(); await wait(1500); await p.click('#erCard [data-eropen]');

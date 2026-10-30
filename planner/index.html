@@ -1180,7 +1180,7 @@ const shade = (hex, f) => { const [r, g, b] = rgb(hex); return `rgb(${Math.round
 const cvars = (hex) => `--c:${hex};--bg-c:${tint(hex, .13)};--fg:${shade(hex, .42)}`;
 
 // ---------- state ----------
-const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan']; // collections added by the Rules and Trades features
+const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan', 'timelog', 'deals', 'waiting']; // collections added by the Rules and Trades features
 let S = load();
 let cursor = todayKey(), selected = cursor, miniMonth = cursor.slice(0, 7);
 let query = '', agendaDays = 30, undoSnap = null, editing = null, lastScrollView = null;
@@ -1670,6 +1670,7 @@ function buildBotEvents() {
     out.push({ id: 'ms:' + p.id, title: `${p.name}: ${p.milestone}`, cat: typeToCat('deadline'), color: p.color, date: p.due, allDay: true, start: '', end: '', endDate: '', repeat: 'none', until: '', ex: [], notes: p.notes || '', proj: p.id, milestone: true });
   }
   out.push(...billEvents(gone)); // BILLS block: recurring bills overlay
+  out.push(...dealFollowEvents()); // PIPELINE: follow-up dates of open deals
   extraEvents = out;
 }
 const projOf = (id) => (id ? S.projects.find((x) => x.id === id) : null);
@@ -2526,6 +2527,7 @@ function renderNow() {
   const planBtn = S.planned !== today ? '<button class="btn sm primary" data-nowplan>Plan day</button>' : `<button class="btn sm" data-nowday>${left} task${left === 1 ? '' : 's'}</button>`;
   bar.className = 'nowbar' + (pause ? ' pause' : ''); bar.innerHTML = `<div class="nb-t">${main}${sub ? `<small>${esc(sub)}</small>` : ''}</div>${planBtn}`; bar.hidden = false;
   nowExtras(bar); // RULES/ALERTS hook
+  tlNowChip(bar); // TIMELOG hook
 }
 $('#nowbar').addEventListener('click', (e) => {
   if (e.target.closest('[data-nowplan]')) { selected = todayKey(); openPlan(); }
@@ -2705,9 +2707,11 @@ function renderToday() {
     ${ups.length ? `<section class="td-card"><h3>Market news next<button data-tgo="news">All news</button></h3>${ups.map((e) => { const m = Math.round((e.ms - Date.now()) / 60000); return `<div class="nw-row ${e.impact === 'high' ? 'high' : 'med'}" style="grid-template-columns:62px 10px minmax(0,1fr) auto"><span class="nw-t">${fmtTime(e.lt)}</span><span class="nw-i"></span><div class="nw-b"><b>${esc(e.title)}</b>${e.fc || e.prev ? `<small>${e.fc ? 'Forecast ' + esc(e.fc) : ''}${e.fc && e.prev ? ' · ' : ''}${e.prev ? 'Previous ' + esc(e.prev) : ''}</small>` : ''}</div><span class="nw-c">${m < 90 ? `in ${Math.max(m, 1)} min` : `in ${fmtDur(m)}`}</span></div>`; }).join('')}</section>` : ''}
     <section class="td-card"><h3>Tasks<button data-tgo="projects">All tasks</button></h3>${tks.length ? `<ul class="tasks">${tks.slice(0, 10).map((t) => taskLi(t, { overdue: t.date < today })).join('')}</ul>${tks.length > 10 ? `<div class="sub">+${tks.length - 10} more</div>` : ''}` : '<div class="empty-s">Nothing due. Add one below.</div>'}
       <form class="add-t" data-tadd><span>+</span><input placeholder="Quick add: call Sam fri 3pm #nq" aria-label="Add a task" autocomplete="off"></form></section>
+    ${tlTodayCard()}
     ${hxTodayCard()}
     ${wbTodayCard()}${earnTodayCard()}
     ${billsTodayCard()}
+    ${plTodayCard()}
     ${habs.length ? `<section class="td-card"><h3>Habits<button data-tgo="habits">All habits</button></h3>${habs.map((h) => { const st = habitStats(h), on = hDone(h, today); return `<div class="td-hab" style="--c:${esc(h.color || '#2563eb')}" data-thab="${esc(h.id)}"><button aria-pressed="${on}" aria-label="${on ? 'Undo' : 'Check in'} ${esc(h.name)}">${on ? ICON_CHECK : ''}</button><span>${esc(h.name)} <small>${st.cur} day streak</small></span></div>`; }).join('')}</section>` : ''}
     ${tr ? `<section class="td-card"><h3>Trading<span style="display:flex;gap:10px;align-items:baseline"><span class="${staleCls}">${staleTxt}</span><button data-refresh>Refresh</button></span></h3>${(tr.accounts || []).map((a) => `<div class="td-acct"><span><b>${esc(a.strategy === 'LIT' ? 'Zlarior' : a.strategy || a.name)}</b> ${esc(String(a.name || '').replace('MFFU ', ''))}</span><span>${usd(a.profit)} of ${usd(a.target)} · ${a.sessions_left != null ? a.sessions_left + ' sessions left' : ''}</span></div>`).join('')}${tr.month ? `<div class="td-acct" style="color:var(--mute)"><span>${MONTHS[+tr.month.month.slice(5) - 1]} so far</span><span><b style="color:var(--ink)">${usd(tr.month.usd)}</b> · ${tr.month.trades} trade${tr.month.trades === 1 ? '' : 's'}</span></div>` : ''}</section>` : ''}
     ${goals.length ? `<section class="td-card"><h3>Goals<button data-tgo="projects">All goals</button></h3>${goals.map((g) => { const v = goalValue(g), t = +g.target || 0, pct = t > 0 ? Math.max(0, Math.min(100, v / t * 100)) : 0; return `<div><div class="td-acct"><span><b>${esc(g.title)}</b></span><span>${gnum(g, v)} of ${gnum(g, t)}</span></div><div class="bar2" style="margin-top:5px"><i style="width:${pct}%;background:var(--ok)"></i></div></div>`; }).join('')}</section>` : ''}
@@ -2769,6 +2773,10 @@ function route() {
   else if (h === 'bills') { goToday(); openBills(); }
   else if (h === 'tilt') { goToday(); openTiltSettings(); }
   else if (h === 'trade-plan') { goToday(); tpMode = 'plan'; renderMain(); }
+  else if (h === 'search' || h === 'palette') { goToday(); openPalette(); }
+  else if (h === 'time-audit') { goToday(); openTimeAudit(); }
+  else if (h === 'timer') { goToday(); openTimeStart(); }
+  else if (h === 'deals') { goToday(); openPipeline(); }
   else if (h === 'new-task') { goToday(); setTimeout(() => $('#taskIn').focus(), 60); }
   else if (views.includes(h)) { goToday(); setView(h); }
 }
@@ -3847,6 +3855,854 @@ document.addEventListener('input', (e) => {
   schedSave('tp' + day + f, () => tpSave(day, { [f]: f === 'max' ? (Math.round(+v) > 0 ? Math.min(20, Math.round(+v)) : null) : v.trim() }));
 });
 // ===== TRADEPLAN END =====
+// ===== PALETTE BEGIN: command palette and universal search (Ctrl/Cmd+K, or the search button in the header) =====
+// One box that finds events, tasks, projects, goals, deals, money, jobs, habits, journal, trade notes and time entries,
+// jumps to dates ("tomorrow", "next friday", "10/5") and runs commands ("new task", "plan day", "shifts") with fuzzy matching.
+// It only calls the openers that already exist. Last 5 choices are remembered on this device (not synced).
+document.head.insertAdjacentHTML('beforeend', `<style>
+#pkDlg{margin:min(10dvh,80px) auto auto;width:min(620px,calc(100vw - 24px))}
+#pkDlg .dlg{padding:14px 14px 10px;gap:10px}
+.pk-in{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:0 4px 0 12px;height:46px}
+.pk-in:focus-within{border-color:var(--ink)}
+.pk-in>svg{color:var(--faint);flex:none}
+.pk-in input{flex:1;min-width:0;border:0;outline:none;background:none;height:100%;font-size:16px}
+.pk-in .ib{width:34px;height:34px;margin:0}
+.pk-list{max-height:min(58dvh,480px);overflow:auto;display:flex;flex-direction:column;gap:2px;margin:0 -6px;padding:0 6px}
+.pk-g{font-size:11.5px;font-weight:600;color:var(--mute);padding:8px 6px 3px;letter-spacing:.02em}
+.pk-r{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:6px 8px;border-radius:9px;text-align:left}
+.pk-r:hover,.pk-r[aria-selected=true]{background:var(--soft2)}
+.pk-r .pk-t{flex:1;min-width:0;display:flex;flex-direction:column}
+.pk-r b{font-weight:500;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pk-r small{font-size:12px;color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pk-r .pk-k{font-size:11px;color:var(--faint);flex:none}
+.pk-dot{width:8px;height:8px;border-radius:50%;background:var(--c,#64748b);flex:none}
+.pk-more{font-size:12.5px;color:var(--mute);padding:6px 8px;text-align:left}
+.pk-none{font-size:13px;color:var(--mute);padding:14px 8px}
+.pk-foot{font-size:11.5px;color:var(--faint);display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap}
+@media (hover:none){.pk-foot .pk-keys{display:none}}
+#pkBtn{order:2}
+@media (max-width:640px){#pkBtn{width:36px;padding:0;justify-content:center}}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="pkDlg" aria-label="Search and commands"><div class="dlg">
+  <div class="pk-in"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    <input id="pkIn" type="text" role="combobox" aria-expanded="true" aria-controls="pkList" aria-autocomplete="list" aria-label="Search or type a command" placeholder="Search or type a command" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go">
+    <button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="pk-list" id="pkList" role="listbox" aria-label="Results"></div>
+  <div class="pk-foot"><span class="pk-keys">Up and down to move, Enter to open, Esc to close</span><span>Try: new task, tomorrow, next friday, earnings</span></div>
+</div></dialog>`);
+const pkDlg = $('#pkDlg'), pkIn = $('#pkIn'), pkList = $('#pkList');
+let pkRows = [], pkSel = 0;
+const pkExpand = new Set();
+const PK_KEY = 'planner.pk.recent';
+const pkRecent = () => { try { const v = JSON.parse(localStorage.getItem(PK_KEY)); return Array.isArray(v) ? v.filter((x) => x && x.t && x.id).slice(0, 5) : []; } catch (e) { return []; } };
+function pkRemember(rec) {
+  if (!rec) return;
+  const list = [{ t: rec.t, id: String(rec.id) }, ...pkRecent().filter((x) => !(x.t === rec.t && x.id === String(rec.id)))].slice(0, 5);
+  try { localStorage.setItem(PK_KEY, JSON.stringify(list)); } catch (e) { /* convenience only */ }
+}
+
+// ---- matching ----
+function pkFz(q, text) { // -1 = no match; higher = better
+  q = q.toLowerCase().trim(); text = String(text || '').toLowerCase();
+  if (!q) return 0;
+  const i = text.indexOf(q);
+  if (i === 0) return 100;
+  if (i > 0) return /[^a-z0-9]/.test(text[i - 1]) ? 85 : 60;
+  const words = q.split(/\s+/);
+  if (words.length > 1 && words.every((w) => text.includes(w))) return 70;
+  const cq = q.replace(/\s+/g, '');
+  if (cq.length < 3) return -1;
+  let ti = 0, first = -1, run = 0, score = 20;
+  for (const ch of cq) {
+    const j = text.indexOf(ch, ti); if (j < 0) return -1;
+    if (first < 0) first = j;
+    if (j === ti && ti > 0) { run++; score += 2 * run; } else run = 0;
+    ti = j + 1;
+  }
+  return ti - first > cq.length * 3 ? -1 : Math.min(55, score);
+}
+function pkRank(tokens, title, hay) { // lower = better, -1 = no match
+  const t = title.toLowerCase(); let r = 0;
+  for (const k of tokens) {
+    const i = t.indexOf(k);
+    if (i === 0 || (i > 0 && /[^a-z0-9]/.test(t[i - 1]))) r += 0;
+    else if (i > 0) r += 1;
+    else if (hay.includes(k)) r += 3;
+    else return -1;
+  }
+  return r;
+}
+function pkSnip(text, tokens) {
+  const s = String(text || '').replace(/\s+/g, ' ').trim(); if (!s) return '';
+  const low = s.toLowerCase(); let at = -1;
+  for (const k of tokens) { const i = low.indexOf(k); if (i >= 0 && (at < 0 || i < at)) at = i; }
+  const a = Math.max(0, (at < 0 ? 0 : at) - 24);
+  return (a > 0 ? '…' : '') + s.slice(a, a + 80) + (s.length > a + 80 ? '…' : '');
+}
+
+// ---- dates ("tomorrow", "next friday", "oct 5", "10/5", "in 3 days") ----
+const PK_WD = /^(?:(next|this|last|on)\s+)?(sun(?:day)?|mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?)$/;
+function pkMk(y, m, d) { const t = new Date(y, m, d); return t.getFullYear() === y && t.getMonth() === m && t.getDate() === d ? key(t) : null; }
+function pkYear(m, d) { const today = todayKey(), y = parse(today).getFullYear(); let k = pkMk(y, m, d); if (k && k < addDays(today, -90)) k = pkMk(y + 1, m, d); return k; }
+function pkDate(raw) {
+  const q = String(raw || '').toLowerCase().replace(/^(?:go to|goto|jump to|open|show)\s+/, '').replace(/[,.]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!q) return null;
+  const today = todayKey(); let m;
+  if (q === 'today' || q === 'tonight') return today;
+  if (q === 'tomorrow' || q === 'tmrw' || q === 'tmr') return addDays(today, 1);
+  if (q === 'yesterday') return addDays(today, -1);
+  if ((m = q.match(PK_WD))) {
+    const w = WDAYS.indexOf(m[2].slice(0, 3)); let delta = (w - dow(today) + 7) % 7;
+    if (m[1] === 'next' && delta === 0) delta = 7;
+    if (m[1] === 'last') delta -= 7;
+    return addDays(today, delta);
+  }
+  if (q === 'next week') return addDays(startOfWeek(today), 7);
+  if (q === 'this week') return startOfWeek(today);
+  if (q === 'last week') return addDays(startOfWeek(today), -7);
+  if (q === 'next month') { const d = parse(today); return key(new Date(d.getFullYear(), d.getMonth() + 1, 1)); }
+  if ((m = q.match(/^in (\d{1,3}) (day|days|week|weeks)$/))) return addDays(today, +m[1] * (m[2][0] === 'w' ? 7 : 1));
+  if ((m = q.match(/^(\d{1,3}) (day|days|week|weeks) ago$/))) return addDays(today, -m[1] * (m[2][0] === 'w' ? 7 : 1));
+  if ((m = q.match(/^(\d{4})-(\d{2})-(\d{2})$/))) return pkMk(+m[1], +m[2] - 1, +m[3]);
+  if ((m = q.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/))) {
+    if (m[3]) { let y = +m[3]; if (y < 100) y += 2000; return pkMk(y, +m[1] - 1, +m[2]); }
+    return pkYear(+m[1] - 1, +m[2]);
+  }
+  let mon = '', day = 0, yr = '';
+  if ((m = q.match(/^([a-z]{3,9}) (\d{1,2})(?:st|nd|rd|th)?(?: (\d{4}))?$/))) { mon = m[1]; day = +m[2]; yr = m[3]; }
+  else if ((m = q.match(/^(\d{1,2})(?:st|nd|rd|th)? ([a-z]{3,9})(?: (\d{4}))?$/))) { mon = m[2]; day = +m[1]; yr = m[3]; }
+  if (mon) {
+    const mi = MONTHS.findIndex((n) => n.toLowerCase().startsWith(mon));
+    if (mi >= 0) return yr ? pkMk(+yr, mi, day) : pkYear(mi, day);
+  }
+  return null;
+}
+function pkWhenWord(k) {
+  const n = diffDays(todayKey(), k);
+  return n === 0 ? 'today' : n === 1 ? 'tomorrow' : n === -1 ? 'yesterday' : n > 0 ? `in ${n} days` : `${-n} days ago`;
+}
+
+// ---- things you can find ----
+function pkNextOcc(e) {
+  if (!e.repeat || e.repeat === 'none') return e.date;
+  const t = todayKey();
+  for (let i = 0; i < 400; i++) { const k = addDays(t, i); if (isStart(e, k)) return k; }
+  return e.until && e.until < t ? e.until : e.date;
+}
+const pkMoney = (m) => (m.kind === 'out' ? '-' : '+') + usdc(+m.amt || 0).replace('-', '');
+const PK_SRC = [
+  { t: 'event', g: 'Events', k: 'Event', all: () => S.events.filter((e) => e && e.title).map((e) => ({ id: e.id, title: e.title, hay: (e.notes || '').toLowerCase(), e })),
+    fin: (it) => { const occ = pkNextOcc(it.e), n = diffDays(todayKey(), occ); it.occ = occ; it.c = colorOf(it.e); it.ord = n >= 0 ? n : 1000 - n; it.sub = `${longDate(occ)}${it.e.allDay ? '' : ' · ' + fmtTime(it.e.start)}${it.e.repeat && it.e.repeat !== 'none' ? ' · repeats' : ''}`; },
+    open: (it) => openEvent(it.id, it.occ) },
+  { t: 'task', g: 'Tasks', k: 'Task', all: () => S.tasks.filter((x) => x && x.title).map((x) => ({ id: x.id, title: x.title, hay: ((x.notes || '') + ' ' + (x.link || '')).toLowerCase(), x })),
+    fin: (it) => { it.ord = it.x.done ? 5000 : it.x.date ? Math.abs(diffDays(todayKey(), it.x.date)) : 3000; it.sub = it.x.done ? 'Done' : it.x.date ? 'Due ' + dueLabel(it.x.date) : 'No due date'; },
+    open: (it) => openTask(it.id) },
+  { t: 'project', g: 'Projects', k: 'Project', all: () => S.projects.map((p) => ({ id: p.id, title: p.name, hay: ((p.milestone || '') + ' ' + (p.notes || '')).toLowerCase(), p })),
+    fin: (it) => { it.c = it.p.color; it.ord = 0; it.sub = [it.p.status, it.p.milestone ? 'Next: ' + it.p.milestone : ''].filter(Boolean).join(' · '); },
+    open: (it) => openProject(it.id) },
+  { t: 'goal', g: 'Goals', k: 'Goal', all: () => S.goals.map((g) => ({ id: g.id, title: g.title, hay: '', g })),
+    fin: (it) => { it.ord = 0; it.sub = `${gnum(it.g, goalValue(it.g))} of ${gnum(it.g, +it.g.target || 0)}`; },
+    open: (it) => openGoal(it.id) },
+  { t: 'deal', g: 'Deals', k: 'Deal', all: () => S.deals.map((d) => ({ id: d.id, title: d.name || 'Deal', hay: ((d.notes || '') + ' ' + (d.kind || '')).toLowerCase(), d })),
+    fin: (it) => { it.ord = 0; it.sub = `${typeof PL_STAGE_NAME !== 'undefined' ? PL_STAGE_NAME[it.d.stage] || it.d.stage : it.d.stage}${+it.d.value ? ' · ' + usd(+it.d.value) : ''}`; },
+    open: (it) => openDeal(it.id) },
+  { t: 'waiting', g: 'Waiting on', k: 'Waiting', all: () => S.waiting.map((w) => ({ id: w.id, title: `${w.who || ''}: ${w.what || ''}`, hay: '', w })),
+    fin: (it) => { it.ord = 0; it.sub = 'Since ' + longDate(it.w.since || todayKey()); },
+    open: () => openPipeline() },
+  { t: 'money', g: 'Money', k: 'Money', all: () => S.money.map((m) => ({ id: m.id, title: m.note || (m.kind === 'out' ? 'Expense' : 'Income'), hay: `${m.amt} ${m.date} ${(projOf(m.proj) || {}).name || ''}`.toLowerCase(), m })),
+    fin: (it) => { it.ord = -parseInt(it.m.date.replace(/-/g, ''), 10); it.sub = `${longDate(it.m.date)} · ${pkMoney(it.m)}`; },
+    open: (it) => openMoney(it.id) },
+  { t: 'job', g: 'Jobs', k: 'Job', all: () => S.jobs.map((j) => ({ id: j.id, title: j.name, hay: '', j })),
+    fin: (it) => { it.c = it.j.color; it.ord = 0; it.sub = `${fmtTime(it.j.start)} to ${fmtTime(it.j.end)}${+it.j.rate ? ' · $' + it.j.rate + '/h' : ''}`; },
+    open: (it) => { shJob = it.id; openShifts(); } },
+  { t: 'habit', g: 'Habits', k: 'Habit', all: () => S.habits.map((h) => ({ id: h.id, title: h.name, hay: '', h })),
+    fin: (it) => { it.c = it.h.color; it.ord = 0; it.sub = 'Habit'; },
+    open: (it) => openHabit(it.id) },
+  { t: 'journal', g: 'Journal', k: 'Journal', all: () => S.journal.filter((j) => j.note).map((j) => ({ id: j.id, title: 'Journal, ' + longDate(j.date), hay: String(j.note).toLowerCase(), j })),
+    fin: (it, tokens) => { it.ord = diffDays(it.j.date, todayKey()); it.sub = pkSnip(it.j.note, tokens); },
+    open: (it) => { jOpen.day = true; openDay(it.j.date); } },
+  { t: 'tnote', g: 'Trade notes', k: 'Trade', all: () => S.tradenotes.filter((n) => n.text || (n.tags || []).length).map((n) => ({ id: n.id, title: 'Trade note, ' + (n.day || n.tk || ''), hay: `${n.text || ''} ${(n.tags || []).join(' ')} ${n.acct || ''}`.toLowerCase(), n })),
+    fin: (it, tokens) => { it.ord = 0; it.sub = (it.n.tags || []).join(', ') || pkSnip(it.n.text, tokens); if (it.n.text && (it.n.tags || []).length) it.sub += ' · ' + pkSnip(it.n.text, tokens); },
+    open: (it) => { if (it.n.tk && nqTrades.some((t) => t.k === it.n.tk)) openTrade(it.n.tk); else setView('trades'); } },
+  { t: 'time', g: 'Time log', k: 'Time', all: () => S.timelog.map((e) => ({ id: e.id, title: e.title || 'Time entry', hay: '', e })),
+    fin: (it) => { it.ord = Math.max(0, Math.round((Date.now() - it.e.start) / 864e5)); it.sub = `${longDate(key(new Date(it.e.start)))} · ${tlDur((it.e.end || Date.now()) - it.e.start)}`; },
+    open: (it) => openTimeEntry(it.id) },
+];
+
+// ---- things you can do ----
+const pkTimer = () => (typeof tlRunning === 'function' ? tlRunning() : null);
+const PK_CMDS = [
+  { id: 'new-event', l: 'New event', k: 'add create event calendar appointment schedule', run: () => newEvent(selected || todayKey()) },
+  { id: 'new-task', l: 'New task', k: 'add create todo task reminder', run: () => { setView('today'); setTimeout(() => { const i = document.querySelector('#main [data-tadd] input') || $('#taskIn'); if (i) i.focus(); }, 60); } },
+  { id: 'plan-day', l: 'Plan day', k: 'plan my day schedule tasks blocks', run: () => { selected = todayKey(); openPlan(); } },
+  { id: 'plan-week', l: 'Plan week', k: 'plan my week', run: () => openPlanWeek() },
+  { id: 'shifts', l: 'Shifts', k: 'work shifts outback electric job schedule hours', run: () => openShifts() },
+  { id: 'earnings', l: 'Earnings', k: 'money income pay make this week month', run: () => openEarn() },
+  { id: 'week-balance', l: 'Week balance', k: 'hours budget free time targets', run: () => openWeekBal() },
+  { id: 'check-week', l: 'Check my week', k: 'conflicts clashes guard bedtime trading windows', run: () => openGuard() },
+  { id: 'timer-start', l: 'Start timer', k: 'time log track working on stopwatch', show: () => !pkTimer(), run: () => openTimeStart() },
+  { id: 'timer-stop', l: 'Stop timer', k: 'time log stop working finish', show: () => !!pkTimer(), run: () => tlStop() },
+  { id: 'time-log', l: 'Log time I forgot', k: 'time log add manual entry', run: () => openTimeLog() },
+  { id: 'time-audit', l: 'Time audit', k: 'time planned vs actual hours sinks week', run: () => openTimeAudit() },
+  { id: 'deals', l: 'Deals', k: 'pipeline leads clients sponsors job opportunities follow up kanban', run: () => openPipeline() },
+  { id: 'new-deal', l: 'New deal', k: 'add lead client sponsor opportunity pipeline', run: () => openDeal(null) },
+  { id: 'waiting', l: 'Waiting on', k: 'waiting for reply people owe me', run: () => openPipeline() },
+  { id: 'new-goal', l: 'New goal', k: 'add goal target', run: () => openGoal(null) },
+  { id: 'new-money', l: 'New money entry', k: 'log money income expense payout fee', run: () => openMoney(null) },
+  { id: 'v-month', l: 'Month view', k: 'calendar month', run: () => setView('month') },
+  { id: 'v-week', l: 'Week view', k: 'calendar week', run: () => setView('week') },
+  { id: 'v-day', l: 'Day view', k: 'calendar day journal', run: () => setView('day') },
+  { id: 'v-agenda', l: 'Agenda', k: 'upcoming list', run: () => setView('agenda') },
+  { id: 'v-projects', l: 'Projects', k: 'projects tasks goals money', run: () => setView('projects') },
+  { id: 'v-habits', l: 'Habits', k: 'habit streaks', run: () => setView('habits') },
+  { id: 'v-health', l: 'Health', k: 'workout sleep weight fitness', run: () => setView('health') },
+  { id: 'v-review', l: 'Weekly review', k: 'review week', run: () => setView('review') },
+  { id: 'v-news', l: 'Market news', k: 'economic calendar events', run: () => setView('news') },
+  { id: 'v-rules', l: 'Pre-trade checklist', k: 'rules checklist', run: () => setView('rules') },
+  { id: 'v-trades', l: 'Trades', k: 'trade notes payout', run: () => setView('trades') },
+  { id: 'help', l: 'Help', k: 'how to guide', run: () => $('#helpDlg').showModal() },
+];
+const PK_DEFAULT = ['new-event', 'new-task', 'plan-day', 'shifts', 'earnings', 'week-balance', 'check-week', 'timer-start', 'deals'];
+const pkCmdRow = (c, why) => ({ g: why || 'Actions', title: c.l, sub: '', kind: '', rec: { t: 'cmd', id: c.id }, run: c.run });
+const pkDateRow = (k) => ({ g: 'Go to date', title: (k === todayKey() ? 'Today' : 'Go to ' + longDate(k)), sub: k === todayKey() ? longDate(k) : pkWhenWord(k), kind: 'Date', rec: { t: 'date', id: k }, run: () => { if (k === todayKey()) { goToday(); setView('today'); } else openDay(k); } });
+function pkItemRow(src, it, tokens) {
+  if (src.fin) src.fin(it, tokens || []);
+  return { g: src.g, title: it.title, sub: it.sub || '', c: it.c, kind: src.k, rec: { t: src.t, id: it.id }, run: () => src.open(it) };
+}
+function pkResolve(rec) { // a remembered choice -> a row, or null when it no longer exists
+  if (rec.t === 'cmd') { const c = PK_CMDS.find((x) => x.id === rec.id); return c && (!c.show || c.show()) ? pkCmdRow(c, 'Recent') : null; }
+  if (rec.t === 'date') { if (!YMD.test(rec.id)) return null; const r = pkDateRow(rec.id); r.g = 'Recent'; return r; }
+  const src = PK_SRC.find((s) => s.t === rec.t); if (!src) return null;
+  const it = src.all().find((x) => String(x.id) === rec.id); if (!it) return null;
+  const r = pkItemRow(src, it); r.g = 'Recent'; return r;
+}
+function pkBuild(raw) {
+  const q = raw.trim().toLowerCase(), rows = [];
+  if (!q) {
+    pkRecent().forEach((rec) => { const r = pkResolve(rec); if (r) rows.push(r); });
+    PK_DEFAULT.map((id) => PK_CMDS.find((c) => c.id === id)).filter((c) => c && (!c.show || c.show())).forEach((c) => rows.push(pkCmdRow(c)));
+    return rows;
+  }
+  // typed shortcuts: "new task buy gloves fri", "event dentist fri 3pm", "start clipper edit", "new deal Acme"
+  const rt = raw.trim(); let m;
+  if ((m = rt.match(/^(?:(?:new|add)\s+)?(?:task|todo)\s+(.+)$/i))) { const txt = m[1]; rows.push({ g: 'Actions', title: `Add task: ${txt}`, sub: 'Dates like "fri" or "tomorrow" in the text set the due date', kind: '', run: () => { addTask(txt, todayKey()); toast('Task added'); } }); }
+  if ((m = rt.match(/^(?:(?:new|add)\s+)?event\s+(.+)$/i))) { const txt = m[1]; rows.push({ g: 'Actions', title: `New event: ${txt}`, sub: 'Opens the editor with the title, day and time filled in', kind: '', run: () => { const w = parseWhen(txt); newEvent(w.date || todayKey(), w.start || undefined); $('#fTitle').value = w.title || txt; } }); }
+  if ((m = rt.match(/^(?:start|timer|track)\s+(.+)$/i))) { const txt = m[1].trim(); rows.push({ g: 'Actions', title: `Start timer: ${txt}`, sub: 'Time log', kind: '', run: () => tlStart({ title: txt }) }); }
+  if ((m = rt.match(/^(?:new|add)\s+(?:deal|lead)\s+(.+)$/i))) { const txt = m[1].trim(); rows.push({ g: 'Actions', title: `New deal: ${txt}`, sub: 'Adds a lead to the pipeline', kind: '', run: () => openDeal(null, txt) }); }
+  const cmds = PK_CMDS.filter((c) => !c.show || c.show()).map((c, i) => ({ c, i, s: Math.max(pkFz(q, c.l), pkFz(q, c.k) - 15) })).filter((x) => x.s >= 20).sort((a, b) => b.s - a.s || a.i - b.i).slice(0, 5);
+  cmds.forEach((x) => rows.push(pkCmdRow(x.c)));
+  const dk = pkDate(q); if (dk) rows.push(pkDateRow(dk));
+  const tokens = q.split(/\s+/).filter(Boolean);
+  PK_SRC.forEach((src) => {
+    const hits = [];
+    src.all().forEach((it) => { const r = pkRank(tokens, String(it.title || ''), (it.hay || '') + ' '); if (r >= 0) hits.push({ it, r }); });
+    if (!hits.length) return;
+    const full = hits.map((h) => { src.fin && src.fin(h.it, tokens); return h; });
+    full.sort((a, b) => a.r - b.r || (a.it.ord || 0) - (b.it.ord || 0));
+    const cap = pkExpand.has(src.t) ? 50 : 5;
+    full.slice(0, cap).forEach((h) => rows.push({ g: src.g, title: h.it.title, sub: h.it.sub || '', c: h.it.c, kind: src.k, rec: { t: src.t, id: h.it.id }, run: () => src.open(h.it) }));
+    if (full.length > cap) rows.push({ g: src.g, more: src.t, title: `Show ${full.length - cap} more ${src.g.toLowerCase()}` });
+  });
+  return rows;
+}
+function pkPaint() {
+  const q = pkIn.value;
+  pkRows = pkBuild(q);
+  const sel = pkRows.filter((r) => !r.more);
+  if (pkSel >= sel.length) pkSel = Math.max(0, sel.length - 1);
+  let html = '', last = '', n = 0;
+  pkRows.forEach((r, i) => {
+    if (r.g !== last) { html += `<div class="pk-g" role="presentation">${esc(r.g)}</div>`; last = r.g; }
+    if (r.more) { html += `<button type="button" class="pk-more" data-pkmore="${esc(r.more)}">${esc(r.title)}</button>`; return; }
+    r.n = n++;
+    html += `<button type="button" class="pk-r" role="option" id="pk-r-${r.n}" data-pk="${i}" aria-selected="${r.n === pkSel}"><span class="pk-dot" style="--c:${esc(r.c || '#cbd5e1')}"></span><span class="pk-t"><b>${esc(r.title)}</b>${r.sub ? `<small>${esc(r.sub)}</small>` : ''}</span><span class="pk-k">${esc(r.kind)}</span></button>`;
+  });
+  pkList.innerHTML = html || `<div class="pk-none">Nothing found for "${esc(q.trim())}". Try a project, a person, a date like "oct 5", or a command like "shifts".</div>`;
+  pkIn.setAttribute('aria-activedescendant', sel.length ? 'pk-r-' + pkSel : '');
+}
+function pkMove(d) {
+  const n = pkRows.filter((r) => !r.more).length; if (!n) return;
+  pkSel = (pkSel + d + n) % n;
+  pkList.querySelectorAll('.pk-r').forEach((b, i) => b.setAttribute('aria-selected', String(i === pkSel)));
+  pkIn.setAttribute('aria-activedescendant', 'pk-r-' + pkSel);
+  const cur = $('#pk-r-' + pkSel); if (cur) cur.scrollIntoView({ block: 'nearest' });
+}
+function pkRun(row) {
+  if (!row || row.more || !row.run) return;
+  pkRemember(row.rec);
+  pkDlg.close();
+  row.run();
+}
+function openPalette(seed) {
+  if (pkDlg.open) { pkIn.focus(); return; }
+  closeMore();
+  pkIn.value = seed || ''; pkSel = 0; pkExpand.clear(); pkPaint();
+  pkDlg.showModal();
+  setTimeout(() => { pkIn.focus(); pkIn.select(); }, 20);
+}
+pkIn.addEventListener('input', () => { pkSel = 0; pkPaint(); });
+pkIn.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown') { e.preventDefault(); pkMove(1); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); pkMove(-1); }
+  else if (e.key === 'Enter') { e.preventDefault(); pkRun(pkRows.filter((r) => !r.more)[pkSel]); }
+});
+pkList.addEventListener('click', (e) => {
+  const mo = e.target.closest('[data-pkmore]'); if (mo) { pkExpand.add(mo.dataset.pkmore); pkPaint(); return; }
+  const b = e.target.closest('[data-pk]'); if (b) pkRun(pkRows[+b.dataset.pk]);
+});
+pkList.addEventListener('mousemove', (e) => {
+  const b = e.target.closest('[data-pk]'); if (!b) return;
+  const r = pkRows[+b.dataset.pk]; if (!r || r.n === pkSel) return;
+  pkSel = r.n; pkList.querySelectorAll('.pk-r').forEach((x, i) => x.setAttribute('aria-selected', String(i === pkSel)));
+});
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && (e.key === 'k' || e.key === 'K')) {
+    e.preventDefault();
+    if (pkDlg.open) { pkDlg.close(); return; }
+    if (document.querySelector('dialog[open]')) return;
+    openPalette();
+  }
+}, true);
+(function pkButton() {
+  const nb = $('#newBtn'); if (!nb) return;
+  nb.insertAdjacentHTML('beforebegin', '<button class="btn" id="pkBtn" type="button" title="Search and commands (Ctrl+K)" aria-label="Search and commands" aria-haspopup="dialog"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span class="newlabel">Find</span></button>');
+  $('#pkBtn').onclick = () => openPalette();
+})();
+// ===== PALETTE END =====
+
+// ===== TIMELOG BEGIN: time log (what you actually did) and the weekly Time Audit (planned vs actual) =====
+// Entries live in the synced collection `timelog`: { id, title, cat (event type id or ''), proj (project id or ''), start (ms), end (ms, 0 while the timer runs) }.
+// The running timer is just the entry with end 0, so it survives a reload (its start time is saved) and shows on your other devices.
+// A timer running longer than 8 hours is flagged and is never counted past 8 hours in the audit.
+// Planned hours reuse evHours() from WEEKBAL (own timed events only, no all-day, bot or market events).
+const TL_MAX = 8 * 3600e3;
+document.head.insertAdjacentHTML('beforeend', `<style>
+#tlDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}
+.tl-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
+.tl-form input,.tl-form select{height:40px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:#fff;min-width:0;width:100%;outline:none}
+.tl-form input:focus,.tl-form select:focus{border-color:var(--ink)}
+.tl-sel{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tl-form .btn{height:40px}
+.tl-chips{display:flex;flex-wrap:wrap;gap:6px}
+.tl-run{display:flex;align-items:center;gap:10px}
+.tl-run .tl-t{flex:1;min-width:0}.tl-run .tl-t b{display:block;font-size:15px;overflow-wrap:anywhere}.tl-run .tl-t small{color:var(--mute);font-size:12px}
+.tl-el{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.tl-warn{display:flex;flex-direction:column;gap:6px}
+.tl-warn div{display:flex;gap:6px;flex-wrap:wrap}
+.tl-ent{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;width:100%;text-align:left;padding:8px 6px;border-top:1px solid var(--line2);align-items:baseline}
+.tl-ent b{font-weight:500;overflow-wrap:anywhere}.tl-ent small{color:var(--mute);font-size:12px}.tl-ent .n{font-variant-numeric:tabular-nums;font-weight:600;grid-row:1/3;grid-column:2}
+.tl-sink{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:3px 0}
+.tl-sent{font-size:14.5px;line-height:1.5}
+.nowbar .tl-nb{flex:none}.tl-nb.run{background:var(--ink);border-color:var(--ink);color:#fff}
+.tl-nb.run .tl-el{font-size:13px}
+.tl-nb.late{background:#b91c1c;border-color:#b91c1c}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="tlDlg" aria-labelledby="tlTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="tlTitle">Time audit</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="tlBody" style="display:flex;flex-direction:column;gap:12px"></div>
+</div></dialog>`);
+const tlDlg = $('#tlDlg');
+let tlMode = 'audit', tlWeek = null, tlEditId = null, tlBack = 'audit', tlWarned = '', tlAsked = '';
+const tlRunning = () => { let r = null; for (const e of S.timelog) if (!e.end && (!r || e.start > r.start)) r = e; return r; };
+const tlEnd = (e) => e.end || Math.min(Date.now(), e.start + TL_MAX);
+const tlDur = (ms) => { const m = Math.max(0, Math.round(ms / 60000)); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ' ' + (m % 60) + ' min' : ''}`; };
+const tlClock = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 3600)}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`; };
+const tlHm = (ms) => { const d = new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const tlTs = (d, t) => (d && t ? new Date(d + 'T' + t).getTime() : NaN);
+const tlCatName = (id) => { const j = S.jobs.find((x) => x.id === id); if (j) return j.name; const c = S.categories.find((x) => x.id === id); return c ? c.name : ''; };
+const tlCatColor = (id) => { const j = S.jobs.find((x) => x.id === id); if (j) return j.color; const c = S.categories.find((x) => x.id === id); return c ? c.color : '#64748b'; };
+const tlBucket = (o) => (o.proj && projOf(o.proj) ? 'p:' + o.proj : 'c:' + (o.cat || ''));
+const tlBName = (b) => (b[0] === 'p' ? (projOf(b.slice(2)) || { name: 'Project' }).name : b.slice(2) ? tlCatName(b.slice(2)) || 'Other' : 'No type');
+const tlBColor = (b) => (b[0] === 'p' ? (projOf(b.slice(2)) || { color: '#64748b' }).color : b.slice(2) ? tlCatColor(b.slice(2)) : '#64748b');
+const tlTag = (o) => [tlCatName(o.cat), (projOf(o.proj) || {}).name].filter(Boolean).join(' · ');
+function tlOpts() {
+  const cats = [...S.categories.map((c) => [c.id, c.name]), ...S.jobs.filter((j) => !S.categories.some((c) => c.id === j.id)).map((j) => [j.id, j.name])];
+  return { cat: '<option value="">No type</option>' + cats.map(([id, n]) => `<option value="${esc(id)}">${esc(n)}</option>`).join(''), proj: '<option value="">No project</option>' + S.projects.map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('') };
+}
+function tlRecents() { // last 5 different things you tracked
+  const seen = new Set(), out = [];
+  for (const e of S.timelog.slice().sort((a, b) => b.start - a.start)) {
+    const k = `${(e.title || '').toLowerCase()}|${e.cat || ''}|${e.proj || ''}`;
+    if (!e.title || seen.has(k)) continue;
+    seen.add(k); out.push(e); if (out.length >= 5) break;
+  }
+  return out;
+}
+
+// ---- start, stop, save ----
+function tlStart(o) {
+  const title = String((o && o.title) || '').trim().slice(0, 120);
+  if (!title) { toast('Type what you are working on first'); return false; }
+  snapshot();
+  const now = Date.now();
+  commit(() => {
+    S.timelog.forEach((e) => { if (!e.end) e.end = Math.min(now, e.start + TL_MAX); });
+    S.timelog.push({ id: uid(), title, cat: o.cat || '', proj: o.proj || '', start: now, end: 0 });
+  });
+  tlWarned = '';
+  if (tlDlg.open) tlDlg.close(); else render();
+  toast(`Timer started: ${title}`, true);
+  return true;
+}
+function tlStop() {
+  const r = tlRunning(); if (!r) return;
+  if (Date.now() - r.start > TL_MAX) { openTimeEntry(r.id); return; } // a forgotten timer: set the real end time
+  snapshot();
+  const end = Date.now();
+  commit(() => { r.end = end; });
+  render(); if (tlDlg.open) tlPaint();
+  toast(`Logged ${tlDur(end - r.start)} on ${r.title}`, true);
+}
+function tlCap() { // stop a runaway timer at the 8 hour mark
+  const r = tlRunning(); if (!r) return;
+  snapshot(); commit(() => { r.end = r.start + TL_MAX; });
+  render(); if (tlDlg.open) tlPaint();
+  toast(`Stopped at 8 h on ${r.title}. Edit it in the Time audit if that is wrong.`, true);
+}
+function tlFormStart(f) {
+  const v = (n) => (f.elements[n] ? f.elements[n].value : '');
+  return tlStart({ title: v('what'), cat: v('cat'), proj: v('proj') });
+}
+
+// ---- planned vs actual ----
+function tlPlanned(ws) {
+  const by = {};
+  for (let i = 0; i < 7; i++) for (const o of eventsOn(addDays(ws, i), true)) {
+    const e = o.ev; if (e.bot || e.layer || e.milestone || e.allDay || o.cont) continue;
+    const h = evHours(e); if (!h) continue;
+    const b = tlBucket(e); by[b] = (by[b] || 0) + h;
+  }
+  return by;
+}
+function tlActual(ws) {
+  const a = parse(ws).getTime(), z = parse(addDays(ws, 7)).getTime(), by = {}, list = [];
+  for (const e of S.timelog) {
+    const s = Math.max(e.start, a), t = Math.min(tlEnd(e), z);
+    if (t > s) { const b = tlBucket(e); by[b] = (by[b] || 0) + (t - s) / 36e5; list.push(e); }
+  }
+  return { by, list: list.sort((x, y) => y.start - x.start) };
+}
+function tlRowHtml(b, p, a) {
+  const over = p > 0 && a > p + 0.25, on = p > 0 && Math.abs(a - p) <= 0.25, scale = Math.max(a, p, 0.1), pct = Math.min(100, a / scale * 100);
+  const flag = !p ? '<span class="neg">Not planned</span>' : over ? `<span class="neg">${fmtHrs(a - p)} h over plan</span>` : on ? '<span class="pos">On plan</span>' : `<span>${fmtHrs(p - a)} h under plan</span>`;
+  return `<div class="wb-row" data-tlb="${esc(b)}" style="${cvars(tlBColor(b))}"><div class="wb-h"><b>${esc(tlBName(b))}</b><span>${fmtHrs(a)} h logged · ${fmtHrs(p)} h planned</span></div><div class="wb-bar${over ? ' over' : ''}"><i style="width:${pct}%"></i>${p && over ? `<s style="left:${p / scale * 100}%"></s>` : ''}</div><div class="wb-f">${flag}<span>${p ? Math.round(a / p * 100) + '% of plan' : ''}</span></div></div>`;
+}
+function tlSentences(ids, plan, act, totalA) {
+  const out = [], nm = (b) => tlBName(b);
+  const byPlan = ids.filter((b) => plan[b] > 0).sort((x, y) => plan[y] - plan[x]);
+  if (!totalA) out.push('Nothing logged yet this week. Start the timer when you begin something, or add time you forgot.');
+  if (byPlan[0]) { const b = byPlan[0]; out.push(`You planned ${fmtHrs(plan[b])} h of ${nm(b)} and logged ${act[b] ? fmtHrs(act[b]) + ' h' : 'nothing'}.`); }
+  const over = ids.filter((b) => plan[b] > 0 && act[b] - plan[b] >= 0.5 && b !== byPlan[0]).sort((x, y) => (act[y] - plan[y]) - (act[x] - plan[x]))[0];
+  if (over) out.push(`${nm(over)} ran ${fmtHrs(act[over] - plan[over])} h over plan.`);
+  const free = ids.filter((b) => !plan[b] && act[b] >= 0.25).sort((x, y) => act[y] - act[x])[0];
+  if (free) out.push(`You logged ${fmtHrs(act[free])} h of ${nm(free)} that was not on your calendar.`);
+  return out;
+}
+function tlAuditHtml() {
+  if (!tlWeek) tlWeek = startOfWeek(todayKey());
+  const plan = tlPlanned(tlWeek), { by: act, list } = tlActual(tlWeek);
+  const ids = [...new Set([...Object.keys(plan), ...Object.keys(act)])].sort((x, y) => Math.max(plan[y] || 0, act[y] || 0) - Math.max(plan[x] || 0, act[x] || 0));
+  const totalP = ids.reduce((n, b) => n + (plan[b] || 0), 0), totalA = ids.reduce((n, b) => n + (act[b] || 0), 0);
+  const unplanned = ids.filter((b) => !plan[b]).reduce((n, b) => n + (act[b] || 0), 0);
+  const sinks = ids.filter((b) => act[b] > 0).sort((x, y) => act[y] - act[x]).slice(0, 3);
+  const isNow = tlWeek === startOfWeek(todayKey()), run = tlRunning();
+  const tile = (v, l) => `<div><b>${v}</b><span>${l}</span></div>`;
+  const sent = tlSentences(ids, plan, act, totalA);
+  return `<div class="wb-nav"><button type="button" class="btn sm" data-tlnav="-1" aria-label="Previous week">&lsaquo;</button><span id="tlLabel">${isNow ? 'This week: ' : ''}${longDate(tlWeek)} to ${longDate(addDays(tlWeek, 6))}</span><button type="button" class="btn sm" data-tlnav="1" aria-label="Next week">&rsaquo;</button></div>
+    <div class="glance" id="tlTiles">${tile(fmtHrs(totalA) + ' h', 'logged')}${tile(fmtHrs(totalP) + ' h', 'planned')}${tile(fmtHrs(unplanned) + ' h', 'not planned')}</div>
+    <div class="tl-sent" id="tlSent">${sent.map((s) => esc(s)).join(' ')}</div>
+    ${sinks.length ? `<div id="tlSinks"><div class="flabel" style="margin-bottom:4px">Top time sinks</div>${sinks.map((b, i) => `<div class="tl-sink"><span>${i + 1}. <b>${esc(tlBName(b))}</b>${plan[b] ? '' : ' <small class="sub">unplanned</small>'}</span><span>${fmtHrs(act[b])} h · ${Math.round(act[b] / totalA * 100)}%</span></div>`).join('')}</div>` : ''}
+    <div id="tlRows">${ids.length ? ids.map((b) => tlRowHtml(b, plan[b] || 0, act[b] || 0)).join('') : '<div class="empty-s">Nothing planned or logged this week.</div>'}</div>
+    ${list.length ? `<div id="tlEnts"><div class="flabel" style="margin-bottom:2px">Logged this week</div>${list.slice(0, 40).map((e) => `<button type="button" class="tl-ent" data-tlent="${esc(e.id)}"><b>${esc(e.title)}</b><span class="n">${e.end ? tlDur(e.end - e.start) : 'running'}</span><small>${esc(longDate(key(new Date(e.start))))} · ${fmtTime(tlHm(e.start))}${e.end ? ' to ' + fmtTime(tlHm(e.end)) : ''}${tlTag(e) ? ' · ' + esc(tlTag(e)) : ''}</small></button>`).join('')}</div>` : ''}
+    <div class="hint">Planned hours are your timed calendar events (all-day, bot and market events are not counted; events that overlap count twice)${isNow ? ', for the whole week, so the days still ahead are included' : ''}. Events and logged time are matched by project when they have one, otherwise by event type. A timer is never counted past 8 hours.</div>
+    <div class="dlg-f"><div><button type="button" class="btn sm" data-tlnav="0">This week</button></div><div>${run ? '<button type="button" class="btn" data-tlstopd>Stop timer</button>' : '<button type="button" class="btn" data-tlgostart>Start timer</button>'}<button type="button" class="btn primary" data-tlgolog>Log time I forgot</button></div></div>`;
+}
+
+// ---- the other screens in the sheet: start, and add/edit an entry ----
+function tlStartFormHtml() {
+  const o = tlOpts(), rec = tlRecents();
+  return `<form class="tl-form" data-tlform autocomplete="off"><input class="keep" name="what" maxlength="120" placeholder="What are you working on?" aria-label="What are you working on?" autocomplete="off" enterkeyhint="go"><button class="btn primary" type="submit">Start</button>
+    <div class="tl-sel"><select name="cat" aria-label="Type">${o.cat}</select><select name="proj" aria-label="Project">${o.proj}</select></div></form>
+    ${rec.length ? `<div class="tl-chips" aria-label="Recent">${rec.map((e) => `<button type="button" class="pill" style="${cvars(tlBColor(tlBucket(e)))}" data-tlchip data-title="${esc(e.title)}" data-cat="${esc(e.cat || '')}" data-proj="${esc(e.proj || '')}"><i></i>${esc(e.title)}</button>`).join('')}</div>` : ''}`;
+}
+function tlFormHtml(e) {
+  const o = tlOpts(), now = Date.now();
+  let s, z;
+  if (e) { s = e.start; z = e.end || Math.min(now, e.start + TL_MAX); }
+  else { z = Math.floor(now / 3e5) * 3e5; s = z - 30 * 6e4; }
+  const run = e && !e.end;
+  return `<div class="fld"><label for="tlfWhat">What did you do?</label><input id="tlfWhat" maxlength="120" value="${esc(e ? e.title : '')}" placeholder="e.g. Edited the Clipper intro" autocomplete="off"></div>
+    <div class="frow"><div class="fld"><label for="tlfCat">Type</label><select id="tlfCat">${o.cat}</select></div><div class="fld"><label for="tlfProj">Project</label><select id="tlfProj">${o.proj}</select></div></div>
+    <div class="frow"><div class="fld"><label for="tlfD1">From</label><input type="date" id="tlfD1" value="${key(new Date(s))}"></div><div class="fld"><label for="tlfT1">Time</label><input type="time" id="tlfT1" value="${tlHm(s)}"></div></div>
+    <div class="frow"><div class="fld"><label for="tlfD2">To</label><input type="date" id="tlfD2" value="${key(new Date(z))}"></div><div class="fld"><label for="tlfT2">Time</label><input type="time" id="tlfT2" value="${tlHm(z)}"></div></div>
+    ${e ? '' : '<div class="pills" aria-label="Quick ranges"><button type="button" class="pill" data-tlpre="30">Last 30 min</button><button type="button" class="pill" data-tlpre="60">Last hour</button><button type="button" class="pill" data-tlpre="120">Last 2 hours</button></div>'}
+    ${run ? `<div class="hint">This timer is still running. Saving stops it at the time above${now - e.start > TL_MAX ? ' (it was running over 8 hours, so the end is set to 8 hours after the start; change it if that is wrong)' : ''}.</div>` : ''}
+    <div class="err" id="tlfErr" hidden></div>
+    <div class="dlg-f"><div>${e ? '<button type="button" class="btn danger" data-tldel>Delete</button>' : ''}</div><div><button type="button" class="btn" data-tlcancel>Cancel</button><button type="button" class="btn primary" data-tlsave>${e ? 'Save' : 'Log it'}</button></div></div>`;
+}
+function tlPaint() {
+  const body = $('#tlBody');
+  if (tlMode === 'start') {
+    $('#tlTitle').textContent = 'Start the timer';
+    body.innerHTML = tlStartFormHtml() + '<div class="dlg-f"><div><button type="button" class="btn sm" data-tlgolog>Log time I forgot</button></div><div><button type="button" class="btn sm" data-tlgoaudit>Time audit</button></div></div>';
+  } else if (tlMode === 'form') {
+    const e = tlEditId ? S.timelog.find((x) => x.id === tlEditId) : null;
+    $('#tlTitle').textContent = e ? 'Edit time entry' : 'Log time I forgot';
+    body.innerHTML = tlFormHtml(e);
+    if (e) { $('#tlfCat').value = e.cat || ''; $('#tlfProj').value = projOf(e.proj) ? e.proj : ''; }
+  } else {
+    $('#tlTitle').textContent = 'Time audit';
+    body.innerHTML = tlAuditHtml();
+  }
+}
+function tlShow(mode) { tlMode = mode; if (mode !== 'form') tlEditId = null; tlPaint(); if (!tlDlg.open) tlDlg.showModal(); }
+function openTimeAudit(ws) { tlWeek = ws || startOfWeek(todayKey()); tlBack = 'audit'; tlShow('audit'); }
+function openTimeStart() { tlBack = 'start'; tlShow('start'); setTimeout(() => { const i = tlDlg.querySelector('[name=what]'); if (i) i.focus(); }, 40); }
+function openTimeLog() { tlBack = tlDlg.open && tlMode === 'audit' ? 'audit' : 'close'; tlEditId = null; tlShow('form'); }
+function openTimeEntry(id) { if (!S.timelog.some((e) => e.id === id)) return; tlBack = tlDlg.open && tlMode === 'audit' ? 'audit' : 'close'; tlEditId = id; tlShow('form'); }
+function tlSaveForm() {
+  const err = (m) => { $('#tlfErr').textContent = m; $('#tlfErr').hidden = false; };
+  const title = $('#tlfWhat').value.trim(), s = tlTs($('#tlfD1').value, $('#tlfT1').value), z = tlTs($('#tlfD2').value, $('#tlfT2').value);
+  if (!title) return err('Say what you worked on.');
+  if (isNaN(s) || isNaN(z)) return err('Pick the start and end day and time.');
+  if (z <= s) return err('The end must be after the start.');
+  if (z > Date.now() + 6e4) return err('The end is in the future. Use the timer for something that is still going.');
+  if (z - s > 24 * 36e5) return err('That is over 24 hours. Split it into separate entries.');
+  const data = { title, cat: $('#tlfCat').value, proj: $('#tlfProj').value, start: s, end: z };
+  snapshot();
+  commit(() => {
+    const e = tlEditId && S.timelog.find((x) => x.id === tlEditId);
+    if (e) Object.assign(e, data); else S.timelog.push({ id: uid(), ...data });
+  });
+  const wasEdit = !!tlEditId; tlEditId = null;
+  toast(wasEdit ? 'Entry saved' : `Logged ${tlDur(z - s)} on ${title}`, true);
+  if (tlBack === 'audit') { tlWeek = startOfWeek(key(new Date(s))); tlShow('audit'); render(); } else { tlDlg.close(); }
+}
+
+// ---- Today card, Now bar button, clicks ----
+function tlTodayCard() {
+  const r = tlRunning(), today = todayKey();
+  let ms = 0; S.timelog.forEach((e) => { const a = Math.max(e.start, parse(today).getTime()), z = Math.min(tlEnd(e), parse(addDays(today, 1)).getTime()); if (z > a) ms += z - a; });
+  let body;
+  if (r) {
+    const late = Date.now() - r.start > TL_MAX;
+    body = `<div class="tl-run"><div class="tl-t"><b>${esc(r.title)}</b><small>${esc(tlTag(r) ? tlTag(r) + ' · ' : '')}since ${fmtTime(tlHm(r.start))}</small></div><span class="tl-el" data-tlsince="${r.start}">${tlClock(Date.now() - r.start)}</span>${late ? '' : '<button class="btn sm primary" data-tlstop>Stop</button>'}</div>
+      ${late ? `<div class="nw-warn tl-warn" id="tlWarn" style="background:#fffbeb;border-color:#fde68a;color:#92400e">This timer has been running for ${tlDur(Date.now() - r.start)}. Did you forget to stop it?<div><button class="btn sm" data-tlcap>Stop at 8 h</button><button class="btn sm" data-tledit="${esc(r.id)}">Set the end time</button></div></div>` : ''}`;
+  } else body = tlStartFormHtml();
+  return `<section class="td-card" id="tlCard"><h3>Time log<button data-tlaudit>Time audit</button></h3>${body}<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span class="hint">${ms ? `${tlDur(ms)} logged today` : 'Nothing logged today'}</span><button class="btn sm" data-tllog>Log time I forgot</button></div></section>`;
+}
+function tlNowChip(bar) { // hook for renderNow(): start or stop the timer from the Now bar
+  const r = tlRunning(); if (!bar) return;
+  const late = r && Date.now() - r.start > TL_MAX;
+  bar.insertAdjacentHTML('beforeend', r ? `<button class="btn sm tl-nb run${late ? ' late' : ''}" data-tlnow title="${late ? 'Running over 8 hours. Tap to fix' : 'Stop the timer'}: ${esc(r.title)}">${late ? 'Fix timer' : '&#9632; <span class="tl-el" data-tlsince="' + r.start + '">' + tlClock(Date.now() - r.start) + '</span>'}</button>` : '<button class="btn sm tl-nb" data-tlnow title="Start the timer">&#9654; Timer</button>');
+}
+$('#nowbar').addEventListener('click', (e) => {
+  if (!e.target.closest('[data-tlnow]')) return;
+  if (tlRunning()) tlStop(); else openTimeStart();
+});
+$('#main').addEventListener('click', (e) => {
+  if (S.view !== 'today') return;
+  const t = e.target;
+  if (t.closest('[data-tlstop]')) tlStop();
+  else if (t.closest('[data-tlcap]')) tlCap();
+  else if (t.closest('[data-tledit]')) openTimeEntry(t.closest('[data-tledit]').dataset.tledit);
+  else if (t.closest('[data-tlaudit]')) openTimeAudit();
+  else if (t.closest('[data-tllog]')) openTimeLog();
+  else if (t.closest('[data-tlchip]')) { const c = t.closest('[data-tlchip]'); tlStart({ title: c.dataset.title, cat: c.dataset.cat, proj: c.dataset.proj }); }
+});
+$('#main').addEventListener('submit', (e) => { const f = e.target.closest('[data-tlform]'); if (f) { e.preventDefault(); tlFormStart(f); } });
+tlDlg.addEventListener('submit', (e) => { const f = e.target.closest('[data-tlform]'); if (f) { e.preventDefault(); tlFormStart(f); } });
+tlDlg.addEventListener('click', async (e) => {
+  const t = e.target;
+  const nv = t.closest('[data-tlnav]');
+  if (nv) { const n = +nv.dataset.tlnav; tlWeek = n === 0 ? startOfWeek(todayKey()) : addDays(tlWeek, n * 7); tlPaint(); return; }
+  const ent = t.closest('[data-tlent]'); if (ent) { openTimeEntry(ent.dataset.tlent); return; }
+  const ch = t.closest('[data-tlchip]'); if (ch) { tlStart({ title: ch.dataset.title, cat: ch.dataset.cat, proj: ch.dataset.proj }); return; }
+  if (t.closest('[data-tlgostart]')) { openTimeStart(); return; }
+  if (t.closest('[data-tlgolog]')) { openTimeLog(); return; }
+  if (t.closest('[data-tlgoaudit]')) { openTimeAudit(); return; }
+  if (t.closest('[data-tlstopd]')) { tlStop(); return; }
+  const pre = t.closest('[data-tlpre]');
+  if (pre) { const z = Math.floor(Date.now() / 6e4) * 6e4, s = z - +pre.dataset.tlpre * 6e4; $('#tlfD1').value = key(new Date(s)); $('#tlfT1').value = tlHm(s); $('#tlfD2').value = key(new Date(z)); $('#tlfT2').value = tlHm(z); return; }
+  if (t.closest('[data-tlcancel]')) { if (tlBack === 'audit') tlShow('audit'); else tlDlg.close(); return; }
+  if (t.closest('[data-tlsave]')) { tlSaveForm(); return; }
+  if (t.closest('[data-tldel]')) {
+    const en = S.timelog.find((x) => x.id === tlEditId); if (!en) return;
+    snapshot(); commit(() => { S.timelog = S.timelog.filter((x) => x.id !== en.id); });
+    toast('Entry deleted', true);
+    if (tlBack === 'audit') tlShow('audit'); else tlDlg.close();
+  }
+});
+tlDlg.addEventListener('close', () => { tlEditId = null; render(); });
+
+// ---- the clock: tick the numbers, and warn about a timer that was left running ----
+async function tlRunawayAsk(r) {
+  if (document.querySelector('dialog[open]')) return; // the banner on Today and the Now bar still show it
+  const ok = await ask('Timer still running', `"${r.title}" has been running for ${tlDur(Date.now() - r.start)}. That looks like a forgotten timer. Set the real end time now?`, 'Set end time');
+  if (ok && S.timelog.some((e) => e.id === r.id && !e.end)) openTimeEntry(r.id);
+}
+function tlRunawayCheck(modal) {
+  const r = tlRunning();
+  if (!r || Date.now() - r.start <= TL_MAX) return;
+  if (tlWarned === r.id && !modal) return;
+  const first = tlWarned !== r.id;
+  tlWarned = r.id;
+  if (first) { render(); toast(`The timer for ${r.title} has been running over 8 hours`); }
+  if (modal && tlAsked !== r.id && !tlAskOpen()) { tlAsked = r.id; tlRunawayAsk(r); }
+}
+const tlAskOpen = () => !!document.querySelector('#askDlg[open]');
+setInterval(() => {
+  document.querySelectorAll('[data-tlsince]').forEach((el) => { el.textContent = tlClock(Date.now() - +el.dataset.tlsince); });
+  tlRunawayCheck(false);
+}, 1000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') tlRunawayCheck(true); });
+setTimeout(() => tlRunawayCheck(true), 1200);
+// ===== TIMELOG END =====
+
+// ===== PIPELINE BEGIN: deals kanban (leads, clients, sponsors, job opportunities) and a "waiting on" list =====
+// Synced collections: `deals` { id, name, kind, stage, value, follow (YYYY-MM-DD), notes, closed (date it was won or lost), logged (money entry made) }
+// and `waiting` { id, who, what, since }. Follow-up dates of open deals appear on the calendar through dealFollowEvents(), which
+// buildBotEvents() adds to the computed (not saved) event list each render, so nothing is ever duplicated; clicking one opens the deal.
+const PL_STAGES = [['lead', 'Lead', '#64748b'], ['talking', 'Talking', '#2563eb'], ['proposal', 'Proposal', '#d97706'], ['won', 'Won', '#059669'], ['lost', 'Lost', '#dc2626']];
+const PL_STAGE_NAME = Object.fromEntries(PL_STAGES.map((s) => [s[0], s[1]]));
+const PL_KINDS = [['client', 'Client'], ['sponsor', 'Sponsor'], ['job', 'Job opportunity'], ['lead', 'Other lead']];
+document.head.insertAdjacentHTML('beforeend', `<style>
+#plDlg{width:min(1180px,calc(100vw - 24px))}
+#plDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}
+.pl-board{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;align-items:start}
+@media (min-width:1000px){.pl-board{grid-template-columns:repeat(5,minmax(0,1fr))}}
+.pl-col{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--soft);min-width:0}
+.pl-col.over{border-color:var(--c);background:var(--bg-c)}
+.pl-col>h4{font-size:13px;font-weight:600;display:flex;justify-content:space-between;gap:6px;align-items:baseline}
+.pl-col>h4 span{font-size:12px;color:var(--mute);font-weight:500}
+.pl-col>h4 i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c);margin-right:6px}
+.pl-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 10px;display:flex;flex-direction:column;gap:5px;min-width:0}
+.pl-card[draggable=true]{cursor:grab}.pl-card.dragging{opacity:.45}
+.pl-card.late{border-color:#fecaca}
+.pl-name{font-weight:600;font-size:14px;text-align:left;overflow-wrap:anywhere;padding:0}
+.pl-meta{display:flex;justify-content:space-between;gap:8px;align-items:baseline;font-size:12.5px;color:var(--mute)}
+.pl-meta b{color:var(--ink);font-variant-numeric:tabular-nums}
+.pl-fu{align-self:flex-start;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:10px;background:var(--soft2);color:var(--ink2)}
+.pl-fu.late{background:#fef2f2;color:#b91c1c}.pl-fu.today{background:#ecfdf5;color:#047857}
+.pl-note{font-size:12px;color:var(--mute);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.pl-mv{display:flex;flex-wrap:wrap;gap:4px;align-items:center}.pl-mv small{font-size:11.5px;color:var(--mute);margin-right:2px}
+.pl-mv button{height:28px;padding:0 9px;border-radius:14px;border:1px solid var(--line);font-size:12px;font-weight:500;background:#fff}
+.pl-mv button:hover{border-color:var(--c)}
+@media (hover:hover) and (pointer:fine){.pl-mv{display:none}}
+.pl-empty{font-size:12.5px;color:var(--faint);padding:2px 0}
+.pl-lbl{font-size:11.5px;font-weight:600;color:var(--mute)}
+.pl-chips{display:flex;flex-wrap:wrap;gap:6px}
+.pl-chip{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:4px 11px;border-radius:16px;border:1px solid var(--line);font-size:13px;font-weight:500;background:#fff;text-align:left}
+.pl-chip.late{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
+.pl-chip.amber{background:#fffbeb;border-color:#fde68a;color:#92400e}
+.pl-w{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.pl-w b{font-weight:600;overflow-wrap:anywhere}.pl-w small{grid-column:1;color:var(--mute);font-size:12px}
+.pl-w button{grid-row:1/3;grid-column:2}
+.pl-w.amber{background:#fffbeb;border-color:#fde68a}.pl-w.amber small{color:#92400e}
+.pl-wf{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pl-wf input{height:40px;border:1px solid var(--line);border-radius:8px;padding:0 10px;min-width:0;width:100%;outline:none;background:#fff}
+.pl-wf input:focus{border-color:var(--ink)}
+.pl-wf .btn{height:40px}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="plDlg" aria-labelledby="plTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="plTitle">Deals</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="plBody" style="display:flex;flex-direction:column;gap:12px"></div>
+</div></dialog>`);
+const plDlg = $('#plDlg');
+let plMode = 'board', plEditId = null, plFrom = 'board', plLogFor = null, plLogAt = 0, plPreStage = 'lead';
+const plStageOf = (d) => (PL_STAGE_NAME[d.stage] ? d.stage : 'lead');
+const plIsOpen = (d) => { const s = plStageOf(d); return s !== 'won' && s !== 'lost'; };
+const plVal = (d) => Math.max(0, +d.value || 0);
+const plDays = (k) => diffDays(k, todayKey()); // days since k (negative = in the future)
+function plStats() {
+  const mon = todayKey().slice(0, 7), open = S.deals.filter(plIsOpen);
+  const won = S.deals.filter((d) => plStageOf(d) === 'won'), lost = S.deals.filter((d) => plStageOf(d) === 'lost');
+  return { openN: open.length, open: open.reduce((n, d) => n + plVal(d), 0), wonMonth: won.filter((d) => (d.closed || '').slice(0, 7) === mon).reduce((n, d) => n + plVal(d), 0), wonN: won.length, lostN: lost.length, rate: won.length + lost.length ? Math.round(won.length / (won.length + lost.length) * 100) : null };
+}
+function plFu(d) { // follow-up chip text and look
+  if (!d.follow || !YMD.test(d.follow)) return null;
+  const n = diffDays(todayKey(), d.follow);
+  if (n < 0) return { txt: `Overdue: ${-n} day${n === -1 ? '' : 's'} late (${longDate(d.follow)})`, cls: 'late', short: `${-n} d late` };
+  if (n === 0) return { txt: 'Follow up today', cls: 'today', short: 'today' };
+  return { txt: n === 1 ? 'Follow up tomorrow' : `Follow up ${longDate(d.follow)}`, cls: '', short: longDate(d.follow) };
+}
+// calendar overlay: one all-day item per open deal with a follow-up date (red when it is overdue)
+function dealFollowEvents() {
+  const today = todayKey();
+  return S.deals.filter((d) => plIsOpen(d) && YMD.test(d.follow || '')).map((d) => ({
+    id: 'fu:' + d.id, title: 'Follow up: ' + (d.name || 'Deal'), cat: typeToCat('deadline'), color: d.follow < today ? '#dc2626' : '#0d9488', date: d.follow, allDay: true,
+    start: '', end: '', endDate: '', repeat: 'none', until: '', ex: [], notes: d.notes || '', proj: '', milestone: true, deal: d.id,
+  }));
+}
+
+// ---- the board ----
+const plDrag = matchMedia('(hover:hover) and (pointer:fine)').matches;
+function plCardHtml(d) {
+  const st = plStageOf(d), fu = plIsOpen(d) ? plFu(d) : null, kind = (PL_KINDS.find((k) => k[0] === d.kind) || ['', ''])[1];
+  const mv = PL_STAGES.filter((s) => s[0] !== st).map((s) => `<button type="button" style="--c:${s[2]}" data-plmv="${s[0]}" data-pld="${esc(d.id)}">${s[1]}</button>`).join('');
+  return `<div class="pl-card${fu && fu.cls === 'late' ? ' late' : ''}" ${plDrag ? 'draggable="true"' : ''} data-pldeal="${esc(d.id)}">
+    <button type="button" class="pl-name" data-pledit="${esc(d.id)}">${esc(d.name || 'Deal')}</button>
+    <div class="pl-meta"><span>${esc(kind)}</span><b>${plVal(d) ? usd(plVal(d)) : '-'}</b></div>
+    ${fu ? `<span class="pl-fu ${fu.cls}">${esc(fu.txt)}</span>` : ''}
+    ${d.notes ? `<div class="pl-note">${esc(d.notes)}</div>` : ''}
+    ${st === 'won' ? (d.logged ? '<small class="pos">Money logged</small>' : '<button type="button" class="btn sm primary" style="align-self:flex-start" data-pllog="' + esc(d.id) + '">Log the money</button>') : ''}
+    <div class="pl-mv"><small>Move to</small>${mv}</div></div>`;
+}
+function plBoardHtml() {
+  const st = plStats(), today = todayKey();
+  const cols = PL_STAGES.map(([id, name, c]) => {
+    let list = S.deals.filter((d) => plStageOf(d) === id);
+    list = id === 'won' || id === 'lost' ? list.sort((a, b) => (b.closed || '').localeCompare(a.closed || '')) : list.sort((a, b) => (a.follow || '9999').localeCompare(b.follow || '9999') || (a.created || 0) - (b.created || 0));
+    const total = list.reduce((n, d) => n + plVal(d), 0);
+    return `<section class="pl-col" style="${cvars(c)}" data-plcol="${id}" aria-label="${name}"><h4><span><i></i>${name}</span><span>${list.length}${total ? ' · ' + usd(total) : ''}</span></h4>${list.length ? list.map(plCardHtml).join('') : '<div class="pl-empty">Nothing here</div>'}${id === 'won' || id === 'lost' ? '' : `<button type="button" class="btn sm" data-pladd="${id}">+ Add</button>`}</section>`;
+  }).join('');
+  const waits = S.waiting.slice().sort((a, b) => (a.since || '').localeCompare(b.since || ''));
+  const wrows = waits.map((w) => { const n = YMD.test(w.since || '') ? plDays(w.since) : 0; return `<div class="pl-w${n >= 3 ? ' amber' : ''}" data-plw="${esc(w.id)}"><div><b>${esc(w.who || 'Someone')}</b>${w.what ? ' · ' + esc(w.what) : ''}</div><small>Since ${esc(longDate(w.since || today))} · ${n <= 0 ? 'today' : n + ' day' + (n === 1 ? '' : 's')}${n >= 3 ? ' (follow up)' : ''}</small><button type="button" class="btn sm" data-plwdone="${esc(w.id)}">Got it</button></div>`; }).join('');
+  const tile = (v, l) => `<div><b>${v}</b><span>${l}</span></div>`;
+  return `<div class="glance" id="plTiles">${tile(usd(st.open), `open pipeline (${st.openN} deal${st.openN === 1 ? '' : 's'})`)}${tile(usd(st.wonMonth), 'won this month')}${tile(st.rate == null ? '-' : st.rate + '%', st.rate == null ? 'win rate (no closed deals)' : `win rate (${st.wonN} won, ${st.lostN} lost)`)}</div>
+    <div class="pl-board" id="plBoard">${cols}</div>
+    <section id="plWait" style="display:flex;flex-direction:column;gap:8px"><div class="flabel">Waiting on${waits.length ? ` (${waits.length})` : ''}</div>${wrows || '<div class="pl-empty">Nobody. Add who owes you a reply, a file or money, and it turns amber after 3 days.</div>'}
+      <form class="pl-wf" data-plwform autocomplete="off"><input name="who" maxlength="60" placeholder="Who" aria-label="Waiting on who"><input name="what" maxlength="120" placeholder="What are you waiting for" aria-label="What are you waiting for"><input type="date" name="since" value="${today}" aria-label="Since"><button class="btn" type="submit">Add</button></form></section>
+    <div class="hint">${plDrag ? 'Drag a card to another column to move it. ' : ''}Follow-up dates of open deals show on your calendar and on Today. The win rate is won deals out of won plus lost.</div>`;
+}
+function plFormHtml(d, name, stage) {
+  const isNew = !d, st = d ? plStageOf(d) : stage || 'lead';
+  return `<div class="fld"><label for="plfName">Name</label><input id="plfName" maxlength="120" value="${esc(d ? d.name : name || '')}" placeholder="e.g. Acme sponsorship" autocomplete="off"></div>
+    <div class="frow"><div class="fld"><label for="plfKind">What is it</label><select id="plfKind">${PL_KINDS.map((k) => `<option value="${k[0]}">${k[1]}</option>`).join('')}</select></div><div class="fld"><label for="plfStage">Stage</label><select id="plfStage">${PL_STAGES.map((s) => `<option value="${s[0]}">${s[1]}</option>`).join('')}</select></div></div>
+    <div class="frow"><div class="fld"><label for="plfValue">Value ($)</label><input id="plfValue" inputmode="decimal" placeholder="0" value="${d && plVal(d) ? plVal(d) : ''}" autocomplete="off"></div><div class="fld"><label for="plfFu">Next follow-up</label><input type="date" id="plfFu" value="${d ? esc(d.follow || '') : ''}"></div></div>
+    <div class="pills" aria-label="Set follow-up"><button type="button" class="pill" data-plfu="1">Tomorrow</button><button type="button" class="pill" data-plfu="3">In 3 days</button><button type="button" class="pill" data-plfu="7">Next week</button><button type="button" class="pill" data-plfu="clear">No follow-up</button></div>
+    <div class="fld"><label for="plfNotes">Notes</label><textarea id="plfNotes" rows="3" maxlength="2000" placeholder="What was said, what they want, next step">${esc(d ? d.notes || '' : '')}</textarea></div>
+    <div class="err" id="plfErr" hidden></div>
+    <div class="dlg-f"><div>${isNew ? '' : '<button type="button" class="btn danger" data-pldel>Delete</button>'}${!isNew && st === 'won' && !d.logged ? '<button type="button" class="btn" data-pllog="' + esc(d.id) + '">Log the money</button>' : ''}</div><div><button type="button" class="btn" data-plcancel>Cancel</button><button type="button" class="btn primary" data-plsave>${isNew ? 'Add deal' : 'Save'}</button></div></div>`;
+}
+function plPaint() {
+  const body = $('#plBody');
+  if (plMode === 'deal') {
+    const d = plEditId ? S.deals.find((x) => x.id === plEditId) : null;
+    $('#plTitle').textContent = d ? 'Edit deal' : 'New deal';
+    body.innerHTML = plFormHtml(d, plNewName, plPreStage);
+    $('#plfKind').value = d ? d.kind || 'lead' : 'client'; $('#plfStage').value = d ? plStageOf(d) : plPreStage;
+  } else { $('#plTitle').textContent = 'Deals'; body.innerHTML = plBoardHtml(); }
+}
+let plNewName = '';
+function plShow(mode) { plMode = mode; plPaint(); if (!plDlg.open) plDlg.showModal(); }
+function openPipeline() { plEditId = null; plShow('board'); }
+function openDeal(id, name, stage) {
+  if (id && !S.deals.some((d) => d.id === id)) return;
+  plFrom = plDlg.open && plMode === 'board' ? 'board' : 'close';
+  plEditId = id || null; plNewName = name || ''; plPreStage = PL_STAGE_NAME[stage] ? stage : 'lead';
+  plShow('deal');
+  setTimeout(() => { const i = $('#plfName'); if (i && !id) i.focus(); }, 40);
+}
+function plBack() { if (plFrom === 'board') { plEditId = null; plShow('board'); } else plDlg.close(); }
+function plSave() {
+  const err = (m) => { $('#plfErr').textContent = m; $('#plfErr').hidden = false; };
+  const name = $('#plfName').value.trim(), raw = $('#plfValue').value.trim(), value = raw === '' ? 0 : numOf(raw), fu = $('#plfFu').value, stage = $('#plfStage').value;
+  if (!name) return err('Give the deal a name.');
+  if (isNaN(value) || value < 0) return err('Value should be a dollar amount, like 1500.');
+  if (fu && !YMD.test(fu)) return err('Pick a valid follow-up date.');
+  const today = todayKey();
+  snapshot();
+  let id = plEditId;
+  commit(() => {
+    let d = id && S.deals.find((x) => x.id === id);
+    if (!d) { id = uid(); d = { id, created: Date.now(), logged: false, closed: '' }; S.deals.push(d); }
+    const was = plStageOf(d), closing = stage === 'won' || stage === 'lost';
+    Object.assign(d, { name, kind: $('#plfKind').value, value: Math.round(value * 100) / 100, stage, follow: fu, notes: $('#plfNotes').value.trim() });
+    if (!closing) d.closed = ''; else if (was !== stage || !d.closed) d.closed = today;
+  });
+  toast(plEditId ? 'Deal saved' : 'Deal added', true);
+  plEditId = null;
+  if (plFrom === 'board') plShow('board'); else plDlg.close();
+  render();
+}
+function plMove(id, stage) {
+  const d = S.deals.find((x) => x.id === id); if (!d || plStageOf(d) === stage || !PL_STAGE_NAME[stage]) return;
+  snapshot();
+  commit(() => { d.stage = stage; d.closed = stage === 'won' || stage === 'lost' ? todayKey() : ''; });
+  if (plDlg.open && plMode === 'board') plPaint();
+  render();
+  toast(`${d.name} moved to ${PL_STAGE_NAME[stage]}${stage === 'won' ? '. Tap Log the money to record it.' : ''}`, true);
+}
+function plLogMoney(id) { // hand the won deal to the Money log entry sheet, pre-filled
+  const d = S.deals.find((x) => x.id === id); if (!d) return;
+  plLogFor = id; plLogAt = Date.now();
+  plDlg.close();
+  openMoney(null);
+  mKind = 'in'; paintMKind();
+  $('#mAmt').value = plVal(d) || ''; $('#mNote').value = `Won: ${d.name}`; $('#mDate').value = todayKey();
+}
+$('#moneyDlg').addEventListener('close', () => {
+  if (!plLogFor) return;
+  const id = plLogFor; plLogFor = null;
+  const m = S.money.find((x) => (x.created || 0) >= plLogAt);
+  if (m) commit(() => { const d = S.deals.find((x) => x.id === id); if (d) { d.logged = true; d.moneyId = m.id; } });
+  openPipeline();
+});
+plDlg.addEventListener('click', async (e) => {
+  const t = e.target;
+  const mv = t.closest('[data-plmv]'); if (mv) { plMove(mv.dataset.pld, mv.dataset.plmv); return; }
+  const ed = t.closest('[data-pledit]'); if (ed) { openDeal(ed.dataset.pledit); return; }
+  const ad = t.closest('[data-pladd]'); if (ad) { openDeal(null, '', ad.dataset.pladd); return; }
+  const lg = t.closest('[data-pllog]'); if (lg) { plLogMoney(lg.dataset.pllog); return; }
+  const fu = t.closest('[data-plfu]');
+  if (fu) { $('#plfFu').value = fu.dataset.plfu === 'clear' ? '' : addDays(todayKey(), +fu.dataset.plfu); return; }
+  if (t.closest('[data-plcancel]')) { plBack(); return; }
+  if (t.closest('[data-plsave]')) { plSave(); return; }
+  if (t.closest('[data-pldel]')) {
+    const d = S.deals.find((x) => x.id === plEditId); if (!d) return;
+    if (!(await ask(`Delete ${d.name}?`, 'The deal and its follow-up leave your calendar.', 'Delete deal', { danger: true }))) return;
+    snapshot(); commit(() => { S.deals = S.deals.filter((x) => x.id !== d.id); });
+    plEditId = null; if (plFrom === 'board') plShow('board'); else plDlg.close();
+    render(); toast('Deal deleted', true);
+    return;
+  }
+  const wd = t.closest('[data-plwdone]');
+  if (wd) { const w = S.waiting.find((x) => x.id === wd.dataset.plwdone); if (!w) return; snapshot(); commit(() => { S.waiting = S.waiting.filter((x) => x.id !== w.id); }); plPaint(); render(); toast(`Removed: waiting on ${w.who || 'someone'}`, true); }
+});
+plDlg.addEventListener('submit', (e) => {
+  const f = e.target.closest('[data-plwform]'); if (!f) return;
+  e.preventDefault();
+  const who = f.elements.who.value.trim(), what = f.elements.what.value.trim(), since = f.elements.since.value || todayKey();
+  if (!who && !what) { f.elements.who.focus(); return; }
+  snapshot(); commit(() => { S.waiting.push({ id: uid(), created: Date.now(), who, what, since }); });
+  plPaint(); render(); toast(`Waiting on ${who || what}`, true);
+});
+// drag a card to another column (desktop)
+plDlg.addEventListener('dragstart', (e) => {
+  const c = e.target.closest && e.target.closest('[data-pldeal]'); if (!c) return;
+  e.dataTransfer.setData('text/plain', c.dataset.pldeal); e.dataTransfer.effectAllowed = 'move'; c.classList.add('dragging');
+});
+plDlg.addEventListener('dragover', (e) => { const col = e.target.closest && e.target.closest('[data-plcol]'); if (!col) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; col.classList.add('over'); });
+plDlg.addEventListener('dragleave', (e) => { const col = e.target.closest && e.target.closest('[data-plcol]'); if (col && !col.contains(e.relatedTarget)) col.classList.remove('over'); });
+plDlg.addEventListener('drop', (e) => {
+  const col = e.target.closest && e.target.closest('[data-plcol]'); if (!col) return;
+  e.preventDefault(); col.classList.remove('over');
+  const id = e.dataTransfer.getData('text/plain'); if (id) plMove(id, col.dataset.plcol);
+});
+plDlg.addEventListener('dragend', () => { plDlg.querySelectorAll('.dragging,.over').forEach((x) => x.classList.remove('dragging', 'over')); });
+plDlg.addEventListener('close', () => { plEditId = null; if (!plLogFor) render(); });
+
+// ---- Today ----
+function plTodayCard() {
+  const today = todayKey(), st = plStats();
+  const due = S.deals.filter((d) => plIsOpen(d) && YMD.test(d.follow || '') && d.follow <= today).sort((a, b) => a.follow.localeCompare(b.follow));
+  const wait = S.waiting.filter((w) => YMD.test(w.since || '') && plDays(w.since) >= 3).sort((a, b) => a.since.localeCompare(b.since));
+  const chips = due.map((d) => { const f = plFu(d); return `<button type="button" class="pl-chip${f.cls === 'late' ? ' late' : ''}" data-pltd="${esc(d.id)}">${esc(d.name)}${f.cls === 'late' ? ' · ' + f.short : ''}</button>`; }).join('');
+  const wchips = wait.map((w) => `<button type="button" class="pl-chip amber" data-plopen>${esc(w.who || w.what)} · ${plDays(w.since)} days</button>`).join('');
+  const sum = S.deals.length ? `${st.openN} open deal${st.openN === 1 ? '' : 's'} worth ${usd(st.open)} · won this month ${usd(st.wonMonth)}${st.rate == null ? '' : ' · win rate ' + st.rate + '%'}` : 'Track leads, clients and sponsors, with follow-up dates that show on your calendar.';
+  return `<section class="td-card" id="plCard"><h3>Deals<button data-plopen>Open board</button></h3>
+    ${due.length ? `<div class="pl-lbl">Follow up today</div><div class="pl-chips">${chips}</div>` : ''}
+    ${wait.length ? `<div class="pl-lbl">Waiting on</div><div class="pl-chips">${wchips}</div>` : ''}
+    <div class="hint">${esc(sum)}</div>${S.deals.length ? '' : '<div><button class="btn sm" data-pladdtd>Add a lead</button></div>'}</section>`;
+}
+$('#main').addEventListener('click', (e) => {
+  if (S.view !== 'today') return;
+  const c = e.target.closest('[data-pltd]'); if (c) { openDeal(c.dataset.pltd); return; }
+  if (e.target.closest('[data-plopen]')) { openPipeline(); return; }
+  if (e.target.closest('[data-pladdtd]')) openDeal(null);
+});
+// ===== PIPELINE END =====
 
 // ===== LEAD2 BEGIN: goals and money =====
 const moneyOpen = new Set();
@@ -5289,7 +6145,7 @@ $('#miniPrev').onclick = () => { const [y, m] = miniMonth.split('-').map(Number)
 $('#miniNext').onclick = () => { const [y, m] = miniMonth.split('-').map(Number); miniMonth = key(new Date(y, m, 1)).slice(0, 7); renderSide(); };
 $('#toastBtn').onclick = undo;
 
-function openEvent(id, occ) { const ev = allEvents().find((e) => e.id === id); if (!ev) return; if (ev.milestone) openProject(ev.proj); else openEditor(ev, occ); }
+function openEvent(id, occ) { const ev = allEvents().find((e) => e.id === id); if (!ev) return; if (ev.deal) { openDeal(ev.deal); return; } if (ev.milestone) openProject(ev.proj); else openEditor(ev, occ); }
 
 $('#main').addEventListener('submit', (e) => {
   const f = e.target.closest('[data-padd]'); if (!f) return;

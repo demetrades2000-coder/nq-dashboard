@@ -8,8 +8,8 @@ const URL = 'http://127.0.0.1:' + (process.env.PORT || 8777) + '/nq-dashboard/pl
   await p.clock.setFixedTime(new Date('2026-11-04T12:30:00'));
   const reqs = []; let mode = 'ok';
   const AI = { is_food: true, meal_name: 'Chicken burrito bowl', confidence: 'medium', items: [
-    { name: 'Grilled chicken', portion: 'about 150 g', kcal: 250, protein_g: 40, carbs_g: 0, fat_g: 9 },
-    { name: 'White rice', portion: '1 cup', kcal: 200, protein_g: 4, carbs_g: 44, fat_g: 0.5 }], notes: 'Assumed a standard restaurant bowl.' };
+    { name: 'Grilled chicken', from_label: true, portion: 'about 150 g', kcal: 250, protein_g: 40, carbs_g: 0, fat_g: 9 },
+    { name: 'White rice', from_label: true, portion: '1 cup', kcal: 200, protein_g: 4, carbs_g: 44, fat_g: 0.5 }], notes: 'Assumed a standard restaurant bowl.' };
   await p.route('https://api.anthropic.com/v1/messages', async (route) => {
     const req = route.request(); let body = {}; try { body = JSON.parse(req.postData() || '{}'); } catch (e) { /* none */ }
     reqs.push({ headers: req.headers(), body });
@@ -17,7 +17,7 @@ const URL = 'http://127.0.0.1:' + (process.env.PORT || 8777) + '/nq-dashboard/pl
     if (mode === 'billing') return route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Your credit balance is too low' } }) });
     if (mode === 'nofood') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ content: [{ type: 'text', text: JSON.stringify({ is_food: false, notes: 'That is a keyboard.' }) }], stop_reason: 'end_turn' }) });
     const note = JSON.stringify(body.messages && (body.messages[0].content[1] || body.messages[0].content[0]).text || '');
-    const out = /thighs/.test(note) ? { ...AI, meal_name: 'Chicken thighs', items: [{ name: 'Chicken thighs', portion: '2 pieces', kcal: 420, protein_g: 46, carbs_g: 0, fat_g: 26 }] } : AI;
+    const out = /thighs/.test(note) ? { ...AI, meal_name: 'Chicken thighs', items: [{ name: 'Chicken thighs', from_label: true, portion: '2 pieces', kcal: 420, protein_g: 46, carbs_g: 0, fat_g: 26 }] } : AI;
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ content: [{ type: 'text', text: '```json\n' + JSON.stringify(out) + '\n```' }], stop_reason: 'end_turn' }) });
   });
   await p.goto(URL + '#today'); await wait(1800);

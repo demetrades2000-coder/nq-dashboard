@@ -6168,16 +6168,16 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .fd-sc-man input::placeholder{color:rgba(255,255,255,.65)}.fd-sc-man button{height:44px;padding:0 16px;border-radius:10px;background:#fff;color:#111827;font-weight:600}
 /* picker */
 #fdDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}#fdDlg input,#fdDlg select{font-size:16px}
-.fd-bar{display:flex;gap:8px}.fd-bar input{flex:1;min-width:0;height:44px;border:1px solid var(--line);border-radius:10px;padding:0 12px;background:#fff;outline:none}.fd-bar input:focus{border-color:var(--ink)}
-.fd-bar button{height:44px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.fd-bar{display:flex;gap:8px}.fd-bar input{flex:1;min-width:0;height:44px;border:1px solid var(--line);border-radius:10px;padding:0 12px;background:var(--card);outline:none}.fd-bar input:focus{border-color:var(--ink)}
+.fd-bar button{height:44px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .fd-h{font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.04em;margin:6px 0 2px}
 .fd-row{display:flex;align-items:stretch;border-top:1px solid var(--line2)}
 .fd-row .fd-pick{flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;text-align:left;padding:9px 4px;align-items:baseline}
 .fd-row b{font-weight:500;overflow-wrap:anywhere}.fd-row small{color:var(--mute);font-size:12px;overflow-wrap:anywhere}.fd-row .n{grid-row:1/3;grid-column:2;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .fd-star{width:40px;flex:none;color:var(--faint);display:inline-flex;align-items:center;justify-content:center}.fd-star[aria-pressed=true]{color:#d97706}
 .fd-note{font-size:13px;color:var(--mute);line-height:1.4}
-.fd-seg{display:flex;gap:6px}.fd-seg button{flex:1;height:36px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:14px;font-weight:500}.fd-seg button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
-.fd-step{display:flex;gap:8px;align-items:center}.fd-step button{width:44px;height:44px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:20px}
+.fd-seg{display:flex;gap:6px}.fd-seg button{flex:1;height:36px;border:1px solid var(--line);border-radius:8px;background:var(--card);font-size:14px;font-weight:500}.fd-seg button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
+.fd-step{display:flex;gap:8px;align-items:center}.fd-step button{width:44px;height:44px;border:1px solid var(--line);border-radius:10px;background:var(--card);font-size:20px}
 .fd-step input{flex:1;min-width:0;height:44px;border:1px solid var(--line);border-radius:10px;text-align:center;font-weight:600;outline:none}
 .fd-out{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.fd-out div{border:1px solid var(--line);border-radius:10px;padding:8px 4px;text-align:center}
 .fd-out b{display:block;font-size:17px;font-variant-numeric:tabular-nums}.fd-out span{font-size:11px;color:var(--mute)}
@@ -6397,14 +6397,14 @@ const NG_FLOOR = { f: 1200, m: 1500 };
 const NG_RATES = { lose: [[0.25, 'Slow: 0.25 kg (0.5 lb) a week'], [0.5, 'Steady: 0.5 kg (1 lb) a week'], [0.75, 'Faster: 0.75 kg (1.5 lb) a week']], gain: [[0.25, 'Slow: 0.25 kg (0.5 lb) a week'], [0.5, 'Steady: 0.5 kg (1 lb) a week']] };
 document.head.insertAdjacentHTML('beforeend', `<style>
 #ngDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}#ngDlg input,#ngDlg select{font-size:16px}
-.ng-tabs{display:flex;gap:6px}.ng-tabs button,.ng-seg button{flex:1;height:36px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:14px;font-weight:500}
-.ng-tabs button[aria-pressed=true],.ng-seg button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+.ng-tabs{display:flex;gap:6px}.ng-tabs button,.ng-seg button{flex:1;height:36px;border:1px solid var(--line);border-radius:8px;background:var(--card);font-size:14px;font-weight:500}
+.ng-tabs button[aria-pressed=true],.ng-seg button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
 .ng-seg{display:flex;gap:6px}
 .ng-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.ng-form .wide{grid-column:1/-1}
 .ng-form label{display:block;font-size:12px;color:var(--mute);margin-bottom:3px}
-.ng-form input,.ng-form select{height:40px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:#fff;min-width:0;width:100%;outline:none}
+.ng-form input,.ng-form select{height:40px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:var(--card);min-width:0;width:100%;outline:none}
 .ng-form input:focus,.ng-form select:focus{border-color:var(--ink)}
-.ng-note{font-size:12px;color:#92400e;background:#fffaf0;border:1px solid #f3d9a4;border-radius:10px;padding:8px 10px;line-height:1.4}
+.ng-note{font-size:12px;color:var(--ink2);background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:8px 10px;line-height:1.4}
 .ng-res{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
 .ng-big{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}.ng-big small{font-size:14px;font-weight:500;color:var(--mute)}
 .ng-mac{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.ng-mac div{background:var(--soft);border-radius:8px;padding:6px;text-align:center}.ng-mac b{display:block;font-variant-numeric:tabular-nums}.ng-mac span{font-size:11px;color:var(--mute)}
@@ -6548,18 +6548,18 @@ $('#ngBody').addEventListener('input', (e) => {
 const NW_MIN = 3;
 document.head.insertAdjacentHTML('beforeend', `<style>
 #nwDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}
-.nw-tabs{display:flex;gap:6px}.nw-tabs button{flex:1;height:36px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:14px;font-weight:500}.nw-tabs button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
-.nw-chart{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:10px;background:#fff}
+.nw-tabs{display:flex;gap:6px}.nw-tabs button{flex:1;height:36px;border:1px solid var(--line);border-radius:8px;background:var(--card);font-size:14px;font-weight:500}.nw-tabs button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
+.nw-chart{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:10px;background:var(--card)}
 .nw-chart text{font-size:10px;fill:var(--mute);font-family:inherit}.nw-chart text.today{fill:var(--ink);font-weight:700}
-.nw-chart .grid{stroke:var(--line2);stroke-width:1}.nw-chart .goal{stroke:#111827;stroke-width:1.2;stroke-dasharray:4 3}
-.nw-chart rect.b{fill:#cbd5e1}.nw-chart rect.b.ok{fill:#34d399}.nw-chart rect.b.over{fill:#fbbf24}.nw-chart rect.b.t{stroke:#111827;stroke-width:1.5}.nw-chart rect.b.sel{fill:#111827}
+.nw-chart .grid{stroke:var(--line2);stroke-width:1}.nw-chart .goal{stroke:var(--ink);stroke-width:1.2;stroke-dasharray:4 3}
+.nw-chart rect.b{fill:var(--faint)}.nw-chart rect.b.ok{fill:#34d399}.nw-chart rect.b.over{fill:#fbbf24}.nw-chart rect.b.t{stroke:var(--ink);stroke-width:1.5}.nw-chart rect.b.sel{fill:var(--ink)}
 .nw-chart .hit{fill:transparent;cursor:pointer}
 .nw-leg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--mute)}.nw-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
 .nw-sel{font-size:13px;min-height:18px;color:var(--ink);overflow-wrap:anywhere}
 .nw-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.nw-grid div{border:1px solid var(--line);border-radius:10px;padding:8px 10px}
 .nw-grid b{display:block;font-size:20px;font-variant-numeric:tabular-nums}.nw-grid span{font-size:12px;color:var(--mute)}
 .nw-split{display:flex;height:14px;border-radius:7px;overflow:hidden}.nw-split i{display:block;height:100%}
-.nw-ins{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px;line-height:1.45;overflow-wrap:anywhere;background:#fff}
+.nw-ins{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px;line-height:1.45;overflow-wrap:anywhere;background:var(--card)}
 .nw-sub{font-size:13px;color:var(--mute);line-height:1.4;overflow-wrap:anywhere}
 </style>`);
 document.body.insertAdjacentHTML('beforeend', `<dialog id="nwDlg" aria-labelledby="nwTitle"><div class="dlg">
@@ -6658,7 +6658,7 @@ function nwPaint() {
     $('#nwBody').innerHTML = h; return;
   }
   h += nwChart(s);
-  h += `<div class="nw-leg"><span><i style="background:#34d399"></i>Within 10% of goal</span><span><i style="background:#fbbf24"></i>Over</span><span><i style="background:#cbd5e1"></i>Under</span></div><div class="nw-sel" id="nwSel">${esc(nwSelText(s))}</div>`;
+  h += `<div class="nw-leg"><span><i style="background:#34d399"></i>Within 10% of goal</span><span><i style="background:#fbbf24"></i>Over</span><span><i style="background:var(--faint)"></i>Under</span></div><div class="nw-sel" id="nwSel">${esc(nwSelText(s))}</div>`;
   h += `<div class="nw-grid" id="nwStats"><div><b>${s.used ? nwK(s.avgKcal) : '-'}</b><span>avg kcal a day (goal ${nwK(s.goal.kcal)})</span></div><div><b>${s.used ? Math.round(s.avgP) + ' g' : '-'}</b><span>avg protein (goal ${s.goal.p} g)</span></div>
     <div><b>${s.logged} of ${s.days}</b><span>days logged</span></div><div><b>${s.used ? s.within + ' of ' + s.used : '-'}</b><span>days within 10% of goal</span></div>
     <div><b>${s.used ? s.proteinHit + ' of ' + s.used : '-'}</b><span>days protein at 90%+ of goal</span></div><div><b>${s.best ? nwK(s.best.kcal) : '-'}</b><span>${s.best ? 'closest to goal: ' + nwShort(s.best.date) : 'closest day (needs ' + NW_MIN + ' days)'}</span></div></div>`;
@@ -10259,7 +10259,7 @@ setInterval(() => {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync) syncNow(); });
 addEventListener('online', () => { if (sync) syncNow(); });
 $('#helpBtn').onclick = () => $('#helpDlg').showModal();
-const APP_VERSION = '2026-10-30.20';
+const APP_VERSION = '2026-10-30.21';
 if ($('#verNote')) $('#verNote').textContent = 'Planner ' + APP_VERSION;
 if (!HOSTED && 'serviceWorker' in navigator && window.isSecureContext && location.protocol.startsWith('http')) {
   const hadController = !!navigator.serviceWorker.controller;

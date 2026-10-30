@@ -1105,7 +1105,7 @@ body.focusing .toast{bottom:76px}
     <h4>Markets</h4>
     <ul><li>Market layers on the calendar: high, medium and low USD releases, Fed speakers, mega-cap earnings and session shading. Turn them on or off in <b>Market on the calendar</b>.</li><li><b>News</b> lists releases with forecast and previous, and headlines tagged risk-on or risk-off. Tap Refresh for the newest data your dashboard has published.</li><li>All market times are converted from New York time to your phone's time zone.</li><li>If a banner says the data is old, your bot PC has not published recently. Check the bots and ForexFactory directly.</li></ul>
     <h4>Discipline and money</h4>
-    <ul><li><b>Rules</b>: your pre-trade checklist, run once per trading day. <b>Trades</b>: notes and tags on each live or paper trade, plus a payout planner.</li><li><b>Review</b>: your week at a glance. <b>Journal</b>: note, mood and whether you followed your rules.</li><li><b>Projects</b> holds Goals and the Money log. <b>Health</b> holds sleep, workouts and trends.</li><li><b>Week balance</b> (card on Today): hours planned per event type against weekly targets you set, with free hours left after 8 h of sleep a day. <b>Earnings</b> (card on Today): estimated pay this week and month from shifts (hours x hourly rate), live and paper trading, and the money log, with a monthly income goal and what you need per week. Both are before tax.</li><li><b>Check my week</b> (shield button, or the banner on Today) lists clashes for today and the next 7 days: events that overlap (red) and work shifts that run into a New York killzone or a high-impact news pause (amber). Tap one to open the event.</li><li><b>When can I trade today?</b> on Today shows the free parts of each killzone after shifts, events and news pauses, plus the best free block of the week for deep work.</li><li><b>Bedtime</b> (evening on Today, and a line in Plan day) takes tomorrow's first event, shift or marked trading session, subtracts your get-ready minutes and sleep hours, and says when to be asleep. Change the numbers with the Change button.</li><li><b>Bills</b> (Today, or <code>#bills</code>): your recurring bills show on the calendar in red and feed a 30-day cash forecast that warns you before you run short. An estimate, before tax.</li><li><b>Tilt guard</b>: after 2 losing trades in a row or your daily loss limit, a red Stop trading banner and a cooldown timer appear. <b>Trade plan</b> (before the NY open) turns into a debrief at 12 pm ET.</li><li><b>Close out the day</b> (Today, from 5 pm): move open tasks to tomorrow, see your first commitment tomorrow, save one win.</li></ul>
+    <ul><li><b>Rules</b>: your pre-trade checklist, run once per trading day. <b>Trades</b>: notes and tags on each live or paper trade, plus a payout planner.</li><li><b>Review</b>: your week at a glance. <b>Journal</b>: note, mood and whether you followed your rules.</li><li><b>Projects</b> holds Goals and the Money log. <b>Health</b> holds sleep, workouts and trends.</li><li><b>Week balance</b> (card on Today): hours planned per event type against weekly targets you set, with free hours left after 8 h of sleep a day. <b>Earnings</b> (card on Today): estimated pay this week and month from shifts (hours x hourly rate), live and paper trading, and the money log, with a monthly income goal and what you need per week. Both are before tax.</li><li><b>Check my week</b> (shield button, or the banner on Today) lists clashes for today and the next 7 days: events that overlap (red) and work shifts that run into a New York killzone or a high-impact news pause (amber). Tap one to open the event.</li><li><b>When can I trade today?</b> on Today shows the free parts of each killzone after shifts, events and news pauses, plus the best free block of the week for deep work.</li><li><b>Bedtime</b> (evening on Today, and a line in Plan day) takes tomorrow's first event, shift or marked trading session, subtracts your get-ready minutes and sleep hours, and says when to be asleep. Change the numbers with the Change button.</li><li><b>Bills</b> (Today, or <code>#bills</code>): your recurring bills show on the calendar in red and feed a 30-day cash forecast that warns you before you run short. An estimate, before tax.</li><li><b>Tilt guard</b>: after 2 losing trades in a row or your daily loss limit, a red Stop trading banner and a cooldown timer appear. <b>Trade plan</b> (before the NY open) turns into a debrief at 12 pm ET.</li><li><b>Close out the day</b> (Today, from 5 pm): move open tasks to tomorrow, see your first commitment tomorrow, save one win.</li><li><b>Find</b> (Ctrl/Cmd+K, or the Find button): searches everything and runs commands like <i>new task call Sam fri</i>, <i>start clipper edit</i> or <i>next friday</i>.</li><li><b>Time log</b>: start a timer for what you are working on, or log time you forgot. <b>Time audit</b> compares what you planned with what you logged.</li><li><b>Deals</b>: a board for leads, clients and sponsors with follow-up dates on the calendar, a Waiting on list, and a one-tap way to log the money from a won deal.</li></ul>
     <h4>Shortcuts and Back Tap</h4>
     <p>In the iPhone Shortcuts app, add an <b>Open URL</b> action with this app's address plus one of these endings, then set Back Tap (Settings, Accessibility, Touch) to run it:</p>
     <ul><li><code>#today</code> <code>#plan</code> <code>#plan-week</code> <code>#new-event</code> <code>#new-task</code> <code>#shifts</code> <code>#week-balance</code> <code>#earnings</code></li><li><code>#log-workout</code> <code>#health</code> <code>#projects</code> <code>#week</code> <code>#agenda</code></li></ul>
@@ -3648,16 +3648,16 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .tl-rec div{border:1px solid var(--line);border-radius:10px;padding:8px 10px;text-align:center}
 .tl-rec b{display:block;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}.tl-rec span{font-size:11.5px;color:var(--mute)}
 .nowbar .nb-t small.nb-x[data-tiltlog]{cursor:pointer;text-decoration:underline;text-underline-offset:2px;font-weight:600}
-#tlDlg textarea,#tsDlg input{font-size:16px}#tlDlg textarea{width:100%;min-height:84px;border:1px solid var(--line);border-radius:8px;padding:9px 10px;line-height:1.45;resize:vertical}
+#tzDlg textarea,#tsDlg input{font-size:16px}#tzDlg textarea{width:100%;min-height:84px;border:1px solid var(--line);border-radius:8px;padding:9px 10px;line-height:1.45;resize:vertical}
 .tl-chips{display:flex;flex-wrap:wrap;gap:6px}
 </style>`);
-document.body.insertAdjacentHTML('beforeend', `<dialog id="tlDlg" aria-labelledby="tlTitle"><div class="dlg">
-  <div class="dlg-h"><h3 id="tlTitle">I understand. Log why.</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
-  <div class="hint" id="tlWhat"></div>
-  <div class="tl-chips" id="tlChips">${TL_WHY.map((w) => `<button type="button" class="btn sm" data-tlwhy="${esc(w)}">${esc(w)}</button>`).join('')}</div>
-  <div class="fld"><label for="tlText">One honest line: why did this happen?</label><textarea id="tlText" maxlength="400" placeholder="What I felt, what I will do next"></textarea></div>
-  <div class="hint neg" id="tlErr" hidden></div>
-  <div class="dlg-f"><div></div><div><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn primary" id="tlSave">Save to journal</button></div></div>
+document.body.insertAdjacentHTML('beforeend', `<dialog id="tzDlg" aria-labelledby="tzTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="tzTitle">I understand. Log why.</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="hint" id="tzWhat"></div>
+  <div class="tl-chips" id="tzChips">${TL_WHY.map((w) => `<button type="button" class="btn sm" data-tlwhy="${esc(w)}">${esc(w)}</button>`).join('')}</div>
+  <div class="fld"><label for="tzText">One honest line: why did this happen?</label><textarea id="tzText" maxlength="400" placeholder="What I felt, what I will do next"></textarea></div>
+  <div class="hint neg" id="tzErr" hidden></div>
+  <div class="dlg-f"><div></div><div><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn primary" id="tzSave">Save to journal</button></div></div>
 </div></dialog>
 <dialog id="tsDlg" aria-labelledby="tsTitle"><div class="dlg">
   <div class="dlg-h"><h3 id="tsTitle">Tilt guard settings</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
@@ -3668,81 +3668,81 @@ document.body.insertAdjacentHTML('beforeend', `<dialog id="tlDlg" aria-labelledb
   <div class="hint">Counts the live and paper trades the dashboard has published today, never the backtest. If the bot PC has not published lately the guard can be behind.</div>
   <div class="dlg-f"><div><button type="button" class="btn sm" id="tsReset">Use the defaults</button></div><div><button type="button" class="btn primary" data-close>Done</button></div></div>
 </div></dialog>`);
-const tlDlg = $('#tlDlg'), tsDlg = $('#tsDlg');
-function tlDashLimit() { // smallest daily loss limit (dll) the dashboard reports for an account, 0 when none
+const tzDlg = $('#tzDlg'), tsDlg = $('#tsDlg');
+function tzDashLimit() { // smallest daily loss limit (dll) the dashboard reports for an account, 0 when none
   const b = (nqBot && nqBot.trade && nqBot.trade.bots) || {};
   const v = Object.values(b).map((x) => x && x.dll).filter((x) => typeof x === 'number' && x > 0);
   return v.length ? Math.min(...v) : 0;
 }
-function tlCfg() {
+function tzCfg() {
   const c = S.tilt.find((x) => x.id === 'cfg') || {}, n = (v, lo, hi, d) => (v != null && v !== '' && Number.isFinite(+v) ? Math.min(hi, Math.max(lo, +v)) : d);
-  const own = c.stop != null && c.stop !== '' && Number.isFinite(+c.stop), lim = tlDashLimit();
+  const own = c.stop != null && c.stop !== '' && Number.isFinite(+c.stop), lim = tzDashLimit();
   return { maxLoss: Math.round(n(c.maxLoss, 0, 20, 2)), stop: own ? Math.max(0, +c.stop) : lim, stopOwn: own, dash: lim, cool: Math.round(n(c.cool, 0, 240, 30)) };
 }
-const tlClose = (t) => (t.t1 || t.t0) * 1000;
-function tlEval(day, cfg) { // stops, violations and the day's numbers from the closed trades of one New York trading day
-  const ts = nqTrades.filter((t) => t && t.day === day && typeof t.usd === 'number').sort((a, b) => tlClose(a) - tlClose(b));
+const tzClose = (t) => (t.t1 || t.t0) * 1000;
+function tzEval(day, cfg) { // stops, violations and the day's numbers from the closed trades of one New York trading day
+  const ts = nqTrades.filter((t) => t && t.day === day && typeof t.usd === 'number').sort((a, b) => tzClose(a) - tzClose(b));
   let cum = 0, streak = 0, loss = null, lock = null, viol = 0, wins = 0, losses = 0;
   const stops = [];
   for (const t of ts) {
     const open = t.t0 * 1000;
     if (loss && open > loss.at) viol++; else if (lock && open > lock.at && open < lock.until) viol++;
     cum += t.usd; streak = t.usd < 0 ? streak + 1 : 0; if (t.usd > 0) wins++; else if (t.usd < 0) losses++;
-    const at = tlClose(t);
+    const at = tzClose(t);
     if (!loss && cfg.stop > 0 && cum <= -cfg.stop) { loss = { kind: 'loss', at, until: at + cfg.cool * 60000, text: `the day is down ${usd(-cum)} (daily loss stop ${usd(cfg.stop)})` }; stops.push(loss); }
     else if (!loss && cfg.maxLoss > 0 && streak >= cfg.maxLoss) { lock = { kind: 'streak', at, until: at + cfg.cool * 60000, text: `${streak} losing trades in a row` }; stops.push(lock); streak = 0; }
   }
   return { day, trades: ts, count: ts.length, pnl: Math.round(cum * 100) / 100, wins, losses, stops, last: stops[stops.length - 1] || null, viol };
 }
-function tlActive() { // today's guard state, or null when nothing was hit
-  const cfg = tlCfg(), day = mnEt().day, ev = tlEval(day, cfg);
+function tzActive() { // today's guard state, or null when nothing was hit
+  const cfg = tzCfg(), day = mnEt().day, ev = tzEval(day, cfg);
   if (!ev.last) return null;
   const last = ev.last, ack = S.tilt.find((x) => x.id === 'ack:' + day && (+x.at || 0) >= last.at) || null, left = Math.max(0, last.until - Date.now());
   return { ...ev, cfg, ack, left, cooling: left > 0, showBanner: last.kind === 'loss' || left > 0 || !ack };
 }
-function tlRecord(days = 30) { // days a stop was hit, and whether it was respected (30 days back, from the saved trades)
-  const cfg = tlCfg(), today = mnEt().day, have = new Set(nqTrades.map((t) => t && t.day)), now = Date.now();
+function tzRecord(days = 30) { // days a stop was hit, and whether it was respected (30 days back, from the saved trades)
+  const cfg = tzCfg(), today = mnEt().day, have = new Set(nqTrades.map((t) => t && t.day)), now = Date.now();
   let ok = 0, bad = 0;
   for (let i = 0; i < days; i++) {
     const k = addDays(today, -i); if (!have.has(k)) continue;
-    const ev = tlEval(k, cfg); if (!ev.last) continue;
+    const ev = tzEval(k, cfg); if (!ev.last) continue;
     if (ev.viol > 0) bad++; else if (k < today || ev.last.until <= now) ok++;
   }
   return { ok, bad };
 }
-const tlCd = (ms) => { const s = Math.ceil(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return (h ? h + ':' + pad(m) : m) + ':' + pad(s % 60); };
-function tlBanner(a) {
+const tzCd = (ms) => { const s = Math.ceil(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return (h ? h + ':' + pad(m) : m) + ':' + pad(s % 60); };
+function tzBanner(a) {
   if (!a || !a.showBanner) return '';
   const l = a.last, red = l.kind === 'loss' || a.cooling;
-  const status = a.cooling ? `Cooldown <span class="tl-cd" data-tiltcd="${l.until}">${tlCd(a.left)}</span> left` : l.kind === 'loss' ? 'Done for today. No more trades.' : 'Cooldown is over. Log why before the next trade.';
-  return `<div class="tl-ban${red ? '' : ' amber'}" id="tlBan" role="alert"><div class="tl-t">Stop trading</div><div>${esc(l.kind === 'loss' ? 'Daily loss stop hit: ' + l.text : 'Stop hit after ' + l.text)}.</div><div>${status}</div>${a.viol ? `<div><b>You traded ${a.viol} time${a.viol === 1 ? '' : 's'} after the stop.</b></div>` : ''}<button type="button" class="btn sm" data-tiltlog>${a.ack ? 'Logged. Add another note' : 'I understand, log why'}</button></div>`;
+  const status = a.cooling ? `Cooldown <span class="tl-cd" data-tiltcd="${l.until}">${tzCd(a.left)}</span> left` : l.kind === 'loss' ? 'Done for today. No more trades.' : 'Cooldown is over. Log why before the next trade.';
+  return `<div class="tl-ban${red ? '' : ' amber'}" id="tzBan" role="alert"><div class="tl-t">Stop trading</div><div>${esc(l.kind === 'loss' ? 'Daily loss stop hit: ' + l.text : 'Stop hit after ' + l.text)}.</div><div>${status}</div>${a.viol ? `<div><b>You traded ${a.viol} time${a.viol === 1 ? '' : 's'} after the stop.</b></div>` : ''}<button type="button" class="btn sm" data-tiltlog>${a.ack ? 'Logged. Add another note' : 'I understand, log why'}</button></div>`;
 }
 function tiltTodayCard() {
-  const a = tlActive(), cfg = tlCfg(), rec = tlRecord(), ev = a || tlEval(mnEt().day, cfg);
+  const a = tzActive(), cfg = tzCfg(), rec = tzRecord(), ev = a || tzEval(mnEt().day, cfg);
   const limits = [cfg.maxLoss ? `${cfg.maxLoss} losses in a row` : '', cfg.stop ? `${usd(cfg.stop)} daily loss` : '', `${cfg.cool} min cooldown`].filter(Boolean).join(' · ');
   const built = nqBot && nqBot.trade && nqBot.trade.built ? Math.round((Date.now() - Date.parse(nqBot.trade.built)) / 3600e3) : null;
-  return `${tlBanner(a)}<section class="td-card" id="tlCard"><h3>Tilt guard<button data-tiltset>Settings</button></h3>
-    <div class="tl-rec"><div><b class="${moneyCls(ev.pnl)}">${ev.count ? money(ev.pnl) : '-'}</b><span>${ev.count} live/paper trade${ev.count === 1 ? '' : 's'} today</span></div><div><b id="tlRecord">${rec.ok} / ${rec.bad}</b><span>stops followed / broken, 30 days</span></div></div>
+  return `${tzBanner(a)}<section class="td-card" id="tzCard"><h3>Tilt guard<button data-tiltset>Settings</button></h3>
+    <div class="tl-rec"><div><b class="${moneyCls(ev.pnl)}">${ev.count ? money(ev.pnl) : '-'}</b><span>${ev.count} live/paper trade${ev.count === 1 ? '' : 's'} today</span></div><div><b id="tzRecord">${rec.ok} / ${rec.bad}</b><span>stops followed / broken, 30 days</span></div></div>
     <div class="hint">Stops after: ${esc(limits)}${cfg.maxLoss || cfg.stop ? '' : ' (both off)'}.${built != null && built >= 6 ? ` Trade data is ${built >= 48 ? Math.round(built / 24) + ' days' : built + ' hours'} old, so the guard may be behind.` : ''}</div></section>`;
 }
 function tiltNowLine() { // one line for the Now bar (called from nowExtras)
-  const a = tlActive(); if (!a || !a.showBanner) return '';
+  const a = tzActive(); if (!a || !a.showBanner) return '';
   const l = a.last;
-  return `<small class="nb-x red" data-tiltlog>Stop trading: ${esc(l.kind === 'loss' ? 'daily loss stop hit' : l.text)}. ${a.cooling ? `Cooldown <span data-tiltcd="${l.until}">${tlCd(a.left)}</span>` : l.kind === 'loss' ? 'Done for today' : 'Cooldown over'}. Tap to log why.</small>`;
+  return `<small class="nb-x red" data-tiltlog>Stop trading: ${esc(l.kind === 'loss' ? 'daily loss stop hit' : l.text)}. ${a.cooling ? `Cooldown <span data-tiltcd="${l.until}">${tzCd(a.left)}</span>` : l.kind === 'loss' ? 'Done for today' : 'Cooldown over'}. Tap to log why.</small>`;
 }
 function openTiltLog() {
-  const a = tlActive(); if (!a) { toast('No stop is active right now'); return; }
-  $('#tlWhat').textContent = `${a.last.kind === 'loss' ? 'Daily loss stop' : 'Stop'} at ${fmtTime(hmOf(a.last.at))}: ${a.last.text}. This adds a note to today's journal.`;
-  $('#tlText').value = ''; $('#tlErr').hidden = true; tlDlg.showModal(); setTimeout(() => $('#tlText').focus(), 30);
+  const a = tzActive(); if (!a) { toast('No stop is active right now'); return; }
+  $('#tzWhat').textContent = `${a.last.kind === 'loss' ? 'Daily loss stop' : 'Stop'} at ${fmtTime(hmOf(a.last.at))}: ${a.last.text}. This adds a note to today's journal.`;
+  $('#tzText').value = ''; $('#tzErr').hidden = true; tzDlg.showModal(); setTimeout(() => $('#tzText').focus(), 30);
 }
 const hmOf = (ms) => { const d = new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
-tlDlg.addEventListener('click', (e) => {
+tzDlg.addEventListener('click', (e) => {
   const w = e.target.closest('[data-tlwhy]');
-  if (w) { const t = $('#tlText'); t.value = (t.value.trim() ? t.value.trim() + '. ' : '') + w.dataset.tlwhy; t.focus(); return; }
-  if (!e.target.closest('#tlSave')) return;
-  const a = tlActive(), why = $('#tlText').value.trim();
-  if (!a) { tlDlg.close(); return; }
-  if (!why) { $('#tlErr').textContent = 'Write one line first.'; $('#tlErr').hidden = false; return; }
+  if (w) { const t = $('#tzText'); t.value = (t.value.trim() ? t.value.trim() + '. ' : '') + w.dataset.tlwhy; t.focus(); return; }
+  if (!e.target.closest('#tzSave')) return;
+  const a = tzActive(), why = $('#tzText').value.trim();
+  if (!a) { tzDlg.close(); return; }
+  if (!why) { $('#tzErr').textContent = 'Write one line first.'; $('#tzErr').hidden = false; return; }
   const jd = todayKey(), et = mnEt().day, line = `[Tilt stop ${fmtTime(hmOf(a.last.at))}] ${a.last.text}. Why: ${why}`;
   snapshot();
   commit(() => {
@@ -3750,10 +3750,10 @@ tlDlg.addEventListener('click', (e) => {
     j.note = (j.note ? j.note + '\n' : '') + line;
     upsert(S.tilt, 'ack:' + et, () => ({ id: 'ack:' + et }), { date: et, at: Date.now(), why: why.slice(0, 400) });
   });
-  tlDlg.close(); render(); toast('Logged to your journal', true);
+  tzDlg.close(); render(); toast('Logged to your journal', true);
 });
 function tsPaint() {
-  const c = tlCfg();
+  const c = tzCfg();
   $('#tsMax').value = c.maxLoss; $('#tsStop').value = c.stop || 0; $('#tsCool').value = c.cool;
   $('#tsDash').textContent = c.dash ? `The dashboard's daily limit is ${usd(c.dash)}${c.stopOwn ? '' : ', used until you type your own'}.` : 'The dashboard reports no daily limit yet, so the daily stop is off until you type one.';
 }
@@ -3777,7 +3777,7 @@ $('#main').addEventListener('click', (e) => { if (S.view === 'today' && e.target
 setInterval(() => { // live countdown; one re-render when a cooldown ends
   const els = document.querySelectorAll('[data-tiltcd]'); if (!els.length) return;
   const now = Date.now(); let over = false;
-  els.forEach((el) => { const left = +el.dataset.tiltcd - now; if (left <= 0) over = true; else el.textContent = tlCd(left); });
+  els.forEach((el) => { const left = +el.dataset.tiltcd - now; if (left <= 0) over = true; else el.textContent = tzCd(left); });
   if (over) { safeRender(); renderNow(); }
 }, 1000);
 // ===== TILT END =====
@@ -3828,7 +3828,7 @@ function tradePlanTodayCard() {
       <div><div class="flabel" style="font-size:12px;font-weight:600;color:var(--mute);margin-bottom:4px">News windows today (${esc(tzNote())})</div>${news.length ? `<div class="tp-news" id="tpNews">${news.slice(0, 6).map((e) => `<div><i class="${e.impact === 'high' ? 'high' : ''}"></i><b>${fmtTime(e.lt)}</b><span>${esc(e.title)}${e.impact === 'high' ? ' (high impact)' : ''}</span></div>`).join('')}${news.length > 6 ? `<div class="hint">+${news.length - 6} more in News</div>` : ''}</div>` : `<div class="empty-s" id="tpNews">${nqBot && nqBot.news ? 'No medium or high impact releases today.' : 'News loads when the app is opened from your dashboard site.'}</div>`}</div>
       <div class="hint">After 12pm ET this card turns into a debrief. Saved on every device.</div></section>`;
   }
-  const a = tlEval(et.day, tlCfg()), pnl = a.count ? a.pnl : (typeof nqPnl[et.day] === 'number' ? nqPnl[et.day] : null);
+  const a = tzEval(et.day, tzCfg()), pnl = a.count ? a.pnl : (typeof nqPnl[et.day] === 'number' ? nqPnl[et.day] : null);
   const max = p && +p.max > 0 ? +p.max : 0, over = max > 0 && a.count > max, r = tpRate();
   const planTxt = p && (p.bias || p.setup || max) ? `Plan: ${[p.bias ? TP_BIAS.find((b) => b[0] === p.bias)[1] : '', p.setup ? 'setup "' + p.setup + '"' : '', max ? 'max ' + max + ' trade' + (max === 1 ? '' : 's') : ''].filter(Boolean).map(esc).join(' · ')}.` : 'No plan was written for today.';
   return `<section class="td-card" id="tpCard" data-tpd="${today}"><h3>Debrief${tabs}</h3>
@@ -6383,7 +6383,7 @@ setInterval(() => {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync) syncNow(); });
 addEventListener('online', () => { if (sync) syncNow(); });
 $('#helpBtn').onclick = () => $('#helpDlg').showModal();
-const APP_VERSION = '2026-10-30.12';
+const APP_VERSION = '2026-10-30.13';
 if ($('#verNote')) $('#verNote').textContent = 'Planner ' + APP_VERSION;
 if (!HOSTED && 'serviceWorker' in navigator && window.isSecureContext && location.protocol.startsWith('http')) {
   const hadController = !!navigator.serviceWorker.controller;

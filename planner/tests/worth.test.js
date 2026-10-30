@@ -42,6 +42,10 @@ const monthly = 1500 + 100 + 1200 / 12 + 25 * 52 / 12; // 1808.33
   {
     const { p, errs: pe } = await open(b, { now: NOW, seed: nqCache(NOW, {}), state: { worth, bills }, hash: '#worth' });
     ok(await p.isVisible('#wtDlg'), '#worth opens the sheet');
+    await p.evaluate(() => document.getElementById('wtDlg').close()); await wait(300);
+    ok((await noW(p)) <= 390, 'Today: no sideways scroll ' + await noW(p));
+    await p.screenshot({ path: '/tmp/worth-today.png', fullPage: true });
+    await p.click('[data-wtopen]'); await wait(300);
     ok(await p.textContent('#wtTotal') === '$8,500', 'net worth = assets - debts: ' + await p.textContent('#wtTotal'));
     ok(/\+\$1,500 since December 1/.test(await txt(p, '#wtChg')), 'change this month vs the last snapshot before it: ' + await txt(p, '#wtChg'));
     ok(/Assets \$12,500, debts -\$4,000/.test(await txt(p, '#wtChg')), 'assets and debts split');

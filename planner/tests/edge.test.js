@@ -38,6 +38,8 @@ let cum = 0, peak = 0, dd = 0; ts.forEach((t) => { cum += t.usd; peak = Math.max
   {
     const { p, errs: pe } = await open(b, { now: NOW, seed: nqCache(NOW, { trades: DATA }) });
     ok(/\+?\$150/.test(await txt(p, '#edCard')) && /30 trades/.test(await txt(p, '#edCard')), 'card: ' + await txt(p, '#edCard'));
+    ok((await noW(p)) <= 390, 'Today: no sideways scroll ' + await noW(p));
+    await p.screenshot({ path: '/tmp/edge-today.png', fullPage: true });
     await p.click('[data-edopen]'); await wait(300);
     const s = await txt(p, '#edStats');
     ok(/\$150 net P&L/.test(s), 'net: ' + s);

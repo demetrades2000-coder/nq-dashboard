@@ -36,6 +36,7 @@ const trades = [etTrade('2026-11-27', '09:35', -100), etTrade('2026-11-27', '09:
     ok(await p.textContent('#scStreak') === '6' && await p.textContent('#scBestC') === '10', `streaks cur 6 best 10: ${await p.textContent('#scStreak')} / ${await p.textContent('#scBestC')}`);
     ok(await p.locator('#scCard .sc-spark circle').count() === 14 && await p.locator('#scCard .sc-spark circle.ok').count() === 9, 'sparkline has 14 dots, 9 of them 70+: ' + await p.locator('#scCard .sc-spark circle').count() + '/' + await p.locator('#scCard .sc-spark circle.ok').count());
     ok(/\+25 if you finish your shift/.test(await p.textContent('#scMissC')), 'biggest missing item first: ' + await p.textContent('#scMissC'));
+    ok((await noW(p)) <= 390, 'Today: no sideways scroll ' + await noW(p));
     await p.click('[data-scopen]'); await wait(300);
     ok(await p.isVisible('#scDlg') && await p.textContent('#scBig') === '29', 'sheet shows 29');
     const miss = await txt(p, '#scMiss');

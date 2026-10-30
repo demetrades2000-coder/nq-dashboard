@@ -4924,7 +4924,8 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .hub-none{font-size:13px;color:var(--mute);padding:14px 4px}
 .hub-quick{display:flex;flex-wrap:wrap;gap:8px}.hub-quick .btn{height:40px}
 #hbBtn{order:1}
-@media (max-width:640px){#hbBtn{width:36px;padding:0;justify-content:center}}
+@media (min-width:961px) and (max-width:1180px){.right{gap:6px}.search{width:64px}}
+@media (max-width:1700px){#hbBtn{width:36px;padding:0;justify-content:center}#hbBtn .newlabel{display:none}}
 </style>`);
 document.body.insertAdjacentHTML('beforeend', `<dialog id="hbDlg" aria-labelledby="hbTitle"><div class="dlg">
   <div class="dlg-h"><h3 id="hbTitle">All tools</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
@@ -6322,7 +6323,7 @@ const PK_CMDS = [
   { id: 'help', l: 'Help', k: 'how to guide', run: () => $('#helpDlg').showModal() },
 ];
 // every tool from the All tools hub (HUB block) that has no command yet
-HB_TOOLS.forEach((t) => { if (!t.pk) PK_CMDS.push({ id: 'tool-' + t.id, l: t.n, k: t.k + ' ' + t.d.toLowerCase(), run: () => hbOpenTool(t.id) }); });
+HB_TOOLS.forEach((t) => { if (!t.pk) PK_CMDS.push({ id: 'tool-' + t.id, l: t.n, k: t.k, run: () => hbOpenTool(t.id) }); });
 PK_CMDS.push({ id: 'all-tools', l: 'All tools', k: 'tools hub menu everything find', run: () => openHub() });
 const PK_DEFAULT = ['new-event', 'new-task', 'plan-day', 'shifts', 'earnings', 'week-balance', 'check-week', 'timer-start', 'deals'];
 const pkCmdRow = (c, why) => ({ g: why || 'Actions', title: c.l, sub: '', kind: '', rec: { t: 'cmd', id: c.id }, run: c.run });

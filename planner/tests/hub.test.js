@@ -103,8 +103,8 @@ const EXPECT = {
   ok(pe.length === 0, 'page errors: ' + pe.join(' | '));
   await ctx.close();
   // desktop width
-  const d = await open(b, { now: NOW, hash: '#tools', width: 1280 });
-  ok(await d.p.isVisible('#hbDlg') && await d.p.isVisible('#hbBtn'), 'desktop: hub and header button');
+  const d = await open(b, { now: NOW, hash: '#tools', width: 1920 });
+  ok(await d.p.isVisible('#hbDlg') && await d.p.isVisible('#hbBtn'), 'wide desktop: hub and header button');
   ok(/All tools/.test(await d.p.textContent('#hbBtn')), 'desktop button has a label');
   await d.p.screenshot({ path: '/tmp/hub-desktop.png' });
   ok(d.errs.length === 0, 'desktop page errors: ' + d.errs.join(' | '));

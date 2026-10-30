@@ -1180,7 +1180,7 @@ const shade = (hex, f) => { const [r, g, b] = rgb(hex); return `rgb(${Math.round
 const cvars = (hex) => `--c:${hex};--bg-c:${tint(hex, .13)};--fg:${shade(hex, .42)}`;
 
 // ---------- state ----------
-const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan', 'timelog', 'deals', 'waiting', 'score', 'worth', 'alcfg']; // collections added by the Rules and Trades features
+const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan', 'timelog', 'deals', 'waiting', 'score', 'worth', 'alcfg', 'miles', 'milecfg']; // collections added by the Rules and Trades features
 let S = load();
 let cursor = todayKey(), selected = cursor, miniMonth = cursor.slice(0, 7);
 let query = '', agendaDays = 30, undoSnap = null, editing = null, lastScrollView = null;
@@ -2712,6 +2712,7 @@ function renderToday() {
     ${hxTodayCard()}
     ${wbTodayCard()}${earnTodayCard()}
     ${billsTodayCard()}
+    ${milesTodayCard()}
     ${alertsTodayCard()}
     ${plTodayCard()}
     ${edgeTodayCard()}
@@ -2779,6 +2780,7 @@ function route() {
   else if (h === 'score') { goToday(); openScore(); }
   else if (h === 'worth') { goToday(); openWorth(); }
   else if (h === 'alerts') { goToday(); openAlerts(); }
+  else if (h === 'miles') { goToday(); openMiles(); }
   else if (h === 'tilt') { goToday(); openTiltSettings(); }
   else if (h === 'trade-plan') { goToday(); tpMode = 'plan'; renderMain(); }
   else if (h === 'search' || h === 'palette') { goToday(); openPalette(); }
@@ -3369,6 +3371,185 @@ function alertsTodayCard() {
 }
 $('#main').addEventListener('click', (e) => { if (S.view === 'today' && e.target.closest('[data-alopen]')) openAlerts(); });
 // ===== ALERTS END =====
+
+// ===== MILES BEGIN: mileage and work expenses for the electric job and businesses (synced collections `miles` and `milecfg`) =====
+// `miles` holds trips { id, kind:'trip', date, from, to, job, miles, rate } and expenses { id, kind:'exp', date, cat, note, job, amt, mid }.
+// A trip keeps the rate it was logged at, so changing the rate later never rewrites old trips. `mid` links an expense to its optional
+// money-log "out" entry. `milecfg` holds item 'cfg' { rate, tax } and favourite trips 'fav:<id>' { name, from, to, miles, job }.
+// Every number here is the person's own estimate, not tax advice: the IRS standard mileage rate must be confirmed for the year.
+const MI_RATE = 0.70, MI_TAX = 22; // labelled, editable assumptions
+const MI_CATS = ['Tools', 'Materials', 'Receipts and supplies', 'Vehicle and fuel', 'Phone and software', 'Permits and fees', 'Other'];
+document.head.insertAdjacentHTML('beforeend', `<style>
+#miDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}#miDlg input,#miDlg select{font-size:16px}
+.mi-tabs{display:flex;gap:6px}.mi-tabs button{flex:1;height:36px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:14px;font-weight:500}
+.mi-tabs button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+.mi-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.mi-form .wide{grid-column:1/-1}
+.mi-form input,.mi-form select{height:40px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:#fff;min-width:0;width:100%;outline:none}
+.mi-form input:focus,.mi-form select:focus{border-color:var(--ink)}
+.mi-chk{display:flex;align-items:center;gap:8px;font-size:13px}.mi-chk input{width:20px;height:20px;flex:none}
+.mi-favs{display:flex;flex-wrap:wrap;gap:6px}.mi-fav{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:16px;background:#fff;font-size:13px;overflow:hidden}
+.mi-fav button{padding:6px 10px;min-height:32px}.mi-fav button+button{padding:6px 9px;color:var(--mute);border-left:1px solid var(--line2)}
+.mi-ent{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;width:100%;text-align:left;padding:8px 6px;border-top:1px solid var(--line2);align-items:baseline}
+.mi-ent b{font-weight:500;overflow-wrap:anywhere}.mi-ent small{color:var(--mute);font-size:12px;overflow-wrap:anywhere}.mi-ent .n{font-variant-numeric:tabular-nums;font-weight:600;grid-row:1/3;grid-column:2;text-align:right}
+.mi-note{font-size:12px;color:#92400e;background:#fffaf0;border:1px solid #f3d9a4;border-radius:10px;padding:8px 10px;line-height:1.4}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="miDlg" aria-labelledby="miTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="miTitle">Miles and expenses</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="miBody" style="display:flex;flex-direction:column;gap:12px"></div>
+</div></dialog>`);
+const miDlg = $('#miDlg');
+let miMode = 'trip', miEditId = null, miYear = null;
+const miNum = (v, d) => (v != null && v !== '' && Number.isFinite(+v) && +v >= 0 ? +v : d);
+function miCfg() { const c = S.milecfg.find((x) => x.id === 'cfg') || {}; return { rate: miNum(c.rate, MI_RATE), tax: Math.min(60, miNum(c.tax, MI_TAX)) }; }
+const miUsd = (n) => (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const miMi = (n) => (Math.round(n * 10) / 10).toLocaleString('en-US') + ' mi';
+const miVal = (e, cfg) => (e.kind === 'trip' ? (+e.miles || 0) * (e.rate != null ? +e.rate : cfg.rate) : +e.amt || 0); // deduction value of one entry
+const miOf = (year, month) => S.miles.filter((e) => e && (e.kind === 'trip' || e.kind === 'exp') && YMD.test(e.date || '') && e.date.slice(0, 4) === String(year) && (!month || e.date.slice(0, 7) === month));
+function miSum(list, cfg) {
+  const trips = list.filter((e) => e.kind === 'trip'), exps = list.filter((e) => e.kind === 'exp');
+  const miles = trips.reduce((n, e) => n + (+e.miles || 0), 0), mileDed = trips.reduce((n, e) => n + miVal(e, cfg), 0), exp = exps.reduce((n, e) => n + miVal(e, cfg), 0);
+  const ded = mileDed + exp;
+  return { miles, mileDed, exp, ded, saved: ded * cfg.tax / 100, trips: trips.length, exps: exps.length };
+}
+const miLastTrip = () => S.miles.filter((e) => e.kind === 'trip').sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.created || 0) - (a.created || 0))[0] || null;
+const miFavs = () => S.milecfg.filter((x) => /^fav:/.test(x.id)).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+const miTrip = (o) => ({ id: uid(), created: Date.now(), kind: 'trip', date: todayKey(), from: '', to: '', job: '', miles: 0, rate: miCfg().rate, ...o });
+function miAddTrip(o, label) { // log a trip with one tap and offer Undo
+  snapshot(); commit(() => { S.miles.push(miTrip(o)); });
+  render(); if (miDlg.open) miPaint();
+  toast(`${label}: ${miMi(o.miles)} logged`, true);
+}
+const miRoute = (e) => [e.from, e.to].filter(Boolean).join(' to ') || 'Trip';
+function miCsvCell(v) { let s = String(v == null ? '' : v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+function miCsv(year) {
+  const cfg = miCfg(), rows = [['Date', 'Type', 'From', 'To', 'Job or purpose', 'Category', 'Note', 'Miles', 'Rate per mile', 'Amount', 'Deduction estimate']];
+  miOf(year).sort((a, b) => a.date.localeCompare(b.date) || (a.created || 0) - (b.created || 0)).forEach((e) => {
+    const trip = e.kind === 'trip';
+    rows.push([e.date, trip ? 'Trip' : 'Expense', e.from || '', e.to || '', e.job || '', trip ? 'Mileage' : e.cat || '', e.note || '', trip ? (+e.miles || 0) : '', trip ? (e.rate != null ? +e.rate : cfg.rate) : '', trip ? '' : (+e.amt || 0).toFixed(2), miVal(e, cfg).toFixed(2)]);
+  });
+  const s = miSum(miOf(year), cfg);
+  rows.push([], ['Totals for ' + year, '', '', '', '', '', 'Your own estimate, not tax advice. Confirm the IRS rate.', Math.round(s.miles * 10) / 10, '', s.exp.toFixed(2), s.ded.toFixed(2)]);
+  return rows.map((r) => r.map(miCsvCell).join(',')).join('\r\n') + '\r\n';
+}
+function miJobs() { return [...new Set([...S.jobs.map((j) => j.name), ...S.projects.map((p) => p.name), ...S.miles.map((e) => e.job)].filter(Boolean))]; }
+function miEntryHtml(e, cfg) {
+  const trip = e.kind === 'trip', v = miVal(e, cfg);
+  return `<button type="button" class="mi-ent" data-miedit="${esc(e.id)}"><b>${esc(trip ? miRoute(e) : (e.cat || 'Expense') + (e.note ? ': ' + e.note : ''))}</b><span class="n">${trip ? miMi(+e.miles || 0) : miUsd(+e.amt || 0)}</span><small>${longDate(e.date)}${e.job ? ' · ' + esc(e.job) : ''}${trip ? ' · ' + miUsd(v) + ' deduction' : e.mid ? ' · in money log' : ''}</small></button>`;
+}
+function miPaint() {
+  const cfg = miCfg(), yr = miYear || +todayKey().slice(0, 4), mon = todayKey().slice(0, 7);
+  const Y = miSum(miOf(yr), cfg), M = miSum(miOf(+mon.slice(0, 4), mon), cfg), cur = yr === +mon.slice(0, 4);
+  const ed = miEditId ? S.miles.find((x) => x.id === miEditId) : null, mode = ed ? ed.kind === 'trip' ? 'trip' : 'exp' : miMode;
+  const last = miLastTrip(), favs = miFavs();
+  const list = miOf(yr).sort((a, b) => b.date.localeCompare(a.date) || (b.created || 0) - (a.created || 0));
+  const jobs = miJobs();
+  const v = (f, d = '') => esc(ed && ed[f] != null ? ed[f] : d);
+  $('#miBody').innerHTML = `
+    <div class="glance" id="miTiles"><div><b>${miMi(Y.miles)}</b><span>${yr} miles</span></div><div><b>${miUsd(Y.ded)}</b><span>${yr} deduction estimate</span></div><div><b>${miUsd(Y.saved)}</b><span>est. tax saved at ${cfg.tax}%</span></div></div>
+    ${cur ? `<div class="hint" id="miMonth">This month: ${miMi(M.miles)}, ${miUsd(M.exp)} expenses, ${miUsd(M.ded)} deduction estimate, about ${miUsd(M.saved)} tax saved.</div>` : ''}
+    <div class="mi-note">Your own estimate, not tax advice. The mileage rate and tax rate below are assumptions you can change. Confirm the IRS standard mileage rate for the year with the IRS or your tax preparer.</div>
+    <div class="mi-form"><div class="fld"><label for="miRate">Mileage rate ($ per mile)</label><input id="miRate" type="number" inputmode="decimal" min="0" step="0.005" value="${cfg.rate}"></div><div class="fld"><label for="miTax">Marginal tax rate (%)</label><input id="miTax" type="number" inputmode="decimal" min="0" max="60" step="1" value="${cfg.tax}"></div></div>
+    ${!ed && last ? `<button type="button" class="btn" id="miRepeat">Repeat last trip: ${esc(miRoute(last))}, ${miMi(+last.miles || 0)}</button>` : ''}
+    ${!ed && favs.length ? `<div class="mi-favs" id="miFavs">${favs.map((f) => `<span class="mi-fav"><button type="button" data-mifav="${esc(f.id)}">${esc(f.name)} · ${miMi(+f.miles || 0)}</button><button type="button" data-mifavdel="${esc(f.id)}" aria-label="Remove favorite ${esc(f.name)}">&times;</button></span>`).join('')}</div>` : ''}
+    <div class="mi-tabs" role="group" aria-label="What to log"><button type="button" data-mimode="trip" aria-pressed="${mode === 'trip'}"${ed ? ' disabled' : ''}>Trip</button><button type="button" data-mimode="exp" aria-pressed="${mode === 'exp'}"${ed ? ' disabled' : ''}>Tools and materials</button></div>
+    <form class="mi-form" id="miForm" autocomplete="off">
+      <div class="fld"><label for="miDate">Date</label><input id="miDate" type="date" value="${v('date', todayKey())}" required></div>
+      ${mode === 'trip'
+    ? `<div class="fld"><label for="miMiles">Miles</label><input id="miMiles" type="number" inputmode="decimal" min="0" step="0.1" value="${v('miles')}" placeholder="e.g. 18.4" required></div>
+      <div class="fld"><label for="miFrom">From</label><input id="miFrom" maxlength="80" value="${v('from')}" placeholder="Home"></div><div class="fld"><label for="miTo">To</label><input id="miTo" maxlength="80" value="${v('to')}" placeholder="Job site"></div>`
+    : `<div class="fld"><label for="miAmt">Amount ($)</label><input id="miAmt" type="number" inputmode="decimal" min="0" step="0.01" value="${v('amt')}" placeholder="e.g. 42.50" required></div>
+      <div class="fld"><label for="miCat">Category</label><select id="miCat">${MI_CATS.map((c) => `<option${ed && ed.cat === c ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></div><div class="fld"><label for="miNote">What and where</label><input id="miNote" maxlength="100" value="${v('note')}" placeholder="Wire strippers, Home Depot"></div>`}
+      <div class="fld wide"><label for="miJob">Job or purpose</label><input id="miJob" list="miJobList" maxlength="80" value="${v('job')}" placeholder="Electric job, business name"><datalist id="miJobList">${jobs.map((j) => `<option value="${esc(j)}">`).join('')}</datalist></div>
+      ${mode === 'exp' && !ed ? '<label class="mi-chk wide"><input type="checkbox" id="miMoney"> Also add it to the money log as money out</label>' : ''}
+      ${mode === 'exp' && ed && ed.mid ? '<div class="hint wide">This expense is also in the money log. Saving updates it too.</div>' : ''}
+      <div class="wide" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="miSave" style="flex:1">${ed ? 'Save changes' : mode === 'trip' ? 'Save trip' : 'Save expense'}</button>${mode === 'trip' && !ed ? '<button type="button" class="btn" id="miFavAdd">Save as favorite</button>' : ''}${ed ? '<button type="button" class="btn" id="miCancel">Cancel</button><button type="button" class="btn danger" id="miDel">Delete</button>' : ''}</div>
+    </form>
+    <div><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px"><div class="flabel" style="font-size:12px;font-weight:600;color:var(--mute)"><button type="button" class="btn sm" data-miyr="-1" aria-label="Previous year">&lsaquo;</button> <span id="miYr">${yr}</span> <button type="button" class="btn sm" data-miyr="1" aria-label="Next year">&rsaquo;</button></div><button type="button" class="btn sm" id="miCsv">Export ${yr} CSV</button></div>
+    ${list.length ? list.slice(0, 15).map((e) => miEntryHtml(e, cfg)).join('') + (list.length > 15 ? `<div class="hint">${list.length - 15} older entries are in the CSV.</div>` : '') : '<div class="empty-s">Nothing logged for ' + yr + ' yet.</div>'}</div>`;
+}
+function openMiles() { miEditId = null; miMode = 'trip'; miYear = null; miPaint(); if (!miDlg.open) miDlg.showModal(); }
+function miSaveForm() {
+  const g = (id) => ($('#' + id) ? $('#' + id).value.trim() : ''), ed = miEditId ? S.miles.find((x) => x.id === miEditId) : null;
+  const mode = ed ? ed.kind : miMode, date = g('miDate');
+  if (!YMD.test(date)) return toast('Pick a date');
+  if (mode === 'trip') {
+    const m = Math.round((parseFloat(g('miMiles')) || 0) * 10) / 10;
+    if (!(m > 0)) return toast('Enter the miles driven');
+    const patch = { date, from: g('miFrom'), to: g('miTo'), job: g('miJob'), miles: m };
+    snapshot(); commit(() => { if (ed) Object.assign(ed, patch); else S.miles.push(miTrip(patch)); });
+    toast(ed ? 'Trip updated' : `Trip logged: ${miMi(m)}`, true);
+  } else {
+    const amt = Math.round((parseFloat(g('miAmt')) || 0) * 100) / 100;
+    if (!(amt > 0)) return toast('Enter the amount');
+    const patch = { date, amt, cat: g('miCat') || 'Other', note: g('miNote'), job: g('miJob') };
+    const mnote = `${patch.cat}${patch.note ? ': ' + patch.note : ''}${patch.job ? ' (' + patch.job + ')' : ''}`;
+    snapshot();
+    commit(() => {
+      if (ed) {
+        Object.assign(ed, patch);
+        const mm = ed.mid && S.money.find((x) => x.id === ed.mid); if (mm) Object.assign(mm, { amt, date, note: mnote });
+      } else {
+        const x = { id: uid(), created: Date.now(), kind: 'exp', ...patch };
+        if ($('#miMoney') && $('#miMoney').checked) { x.mid = uid(); S.money.push({ id: x.mid, created: Date.now(), kind: 'out', amt, date, note: mnote, proj: '' }); }
+        S.miles.push(x);
+      }
+    });
+    toast(ed ? 'Expense updated' : `Expense logged: ${miUsd(amt)}`, true);
+  }
+  miEditId = null; miPaint(); render();
+}
+miDlg.addEventListener('submit', (e) => { if (e.target.closest('#miForm')) { e.preventDefault(); miSaveForm(); } });
+miDlg.addEventListener('input', (e) => {
+  if (e.target.matches('#miRate,#miTax')) { // save as you type; the tiles refresh when the field is left
+    const r = parseFloat($('#miRate').value), t = parseFloat($('#miTax').value);
+    commit(() => { upsert(S.milecfg, 'cfg', () => ({ id: 'cfg' }), { rate: r >= 0 ? r : MI_RATE, tax: t >= 0 ? Math.min(60, t) : MI_TAX }); });
+  }
+});
+miDlg.addEventListener('change', (e) => { if (e.target.matches('#miRate,#miTax')) { const keep = e.target.id; miPaint(); render(); const f = $('#' + keep); if (f) f.blur(); } });
+miDlg.addEventListener('click', async (e) => {
+  const t = e.target;
+  const md = t.closest('[data-mimode]'); if (md) { miMode = md.dataset.mimode; miPaint(); return; }
+  const yr = t.closest('[data-miyr]'); if (yr) { miYear = (miYear || +todayKey().slice(0, 4)) + +yr.dataset.miyr; miPaint(); return; }
+  const ed = t.closest('[data-miedit]'); if (ed) { miEditId = ed.dataset.miedit; miPaint(); $('#miForm').scrollIntoView({ block: 'nearest' }); return; }
+  if (t.closest('#miCancel')) { miEditId = null; miPaint(); return; }
+  if (t.closest('#miRepeat')) { const l = miLastTrip(); if (l) miAddTrip({ from: l.from, to: l.to, job: l.job, miles: l.miles }, 'Repeated ' + miRoute(l)); return; }
+  const fv = t.closest('[data-mifav]'); if (fv) { const f = S.milecfg.find((x) => x.id === fv.dataset.mifav); if (f) miAddTrip({ from: f.from, to: f.to, job: f.job, miles: f.miles }, f.name); return; }
+  const fd = t.closest('[data-mifavdel]');
+  if (fd) { const f = S.milecfg.find((x) => x.id === fd.dataset.mifavdel); if (f && await ask('Remove favorite?', `${f.name} goes away. Logged trips stay.`, 'Remove', { danger: true })) { commit(() => { S.milecfg = S.milecfg.filter((x) => x.id !== f.id); }); miPaint(); } return; }
+  if (t.closest('#miFavAdd')) {
+    const from = $('#miFrom').value.trim(), to = $('#miTo').value.trim(), m = Math.round((parseFloat($('#miMiles').value) || 0) * 10) / 10;
+    if (!(m > 0) || !(from || to)) return toast('Fill in the miles and where from or to first');
+    const name = [from, to].filter(Boolean).join(' to ');
+    if (S.milecfg.some((x) => /^fav:/.test(x.id) && x.name === name && +x.miles === m)) return toast('That favorite is already saved');
+    commit(() => { S.milecfg.push({ id: 'fav:' + uid(), name, from, to, miles: m, job: $('#miJob').value.trim() }); });
+    miPaint(); toast('Saved as a favorite'); return;
+  }
+  if (t.closest('#miDel')) {
+    const x = S.miles.find((q) => q.id === miEditId); if (!x) return;
+    if (!(await ask('Delete this entry?', x.mid ? 'It is also removed from the money log.' : 'You can undo right after.', 'Delete', { danger: true }))) return;
+    snapshot(); commit(() => { S.miles = S.miles.filter((q) => q.id !== x.id); if (x.mid) S.money = S.money.filter((q) => q.id !== x.mid); });
+    miEditId = null; miPaint(); render(); toast('Entry deleted', true); return;
+  }
+  if (t.closest('#miCsv')) {
+    const y = miYear || +todayKey().slice(0, 4);
+    if (!miOf(y).length) return toast('Nothing logged for ' + y);
+    if (await download(`planner-miles-${y}.csv`, miCsv(y), 'text/csv')) toast('CSV saved');
+  }
+});
+miDlg.addEventListener('close', () => { miEditId = null; render(); });
+function milesTodayCard() {
+  const cfg = miCfg(), yr = todayKey().slice(0, 4), mon = todayKey().slice(0, 7), Y = miSum(miOf(yr), cfg), M = miSum(miOf(yr, mon), cfg), last = miLastTrip();
+  return `<section class="td-card" id="miCard"><h3>Miles and expenses<button data-miopen>Log</button></h3>
+    <div class="glance"><div><b>${miMi(M.miles)}</b><span>this month</span></div><div><b>${miUsd(Y.ded)}</b><span>${yr} deduction est.</span></div><div><b>${miUsd(Y.saved)}</b><span>est. tax saved</span></div></div>
+    ${last ? `<button type="button" class="btn sm" data-mirepeat style="align-self:flex-start">Repeat last trip: ${esc(miRoute(last))}, ${miMi(+last.miles || 0)}</button>` : ''}
+    <div class="hint">Your own estimate at ${miUsd(cfg.rate)} a mile and ${cfg.tax}% tax. Not tax advice.</div></section>`;
+}
+$('#main').addEventListener('click', (e) => {
+  if (S.view !== 'today') return;
+  if (e.target.closest('[data-miopen]')) openMiles();
+  else if (e.target.closest('[data-mirepeat]')) { const l = miLastTrip(); if (l) miAddTrip({ from: l.from, to: l.to, job: l.job, miles: l.miles }, 'Repeated ' + miRoute(l)); }
+});
+// ===== MILES END =====
 
 // ===== SHIFTS BEGIN: recurring work shifts (Outback, electric) =====
 const shDlg = $('#shDlg');

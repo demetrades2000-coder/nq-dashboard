@@ -4350,7 +4350,7 @@ function ppEditHtml(a, isNew) {
     ? `<div class="pp-form"><div class="fld"><label for="ppf-fee0">Eval fee paid ($, optional)</label><input id="ppf-fee0" data-ppd="fee0" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(a.fee0 || '')}" placeholder="e.g. 107"></div>
       <label class="pp-chk" style="align-self:end;min-height:40px"><input type="checkbox" id="ppf-fee0m" data-ppd="fee0m"${a.fee0m ? ' checked' : ''}> Also log it as money out</label></div>
       <div class="hint">Resets, monthly data fees and payouts can be added after you save.</div>
-      <div style="display:flex;gap:8px"><button type="button" class="btn primary" id="ppSave" style="flex:1">Add account</button><button type="button" class="btn" id="ppBack">Cancel</button></div>`
+      <div style="display:flex;gap:8px"><button type="button" class="btn primary" id="ppSave" style="flex:1">Add account</button><button type="button" class="btn" id="ppCancel">Cancel</button></div>`
     : `<div><div class="flabel" style="font-size:12px;font-weight:600;color:var(--mute)">Fees (${ppUsd(ppSum(fees))})</div><div id="ppFees">${fees.length ? fees.slice().sort((x, y) => (y.date || '').localeCompare(x.date || '')).map((f) => `<div class="pp-sub"><span>${esc((ppFeeKinds.find((k) => k[0] === f.kind) || ppFeeKinds[4])[1])} · ${YMD.test(f.date || '') ? ppShort(f.date) : ''}${money(f)}</span><span><b>${ppUsd(f.amt)}</b> <button type="button" class="btn sm" data-ppfeedel="${esc(f.id)}" aria-label="Remove fee">Remove</button></span></div>`).join('') : '<div class="empty-s">No fees yet.</div>'}</div></div>
       <div class="pp-form" id="ppFeeForm"><div class="fld"><label for="ppf-fk">Fee type</label><select id="ppf-fk">${ppFeeKinds.map((k) => `<option value="${k[0]}">${k[1]}</option>`).join('')}</select></div>
         <div class="fld"><label for="ppf-fa">Amount ($)</label><input id="ppf-fa" type="number" inputmode="decimal" min="0" step="0.01" placeholder="e.g. 85"></div>
@@ -4419,7 +4419,7 @@ ppDlg.addEventListener('click', async (e) => {
   if (t.closest('#ppAdd')) { ppDraft = { firm: '', name: '', size: '', start: todayKey(), status: 'active', split: 90, acct: '', proj: ppDefaultProj(), fee0: '', fee0m: false }; ppEditId = 'new'; ppPaint(); return; }
   const nw = t.closest('[data-ppnew]'); if (nw) { ppDraft = { ...ppMissingDraft(nw.dataset.ppnew), fee0: '', fee0m: false }; ppEditId = 'new'; ppPaint(); return; }
   const ed = t.closest('[data-ppedit]'); if (ed) { ppEditId = ed.dataset.ppedit; ppPaint(); $('#ppBody').scrollIntoView({ block: 'start' }); return; }
-  if (t.closest('#ppBack')) { ppEditId = null; ppDraft = null; ppPaint(); render(); return; }
+  if (t.closest('#ppBack') || t.closest('#ppCancel')) { ppEditId = null; ppDraft = null; ppPaint(); render(); return; }
   if (t.closest('#ppSave')) {
     const d = ppDraft; if (!d) return;
     ['firm', 'name', 'size', 'split', 'start', 'end', 'status', 'proj', 'acct'].forEach((f) => { const el = $('#ppf-' + f); if (el) { const v = ppCoerce(f, el.value); if (v !== undefined) d[f] = v; } });
@@ -4470,8 +4470,8 @@ ppDlg.addEventListener('click', async (e) => {
 ppDlg.addEventListener('close', () => { ppEditId = null; ppDraft = null; render(); });
 function propTodayCard() {
   const list = ppAll(), live = ppLiveAccts();
-  if (!list.length && !live.length) return `<section class="td-card" id="ppCard"><h3>Prop firm ledger<button data-ppopen>Set up</button></h3><div class="hint">Log every eval and funded account with its fees and payouts to see what they really cost and pay.</div></section>`;
-  if (!list.length) return `<section class="td-card" id="ppCard"><h3>Prop firm ledger<button data-ppopen>Set up</button></h3><div class="hint">${live.length} account${live.length === 1 ? '' : 's'} in your dashboard. Add them to the ledger with their fees to see your ROI.</div></section>`;
+  if (!list.length && !live.length) return `<section class="td-card" id="ppCardNew"><h3>Prop firm ledger<button data-ppopen>Set up</button></h3><div class="hint">Log every eval and funded account with its fees and payouts to see what they really cost and pay.</div></section>`;
+  if (!list.length) return `<section class="td-card" id="ppCardLive"><h3>Prop firm ledger<button data-ppopen>Set up</button></h3><div class="hint">${live.length} account${live.length === 1 ? '' : 's'} in your dashboard. Add them to the ledger with their fees to see your ROI.</div></section>`;
   const s = ppStats(list);
   return `<section class="td-card" id="ppCard"><h3>Prop firm ledger<button data-ppopen>Details</button></h3><div class="glance"><div><b>${ppUsd(s.spent)}</b><span>spent</span></div><div><b>${ppUsd(s.paid)}</b><span>paid out</span></div><div><b class="${s.net < 0 ? 'neg' : 'pos'}">${ppUsd(s.net)}</b><span>net</span></div></div><div class="hint">${esc(ppLine(s))}${s.need > 0 ? ' ' + esc(ppUsd(s.need)) + ' more to break even.' : ''}${s.passRate != null ? ` Pass rate ${Math.round(s.passRate)}%.` : ''}</div></section>`;
 }

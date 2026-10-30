@@ -77,7 +77,7 @@ const withLive = () => { const c = nqCache(NOW, {}); c.doc.trade.accounts = live
     ok(/Add Topstep 50K Combine/.test(await txt(p, '#ppMissing')) && !/Add MFFU 25K Eval/.test(await txt(p, '#ppMissing')), 'unlinked live account offered: ' + await txt(p, '#ppMissing'));
     await p.click('[data-ppnew]'); await wait(200);
     ok(await p.inputValue('#ppf-size') === '50000' && (await p.inputValue('#ppf-firm')) === 'Topstep', 'prefill from the dashboard name: ' + await p.inputValue('#ppf-size'));
-    await p.click('#ppBack'); await wait(200);
+    await p.click('#ppCancel'); await wait(200);
     // open an account: live line and fees
     await p.click('[data-ppedit="pa3"]'); await wait(200);
     ok(/Live: MFFU 25K Eval/.test(await txt(p, '#ppLiveLine')), 'live line in the edit view');

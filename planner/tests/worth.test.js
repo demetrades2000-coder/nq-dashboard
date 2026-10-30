@@ -1,5 +1,6 @@
 // Net worth and savings: node planner/tests/worth.test.js  (serve the site first, PORT env, default 8783; see shifts.test.js)
 const { chromium } = require('playwright');
+const expand = require('./lib-expand');
 const { wait, nqCache, open, st } = require('./lib-fin');
 const NOW = Date.parse('2026-12-02T15:10:00Z'); // Wednesday 10:10 ET
 const acct = (n, name, kind, bal) => ({ id: 'a:' + n, name, kind, bal, c: n, d: '2026-11-20' });
@@ -13,7 +14,7 @@ const monthly = 1500 + 100 + 1200 / 12 + 25 * 52 / 12; // 1808.33
   const errs = [], ok = (c, m) => { if (!c) errs.push(m); };
   const b = await chromium.launch();
   const noW = (p) => p.evaluate(() => document.documentElement.scrollWidth);
-  const txt = async (p, sel) => (await p.innerText(sel)).replace(/\s+/g, ' ');
+  const txt = async (p, sel) => (await expand.within(p, sel), await p.innerText(sel)).replace(/\s+/g, ' ');
   const wl = async (p) => ((await st(p)) || {}).worth || [];
   const snapOf = async (p, d) => ((await st(p)).worth.find((x) => x.id === 's:' + d) || {}).total;
 
@@ -21,7 +22,7 @@ const monthly = 1500 + 100 + 1200 / 12 + 25 * 52 / 12; // 1808.33
   {
     const { p, errs: pe } = await open(b, { now: NOW, seed: nqCache(NOW, {}) });
     ok(/Set up/.test(await txt(p, '#wtCard')) && /own numbers|You type the balances/.test(await txt(p, '#wtCard')), 'empty card invites set up: ' + await txt(p, '#wtCard'));
-    await p.click('[data-wtopen]'); await wait(300);
+    await expand(p, 'worth'); await p.click('[data-wtopen]'); await wait(300);
     ok(await p.isVisible('#wtDlg') && await p.isVisible('#wtEmpty') && /No accounts yet/.test(await txt(p, '#wtList')), 'empty sheet');
     // add the first account by hand
     await p.click('#wtAdd'); ok(!(await wl(p)).length, 'needs a name first');
@@ -45,7 +46,7 @@ const monthly = 1500 + 100 + 1200 / 12 + 25 * 52 / 12; // 1808.33
     await p.evaluate(() => document.getElementById('wtDlg').close()); await wait(300);
     ok((await noW(p)) <= 390, 'Today: no sideways scroll ' + await noW(p));
     await p.screenshot({ path: '/tmp/worth-today.png', fullPage: true });
-    await p.click('[data-wtopen]'); await wait(300);
+    await expand(p, 'worth'); await p.click('[data-wtopen]'); await wait(300);
     ok(await p.textContent('#wtTotal') === '$8,500', 'net worth = assets - debts: ' + await p.textContent('#wtTotal'));
     ok(/\+\$1,500 since December 1/.test(await txt(p, '#wtChg')), 'change this month vs the last snapshot before it: ' + await txt(p, '#wtChg'));
     ok(/Assets \$12,500, debts -\$4,000/.test(await txt(p, '#wtChg')), 'assets and debts split');

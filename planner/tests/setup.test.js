@@ -1,6 +1,7 @@
 // Get set up checklist: node planner/tests/setup.test.js  (serve the site first, see shifts.test.js; PORT=... overrides, default 8788)
 // Done states come from real data and flip when data is added; Hide for now is remembered; the hub lists it as Setup.
 const { chromium } = require('playwright');
+const expand = require('./lib-expand');
 const { wait, open } = require('./lib-money.js');
 const NOW = Date.parse('2026-10-14T12:00:00-04:00'); // a Wednesday
 (async () => {
@@ -10,7 +11,7 @@ const NOW = Date.parse('2026-10-14T12:00:00-04:00'); // a Wednesday
   const count = async () => { const t = await p.textContent('#suCardCount').catch(() => ''); return t; };
   const nextTitle = async () => ((await p.textContent('#suCard .su-next b').catch(() => '')) || '').trim();
   const patch = async (fn, arg) => { await p.evaluate(([src, a]) => { const s = JSON.parse(localStorage.getItem('planner.v1')); new Function('s', 'a', src)(s, a); localStorage.setItem('planner.v1', JSON.stringify(s)); }, [fn, arg]); await p.reload(); await wait(1000); };
-  ok(await p.isVisible('#suCard'), 'card shows on a fresh install');
+  await expand(p, 'setup'); ok(await p.isVisible('#suCard'), 'card shows on a fresh install');
   ok(/^0 of 10 done$/.test(await count()), 'fresh: ' + await count());
   ok(/real shift times and hourly pay/.test(await nextTitle()), 'next step is the jobs: ' + await nextTitle());
   ok(await p.$eval('#suCard .prog i', (i) => i.style.width) === '0%', 'progress bar empty');
@@ -42,7 +43,7 @@ const NOW = Date.parse('2026-10-14T12:00:00-04:00'); // a Wednesday
   await patch("s.jobs[1].rate = 28;");
   // the last step: Back up
   const dl = p.waitForEvent('download', { timeout: 4000 }).catch(() => null);
-  await p.click('#suCard [data-sugo="backup"]'); const got = await dl; await wait(300);
+  await expand(p, 'setup'); await p.click('#suCard [data-sugo="backup"]'); const got = await dl; await wait(300);
   ok(got && /planner-backup/.test(got.suggestedFilename()), 'Back up now downloads a backup');
   await wait(1600);
   ok(!(await p.isVisible('#suCard')), 'card disappears at 10 of 10');
@@ -52,26 +53,26 @@ const NOW = Date.parse('2026-10-14T12:00:00-04:00'); // a Wednesday
   // real UI flips: tilt limits, then a fresh start
   await patch("s.lastBackup = 0; s.tilt = [];");
   ok(/^8 of 10 done$/.test(await count()), 'back to 8 of 10: ' + await count());
-  await p.click('#suCard [data-sugo="tilt"]'); await wait(300);
+  await expand(p, 'setup'); await p.click('#suCard [data-sugo="tilt"]'); await wait(300);
   ok(await p.isVisible('#tsDlg'), 'Next step button opens the tilt guard');
   await p.fill('#tsMax', '3'); await p.press('#tsMax', 'Tab'); await wait(200);
   await p.keyboard.press('Escape'); await wait(300);
   ok(/^9 of 10 done$/.test(await count()), 'saving tilt limits flips step 5: ' + await count());
   // See all steps lists everything and every button opens its tool
-  await p.click('#suCard [data-suall]'); await wait(200);
+  await expand(p, 'setup'); await p.click('#suCard [data-suall]'); await wait(200);
   ok(await p.isVisible('#suDlg') && await p.locator('#suDlg .su-row').count() === 10, 'all 10 steps listed');
   ok(await p.locator('#suDlg .su-row.done').count() === 9 && await p.locator('#suDlg .su-row.next').count() === 1, 'done and next marked');
   const open_ = { jobs: '#shDlg', shifts: '#shDlg', bills: '#bnDlg', payday: '#pdDlg', tilt: '#tsDlg', goal: '#erDlg', targets: '#wbDlg', prop: '#ppDlg', alerts: '#alDlg' };
   for (const [id, sel] of Object.entries(open_)) {
-    if (!(await p.isVisible('#suDlg'))) { await p.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close())); await p.click('#suCard [data-suall]'); await wait(150); }
+    if (!(await p.isVisible('#suDlg'))) { await p.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close())); await expand(p, 'setup'); await p.click('#suCard [data-suall]'); await wait(150); }
     await p.click(`#suDlg [data-sugo="${id}"]`); await wait(300);
     ok(await p.isVisible(sel), `step ${id} opens ${sel}`);
     await p.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close())); await wait(100);
-    await p.click('#suCard [data-suall]'); await wait(150);
+    await expand(p, 'setup'); await p.click('#suCard [data-suall]'); await wait(150);
   }
   await p.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close())); await wait(100);
   // Hide for now is remembered, and the hub keeps Setup
-  await p.click('#suCard [data-suhide]'); await wait(300);
+  await expand(p, 'setup'); await p.click('#suCard [data-suhide]'); await wait(300);
   ok(!(await p.isVisible('#suCard')), 'Hide for now hides the card');
   ok(await p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')).hub.find((x) => x.id === 'cfg').suHide === true), 'hidden flag saved in the synced hub item');
   await p.reload(); await wait(1000);
@@ -83,7 +84,7 @@ const NOW = Date.parse('2026-10-14T12:00:00-04:00'); // a Wednesday
   await p.click('#suToggle'); await wait(300);
   ok(await p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')).hub.find((x) => x.id === 'cfg').suHide === false), 'show again saved');
   await p.keyboard.press('Escape'); await wait(300);
-  ok(await p.isVisible('#suCard'), 'card is back on Today');
+  await expand(p, 'setup'); ok(await p.isVisible('#suCard'), 'card is back on Today');
   // deep link
   const d = await open(b, { now: NOW, state: { v: 1 }, hash: '#setup' });
   ok(await d.p.isVisible('#suDlg'), '#setup opens the list');

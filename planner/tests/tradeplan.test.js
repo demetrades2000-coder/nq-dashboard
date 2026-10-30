@@ -1,5 +1,6 @@
 // Trade plan + debrief: node planner/tests/tradeplan.test.js  (serve the site first, PORT env, default 8781; see shifts.test.js)
 const { chromium } = require('playwright');
+const expand = require('./lib-expand');
 const { wait, nqCache, trade, open, st } = require('./lib-money');
 const sec = (iso) => Math.round(Date.parse(iso) / 1000);
 const DAY = '2026-11-03'; // a Tuesday; EST
@@ -13,7 +14,7 @@ const T = (a, b, usd) => trade(DAY, sec(`${DAY}T${a}:00Z`), sec(`${DAY}T${b}:00Z
   // ---- before the open (8:00 ET): the plan card ----
   {
     const now = Date.parse(`${DAY}T13:00:00Z`);
-    const { p, errs: pe } = await open(b, { now, seed: nqCache(now, { day: DAY, news }) });
+    const { p, errs: pe } = await open(b, { now, seed: nqCache(now, { day: DAY, news }) }); await expand(p, 'tradeplan');
     ok(await p.isVisible('#tpCard') && /Trade plan/.test(await p.textContent('#tpCard')), 'plan card before 12pm ET');
     ok(/NY open 9:30am ET, in 1h 30m/.test(await p.textContent('#tpCard')), 'NY open countdown: ' + (await p.textContent('#tpCard')).replace(/\s+/g, ' ').slice(0, 120));
     const nw = await p.textContent('#tpNews');
@@ -40,7 +41,7 @@ const T = (a, b, usd) => trade(DAY, sec(`${DAY}T${a}:00Z`), sec(`${DAY}T${b}:00Z
     const prior = [['2026-10-30', 'yes'], ['2026-10-29', 'partly'], ['2026-10-28', 'no'], ['2026-10-02', 'yes']]; // the last one is more than 4 weeks old
     const state = { v: 1, view: 'today', tplan: [{ id: 'tp:' + DAY, date: DAY, bias: 'long', setup: 'Asia low sweep', max: 2, levels: '' }, ...prior.map(([d, f]) => ({ id: 'tp:' + d, date: d, followed: f }))] };
     const trades = [T('14:35', '14:45', -100), T('14:50', '15:00', 300), T('15:10', '15:20', 50)];
-    const { p, errs: pe } = await open(b, { now, seed: nqCache(now, { day: DAY, trades, news }), state });
+    const { p, errs: pe } = await open(b, { now, seed: nqCache(now, { day: DAY, trades, news }), state }); await expand(p, 'tradeplan');
     const c = await p.textContent('#tpCard');
     ok(/Debrief/.test(c) && /Asia low sweep/.test(c) && /Long/.test(c) && /max 2 trades/.test(c), 'flips to debrief with the plan: ' + c.replace(/\s+/g, ' ').slice(0, 200));
     ok(/^3 of 2$/.test((await p.textContent('#tpCount')).trim()) && /more trade/.test(c), 'trades taken vs max, over flagged');
@@ -59,7 +60,7 @@ const T = (a, b, usd) => trade(DAY, sec(`${DAY}T${a}:00Z`), sec(`${DAY}T${b}:00Z
   // ---- Saturday: nothing planned, no card ----
   {
     const now = Date.parse('2026-11-07T15:00:00Z');
-    const { p, errs: pe } = await open(b, { now, seed: nqCache(now, {}) });
+    const { p, errs: pe } = await open(b, { now, seed: nqCache(now, {}) }); await expand(p, 'tradeplan');
     ok(!(await p.locator('#tpCard').count()), 'no card on a weekend without a plan');
     errs.push(...pe);
   }

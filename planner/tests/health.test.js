@@ -1,4 +1,5 @@
 const { chromium } = require('playwright');
+const expand = require('./lib-expand');
 const URL = 'http://127.0.0.1:8777/nq-dashboard/planner/index.html';
 const errs = [];
 (async () => {
@@ -65,7 +66,7 @@ const errs = [];
   // today card + deep link + phone
   const m = await (await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 })).newPage(); m.on('pageerror', (e) => errs.push('m ' + e.message));
   await m.goto(URL); await wait(3500);
-  ok(/Health/.test(await m.textContent('.tdy')), 'health card on Today'); await m.click('.tdy [data-hx="water+"]'); await wait(300);
+  ok(/Health/.test(await m.textContent('.tdy')), 'health card on Today'); await expand(m, 'health'); await m.click('.tdy [data-hx="water+"]'); await wait(300);
   { const mh = await m.evaluate((t) => (JSON.parse(localStorage.getItem('planner.v1')).health.find((x) => x.date === t) || {}).water, today); ok(mh === 1, 'water from Today card ' + mh); }
   await m.click('#moreBtn'); await m.click('#moreMenu [data-v=health]'); await wait(300);
   for (const t of ['today', 'workouts', 'trends']) { await m.click(`[data-hxtab=${t}]`); await wait(200); ok(await m.evaluate(() => document.documentElement.scrollWidth) <= 390, 'phone overflow in ' + t); if (t === 'today') await m.screenshot({ path: 'shots/H-phone.png' }); }

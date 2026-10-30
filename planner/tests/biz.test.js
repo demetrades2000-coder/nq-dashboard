@@ -1,6 +1,7 @@
 // Business P&L: node planner/tests/biz.test.js  (serve the site first, PORT env, default 8786; see shifts.test.js)
 process.env.PORT = process.env.PORT || '8786';
 const { chromium } = require('playwright');
+const expand = require('./lib-expand');
 const { wait, nqCache, open, st } = require('./lib-fin');
 const NOW = Date.parse('2026-10-30T15:10:00Z'); // Friday 11:10 ET
 let n = 0;
@@ -18,7 +19,7 @@ const miles = [
 (async () => {
   const errs = [], ok = (c, m2) => { if (!c) errs.push(m2); };
   const b = await chromium.launch();
-  const txt = async (p, sel) => (await p.innerText(sel)).replace(/\s+/g, ' ');
+  const txt = async (p, sel) => (await expand.within(p, sel), await p.innerText(sel)).replace(/\s+/g, ' ');
   const W = (p) => p.evaluate(() => document.documentElement.scrollWidth);
 
   // ---- empty ----
@@ -38,7 +39,7 @@ const miles = [
     ok(/Business profit and loss/.test(card) && /Oct net/.test(card), 'Today card: ' + card);
     ok(/\$1,773/.test(card), 'card net is tagged projects only (380 + 1393): ' + card);
     ok(/4 untagged entries not included/.test(card) && /\$1,763/.test(card), 'card mentions untagged and year to date: ' + card);
-    await p.click('[data-bzopen]'); await wait(300);
+    await expand(p, 'biz'); await p.click('[data-bzopen]'); await wait(300);
     ok(/October 2026/.test(await txt(p, '#bzMonth')), 'month shown');
     const table = await txt(p, '#bzTable');
     ok(/Clipper \$500 \$120 \$380 \$570/.test(table), 'Clipper row: ' + table);

@@ -1,5 +1,6 @@
 // Daily score and streaks: node planner/tests/score.test.js  (serve the site first, PORT env, default 8783; see shifts.test.js)
 const { chromium } = require('playwright');
+const expand = require('./lib-expand');
 const { wait, nqCache, open, st, etTrade } = require('./lib-fin');
 const NOW = Date.parse('2026-12-02T15:10:00Z'); // Wednesday 10:10 ET
 const day = (a, b) => { const out = []; for (let d = Date.parse(a + 'T12:00:00Z'); d <= Date.parse(b + 'T12:00:00Z'); d += 864e5) out.push(new Date(d).toISOString().slice(0, 10)); return out; };
@@ -20,7 +21,7 @@ const trades = [etTrade('2026-11-27', '09:35', -100), etTrade('2026-11-27', '09:
   const errs = [], ok = (c, m) => { if (!c) errs.push(m); };
   const b = await chromium.launch();
   const noW = (p) => p.evaluate(() => document.documentElement.scrollWidth);
-  const txt = async (p, sel) => (await p.innerText(sel)).replace(/\s+/g, ' ');
+  const txt = async (p, sel) => (await expand.within(p, sel), await p.innerText(sel)).replace(/\s+/g, ' ');
 
   // ---- nothing known: no number, no fake zero ----
   {
@@ -37,7 +38,7 @@ const trades = [etTrade('2026-11-27', '09:35', -100), etTrade('2026-11-27', '09:
     ok(await p.locator('#scCard .sc-spark circle').count() === 14 && await p.locator('#scCard .sc-spark circle.ok').count() === 9, 'sparkline has 14 dots, 9 of them 70+: ' + await p.locator('#scCard .sc-spark circle').count() + '/' + await p.locator('#scCard .sc-spark circle.ok').count());
     ok(/\+25 if you finish your shift/.test(await p.textContent('#scMissC')), 'biggest missing item first: ' + await p.textContent('#scMissC'));
     ok((await noW(p)) <= 390, 'Today: no sideways scroll ' + await noW(p));
-    await p.click('[data-scopen]'); await wait(300);
+    await expand(p, 'score'); await p.click('[data-scopen]'); await wait(300);
     ok(await p.isVisible('#scDlg') && await p.textContent('#scBig') === '29', 'sheet shows 29');
     const miss = await txt(p, '#scMiss');
     ok(/\+17 if you log your workout/.test(miss) && /\+13 if you check in Read/.test(miss) && /\+17 if you finish 2 more tasks/.test(miss) && /\+25 if you finish your shift/.test(miss), 'missing list: ' + miss);

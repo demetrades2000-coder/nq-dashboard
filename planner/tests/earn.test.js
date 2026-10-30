@@ -1,5 +1,6 @@
 // Earnings board: node planner/tests/earn.test.js  (serve the site on 127.0.0.1:8777 first, see shifts.test.js; PORT=... overrides)
 const { chromium } = require('playwright');
+const expand = require('./lib-expand');
 const URL = 'http://127.0.0.1:' + (process.env.PORT || 8777) + '/nq-dashboard/planner/index.html';
 (async () => {
   const errs = [], ok = (c, m) => { if (!c) errs.push(m); }, wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -26,10 +27,10 @@ const URL = 'http://127.0.0.1:' + (process.env.PORT || 8777) + '/nq-dashboard/pl
     return { fridays: n, done, today: key(now), daysLeft: last.getDate() - now.getDate() + 1 };
   });
   await p.reload(); await wait(1500);
-  ok(await p.isVisible('#erCard'), 'Earnings card is on Today');
+  await expand(p, 'earn'); ok(await p.isVisible('#erCard'), 'Earnings card is on Today');
   // week: $60 shift + $200 trading + $100 money in = $360 (a week that straddles a month still has the whole Friday shift in the week)
   ok(/\$360/.test(await p.textContent('#erCard')), 'card shows $360 this week: ' + await p.textContent('#erCard'));
-  await p.click('#erCard [data-eropen]'); await wait(200);
+  await expand(p, 'earn'); await p.click('#erCard [data-eropen]'); await wait(200);
   ok(await p.isVisible('#erDlg'), 'sheet opens');
   const t = await p.textContent('#erTable');
   ok(/Shifts/.test(t) && /Trading/.test(t) && /Money log/.test(t), 'split by source: ' + t);
@@ -55,7 +56,7 @@ const URL = 'http://127.0.0.1:' + (process.env.PORT || 8777) + '/nq-dashboard/pl
   ok(/%/.test(await p.textContent('#erCard')), 'card shows % of goal after closing: ' + (await p.textContent('#erCard')).replace(/\s+/g,' '));
   // a goal already met
   await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('planner.v1')); s.incomegoal = [{ id: 'month', amt: 50, u: Date.now() }]; localStorage.setItem('planner.v1', JSON.stringify(s)); });
-  await p.reload(); await wait(1500); await p.click('#erCard [data-eropen]');
+  await p.reload(); await wait(1500); await expand(p, 'earn'); await p.click('#erCard [data-eropen]');
   ok(/Goal reached/.test(await p.textContent('#erNeed')), 'goal reached message');
   await p.click('#erDlg [data-close]');
   await p.goto(URL + '#earnings'); await wait(1500); ok(await p.isVisible('#erDlg'), '#earnings deep link opens it');

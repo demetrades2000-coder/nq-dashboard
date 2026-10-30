@@ -1,6 +1,7 @@
 // Hours cap and overtime: node planner/tests/hours.test.js  (serve the site first, PORT env, default 8785; see shifts.test.js)
 process.env.PORT = process.env.PORT || '8785';
 const { chromium } = require('playwright');
+const expand = require('./lib-expand');
 const { wait, open, st } = require('./lib-fin');
 (async () => {
   const errs = [], ok = (c, m) => { if (!c) errs.push(m); };
@@ -25,7 +26,7 @@ const { wait, open, st } = require('./lib-fin');
   };
   // Electric 32 h, Outback 30.5 h, 62.5 h in all; 17 h worked by Tuesday 10 am (6 + 8 + 3)
   const { ctx, p, errs: pe } = await open(b, { now, state });
-  ok(await p.isVisible('#hrCard'), 'hours card is on Today');
+  await expand(p, 'hr'); ok(await p.isVisible('#hrCard'), 'hours card is on Today');
   let card = await p.textContent('#hrCard');
   ok(/17 h worked so far, 62\.5 h with the shifts still to come\. Limit 40 h\./.test(card), 'bar text: ' + card);
   ok(await p.isVisible('#hrCard .hr-bar.over'), 'bar is red when the projection is over the limit');

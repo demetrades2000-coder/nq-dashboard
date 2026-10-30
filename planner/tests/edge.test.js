@@ -1,5 +1,6 @@
 // Edge finder: node planner/tests/edge.test.js  (serve the site first, PORT env, default 8783; see shifts.test.js)
 const { chromium } = require('playwright');
+const expand = require('./lib-expand');
 const { wait, nqCache, open, st, etTrade } = require('./lib-fin');
 const NOW = Date.parse('2026-12-02T15:10:00Z'); // Wednesday 10:10 ET (EST)
 // Tuesdays: 2 losers a day (-150, -50). Mondays: +200 then -50. Wednesdays: +100 then -30 at 2pm. Two Thursdays: one +60 at 11:30.
@@ -15,14 +16,14 @@ let cum = 0, peak = 0, dd = 0; ts.forEach((t) => { cum += t.usd; peak = Math.max
   const errs = [], ok = (c, m) => { if (!c) errs.push(m); };
   const b = await chromium.launch();
   const noW = (p) => p.evaluate(() => document.documentElement.scrollWidth);
-  const txt = async (p, sel) => (await p.innerText(sel)).replace(/\s+/g, ' ');
+  const txt = async (p, sel) => (await expand.within(p, sel), await p.innerText(sel)).replace(/\s+/g, ' ');
   ok(DATA.length === 30 && net === 150, 'fixture sanity ' + DATA.length + ' ' + net);
 
   // ---- 1. no trades ----
   {
     const { p, errs: pe } = await open(b, { now: NOW, seed: nqCache(NOW, {}) });
     ok(/Nothing to analyse/.test(await txt(p, '#edCard')), 'card with no trades: ' + await txt(p, '#edCard'));
-    await p.click('[data-edopen]'); await wait(200);
+    await expand(p, 'edge'); await p.click('[data-edopen]'); await wait(200);
     ok(await p.isVisible('#edDlg') && await p.isVisible('#edEmpty'), 'sheet shows the empty state');
     errs.push(...pe);
   }
@@ -40,7 +41,7 @@ let cum = 0, peak = 0, dd = 0; ts.forEach((t) => { cum += t.usd; peak = Math.max
     ok(/\+?\$150/.test(await txt(p, '#edCard')) && /30 trades/.test(await txt(p, '#edCard')), 'card: ' + await txt(p, '#edCard'));
     ok((await noW(p)) <= 390, 'Today: no sideways scroll ' + await noW(p));
     await p.screenshot({ path: '/tmp/edge-today.png', fullPage: true });
-    await p.click('[data-edopen]'); await wait(300);
+    await expand(p, 'edge'); await p.click('[data-edopen]'); await wait(300);
     const s = await txt(p, '#edStats');
     ok(/\$150 net P&L/.test(s), 'net: ' + s);
     ok(/37% win rate \(11 W \/ 19 L\)/.test(s), 'win rate');
@@ -73,7 +74,7 @@ let cum = 0, peak = 0, dd = 0; ts.forEach((t) => { cum += t.usd; peak = Math.max
     const tplan = [['2026-11-02', 'yes'], ['2026-11-09', 'yes'], ['2026-11-16', 'yes'], ['2026-11-03', 'no'], ['2026-11-10', 'no'], ['2026-11-17', 'no']].map(([d, f]) => ({ id: 'tp:' + d, date: d, followed: f }));
     const journal = [['2026-11-04', 'yes'], ['2026-11-11', 'yes'], ['2026-11-18', 'yes'], ['2026-11-24', 'no'], ['2026-12-01', 'no'], ['2026-11-23', 'no']].map(([d, r]) => ({ id: 'j:' + d, date: d, note: '', mood: 0, rules: r }));
     const { p, errs: pe } = await open(b, { now: NOW, seed: nqCache(NOW, { trades: DATA }), state: { tradenotes, tplan, journal } });
-    await p.click('[data-edopen]'); await wait(300);
+    await expand(p, 'edge'); await p.click('[data-edopen]'); await wait(300);
     const f = await p.locator('#edFind li').allTextContents();
     ok(/Trades tagged Followed plan averaged \$200 vs -\$34\.00 without the tag \(5 vs 25 trades\)/.test(f[0]) || /averaged \$200 vs -\$34/.test(f[0]), 'tag finding first: ' + f[0]);
     ok(f.length === 3 && /Tuesdays/.test(f[1]), 'then the weekday: ' + f.join(' | '));

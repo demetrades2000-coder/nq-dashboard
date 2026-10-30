@@ -1,6 +1,7 @@
 // Prop firm ledger and ROI: node planner/tests/prop.test.js  (serve the site first, PORT env, default 8786; see shifts.test.js)
 process.env.PORT = process.env.PORT || '8786';
 const { chromium } = require('playwright');
+const expand = require('./lib-expand');
 const { wait, nqCache, open, st } = require('./lib-fin');
 const NOW = Date.parse('2026-10-30T15:10:00Z'); // Friday 11:10 ET
 const fee = (id, kind, amt, date, mid) => ({ id, kind, amt, date, mid: mid || '' });
@@ -14,7 +15,7 @@ const withLive = () => { const c = nqCache(NOW, {}); c.doc.trade.accounts = live
 (async () => {
   const errs = [], ok = (c, m) => { if (!c) errs.push(m); };
   const b = await chromium.launch();
-  const txt = async (p, sel) => (await p.innerText(sel)).replace(/\s+/g, ' ');
+  const txt = async (p, sel) => (await expand.within(p, sel), await p.innerText(sel)).replace(/\s+/g, ' ');
   const W = (p) => p.evaluate(() => document.documentElement.scrollWidth);
 
   // ---- empty: add an account, fees and a payout by hand ----
@@ -64,7 +65,7 @@ const withLive = () => { const c = nqCache(NOW, {}); c.doc.trade.accounts = live
     const card = await txt(p, '#ppCard');
     ok(/\$427/.test(card) && /\$1,500/.test(card) && /\$1,073/.test(card), 'card tiles: ' + card);
     ok(/Evals have cost you \$427 and paid \$1,500: net \$1,073/.test(card), 'card plain line: ' + card);
-    await p.click('[data-ppopen]'); await wait(300);
+    await expand(p, 'prop'); await p.click('[data-ppopen]'); await wait(300);
     const stats = await txt(p, '#ppStats');
     ok(/ROI 251%/.test(stats), 'roi: ' + stats);
     ok(/Pass rate 50% \(1 of 2\)/.test(stats), 'pass rate: ' + stats);

@@ -1,6 +1,7 @@
 // Daily brief: node planner/tests/brief.test.js  (serve the site first, PORT env, default 8784; see shifts.test.js)
 process.env.PORT = process.env.PORT || '8784';
 const { chromium } = require('playwright');
+const expand = require('./lib-expand');
 const { wait, nqCache, open, st } = require('./lib-money');
 (async () => {
   const errs = [], ok = (c, m) => { if (!c) errs.push(m); };
@@ -59,7 +60,7 @@ const { wait, nqCache, open, st } = require('./lib-money');
   ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'no sideways scroll');
   await p.click('#brDlg [data-close]');
   ok(/Brief/.test(await p.textContent('#brCard')) && /on the schedule/.test(await p.textContent('#brCard')), 'Today card');
-  await p.click('[data-bropen]'); ok(await p.isVisible('#brDlg'), 'card opens the sheet');
+  await expand(p, 'brief'); await p.click('[data-bropen]'); ok(await p.isVisible('#brDlg'), 'card opens the sheet');
   ok(pe.length === 0, 'no page errors: ' + pe.join(' | '));
   await ctx.close();
   // empty state degrades gracefully: no data at all

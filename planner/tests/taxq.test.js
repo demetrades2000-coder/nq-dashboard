@@ -1,6 +1,7 @@
 // Quarterly tax planner: node planner/tests/taxq.test.js  (serve the site first, PORT env, default 8786; see shifts.test.js)
 process.env.PORT = process.env.PORT || '8786';
 const { chromium } = require('playwright');
+const expand = require('./lib-expand');
 const { wait, nqCache, etTrade, open, st } = require('./lib-fin');
 const at = (iso) => Date.parse(iso + 'T15:10:00Z');
 let n = 0;
@@ -13,7 +14,7 @@ const miles = [{ id: 't1', kind: 'trip', date: '2026-08-03', from: 'Home', to: '
 (async () => {
   const errs = [], ok = (c, msg) => { if (!c) errs.push(msg); };
   const b = await chromium.launch();
-  const txt = async (p, sel) => (await p.innerText(sel)).replace(/\s+/g, ' ');
+  const txt = async (p, sel) => (await expand.within(p, sel), await p.innerText(sel)).replace(/\s+/g, ' ');
   const W = (p) => p.evaluate(() => document.documentElement.scrollWidth);
   const seed = (now, o) => nqCache(now, o || {});
 
@@ -37,7 +38,7 @@ const miles = [{ id: 't1', kind: 'trip', date: '2026-08-03', from: 'Home', to: '
     ok(/Tax due/.test(card) && /Q3 2026/.test(card) && /Sep 15 \(in 14 days\)/.test(card), 'card in the window: ' + card);
     ok(/\$616\.25 suggested/.test(card) && /\$0 paid/.test(card) && /\$616\.25 still to pay/.test(card), 'card numbers: ' + card);
     ok(/Set aside this quarter \(Q4 \(Sep-Dec\)\): \$100/.test(card), 'card set aside line: ' + card);
-    await p.click('[data-tqopen]'); await wait(300);
+    await expand(p, 'tax'); await p.click('[data-tqopen]'); await wait(300);
     const t = await txt(p, '#tqTable');
     ok(/Q1 \(Jan-Mar\).*Apr 15 \$0 \$0/.test(t), 'Q1 zero: ' + t);
     ok(/Q2 \(Apr-May\).*Jun 15 \$200 \$0/.test(t), 'Q2 200: ' + t);
@@ -90,7 +91,7 @@ const miles = [{ id: 't1', kind: 'trip', date: '2026-08-03', from: 'Home', to: '
     if (day === '2026-09-16') {
       const c = await txt(p, '#tqCard');
       ok(/was due Sep 15, 1 day ago/.test(c) && /\$616\.25 still to pay/.test(c), 'late card: ' + c);
-      await p.click('[data-tqlog]'); await wait(300);
+      await expand(p, 'tax'); await p.click('[data-tqlog]'); await wait(300);
       ok(await p.isVisible('#tqDlg') && await p.isVisible('#tqLate'), 'late banner in the planner: ' + (await p.locator('#tqLate').count()));
     }
     errs.push(...pe);

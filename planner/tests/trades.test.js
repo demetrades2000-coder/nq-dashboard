@@ -145,7 +145,7 @@ const st = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('planne
       const ctx = await browser.newContext({ viewport: SIZES[size], hasTouch: size === 'phone', isMobile: size === 'phone' });
       const page = await ctx.newPage(); const errors = [];
       page.on('pageerror', (e) => errors.push(String(e)));
-      const seed = (o) => page.addInitScript((v) => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('planner.nq', JSON.stringify(v)); sessionStorage.setItem('seeded', '1'); } }, o);
+      const seed = (o) => page.addInitScript((v) => { localStorage.setItem('planner.riskAlerts', '1'); if (!sessionStorage.getItem('seeded')) { localStorage.setItem('planner.nq', JSON.stringify(v)); sessionStorage.setItem('seeded', '1'); } }, o);
       await seed(fresh());
       await page.goto(base);
       await page.waitForSelector('#trade .ral');
@@ -169,7 +169,7 @@ const st = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('planne
       const ctx2 = await browser.newContext({ viewport: SIZES[size] });
       const p2 = await ctx2.newPage();
       const old = fresh({ built: new Date(Date.now() - 7 * 3600e3).toISOString(), status: { running: false, host: 'PC', t: 1, issues: [] } });
-      await p2.addInitScript((v) => { localStorage.setItem('planner.nq', JSON.stringify(v)); }, old);
+      await p2.addInitScript((v) => { localStorage.setItem('planner.riskAlerts', '1'); localStorage.setItem('planner.nq', JSON.stringify(v)); }, old);
       await p2.goto(base);
       await p2.waitForSelector('#trade .ral');
       t = await p2.textContent('#trade');
@@ -180,7 +180,7 @@ const st = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('planne
 
       const ctx3 = await browser.newContext({ viewport: SIZES[size] });
       const p3 = await ctx3.newPage();
-      await p3.addInitScript((v) => { localStorage.setItem('planner.nq', JSON.stringify(v)); }, fresh({ status: { running: false, host: 'DESK', t: 1, issues: [{ text: 'NinjaTrader disconnected', fix: 'Restart it' }] } }));
+      await p3.addInitScript((v) => { localStorage.setItem('planner.riskAlerts', '1'); localStorage.setItem('planner.nq', JSON.stringify(v)); }, fresh({ status: { running: false, host: 'DESK', t: 1, issues: [{ text: 'NinjaTrader disconnected', fix: 'Restart it' }] } }));
       await p3.goto(base);
       await p3.waitForSelector('#trade .tstat');
       t = await p3.textContent('#trade');

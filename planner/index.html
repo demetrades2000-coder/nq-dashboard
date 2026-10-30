@@ -2781,7 +2781,7 @@ function renderToday() {
   const habs = S.habits.filter((h) => hDue(h, today));
   const goals = S.goals.slice().sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999')).slice(0, 2);
   const j = jrnOf(today), planned = S.planned === today;
-  const risk = (typeof riskAlerts === 'function') ? riskAlerts() : [];
+  const risk = (typeof riskAlerts === 'function' && riskShown()) ? riskAlerts() : [];
   const hrsOld = tr && tr.built ? Math.round((Date.now() - Date.parse(tr.built)) / 3600e3) : null;
   const staleTxt = hrsOld == null ? '' : hrsOld < 2 ? 'live' : hrsOld < 48 ? `${hrsOld} h old` : `${Math.round(hrsOld / 24)} days old`, staleCls = hrsOld != null && hrsOld >= 6 ? 'neg' : 'sub';
   const inl = {
@@ -9658,7 +9658,7 @@ function nowExtras(bar) {
   let h = '';
   const today = todayKey();
   if (S.rules.length && isWkd(today) && !ckOf(today)) h += '<small class="nb-x" data-nowrules>Checklist not done today. Tap to run it.</small>';
-  const al = riskAlerts().filter((a) => a.level === 'red' || a.level === 'amber');
+  const al = riskShown() ? riskAlerts().filter((a) => a.level === 'red' || a.level === 'amber') : [];
   if (al.length) h += `<small class="nb-x ${al[0].level === 'red' ? 'red' : ''}">${esc(al[0].text)}${al.length > 1 ? ` (+${al.length - 1} more)` : ''}</small>`;
   h += tiltNowLine(); // TILT block
   if (h) t.insertAdjacentHTML('beforeend', h);
@@ -9817,8 +9817,10 @@ function riskAlerts(tr = nqBot && nqBot.trade, now = Date.now()) {
   return out.sort((x, y) => order[x.level] - order[y.level]);
 }
 // The Trading card already shows "Bot running / not running", so that one is left out of the banner there.
+// The room / loss-floor / bot warnings are OFF (owner asked to remove them); localStorage 'planner.riskAlerts' = '1' brings them back.
+function riskShown() { try { return localStorage.getItem('planner.riskAlerts') === '1'; } catch (e) { return false; } }
 function alertsHtml() {
-  const al = riskAlerts().filter((a) => a.key !== 'bot');
+  const al = riskShown() ? riskAlerts().filter((a) => a.key !== 'bot') : [];
   return al.length ? `<div class="ralerts" role="status">${al.map((a) => `<div class="ral ${a.level}"><i></i><span>${esc(a.text)}</span></div>`).join('')}</div>` : '';
 }
 // ===== ALERTS END =====
@@ -10266,7 +10268,7 @@ setInterval(() => {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync) syncNow(); });
 addEventListener('online', () => { if (sync) syncNow(); });
 $('#helpBtn').onclick = () => $('#helpDlg').showModal();
-const APP_VERSION = '2026-10-30.22';
+const APP_VERSION = '2026-10-30.23';
 if ($('#verNote')) $('#verNote').textContent = 'Planner ' + APP_VERSION;
 if (!HOSTED && 'serviceWorker' in navigator && window.isSecureContext && location.protocol.startsWith('http')) {
   const hadController = !!navigator.serviceWorker.controller;

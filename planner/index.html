@@ -884,7 +884,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,[contenteditable
   <div class="right">
     <label class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search" aria-label="Search events" autocomplete="off"></label>
     <div class="seg" id="views" role="group" aria-label="View">
-      <button data-v="today" title="Today screen">Today</button><button data-v="month" title="Month (M)">Month</button><button data-v="week" title="Week (W)">Week</button><button data-v="day" title="Day (D)">Day</button><button data-v="agenda" title="Agenda (A)">Agenda</button><button data-v="projects" class="xtra" title="Projects (P)">Projects</button><button data-v="habits" class="xtra" title="Habits (H)">Habits</button><button data-v="health" class="xtra" title="Health and fitness">Health</button><button data-v="review" class="xtra" title="Review (R)">Review</button><button data-v="news" class="xtra" title="Market news">News</button><button data-v="rules" class="xtra xtra2" title="Pre-trade checklist">Rules</button><button data-v="trades" class="xtra xtra2" title="Trades, notes and payout planner">Trades</button><button id="moreBtn" aria-haspopup="true" aria-expanded="false" title="Projects, Habits, Review">More</button>
+      <button data-v="today" title="Today screen">Today</button><button data-v="month" title="Month (M)">Month</button><button data-v="week" title="Week (W)">Week</button><button data-v="day" title="Day (D)">Day</button><button data-v="agenda" title="Agenda (A)">Agenda</button><button data-v="projects" class="xtra" title="Projects (P)">Projects</button><button data-v="habits" class="xtra" title="Habits (H)">Habits</button><button data-v="health" class="xtra" title="Health and fitness">Health</button><button data-v="review" class="xtra" title="Review (R)">Review</button><button data-v="news" class="xtra" title="Market news">News</button><button data-v="rules" class="xtra xtra2" title="Pre-trade checklist">Rules</button><button data-v="trades" class="xtra xtra2" title="Trades, notes and payout planner">Trades</button><button data-v="dashboard" class="xtra xtra2" title="Dashboard: money, work, trading, life and food at a glance">Dashboard</button><button id="moreBtn" aria-haspopup="true" aria-expanded="false" title="Projects, Habits, Review">More</button>
     </div>
     <button class="btn" id="shiftBtn" title="Add work shifts (S)" aria-label="Work shifts"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2M3 13h18"/></svg><span class="newlabel">Shifts</span></button>
     <button class="btn primary" id="newBtn" title="New event (N)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="newlabel">New event</span></button>
@@ -1131,7 +1131,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,[contenteditable
   </div>
 </dialog>
 
-<div class="menu" id="moreMenu" hidden><button data-v="projects">Projects</button><button data-v="habits">Habits</button><button data-v="health">Health</button><button data-v="review">Review</button><button data-v="news">News</button><button data-v="rules">Rules</button><button data-v="trades">Trades</button></div>
+<div class="menu" id="moreMenu" hidden><button data-v="dashboard">Dashboard</button><button data-v="projects">Projects</button><button data-v="habits">Habits</button><button data-v="health">Health</button><button data-v="review">Review</button><button data-v="news">News</button><button data-v="rules">Rules</button><button data-v="trades">Trades</button></div>
 <div class="fbar" id="focusBar" role="status" hidden></div>
 <!-- ===== EXTRAS DIALOGS END ===== -->
 
@@ -1180,7 +1180,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,[contenteditable
 // HOSTED: running as a claude.ai page; data lives in the page's database (synced to the owner's Claude account).
 const HOSTED = !!window.PLANNER_HOSTED;
 const KEY = HOSTED ? 'planner.hosted.v1' : 'planner.v1';
-const VIEWS = ['today', 'month', 'week', 'day', 'agenda', 'projects', 'habits', 'health', 'review', 'news', 'rules', 'trades'];
+const VIEWS = ['today', 'month', 'week', 'day', 'agenda', 'projects', 'habits', 'health', 'review', 'news', 'rules', 'trades', 'dashboard'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const DEFAULT_CATS = [
@@ -1248,7 +1248,7 @@ const accent = (hex) => { if (!thDark()) return hex; const c = rgb(hex); return 
 const cvars = (hex) => `--c:${accent(hex)};--bg-c:${tint(hex, .13)};--fg:${shade(hex, .42)}`;
 
 // ---------- state ----------
-const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan', 'timelog', 'deals', 'waiting', 'score', 'worth', 'alcfg', 'miles', 'milecfg', 'paycfg', 'paychk', 'hrcfg', 'avail', 'avreq', 'propacct', 'taxcfg', 'taxpay', 'hub', 'toorg', 'meals', 'foodcfg', 'myfoods']; // collections added by the Rules and Trades features
+const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan', 'timelog', 'deals', 'waiting', 'score', 'worth', 'alcfg', 'miles', 'milecfg', 'paycfg', 'paychk', 'hrcfg', 'avail', 'avreq', 'propacct', 'taxcfg', 'taxpay', 'hub', 'toorg', 'meals', 'foodcfg', 'myfoods', 'dashcfg']; // collections added by the Rules and Trades features
 let S = load();
 let cursor = todayKey(), selected = cursor, miniMonth = cursor.slice(0, 7);
 let query = '', agendaDays = 30, undoSnap = null, editing = null, lastScrollView = null;
@@ -1291,6 +1291,7 @@ function load() {
   return normalize(null);
 }
 function save() {
+  dvRev = (dvRev | 0) + 1; // the Dashboard view's memo key
   try { localStorage.setItem(KEY, JSON.stringify(S)); }
   catch (e) { toast('Could not save on this device (storage blocked or full). Use Back up.'); }
 }
@@ -2058,6 +2059,7 @@ function renderMain() {
   else if (S.view === 'review') main.innerHTML = renderReview();
   else if (S.view === 'rules') main.innerHTML = renderRules();
   else if (S.view === 'trades') main.innerHTML = renderTrades();
+  else if (S.view === 'dashboard') main.innerHTML = dvRender();
   else main.innerHTML = renderAgenda();
   if ((S.view === 'week' || S.view === 'day') && !query) {
     if (keepScroll != null) main.scrollTop = keepScroll;
@@ -2849,6 +2851,7 @@ function route() {
   else if (h === 'help') { goToday(); $('#helpDlg').showModal(); }
   else if (h === 'plan') { goToday(); openPlan(); }
   else if (h === 'health') { goToday(); setView('health'); }
+  else if (h === 'dashboard') { goToday(); setView('dashboard'); }
   else if (h === 'log-workout') { goToday(); openWorkout(null, todayKey()); }
   else if (h === 'plan-week') { goToday(); openPlanWeek(); }
   else if (h === 'new-event') { goToday(); newEvent(todayKey()); }
@@ -4885,6 +4888,7 @@ const hbDaysTxt = (n) => (n <= 0 ? 'today' : n === 1 ? 'tomorrow' : `in ${n} day
 function hbGoView(v) { goToday(); setView(v); }
 function hbAgo(ms) { const d = Math.floor((Date.now() - ms) / 864e5); return d <= 0 ? 'today' : d === 1 ? 'yesterday' : `${d} days ago`; }
 const HB_TOOLS = [
+  { id: 'dashboard', g: 'Start here', n: 'Dashboard', d: 'Money, work, trading, life and food at a glance', k: 'overview kpi numbers summary stats home at a glance', pk: 1, open: () => hbGoView('dashboard'), st: () => '' },
   { id: 'setup', g: 'Start here', n: 'Setup', d: 'The steps that make the tools useful', k: 'get set up checklist start begin', open: () => suOpen(), st: () => { const s = suState(); return s.n >= s.steps.length ? 'all done' : `${s.n} of ${s.steps.length} done`; } },
   { id: 'earnings', g: 'Money', n: 'Earnings', d: 'What you will make this week and month', k: 'income pay make money goal', pk: 1, open: () => openEarn(), st: () => (erGoal() > 0 ? `goal ${usd(erGoal())}/month` : 'no monthly goal yet') },
   { id: 'bills', g: 'Money', n: 'Bills', d: 'Rent, phone, car and subscriptions on the calendar', k: 'rent due recurring subscriptions', open: () => openBills(), st: () => {
@@ -6935,6 +6939,524 @@ $('#nwBody').addEventListener('click', (e) => {
 if (window.PLANNER_TEST) window.__food = { fdLookup, fdSearch, fdLocal, fdScale, fdScan, fdPicker, fdTouch, fdToggleFav, fdFromOff, fdGtinOk, ngCalc, ngGoals, ngHasGoals, ngOpen, nwSummary, nwGeom, nwOpen, count: () => FD_BASE.length };
 // ===== NUTWEEK END =====
 
+// ===== DASHVIEW BEGIN: the Dashboard view (#dashboard): one place to see how money, work, trading, life and food are going =====
+// Six sections (Overview, Money, Work, Trading, Life, Food), each a grid of KPI tiles: title, one big number, a status line, a small chart, and a tap that opens the tool.
+// Tiles only read what the other tools already compute (earnCalc, bnForecast, hrWeek, edCalc, scDay, mlTot, nwSummary ...), always typeof-guarded and in try/catch: a tool that is missing just hides its tile.
+// Trading numbers are live + paper only (never the backtest). Synced collection `dashcfg`: item 'cfg' = { hide: { section: [tile ids] }, order: { section: [tile ids] } }.
+// This week / This month / Last 30 days and the last section are remembered on this device only. Only the visible section is computed; tile results are memoised on a cheap signature.
+var dvRev; // bumped by save(); `var` so save() can run before this block has executed
+const DV_SECS = [['overview', 'Overview'], ['money', 'Money'], ['work', 'Work'], ['trading', 'Trading'], ['life', 'Life'], ['food', 'Food']];
+const DV_PERS = [['week', 'This week'], ['month', 'This month'], ['30d', 'Last 30 days']];
+const DV_PER_KEY = 'planner.dv.period', DV_SEC_KEY = 'planner.dv.sec';
+const dvLsGet = (k, ok, d) => { try { const v = localStorage.getItem(k); return ok.includes(v) ? v : d; } catch (e) { return d; } };
+const dvLsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* remembered next time only if storage works */ } };
+let dvSec = dvLsGet(DV_SEC_KEY, DV_SECS.map((x) => x[0]), 'overview'), dvPer = dvLsGet(DV_PER_KEY, DV_PERS.map((x) => x[0]), 'week'), dvEdit = false;
+let dvSigNow = '', dvMemo = new Map(), dvSecMemo = null, dvCtxMemo = null, dvScMemo = new Map(), dvPerf = { last: 0, sec: '', tiles: 0 };
+document.head.insertAdjacentHTML('beforeend', `<style>
+.dv{max-width:1180px;margin:0 auto;padding:0 20px 80px;display:flex;flex-direction:column;gap:14px}
+.dv-bar{position:sticky;top:0;z-index:6;background:var(--bg);padding:12px 0 8px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--line2)}
+.dv-chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}.dv-chips::-webkit-scrollbar{display:none}
+.dv-chips button{flex:none;min-height:40px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink2);font:inherit;font-size:13.5px;font-weight:500;cursor:pointer}
+.dv-chips button[aria-selected="true"]{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
+.dv-ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dv-per{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
+.dv-per button{min-height:36px;padding:0 11px;border:0;background:transparent;color:var(--ink2);font:inherit;font-size:12.5px;cursor:pointer}
+.dv-per button+button{border-left:1px solid var(--line)}.dv-per button[aria-pressed="true"]{background:var(--soft2);color:var(--ink);font-weight:600}
+.dv-ctl .sp{flex:1}
+.dv-ctl .btn{min-height:36px}
+.dv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:10px}
+.dv-t{position:relative;display:flex;flex-direction:column;gap:3px;min-width:0;min-height:128px;padding:11px 12px 10px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);text-align:left;font:inherit;cursor:pointer}
+button.dv-t:hover{background:var(--soft)}button.dv-t:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.dv-th{display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:16px}
+.dv-tt{font-size:12px;font-weight:600;color:var(--mute);letter-spacing:.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dv-pb{flex:none;font-size:10.5px;font-weight:600;color:var(--mute);background:var(--soft2);border-radius:999px;padding:1px 7px}
+.dv-big{font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.15;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.dv-big small{font-size:13px;font-weight:500;color:var(--mute);letter-spacing:0;margin-left:3px}
+.dv-st{font-size:12px;line-height:1.3;color:var(--mute);overflow-wrap:anywhere}
+.dv-st.up{color:var(--kf-047857)}.dv-st.down{color:var(--kf-b91c1c)}.dv-st.bad{color:var(--kf-b91c1c);font-weight:600}.dv-st.warn{color:var(--kf-92400e)}.dv-st.ok{color:var(--kf-047857)}
+.dv-sub{font-size:11.5px;line-height:1.3;color:var(--mute);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.dv-viz{margin-top:auto;padding-top:6px;min-height:34px}
+.dv-sp{display:block;width:100%;height:32px;overflow:visible}
+.dv-sp .ln{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.dv-sp .ar{fill:var(--soft2);stroke:none}.dv-sp .z{stroke:var(--line);stroke-width:1;stroke-dasharray:2 2;vector-effect:non-scaling-stroke}
+.dv-sp .b{fill:var(--mute);opacity:.55}.dv-sp .b.p{fill:var(--ok);opacity:1}.dv-sp .b.n{fill:var(--now);opacity:1}.dv-sp .b.l{fill:var(--ink);opacity:1}.dv-sp .b.g{fill:var(--line);opacity:1}
+.dv-bar1{height:7px;border-radius:4px;background:var(--line);overflow:hidden}.dv-bar1 i{display:block;height:100%;border-radius:4px;background:var(--ok)}.dv-bar1.warn i{background:var(--kf-92400e)}.dv-bar1.bad i{background:var(--now)}
+.dv-ringw{display:flex;align-items:center;gap:10px;margin-top:auto;padding-top:4px}.dv-ring{flex:none;width:58px;height:58px}.dv-ring .tr{fill:none;stroke:var(--line);stroke-width:6}.dv-ring .fg{fill:none;stroke:var(--ok);stroke-width:6;stroke-linecap:round}.dv-ring .fg.warn{stroke:var(--kf-92400e)}
+.dv-mac{display:flex;flex-direction:column;gap:5px;margin-top:auto;padding-top:5px}.dv-mac div{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:6px;align-items:center;font-size:11.5px;color:var(--mute)}.dv-mac b{font-weight:600;color:var(--ink2);font-variant-numeric:tabular-nums}
+.dv-t.empty .dv-big{color:var(--faint)}.dv-t.empty .dv-st{color:var(--mute)}
+.dv-t.empty .dv-setup{display:inline-block;margin-top:auto;align-self:flex-start;font-size:12px;font-weight:600;color:var(--ink);background:var(--soft2);border-radius:999px;padding:3px 10px}
+.dv-t.off{opacity:.5;border-style:dashed}
+.dv-ed{display:flex;align-items:center;gap:6px;margin-top:auto;padding-top:8px}.dv-ed button{min-width:40px;min-height:40px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit;font-size:15px;cursor:pointer}.dv-ed button:disabled{opacity:.3}.dv-ed .tg{flex:1;font-size:13px}
+.dv-h{font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);margin:6px 2px -4px}
+.dv-week{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.dv-week button{display:flex;flex-direction:column;gap:2px;padding:10px 8px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font:inherit;text-align:center;cursor:pointer;min-width:0;min-height:64px}
+.dv-week b{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}.dv-week span{font-size:11.5px;color:var(--mute)}
+.dv-att{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;background:var(--card);overflow:hidden}
+.dv-att button,.dv-att div.ok{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 12px;border:0;border-top:1px solid var(--line2);background:transparent;color:var(--ink);font:inherit;font-size:13.5px;text-align:left;cursor:pointer}
+.dv-att>:first-child{border-top:0}.dv-att div.ok{cursor:default;color:var(--mute)}
+.dv-att .lb{flex:none;font-size:11px;font-weight:700;border-radius:999px;padding:2px 9px;border:1px solid}
+.dv-att .lb.red{color:var(--kf-991b1b);background:var(--kb-fef2f2);border-color:var(--kl-fecaca)}.dv-att .lb.amber{color:var(--kf-92400e);background:var(--kb-fffaf0);border-color:var(--kl-f3d9a4)}
+.dv-att .tx{flex:1;min-width:0;overflow-wrap:anywhere}
+.dv-note{font-size:11.5px;color:var(--mute);line-height:1.4}
+@media(max-width:640px){.dv{padding:0 16px 90px}.dv-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.dv-t{padding:10px 10px 9px;min-height:122px}.dv-big{font-size:23px}.dv-week{grid-template-columns:repeat(3,minmax(0,1fr))}.dv-per button{padding:0 9px}}
+</style>`);
+// ---------- small helpers ----------
+const dvNum = (v) => (Number.isFinite(+v) ? +v : 0);
+const dvPct = (v) => Math.round(v * 100) + '%';
+const dvH = (h) => { const r = Math.round(dvNum(h) * 10) / 10; return (r % 1 ? r.toFixed(1) : String(r)); };
+const dvSgn = (v) => (v > 0 ? '+' : '') + usd(v);
+const dvDay = (k) => bnShort(k);
+const dvDaysList = (a, b, cap = 62) => { const out = []; for (let k = a, i = 0; k <= b && i < cap; k = addDays(k, 1), i++) out.push(k); return out; };
+const dvSum = (a) => a.reduce((x, y) => x + dvNum(y), 0);
+const dvWhen = (k) => { const d = diffDays(todayKey(), k); return d <= 0 ? 'today' : d === 1 ? 'tomorrow' : d < 7 ? 'in ' + d + ' days (' + DAYS[dow(k)] + ')' : pdShort(k); };
+function dvSig() {
+  const n = typeof nqTrades !== 'undefined' && nqTrades ? nqTrades.length : 0, p = typeof nqPnl !== 'undefined' && nqPnl ? Object.keys(nqPnl).length : 0;
+  return [dvRev | 0, todayKey(), Math.floor(Date.now() / 300000), n, p, dvPer, thDark() ? 'd' : 'l'].join('|');
+}
+// The period: a..b is the elapsed part (to today), pa..pb the same number of days just before it, fa..fb the whole period (future shifts included) and pfa..pfb the whole one before.
+function dvCtx() {
+  if (dvCtxMemo && dvCtxMemo.sig === dvSigNow) return dvCtxMemo;
+  const today = todayKey(), ws = startOfWeek(today), d = parse(today);
+  let c;
+  if (dvPer === 'month') {
+    const a = today.slice(0, 7) + '-01', len = diffDays(a, today) + 1, pm = new Date(d.getFullYear(), d.getMonth() - 1, 1), pa = key(pm), pEnd = key(new Date(d.getFullYear(), d.getMonth(), 0));
+    c = { a, b: today, pa, pb: addDays(pa, len - 1) > pEnd ? pEnd : addDays(pa, len - 1), fa: a, fb: key(new Date(d.getFullYear(), d.getMonth() + 1, 0)), pfa: pa, pfb: pEnd, name: 'this month', vs: 'last month', badge: 'Month', food: Math.max(7, len) };
+  } else if (dvPer === '30d') {
+    const a = addDays(today, -29);
+    c = { a, b: today, pa: addDays(a, -30), pb: addDays(a, -1), fa: a, fb: today, pfa: addDays(a, -30), pfb: addDays(a, -1), name: 'last 30 days', vs: 'the 30 days before', badge: '30 days', food: 30 };
+  } else {
+    const len = diffDays(ws, today) + 1, pa = addDays(ws, -7);
+    c = { a: ws, b: today, pa, pb: addDays(pa, len - 1), fa: ws, fb: addDays(ws, 6), pfa: pa, pfb: addDays(ws, -1), name: 'this week', vs: 'last week', badge: 'Week', food: 7 };
+  }
+  c.today = today; c.ws = ws; c.per = dvPer; c.sig = dvSigNow;
+  return (dvCtxMemo = c);
+}
+// "up" or "down" line against the same-length period before. goodUp false for things where more is worse.
+function dvDelta(cur, prev, fmt, vs, goodUp = true) {
+  if (prev == null || !Number.isFinite(prev)) return { st: '', tone: '' };
+  const d = cur - prev;
+  if (Math.abs(d) < 0.005) return { st: 'same as ' + vs, tone: '' };
+  return { st: `${d > 0 ? '▲' : '▼'} ${fmt(Math.abs(d))} vs ${vs}`, tone: (d > 0) === goodUp ? 'up' : 'down' };
+}
+// ---------- charts (inline SVG, theme tokens only) ----------
+function dvLine(vals) {
+  const v = vals.filter((x) => Number.isFinite(x)); if (v.length < 2) return '';
+  const lo = Math.min(...v), hi = Math.max(...v), span = hi - lo || 1, n = v.length;
+  const pts = v.map((y, i) => `${(i / (n - 1) * 100).toFixed(2)},${(28 - (y - lo) / span * 26).toFixed(2)}`);
+  return `<svg class="dv-sp" viewBox="0 0 100 30" preserveAspectRatio="none" role="img" aria-label="Trend, ${n} points from ${Math.round(v[0])} to ${Math.round(v[n - 1])}"><path class="ar" d="M0,30 L${pts.join(' L')} L100,30Z"/><polyline class="ln" points="${pts.join(' ')}"/></svg>`;
+}
+// Bars drawn to scale. signed: green above and red below a zero line. goal: dashed line at that value. last: highlight the last bar.
+function dvBars(vals, o = {}) {
+  const n = vals.length; if (!n) return '';
+  const nums = vals.filter((x) => Number.isFinite(x)); if (!nums.length) return '';
+  let hi = Math.max(...nums, o.goal || 0, o.signed ? 0 : 0), lo = o.signed ? Math.min(...nums, 0) : 0; if (hi === lo) hi = lo + 1;
+  const y = (v) => 28 - (v - lo) / (hi - lo) * 26, y0 = y(Math.max(lo, 0)), w = 100 / n, bw = Math.max(1.2, w * 0.68);
+  const rects = vals.map((v, i) => {
+    if (!Number.isFinite(v)) return `<rect class="b g" x="${(i * w + (w - bw) / 2).toFixed(2)}" y="27" width="${bw.toFixed(2)}" height="1"/>`;
+    const yy = y(v), top = Math.min(yy, y0), h = Math.max(1, Math.abs(yy - y0)), cls = o.signed ? (v < 0 ? 'n' : 'p') : i === n - 1 && o.last ? 'l' : '';
+    return `<rect class="b ${cls}" data-v="${Math.round(v * 100) / 100}" x="${(i * w + (w - bw) / 2).toFixed(2)}" y="${top.toFixed(2)}" width="${bw.toFixed(2)}" height="${h.toFixed(2)}" rx="1"/>`;
+  }).join('');
+  const zero = o.signed ? `<line class="z" x1="0" x2="100" y1="${y0.toFixed(2)}" y2="${y0.toFixed(2)}"/>` : '';
+  const goal = o.goal ? `<line class="z" x1="0" x2="100" y1="${y(o.goal).toFixed(2)}" y2="${y(o.goal).toFixed(2)}"/>` : '';
+  return `<svg class="dv-sp" viewBox="0 0 100 30" preserveAspectRatio="none" role="img" aria-label="${esc(o.label || 'Bars')}, ${n} values">${zero}${goal}${rects}</svg>`;
+}
+const dvBar = (f, cls = '') => `<div class="dv-bar1 ${cls}" role="img" aria-label="${Math.round(Math.max(0, f) * 100)} percent"><i style="width:${Math.min(100, Math.max(0, f * 100)).toFixed(1)}%"></i></div>`;
+function dvRing(f, cls = '') {
+  const r = 24, C = 2 * Math.PI * r, p = Math.min(1, Math.max(0, f));
+  return `<svg class="dv-ring" viewBox="0 0 60 60" role="img" aria-label="${Math.round(f * 100)} percent"><circle class="tr" cx="30" cy="30" r="${r}"/><circle class="fg ${cls}" cx="30" cy="30" r="${r}" stroke-dasharray="${(C * p).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 30 30)"/></svg>`;
+}
+// ---------- the tiles ----------
+// calc(c) returns { big, unit?, st, tone, sub?, viz (html), setup? } or null (tool missing: tile hidden). open() is the tool's own opener.
+const dvOpenView = (v) => () => { hbGoView(v); };
+const dvEmpty = (hint, sub) => ({ setup: true, big: '–', st: sub || '', hint: hint || 'Set up' });
+const DV_TILES = [
+  // ----- Money -----
+  { id: 'earn', sec: 'money', t: 'Earned', per: true, open: () => openEarn(), calc(c) {
+    if (typeof earnCalc !== 'function') return null;
+    const cur = earnCalc(c.a, c.b), prev = earnCalc(c.pa, c.pb), goal = typeof erGoal === 'function' ? erGoal() : 0;
+    if (!cur.total && !prev.total && !goal) return dvEmpty('Set up', 'Shifts, trading and money in land here');
+    const days = dvDaysList(addDays(c.today, -13), c.today), sp = days.map((k) => earnCalc(k, k).earned);
+    const d = dvDelta(cur.earned, prev.earned, usd, c.vs);
+    const month = c.per === 'month' && goal > 0, frac = month ? cur.earned / goal : 0;
+    return { big: usd(cur.earned), st: d.st || `${usd(cur.total)} expected in all`, tone: d.tone, sub: month ? `${Math.round(frac * 100)}% of the ${usd(goal)} goal` : (d.st ? `${usd(cur.total)} expected in all` : ''), viz: month ? dvBar(frac) : dvBars(sp, { signed: true, label: 'Earned, last 14 days' }) };
+  } },
+  { id: 'cash', sec: 'money', t: 'Cash low point (30 days)', open: () => openBills(), calc() {
+    if (typeof bnForecast !== 'function') return null;
+    const f = bnForecast(30); if (!f.set) return dvEmpty('Add your balance', 'See if you will run short');
+    let nb = null; f.days.some((d) => { const it = d.items.find((x) => x.src === 'bills'); if (it) { nb = { d, it }; return true; } return false; });
+    const bad = !!f.firstNeg;
+    return { big: usd(f.low.bal), st: bad ? `Short before ${dvDay(f.firstNeg.k)}` : `Lowest on ${dvDay(f.low.k)}`, tone: bad ? 'bad' : 'ok', sub: nb ? `Next bill: ${nb.it.label} ${usd(nb.it.amt)}, ${dvWhen(nb.d.k)}` : 'No bills in the next 30 days', viz: dvLine(f.days.map((d) => d.bal)) };
+  } },
+  { id: 'shiftpay', sec: 'money', t: 'Shift pay expected', per: true, open: () => (S.paycfg.some((x) => x.set) ? openPayday() : openShifts()), calc(c) {
+    if (typeof earnCalc !== 'function') return null;
+    if (!S.jobs.length || S.jobs.every((j) => !(+j.rate > 0))) return dvEmpty('Set pay rates', 'Add an hourly rate to each job');
+    const cur = earnCalc(c.fa, c.fb), prev = earnCalc(c.pfa, c.pfb), days = dvDaysList(c.fa, c.fb, 31), sp = days.map((k) => earnCalc(k, k).shAll);
+    const d = dvDelta(cur.shAll, prev.shAll, usd, c.vs);
+    return { big: usd(cur.shAll), st: d.st, tone: d.tone, sub: `${usd(cur.shDone)} done so far, before tax`, viz: dvBars(sp, { label: 'Shift pay by day' }) };
+  } },
+  { id: 'tax', sec: 'money', t: 'Tax to set aside', open: () => openTax(), calc() {
+    if (typeof tqCfg !== 'function' || typeof tqInfo !== 'function') return null;
+    if (!S.money.length && !S.taxpay.length && !S.taxcfg.length) return dvEmpty('Set up', 'Estimated quarterly tax');
+    const cfg = tqCfg(), now = tqNow(cfg), q = now.cur; if (!q) return null;
+    const i = tqInfo(q, now.today, cfg), soon = i.left > 0.5 && i.days <= 21;
+    return { big: tqUsd(i.left), st: `${tqQName(q)} due ${tqShort(q.due)}${i.days >= 0 ? ` (in ${i.days} day${i.days === 1 ? '' : 's'})` : ' (late)'}`, tone: i.days < 0 && i.left > 0.5 ? 'bad' : soon ? 'warn' : '', sub: `Estimate at ${cfg.rate}%: ${tqUsd(i.c.tax)} on ${tqUsd(i.c.net)}, ${tqUsd(i.paid)} paid`, viz: dvBar(i.c.tax > 0 ? i.paid / i.c.tax : 0) };
+  } },
+  { id: 'networth', sec: 'money', t: 'Net worth', open: () => openWorth(), calc(c) {
+    if (typeof wtAccts !== 'function') return null;
+    const list = wtAccts(); if (!list.length) return dvEmpty('Add your accounts', 'Net worth and 30-day change');
+    const total = wtTotal(list), snaps = wtSnaps(), base = addDays(c.today, -30);
+    const old = snaps.filter((s) => s.date <= base).pop() || snaps.find((s) => s.date < c.today) || null;
+    const series = snaps.filter((s) => s.date >= base && s.date < c.today).map((s) => s.total).concat([total]);
+    const ch = old ? Math.round((total - old.total) * 100) / 100 : null;
+    const d = ch == null ? { st: 'Update your accounts to see the change', tone: '' } : { st: `${ch > 0 ? '▲' : ch < 0 ? '▼' : ''} ${usd(Math.abs(ch))} in ${Math.max(1, diffDays(old.date, c.today))} days`.trim(), tone: ch > 0 ? 'up' : ch < 0 ? 'down' : '' };
+    return { big: usd(total), st: d.st, tone: d.tone, sub: `${list.length} account${list.length === 1 ? '' : 's'}`, viz: dvLine(series) };
+  } },
+  { id: 'biz', sec: 'money', t: 'Business profit', per: true, open: () => openBiz(), calc(c) {
+    if (typeof bzSum !== 'function' || typeof bzRows !== 'function') return null;
+    if (!bzRows().length) return dvEmpty('Set up', 'Income and expenses per business');
+    const sum = (a, b) => S.projects.reduce((o, p) => { const s = bzSum(p.id, a, b); o.in += s.in; o.out += s.out; return o; }, { in: 0, out: 0 });
+    const cur = sum(c.a, c.b), prev = sum(c.pa, c.pb), net = Math.round((cur.in - cur.out) * 100) / 100, pn = Math.round((prev.in - prev.out) * 100) / 100;
+    const ym = bzMonthNow(), months = Array.from({ length: 6 }, (_, i) => bzAddMonths(ym, i - 5)).map((m) => { const s = sum(m + '-01', bzLast(m)); return s.in - s.out; });
+    const d = dvDelta(net, pn, usd, c.vs);
+    return { big: usd(net), st: d.st || 'Profit and loss', tone: d.tone, sub: `${usd(cur.in)} in, ${usd(cur.out)} out`, viz: dvBars(months, { signed: true, last: true, label: 'Profit by month, last 6 months' }) };
+  } },
+  { id: 'prop', sec: 'money', t: 'Prop firm ledger', open: () => openProp(), calc() {
+    if (typeof ppAll !== 'function') return null;
+    const l = ppAll(); if (!l.length) return dvEmpty('Set up', 'Evals, fees and payouts');
+    const s = ppStats(l);
+    return { big: ppUsd(s.net), st: `${ppUsd(s.paid)} paid, ${ppUsd(s.spent)} spent`, tone: s.net > 0 ? 'up' : s.net < 0 ? 'down' : '', sub: `${s.n} account${s.n === 1 ? '' : 's'}: ${s.active} running, ${s.passed} passed`, viz: dvBars([s.spent, s.paid], { label: 'Spent then paid' }) };
+  } },
+  // ----- Work -----
+  { id: 'hours', sec: 'work', t: 'Hours worked', per: true, open: () => openHours(), calc(c) {
+    if (typeof hrShifts !== 'function' || typeof hrWeek !== 'function') return null;
+    if (!hrShifts(addDays(c.today, -30), addDays(c.today, 14)).length) return dvEmpty('Add your shifts', 'Hours across all jobs');
+    if (c.per === 'week') {
+      const w = hrWeek(c.ws), by = {}; w.shifts.forEach((x) => { by[x.k] = (by[x.k] || 0) + x.h; });
+      const over = w.total > w.limit;
+      return { big: dvH(w.total), unit: 'h', st: `${dvH(w.done)} h worked so far`, tone: over ? 'bad' : '', sub: over ? `${dvH(w.total - w.limit)} h over your ${dvH(w.limit)} h limit` : `of ${dvH(w.limit)} h limit`, viz: dvBars(dvDaysList(c.ws, addDays(c.ws, 6)).map((k) => by[k] || 0), { label: 'Hours by day' }) + dvBar(w.total / w.limit, over ? 'bad' : '') };
+    }
+    const h = (a, b) => dvSum(hrShifts(a, b).map((x) => x.h)), cur = h(c.a, c.b), prev = h(c.pa, c.pb), d = dvDelta(cur, prev, (v) => dvH(v) + ' h', c.vs, false);
+    const days = dvDaysList(c.a, c.b, 62), by = {}; hrShifts(c.a, c.b).forEach((x) => { by[x.k] = (by[x.k] || 0) + x.h; });
+    return { big: dvH(cur), unit: 'h', st: d.st, tone: '', sub: `About ${dvH(cur / Math.max(1, days.length) * 7)} h a week`, viz: dvBars(days.map((k) => by[k] || 0), { label: 'Hours by day' }) };
+  } },
+  { id: 'nextshift', sec: 'work', t: 'Next shift', open: () => openShifts(), calc(c) {
+    if (typeof hrShifts !== 'function') return null;
+    const sh = hrShifts(c.today, addDays(c.today, 14)), n = new Date(), nowAbs = n.getHours() * 60 + n.getMinutes();
+    const cur = sh.find((x) => x.s <= nowAbs && x.e > nowAbs), nx = sh.find((x) => x.s > nowAbs);
+    if (!cur && !nx) return dvEmpty('Add your shifts', 'No shift in the next 14 days');
+    const by = {}; sh.forEach((x) => { by[x.k] = (by[x.k] || 0) + x.h; });
+    const viz = dvBars(dvDaysList(c.today, addDays(c.today, 6)).map((k) => by[k] || 0), { label: 'Hours, next 7 days' });
+    const after = nx ? `Next: ${nx.job.name}, ${fmtTime(nx.start)} ${dvWhen(nx.k)}` : 'No more shifts in the next 14 days';
+    if (cur) return { big: 'On shift', st: `${cur.job.name} until ${fmtTime(cur.end)}`, tone: 'warn', sub: after, viz };
+    return { big: fmtTime(nx.start), st: `${nx.job.name}, ${dvWhen(nx.k)}`, tone: '', sub: `${fmtTime(nx.start)} to ${fmtTime(nx.end)}, ${dvH(nx.h)} h`, viz };
+  } },
+  { id: 'payday', sec: 'work', t: 'Next payday', open: () => openPayday(), calc(c) {
+    if (typeof pdCfgOf !== 'function') return null;
+    const up = [];
+    S.jobs.forEach((j) => { const cf = pdCfgOf(j); if (!cf.set || !cf.on) return; const P = pdPaydays(cf, c.today, addDays(c.today, 90))[0]; if (P) up.push({ j, cf, P }); });
+    if (!up.length) return dvEmpty('Set your pay schedule', 'When each job pays you');
+    up.sort((a, b) => a.P.localeCompare(b.P)); const u = up[0], x = pdExpected(u.j, u.cf, u.P);
+    return { big: x.total > 0 ? '~' + usd(x.total) : pdShort(u.P), st: `${u.j.name}, ${dvWhen(u.P)}`, tone: '', sub: `${pdShort(u.P)}, ${pdH(x.h)} h scheduled, before tax`, viz: '' };
+  } },
+  { id: 'overtime', sec: 'work', t: 'Overtime and rest warnings', open: () => openHours(), calc(c) {
+    if (typeof hrAll !== 'function' || typeof hrShifts !== 'function') return null;
+    if (!hrShifts(c.today, addDays(c.today, 14)).length && !hrShifts(c.ws, c.today).length) return dvEmpty('Add your shifts', 'Overtime and rest checks');
+    const a = hrAll(), n = a.warns.length;
+    return { big: String(n), st: n ? `${a.warns[0].text}` : 'All clear this week and next', tone: n ? 'bad' : 'ok', sub: a.rest.length ? `${a.rest.length} short-rest or long-run warning${a.rest.length === 1 ? '' : 's'} in the next 2 weeks` : '', viz: '' };
+  } },
+  { id: 'deals', sec: 'work', t: 'Open deals', open: () => openPipeline(), calc(c) {
+    if (typeof plStats !== 'function') return null;
+    if (!S.deals.length) return dvEmpty('Add a lead', 'Leads, clients and follow-ups');
+    const s = plStats(), due = S.deals.filter((d) => plIsOpen(d) && YMD.test(d.follow || '') && d.follow <= c.today).length;
+    return { big: String(s.openN), st: `${usd(s.open)} in play`, tone: due ? 'warn' : '', sub: due ? `${due} follow-up${due === 1 ? '' : 's'} due` : `${usd(s.wonMonth)} won this month`, viz: '' };
+  } },
+  { id: 'timelog', sec: 'work', t: 'Time logged', per: true, open: () => openTimeAudit(), calc(c) {
+    if (typeof tlEnd !== 'function') return null;
+    if (!S.timelog.length) return dvEmpty('Start a timer', 'Where your hours actually go');
+    const hrs = (a, b) => { const x = parse(a).getTime(), z = parse(addDays(b, 1)).getTime(); let t = 0; S.timelog.forEach((e) => { const s = Math.max(e.start, x), f = Math.min(tlEnd(e), z); if (f > s) t += (f - s) / 36e5; }); return t; };
+    const cur = hrs(c.a, c.b), prev = hrs(c.pa, c.pb), d = dvDelta(cur, prev, (v) => dvH(v) + ' h', c.vs), days = dvDaysList(c.a, c.b, 31);
+    return { big: dvH(cur), unit: 'h', st: d.st, tone: d.tone, sub: c.per === 'week' && typeof tlPlanned === 'function' ? `${dvH(dvSum(Object.values(tlPlanned(c.ws))))} h planned this week` : '', viz: dvBars(days.map((k) => hrs(k, k)), { label: 'Hours logged by day' }) };
+  } },
+  { id: 'tasks', sec: 'work', t: 'Tasks done', per: true, open: dvOpenView('today'), calc(c) {
+    const inR = (a, b) => S.tasks.filter((t) => t.date && t.date >= a && t.date <= b);
+    const cur = inR(c.a, c.b), prev = inR(c.pa, c.pb), done = cur.filter((t) => t.done).length, pd = prev.filter((t) => t.done).length;
+    if (!cur.length && !prev.length) return dvEmpty('Add a task', 'Tasks with a date count here');
+    const d = dvDelta(done, pd, String, c.vs), days = dvDaysList(c.a, c.b, 31);
+    return { big: String(done), unit: 'of ' + cur.length, st: d.st || `${cur.length - done} still open`, tone: d.tone, sub: d.st ? `${cur.length - done} still open` : '', viz: dvBars(days.map((k) => cur.filter((t) => t.date === k && t.done).length), { label: 'Tasks done by day' }) };
+  } },
+  // ----- Trading (live + paper only, never the backtest) -----
+  { id: 'tpnl', sec: 'trading', t: 'Trading P&L', per: true, open: dvOpenView('trades'), calc(c) {
+    const m = dvDayPnl(); if (!m.size) return dvEmpty('Open the dashboard once', 'Live and paper results appear here');
+    const sum = (a, b) => dvSum(dvDaysList(a, b, 400).map((k) => m.get(k) || 0)), cur = sum(c.a, c.b), prev = sum(c.pa, c.pb);
+    const days = dvDaysList(c.a, c.b, 62).filter((k) => m.has(k)), d = dvDelta(cur, prev, usd, c.vs);
+    return { big: usd(cur), st: d.st, tone: d.tone, sub: `${days.length} trading day${days.length === 1 ? '' : 's'}, live and paper only`, viz: dvBars(days.map((k) => m.get(k)), { signed: true, label: 'P&L by trading day' }) };
+  } },
+  { id: 'winrate', sec: 'trading', t: 'Win rate', per: true, open: () => openEdge(), calc(c) {
+    const all = dvTrades(); if (!all.length) return dvEmpty('Set up', 'Needs closed trades');
+    const st = (a, b) => { const l = all.filter((t) => t.day >= a && t.day <= b), w = l.filter((t) => t.usd > 0).length, ls = l.filter((t) => t.usd < 0).length, gw = dvSum(l.filter((t) => t.usd > 0).map((t) => t.usd)), gl = -dvSum(l.filter((t) => t.usd < 0).map((t) => t.usd)); return { w, l: ls, n: w + ls, pf: gl > 0 ? gw / gl : null, rate: w + ls ? w / (w + ls) : null }; };
+    const cur = st(c.a, c.b), prev = st(c.pa, c.pb);
+    if (!cur.n) return { big: '–', st: 'No closed trades ' + c.name, tone: '', sub: '', viz: '' };
+    const d = dvDelta(Math.round(cur.rate * 100), prev.rate == null ? null : Math.round(prev.rate * 100), (v) => v + ' pts', c.vs);
+    return { big: dvPct(cur.rate), st: d.st || `${cur.w} W / ${cur.l} L`, tone: d.tone, sub: `${cur.w} W / ${cur.l} L${cur.pf != null ? ', profit factor ' + cur.pf.toFixed(2) : ''}`, viz: dvBar(cur.rate) };
+  } },
+  { id: 'equity', sec: 'trading', t: 'Equity (last 60 trades)', open: () => openEdge(), calc() {
+    const all = dvTrades().slice(-60); if (all.length < 2) return dvEmpty('Set up', 'Needs a few closed trades');
+    const eq = [0]; all.forEach((t) => eq.push(eq[eq.length - 1] + t.usd));
+    let pk = 0, dd = 0; eq.forEach((v) => { pk = Math.max(pk, v); dd = Math.max(dd, pk - v); });
+    const net = eq[eq.length - 1];
+    return { big: usd(net), st: `Max drawdown ${usd(-dd)}`, tone: net > 0 ? 'up' : net < 0 ? 'down' : '', sub: `${all.length} trades, ${dvDay(all[0].day)} to ${dvDay(all[all.length - 1].day)}`, viz: dvLine(eq) };
+  } },
+  { id: 'tilt', sec: 'trading', t: 'Tilt guard', open: () => openTiltSettings(), calc() {
+    if (typeof tzActive !== 'function') return null;
+    const a = tzActive(), r = typeof tzRecord === 'function' ? tzRecord() : { ok: 0, bad: 0 };
+    const sub = `${r.ok} stop${r.ok === 1 ? '' : 's'} followed, ${r.bad} broken (30 days)`;
+    if (!a) return { big: 'Clear', st: 'No stop hit today', tone: 'ok', sub, viz: '' };
+    if (a.showBanner) return { big: a.cooling ? 'Stop ' + tzCd(a.left) : 'Stop', st: 'Stop trading: ' + a.last.text, tone: 'bad', sub, viz: '' };
+    return { big: 'Stopped', st: 'A stop was hit today and respected', tone: 'warn', sub, viz: '' };
+  } },
+  { id: 'plan', sec: 'trading', t: 'Plan followed', per: true, open: () => hbOpenTool('tradeplan'), calc(c) {
+    const rate = (a, b) => { let n = 0, s = 0, y = 0; S.tplan.forEach((x) => { const k = String(x.id).slice(3); if (!x.id.startsWith('tp:') || k < a || k > b || !(x.followed in scFrac)) return; n++; s += scFrac[x.followed]; if (x.followed === 'yes') y++; }); return { n, s, y }; };
+    const cur = rate(c.a, c.b), prev = rate(c.pa, c.pb);
+    if (!S.tplan.some((x) => x.followed in scFrac)) return dvEmpty('Write a trade plan', 'Answer "Did I follow the plan?" after the session');
+    if (!cur.n) return { big: '–', st: 'No debriefs ' + c.name, tone: '', sub: '', viz: '' };
+    const d = dvDelta(Math.round(cur.s / cur.n * 100), prev.n ? Math.round(prev.s / prev.n * 100) : null, (v) => v + ' pts', c.vs);
+    return { big: dvPct(cur.s / cur.n), st: d.st || `${cur.y} of ${cur.n} days`, tone: d.tone, sub: `Yes on ${cur.y} of ${cur.n} days`, viz: dvBar(cur.s / cur.n) };
+  } },
+  { id: 'edge', sec: 'trading', t: 'Edge finder', open: () => openEdge(), calc() {
+    if (typeof edCalc !== 'function') return null;
+    const c = edCalc(); if (!c.n) return dvEmpty('Set up', 'Where you make and lose money');
+    const f = typeof edFindings === 'function' ? edFindings(c) : [];
+    return { big: c.pf == null ? (c.gw > 0 ? 'No losses' : '–') : c.pf.toFixed(2), unit: 'profit factor', st: f[0] || `${edUsd(c.net)} net over ${c.n} trade${c.n === 1 ? '' : 's'}`, tone: '', sub: f[0] ? `${edUsd(c.net)} net, ${c.n} trades` : `Tag trades to get findings`, viz: '' };
+  } },
+  // ----- Life -----
+  { id: 'score', sec: 'life', t: 'Daily score', open: () => openScore(), calc(c) {
+    if (typeof scDay !== 'function') return null;
+    const days = dvDaysList(addDays(c.today, -13), c.today).map(dvScore), td = days[days.length - 1], yd = days[days.length - 2];
+    if (days.every((d) => d.score == null)) return dvEmpty('Set up', 'Nothing to score yet');
+    const d = td.score != null && yd.score != null ? dvDelta(td.score, yd.score, (v) => v + ' pts', 'yesterday') : { st: td.score == null ? 'Nothing scored yet today' : '', tone: '' };
+    return { big: td.score == null ? '–' : String(td.score), unit: 'of 100', st: d.st, tone: d.tone, sub: 'Last 14 days', viz: dvBars(days.map((x) => x.score), { last: true, label: 'Daily score, last 14 days' }) };
+  } },
+  { id: 'streak', sec: 'life', t: 'Score streak', open: () => openScore(), calc(c) {
+    if (typeof scDay !== 'function') return null;
+    let cur = 0;
+    for (let i = 0; i < 120; i++) { const d = dvScore(addDays(c.today, -i)); if (d.score == null) continue; if (d.score >= SC_PASS) cur++; else if (i > 0) break; }
+    const last = dvDaysList(addDays(c.today, -13), c.today).map((k) => { const d = dvScore(k); return d.score == null ? null : d.score >= SC_PASS ? 1 : 0.15; });
+    if (last.every((x) => x == null)) return dvEmpty('Set up', 'Days at ' + SC_PASS + '+ in a row');
+    return { big: String(cur), unit: cur === 1 ? 'day' : 'days', st: cur ? `${SC_PASS}+ every day` : `No streak yet, aim for ${SC_PASS}+`, tone: cur ? 'up' : '', sub: '', viz: dvBars(last, { last: true, label: 'Days at ' + SC_PASS + ' or more, last 14 days' }) };
+  } },
+  { id: 'habits', sec: 'life', t: 'Habits done', per: true, open: dvOpenView('habits'), calc(c) {
+    if (!S.habits.length) return dvEmpty('Add a habit', 'Daily habits and streaks');
+    const f = (a, b) => { let due = 0, done = 0; const per = dvDaysList(a, b, 62).map((k) => { let d = 0, x = 0; S.habits.forEach((h) => { if (hDue(h, k) && (!h.created || h.created <= k)) { d++; if (hDone(h, k)) x++; } }); due += d; done += x; return d ? x / d : null; }); return { due, done, per }; };
+    const cur = f(c.a, c.b), prev = f(c.pa, c.pb);
+    if (!cur.due) return { big: '–', st: 'Nothing due ' + c.name, tone: '', sub: '', viz: '' };
+    const d = dvDelta(Math.round(cur.done / cur.due * 100), prev.due ? Math.round(prev.done / prev.due * 100) : null, (v) => v + ' pts', c.vs);
+    return { big: dvPct(cur.done / cur.due), st: d.st || `${cur.done} of ${cur.due} check-ins`, tone: d.tone, sub: `${cur.done} of ${cur.due} check-ins`, viz: dvBars(cur.per, { label: 'Habits done by day' }) };
+  } },
+  { id: 'workouts', sec: 'life', t: 'Workouts', per: true, open: dvOpenView('health'), calc(c) {
+    if (!S.workouts.length) return dvEmpty('Log a workout', 'Lifts, runs and walks');
+    const n = (a, b) => S.workouts.filter((w) => w.date >= a && w.date <= b).length, cur = n(c.a, c.b), d = dvDelta(cur, n(c.pa, c.pb), String, c.vs), days = dvDaysList(c.a, c.b, 31);
+    return { big: String(cur), unit: cur === 1 ? 'workout' : 'workouts', st: d.st, tone: d.tone, sub: `${dvSum(S.workouts.filter((w) => w.date >= c.a && w.date <= c.b).map((w) => w.mins))} min in total`, viz: dvBars(days.map((k) => S.workouts.filter((w) => w.date === k).length), { label: 'Workouts by day' }) };
+  } },
+  { id: 'water', sec: 'life', t: 'Water today', open: dvOpenView('health'), calc(c) {
+    if (typeof hxOn !== 'function') return null;
+    if (!hxLogs().length) return dvEmpty('Check in', 'Water, sleep and weight');
+    const g = hxCfg().waterGoal || 8, w = (hxOn(c.today) || {}).water || 0, days = dvDaysList(addDays(c.today, -6), c.today).map((k) => (hxOn(k) || {}).water || 0);
+    return { big: String(w), unit: 'of ' + g, st: w >= g ? 'Goal reached' : `${g - w} to go`, tone: w >= g ? 'ok' : '', sub: `7-day average ${dvH(dvSum(days) / 7)}`, viz: dvBars(days, { goal: g, last: true, label: 'Water, last 7 days' }) };
+  } },
+  { id: 'sleep', sec: 'life', t: 'Sleep', open: dvOpenView('health'), calc(c) {
+    if (typeof hxOn !== 'function') return null;
+    const logs = hxLogs().filter((h) => h.sleepH != null && h.date <= c.today).sort((a, b) => b.date.localeCompare(a.date));
+    if (!logs.length) return dvEmpty('Log your sleep', 'Hours and quality');
+    const need = hxCfg().sleepNeed, l = logs[0], days = dvDaysList(addDays(c.today, -6), c.today).map((k) => { const h = hxOn(k); return h && h.sleepH != null ? h.sleepH : null; }), got = days.filter((x) => x != null);
+    return { big: dvH(l.sleepH), unit: 'h', st: l.sleepH >= need ? 'On target' : `${dvH(need - l.sleepH)} h short of ${dvH(need)} h`, tone: l.sleepH >= need ? 'ok' : 'warn', sub: got.length ? `7-day average ${dvH(dvSum(got) / got.length)} h` : '', viz: dvBars(days, { goal: need, last: true, label: 'Sleep, last 7 nights' }) };
+  } },
+  { id: 'weight', sec: 'life', t: 'Weight', open: dvOpenView('health'), calc(c) {
+    if (typeof hxOn !== 'function') return null;
+    const logs = hxLogs().filter((h) => h.weight != null && h.date <= c.today).sort((a, b) => a.date.localeCompare(b.date)).slice(-60);
+    if (!logs.length) return dvEmpty('Log your weight', 'See the trend');
+    const cfg = hxCfg(), last = logs[logs.length - 1], base = logs.filter((h) => h.date <= addDays(c.today, -28)).pop() || logs[0], ch = Math.round((+last.weight - +base.weight) * 10) / 10;
+    return { big: String(+last.weight), unit: cfg.unit, st: logs.length < 2 ? 'Log again to see the trend' : ch === 0 ? 'No change' : `${ch > 0 ? '▲' : '▼'} ${Math.abs(ch)} ${cfg.unit} in ${Math.max(1, diffDays(base.date, last.date))} days`, tone: '', sub: cfg.goalWeight ? `Goal ${cfg.goalWeight} ${cfg.unit}` : '', viz: dvLine(logs.map((h) => +h.weight)) };
+  } },
+  { id: 'journal', sec: 'life', t: 'Journal streak', open: () => hbOpenTool('journal'), calc(c) {
+    if (!S.journal.length) return dvEmpty('Write today', 'A line a day');
+    const has = (k) => { const j = jrnOf(k); return !!(j && (j.note || j.win || j.mood || j.rules)); };
+    let cur = 0, k = has(c.today) ? c.today : addDays(c.today, -1);
+    for (let i = 0; i < 800 && has(k); i++) { cur++; k = addDays(k, -1); }
+    const days = dvDaysList(addDays(c.today, -13), c.today).map((x) => (has(x) ? 1 : 0.12));
+    return { big: String(cur), unit: cur === 1 ? 'day' : 'days', st: has(c.today) ? 'Written today' : 'Not written yet today', tone: has(c.today) ? 'ok' : '', sub: '', viz: dvBars(days, { last: true, label: 'Journal days, last 14 days' }) };
+  } },
+  // ----- Food -----
+  { id: 'kcal', sec: 'food', t: 'Calories today', open: () => mlOpen(), calc(c) {
+    if (typeof mlTot !== 'function' || typeof mlOn !== 'function' || typeof mlGoals !== 'function') return null;
+    if (!S.meals.length && !(typeof ngHasGoals === 'function' && ngHasGoals())) return dvEmpty('Log a meal', 'Calories, protein, carbs and fat');
+    const t = mlTot(mlOn(c.today)), g = mlGoals(), left = g.kcal - t.kcal, over = left < 0;
+    return { big: String(Math.round(t.kcal)), unit: 'kcal', st: over ? `${Math.round(-left)} over the ${g.kcal} goal` : `${Math.round(left)} left of ${g.kcal}`, tone: over ? 'warn' : '', sub: '', viz: `<div class="dv-ringw">${dvRing(t.kcal / g.kcal, over ? 'warn' : '')}<span class="dv-st">${dvPct(t.kcal / g.kcal)} of today's goal</span></div>` };
+  } },
+  { id: 'macros', sec: 'food', t: 'Protein, carbs, fat today', open: () => mlOpen(), calc(c) {
+    if (typeof mlTot !== 'function' || typeof mlOn !== 'function' || typeof mlGoals !== 'function') return null;
+    if (!S.meals.length) return dvEmpty('Log a meal', 'Macros against your goals');
+    const t = mlTot(mlOn(c.today)), g = mlGoals(), row = (l, v, goal) => `<div><span>${l}</span>${dvBar(goal ? v / goal : 0, v > goal * 1.1 ? 'warn' : '')}<b>${Math.round(v)}/${goal} g</b></div>`;
+    return { big: String(Math.round(t.p)), unit: 'g protein', st: t.p >= g.p ? 'Protein goal reached' : `${Math.round(g.p - t.p)} g to go`, tone: t.p >= g.p ? 'ok' : '', sub: '', viz: `<div class="dv-mac">${row('Protein', t.p, g.p)}${row('Carbs', t.c, g.c)}${row('Fat', t.f, g.f)}</div>` };
+  } },
+  { id: 'kweek', sec: 'food', t: 'Average calories', per: true, pbadge: true, open: () => nwOpen(), calc(c) {
+    if (typeof nwSummary !== 'function') return null;
+    const s = nwSummary(c.food); if (!s.logged) return dvEmpty('Log a meal', 'Daily calories over time');
+    const diff = s.avgKcal - s.goal.kcal;
+    return { big: String(s.avgKcal), unit: 'kcal a day', st: Math.abs(diff) < 1 ? 'Right on your goal' : `${Math.abs(Math.round(diff))} ${diff > 0 ? 'over' : 'under'} the ${s.goal.kcal} goal`, tone: Math.abs(diff) <= s.goal.kcal * 0.1 ? 'ok' : 'warn', sub: `${s.within} of ${s.used} full days within 10% of goal`, viz: dvBars(s.list.map((d) => (d.logged ? d.kcal : null)), { goal: s.goal.kcal, last: true, label: 'Calories by day' }) };
+  } },
+  { id: 'logged', sec: 'food', t: 'Days logged', per: true, pbadge: true, open: () => nwOpen(), calc(c) {
+    if (typeof nwSummary !== 'function') return null;
+    const s = nwSummary(c.food); if (!s.logged) return dvEmpty('Log a meal', 'How often you track');
+    return { big: String(s.logged), unit: 'of ' + s.days + ' days', st: dvPct(s.logged / s.days) + ' of days tracked', tone: s.logged >= s.days * 0.8 ? 'ok' : '', sub: '', viz: dvBars(s.list.map((d) => (d.logged ? 1 : 0.12)), { last: true, label: 'Days with food logged' }) };
+  } },
+  { id: 'phit', sec: 'food', t: 'Protein goal hit', per: true, pbadge: true, open: () => nwOpen(), calc(c) {
+    if (typeof nwSummary !== 'function') return null;
+    const s = nwSummary(c.food); if (!s.used) return dvEmpty('Log a meal', 'Days you reach your protein goal');
+    return { big: s.proteinPct + '%', st: `${s.proteinHit} of ${s.used} days at 90%+ of ${s.goal.p} g`, tone: s.proteinPct >= 70 ? 'ok' : '', sub: `Average ${dvH(s.avgP)} g a day`, viz: dvBar(s.proteinPct / 100) };
+  } },
+  { id: 'fibna', sec: 'food', t: 'Fiber and sodium', per: true, pbadge: true, open: () => nwOpen(), calc(c) {
+    const a = addDays(c.today, -(c.food - 1)), list = S.meals.filter((m) => m.date >= a && m.date <= c.today && (Number.isFinite(+m.fiber) || Number.isFinite(+m.sodium)));
+    if (!list.length) return null; // only shown when the meals carry these numbers
+    const days = new Set(list.map((m) => m.date)).size, fib = dvSum(list.map((m) => m.fiber)) / days, na = dvSum(list.map((m) => m.sodium)) / days;
+    return { big: dvH(fib), unit: 'g fiber a day', st: `${Math.round(na)} mg sodium a day`, tone: na > 2300 ? 'warn' : '', sub: `Over ${days} logged day${days === 1 ? '' : 's'}`, viz: '' };
+  } },
+];
+const DV_BY = Object.fromEntries(DV_TILES.map((t) => [t.id, t]));
+const DV_OVERVIEW = ['earn', 'cash', 'networth', 'hours', 'nextshift', 'tpnl', 'score', 'kcal']; // the 8 numbers that matter most
+function dvScore(k) { // daily score of one day, remembered while the data is unchanged
+  const hit = dvScMemo.get(k); if (hit && hit.sig === dvSigNow) return hit.d;
+  const d = scDay(k); const r = { score: d.score }; dvScMemo.set(k, { sig: dvSigNow, d: r }); if (dvScMemo.size > 200) dvScMemo.clear(); return r;
+}
+function dvTrades() { return (typeof nqTrades !== 'undefined' && Array.isArray(nqTrades) ? nqTrades : []).filter((t) => t && typeof t.usd === 'number' && YMD.test(t.day || '')).slice().sort((a, b) => (a.t1 || a.t0 || 0) - (b.t1 || b.t0 || 0)); }
+function dvDayPnl() { // day -> P&L of live and paper trading (the saved daily numbers, else summed from the closed trades)
+  const m = new Map(), by = new Map();
+  dvTrades().forEach((t) => by.set(t.day, (by.get(t.day) || 0) + t.usd));
+  by.forEach((v, k) => m.set(k, Math.round(v * 100) / 100));
+  if (typeof nqPnl !== 'undefined' && nqPnl) Object.keys(nqPnl).forEach((k) => { if (YMD.test(k) && typeof nqPnl[k] === 'number') m.set(k, nqPnl[k]); });
+  return m;
+}
+function dvCfg() { const c = S.dashcfg.find((x) => x.id === 'cfg') || {}; return { hide: c.hide && typeof c.hide === 'object' ? c.hide : {}, order: c.order && typeof c.order === 'object' ? c.order : {} }; }
+function dvIds(sec) { // tile ids of a section in the saved order (a tile the saved order does not mention keeps its built-in place)
+  const base = sec === 'overview' ? DV_OVERVIEW : DV_TILES.filter((t) => t.sec === sec).map((t) => t.id), saved = Array.isArray(dvCfg().order[sec]) ? dvCfg().order[sec] : [];
+  const pos = (id, i) => { const j = saved.indexOf(id); return j >= 0 ? j : 1000 + i; };
+  return base.map((id, i) => [id, pos(id, i)]).sort((a, b) => a[1] - b[1]).map((x) => x[0]);
+}
+function dvTile(id) { // memoised result; null = the tool is missing or the tile failed, so the tile is left out
+  const hit = dvMemo.get(id); if (hit && hit.sig === dvSigNow) return hit.r;
+  let r = null; const t0 = performance.now();
+  try { r = DV_BY[id].calc(dvCtx()); } catch (e) { console.error('Dashboard tile failed:', id, e); r = null; }
+  dvMemo.set(id, { sig: dvSigNow, r }); dvPerf.tiles++; dvPerf.ms = (dvPerf.ms || 0) + performance.now() - t0;
+  return r;
+}
+function dvTileHtml(id, ix, ids, hidden) {
+  const d = DV_BY[id], r = dvTile(id); if (!r) return '';
+  const badge = d.per ? `<span class="dv-pb" data-dvpb>${esc(d.pbadge ? (dvPer === 'week' ? '7 days' : dvPer === 'month' ? 'Month' : '30 days') : dvCtx().badge)}</span>` : '';
+  const aria = esc(`${d.t}: ${r.setup ? 'not set up, ' + r.hint : r.big + (r.unit ? ' ' + r.unit : '') + (r.st ? ', ' + r.st : '')}`);
+  const body = `<span class="dv-th"><span class="dv-tt">${esc(d.t)}</span>${badge}</span>
+    <span class="dv-big" data-dvbig>${esc(r.big)}${r.unit ? ` <small>${esc(r.unit)}</small>` : ''}</span>
+    ${r.st ? `<span class="dv-st ${r.tone || ''}">${esc(r.st)}</span>` : ''}${r.sub ? `<span class="dv-sub">${esc(r.sub)}</span>` : ''}`;
+  if (dvEdit) {
+    return `<div class="dv-t${hidden ? ' off' : ''}" data-dvtid="${id}">${body}<div class="dv-ed"><button type="button" data-dvmv="-1" data-dvid="${id}" aria-label="Move ${esc(d.t)} earlier"${ix === 0 ? ' disabled' : ''}>◀</button><button type="button" data-dvmv="1" data-dvid="${id}" aria-label="Move ${esc(d.t)} later"${ix === ids.length - 1 ? ' disabled' : ''}>▶</button><button type="button" class="tg" data-dvhide="${id}" aria-pressed="${hidden}">${hidden ? 'Hidden: tap to show' : 'Shown: tap to hide'}</button></div></div>`;
+  }
+  if (r.setup) return `<button type="button" class="dv-t empty" data-dvtid="${id}" data-dvopen="${id}" aria-label="${aria}">${body}<span class="dv-setup">${esc(r.hint)}</span></button>`;
+  return `<button type="button" class="dv-t" data-dvtid="${id}" data-dvopen="${id}" aria-label="${aria}">${body}<span class="dv-viz">${r.viz || ''}</span></button>`;
+}
+// What needs you: the Today organizer's own ranking (its cards' tier functions) plus warnings from hours and tax.
+const DV_ATT_TOOL = { tilt: 'tilt', guard: 'checkweek', bills: 'bills', deals: 'deals', tradeplan: 'tradeplan', setup: 'setup', sched: 'shifts' };
+function dvAttention() {
+  const out = [];
+  try {
+    if (typeof TO_CARDS !== 'undefined') TO_CARDS.forEach((d) => {
+      if (!d.tier) return;
+      try {
+        const t = d.tier('');
+        if (!t || t.tier !== 'now' || t.soft || !t.label) return;
+        if (!safeCard(d.fn)) return;
+        out.push({ id: d.id, label: t.label, cls: t.cls || 'amber', text: d.n, tool: DV_ATT_TOOL[d.id] || '' });
+      } catch (e) { /* that card cannot be ranked right now */ }
+    });
+  } catch (e) { /* TODAYORG missing */ }
+  try { if (typeof hrAll === 'function') hrAll().warns.slice(0, 2).forEach((w, i) => out.push({ id: 'hr' + i, label: w.level === 'red' ? 'Overtime' : 'Hours', cls: w.level === 'red' ? 'red' : 'amber', text: w.text, tool: 'hours' })); } catch (e) { /* skip */ }
+  try {
+    if (typeof tqInfo === 'function') { const cfg = tqCfg(), now = tqNow(cfg), q = now.cur; if (q) { const i = tqInfo(q, now.today, cfg); if (i.left > 0.5 && i.days >= 0 && i.days <= 21) out.push({ id: 'tax', label: 'Tax due', cls: 'amber', text: `${tqQName(q)} estimate ${tqUsd(i.left)} is due ${tqShort(q.due)}`, tool: 'taxes' }); } }
+  } catch (e) { /* skip */ }
+  return out;
+}
+function dvWeekStrip(c) {
+  const items = [];
+  const add = (id, big, label, open) => items.push(`<button type="button" data-dvwk="${id}" data-dvwopen="${open}"><b>${esc(big)}</b><span>${esc(label)}</span></button>`);
+  try { if (typeof hrWeek === 'function') add('hours', dvH(hrWeek(c.ws).done) + ' h', 'hours worked', 'hours'); } catch (e) { /* skip */ }
+  try { if (typeof earnCalc === 'function') add('pay', usd(earnCalc(c.ws, addDays(c.ws, 6)).shAll), 'shift pay expected', 'earnings'); } catch (e) { /* skip */ }
+  try { if (typeof nwSummary === 'function') { const s = nwSummary(Math.max(1, diffDays(c.ws, c.today) + 1)); add('kcal', s.logged ? String(s.avgKcal) : '–', 'avg calories a day', 'foodweek'); } } catch (e) { /* skip */ }
+  try { add('wk', String(S.workouts.filter((w) => w.date >= c.ws && w.date <= addDays(c.ws, 6)).length), 'workouts', 'health'); } catch (e) { /* skip */ }
+  try { const t = S.tasks.filter((x) => x.date && x.date >= c.ws && x.date <= addDays(c.ws, 6)); add('tasks', `${t.filter((x) => x.done).length}/${t.length}`, 'tasks done', 'today'); } catch (e) { /* skip */ }
+  return items.join('');
+}
+function dvSection(sec) {
+  const c = dvCtx(), cfg = dvCfg(), hide = new Set(Array.isArray(cfg.hide[sec]) ? cfg.hide[sec] : []), ids = dvIds(sec);
+  const shown = ids.filter((id) => dvEdit || !hide.has(id));
+  const grid = shown.map((id, i) => dvTileHtml(id, ids.indexOf(id), ids, hide.has(id))).join('');
+  let h = '';
+  if (sec === 'overview') {
+    const att = dvAttention();
+    h += `<div class="dv-h">Needs attention</div><div class="dv-att" id="dvAtt">${att.length ? att.map((a) => `<button type="button" data-dvatt="${esc(a.tool)}" data-dvaid="${esc(a.id)}"><span class="lb ${a.cls}">${esc(a.label)}</span><span class="tx">${esc(a.text)}</span></button>`).join('') : '<div class="ok">Nothing needs you right now.</div>'}</div>`;
+    h += `<div class="dv-h">This week</div><div class="dv-week" id="dvWeek">${dvWeekStrip(c)}</div><div class="dv-h">The numbers that matter</div>`;
+  }
+  h += `<div class="dv-grid" id="dvGrid" data-dvsec="${sec}">${grid || '<div class="dv-note">Everything in this section is hidden. Tap Edit to bring tiles back.</div>'}</div>`;
+  return h;
+}
+function dvRender() {
+  const t0 = performance.now();
+  dvSigNow = dvSig();
+  const memoKey = dvSigNow + '|' + dvSec + '|' + dvEdit;
+  let body;
+  if (dvSecMemo && dvSecMemo.key === memoKey) body = dvSecMemo.html;
+  else { body = dvSection(dvSec); dvSecMemo = { key: memoKey, html: body }; }
+  const html = `<div class="dv" id="dv">
+    <div class="dv-bar"><div class="dv-chips" role="tablist" aria-label="Dashboard sections">${DV_SECS.map(([id, n]) => `<button type="button" role="tab" id="dvTab-${id}" data-dvsec-go="${id}" aria-selected="${id === dvSec}">${n}</button>`).join('')}</div>
+      <div class="dv-ctl"><div class="dv-per" role="group" aria-label="Period">${DV_PERS.map(([id, n]) => `<button type="button" data-dvper="${id}" aria-pressed="${id === dvPer}">${n}</button>`).join('')}</div><span class="sp"></span>
+        ${dvEdit ? '<button type="button" class="btn sm" id="dvReset">Reset</button>' : ''}<button type="button" class="btn sm${dvEdit ? ' primary' : ''}" id="dvEditBtn" aria-pressed="${dvEdit}">${dvEdit ? 'Done' : 'Edit'}</button></div></div>
+    <div id="dvBody" role="tabpanel" aria-labelledby="dvTab-${dvSec}" style="display:flex;flex-direction:column;gap:14px">${body}</div>
+    <div class="dv-note">Trading numbers are live and paper results only, never the backtest. Money numbers are estimates before tax. ${dvEdit ? 'Edit mode: hide tiles or move them with the arrows.' : 'Week, month and 30-day buttons change the tiles marked with the same label.'}</div>
+  </div>`;
+  dvPerf.last = performance.now() - t0; dvPerf.sec = dvSec;
+  return html;
+}
+// ---------- events ----------
+function dvRefresh(keepScroll) { dvSecMemo = null; const m = $('#main'), st = m.scrollTop; renderMain(); if (keepScroll) m.scrollTop = st; }
+function dvSaveCfg(sec, patch) {
+  commit(() => {
+    const c = upsert(S.dashcfg, 'cfg', () => ({ id: 'cfg', hide: {}, order: {} }), {});
+    const hide = { ...(c.hide || {}) }, order = { ...(c.order || {}) };
+    if ('hide' in patch) hide[sec] = patch.hide; if ('order' in patch) order[sec] = patch.order;
+    c.hide = hide; c.order = order;
+  });
+  dvRefresh(true);
+}
+$('#main').addEventListener('click', async (e) => {
+  if (S.view !== 'dashboard') return;
+  const t = e.target, sec = t.closest('[data-dvsec-go]'), per = t.closest('[data-dvper]');
+  if (sec) { dvSec = sec.dataset.dvsecGo; dvLsSet(DV_SEC_KEY, dvSec); dvRefresh(false); $('#main').scrollTop = 0; window.scrollTo(0, 0); return; }
+  if (per) { dvPer = per.dataset.dvper; dvLsSet(DV_PER_KEY, dvPer); dvRefresh(true); return; }
+  if (t.closest('#dvEditBtn')) { dvEdit = !dvEdit; dvRefresh(true); return; }
+  if (t.closest('#dvReset')) {
+    if (!(await ask('Reset the Dashboard?', 'Every tile comes back and the order goes back to the built-in one.', 'Reset'))) return;
+    commit(() => { upsert(S.dashcfg, 'cfg', () => ({ id: 'cfg' }), { hide: {}, order: {} }); }); dvRefresh(true); toast('Dashboard is back to default'); return;
+  }
+  const hd = t.closest('[data-dvhide]');
+  if (hd) { const id = hd.dataset.dvhide, cur = new Set(dvCfg().hide[dvSec] || []); if (cur.has(id)) cur.delete(id); else cur.add(id); dvSaveCfg(dvSec, { hide: [...cur] }); return; }
+  const mv = t.closest('[data-dvmv]');
+  if (mv) { const id = mv.dataset.dvid, ids = dvIds(dvSec), i = ids.indexOf(id), j = i + (+mv.dataset.dvmv); if (i < 0 || j < 0 || j >= ids.length) return; [ids[i], ids[j]] = [ids[j], ids[i]]; dvSaveCfg(dvSec, { order: ids }); return; }
+  if (dvEdit) return;
+  const op = t.closest('[data-dvopen]');
+  if (op) { const d = DV_BY[op.dataset.dvopen]; if (d) try { d.open(); } catch (err) { console.error('Dashboard tile could not open its tool:', d.id, err); toast('Could not open ' + d.t); } return; }
+  const at = t.closest('[data-dvatt]');
+  if (at) { const tool = at.dataset.dvatt; if (tool && typeof hbOpenTool === 'function') hbOpenTool(tool); else hbGoView('today'); return; }
+  const wk = t.closest('[data-dvwopen]');
+  if (wk) { const tool = wk.dataset.dvwopen; if (tool === 'today') hbGoView('today'); else if (tool === 'health') hbGoView('health'); else hbOpenTool(tool); }
+});
+// ===== DASHVIEW END =====
+
 // ===== SHIFTS BEGIN: recurring work shifts (Outback, electric) =====
 const shDlg = $('#shDlg');
 let shJob = null, shDays = [];
@@ -8181,6 +8703,7 @@ const PK_CMDS = [
   { id: 'v-news', l: 'Market news', k: 'economic calendar events', run: () => setView('news') },
   { id: 'v-rules', l: 'Pre-trade checklist', k: 'rules checklist', run: () => setView('rules') },
   { id: 'v-trades', l: 'Trades', k: 'trade notes payout', run: () => setView('trades') },
+  { id: 'v-dashboard', l: 'Dashboard', k: 'overview kpi numbers summary stats at a glance money work trading life food', run: () => { goToday(); setView('dashboard'); } },
   { id: 'help', l: 'Help', k: 'how to guide', run: () => $('#helpDlg').showModal() },
 ];
 // every tool from the All tools hub (HUB block) that has no command yet
@@ -9284,9 +9807,9 @@ function toast(msg, canUndo) {
 }
 
 // ===== EXTRAS SHARED BEGIN (hooks used by habits, review, journal, templates, focus, smart lists) =====
-const KEEP_SCROLL = ['projects', 'habits', 'health', 'review', 'news', 'rules', 'trades'];
-const EXTRA_TITLES = { habits: 'Habits', review: 'Weekly review', news: 'Market news', today: 'Today', health: 'Health', rules: 'Pre-trade checklist', trades: 'Trades' };
-const NO_NAV = ['projects', 'habits', 'health', 'review', 'news', 'today', 'rules', 'trades'];
+const KEEP_SCROLL = ['projects', 'habits', 'health', 'review', 'news', 'rules', 'trades', 'dashboard'];
+const EXTRA_TITLES = { habits: 'Habits', review: 'Weekly review', news: 'Market news', today: 'Today', health: 'Health', rules: 'Pre-trade checklist', trades: 'Trades', dashboard: 'Dashboard' };
+const NO_NAV = ['projects', 'habits', 'health', 'review', 'news', 'today', 'rules', 'trades', 'dashboard'];
 const ICON_CHECK = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>';
 const ICON_PENCIL = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg>';
 const ICON_CHEV = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';

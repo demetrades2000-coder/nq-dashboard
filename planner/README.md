@@ -363,6 +363,7 @@ Tap **Edit** to hide tiles and move them earlier or later inside a section. Hidd
 - Numbers are estimates before tax. Nothing here is advice.
 - If a tool is missing or has no data, only its tile is left out or shows "Set up"; the rest of the Dashboard keeps working.
 - Only the section you are looking at is calculated, and results are remembered until your data changes.
+- **Notifications and widgets:** the Notifications sheet saves one calendar file with alerts for your shifts, bills and follow-ups and repeating reminders (water, meals, trade plan, close out, weekly review, a Sunday refresh). Import it on your iPhone, then add the Calendar widget to the Home Screen and Lock Screen. A web app cannot push notifications by itself on iPhone or draw its own widget, so Calendar does both; the app icon also shows a number for things that need you.
 - **Backup:** Back up opens the share sheet so you can save the file to iCloud Drive. The app reminds you if it's been 14 days.
 
 Tests: `node planner/tests/<name>.test.js` (Playwright). `lead`, `money`, `swipe` and `now` need the app served next to `data.json` (see the header of each).

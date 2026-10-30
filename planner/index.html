@@ -1248,7 +1248,7 @@ const accent = (hex) => { if (!thDark()) return hex; const c = rgb(hex); return 
 const cvars = (hex) => `--c:${accent(hex)};--bg-c:${tint(hex, .13)};--fg:${shade(hex, .42)}`;
 
 // ---------- state ----------
-const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan', 'timelog', 'deals', 'waiting', 'score', 'worth', 'alcfg', 'miles', 'milecfg', 'paycfg', 'paychk', 'hrcfg', 'avail', 'avreq', 'propacct', 'taxcfg', 'taxpay', 'hub', 'toorg', 'meals', 'foodcfg', 'myfoods', 'dashcfg']; // collections added by the Rules and Trades features
+const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan', 'timelog', 'deals', 'waiting', 'score', 'worth', 'alcfg', 'miles', 'milecfg', 'paycfg', 'paychk', 'hrcfg', 'avail', 'avreq', 'propacct', 'taxcfg', 'taxpay', 'hub', 'toorg', 'meals', 'foodcfg', 'myfoods', 'dashcfg', 'water']; // collections added by the Rules and Trades features
 let S = load();
 let cursor = todayKey(), selected = cursor, miniMonth = cursor.slice(0, 7);
 let query = '', agendaDays = 30, undoSnap = null, editing = null, lastScrollView = null;
@@ -2799,6 +2799,7 @@ function renderToday() {
   const TL = toLayout(inl);
   return `<div class="tdy">
     <div class="td-h"><div><h2>${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}</h2><div class="sub">${own.length} event${own.length === 1 ? '' : 's'}, ${tks.length} task${tks.length === 1 ? '' : 's'} to do${doneToday ? `, ${doneToday} done` : ''}</div></div><div style="display:flex;gap:6px"><button class="btn sm" data-tweek>Plan week</button><button class="btn sm ${planned ? '' : 'primary'}" data-tplan>${planned ? 'Re-plan' : 'Plan day'}</button></div></div>
+    ${safeCard(waStrip)}
     ${TL.strip}
     ${risk.filter((r) => r.level !== 'info').length ? `<div class="nw-warn" style="background:var(--kb-fef2f2);border-color:var(--kl-fecaca);color:var(--kf-991b1b)">${risk.filter((r) => r.level !== 'info').map((r) => esc(r.text)).join(' · ')}</div>` : ''}
     ${risk.filter((r) => r.level === 'info').map((r) => `<div class="nw-warn">${esc(r.text)}</div>`).join('')}
@@ -2867,6 +2868,7 @@ function route() {
   else if (h === 'score') { goToday(); openScore(); }
   else if (h === 'worth') { goToday(); openWorth(); }
   else if (h === 'meals') { goToday(); mlOpen(); }
+  else if (h === 'water') { goToday(); waOpen(); }
   else if (h === 'snap-meal') { goToday(); mlOpen(); }
   else if (h === 'alerts') { goToday(); openAlerts(); }
   else if (h === 'miles') { goToday(); openMiles(); }
@@ -4926,6 +4928,7 @@ const HB_TOOLS = [
   { id: 'habits', g: 'Me', n: 'Habits', d: 'Daily habits and streaks', k: 'streak routine', pk: 1, open: () => hbGoView('habits'), st: () => { const t = todayKey(), due = S.habits.filter((h) => hDue(h, t)); return due.length ? `${due.filter((h) => hDone(h, t)).length} of ${due.length} done today` : ''; } },
   { id: 'meals', g: 'Me', n: 'Meals', d: 'Snap a photo, track calories and macros', k: 'food calories photo eat diet macros protein nutrition snap', pk: 1, open: () => mlOpen(), st: () => { const t = mlTot(mlOn(todayKey())); return t.kcal ? `${mlR(t.kcal)} of ${mlR(mlGoals().kcal)} kcal today` : 'nothing logged today'; } },
   { id: 'myfoods', g: 'Me', n: 'My foods and recipes', d: 'Your saved foods, corrections and recipes', k: 'foods recipes saved favorites meal prep', open: () => fkMyFoodsOpen(), st: () => { const n = (S.myfoods || []).length; return n ? `${n} saved` : ''; } },
+  { id: 'water', g: 'Me', n: 'Water', d: 'One tap to add ounces, daily goal', k: 'water drink hydration ounces oz', pk: 1, open: () => waOpen(), st: () => `${Math.round(waOz(todayKey()))} of ${waCfg().goal} oz today` },
   { id: 'foodgoals', g: 'Me', n: 'Food goals', d: 'Daily calories and macros, with a calculator', k: 'calories protein macros tdee diet target weight', open: () => ngOpen(), st: () => (ngHasGoals() ? `${mlR(ngGoals().kcal)} kcal a day` : 'not set yet') },
   { id: 'foodweek', g: 'Me', n: 'Eating this week', d: 'Calories and protein over 7 and 30 days', k: 'calories trend average protein week month food', open: () => nwOpen(), st: () => '' },
   { id: 'health', g: 'Me', n: 'Health', d: 'Check-in, workouts, sleep', k: 'workout sleep weight fitness', pk: 1, open: () => hbGoView('health'), st: () => '' },
@@ -7319,6 +7322,10 @@ const DV_TILES = [
     return { big: String(cur), unit: cur === 1 ? 'workout' : 'workouts', st: d.st, tone: d.tone, sub: `${dvSum(S.workouts.filter((w) => w.date >= c.a && w.date <= c.b).map((w) => w.mins))} min in total`, viz: dvBars(days.map((k) => S.workouts.filter((w) => w.date === k).length), { label: 'Workouts by day' }) };
   } },
   { id: 'water', sec: 'life', t: 'Water today', open: dvOpenView('health'), calc(c) {
+    if (typeof waOz === 'function' && (S.water || []).some((x) => x.id !== 'cfg')) {
+      const g = waCfg().goal, w = waOz(c.today), days = dvDaysList(addDays(c.today, -6), c.today).map((k) => waOz(k));
+      return { big: String(Math.round(w)), unit: 'of ' + g + ' oz', st: w >= g ? 'Goal reached' : `${Math.round(g - w)} oz to go`, tone: w >= g ? 'ok' : '', sub: `7-day average ${Math.round(dvSum(days) / 7)} oz`, viz: dvBars(days, { goal: g, last: true, label: 'Water, last 7 days' }) };
+    }
     if (typeof hxOn !== 'function') return null;
     if (!hxLogs().length) return dvEmpty('Check in', 'Water, sleep and weight');
     const g = hxCfg().waterGoal || 8, w = (hxOn(c.today) || {}).water || 0, days = dvDaysList(addDays(c.today, -6), c.today).map((k) => (hxOn(k) || {}).water || 0);
@@ -8761,6 +8768,85 @@ fkMyDlg.addEventListener('input', (e) => {
 fkMyDlg.addEventListener('close', () => { fkUi = { view: 'list', q: '', id: '', d: null, ingBusy: false }; });
 if (window.PLANNER_TEST) window.__fk = { fkFind, fkGrams, fkGramsInfo, fkScale, fkResolve, fkResolveAll, fkSanity, fkSanityText, fkRange, fkLearn, fkSuggest, fkMealTotals, fkRecipeCalc, fkRecipeSave, fkLogRecipe, fkMyFoodsOpen, fkItem, fkStatus, fkSetUsdaKey, fkUsdaKey, fkCacheSize, fkCacheGet, fkCachePut, fkCacheKey, fkAll, fkLabel, fkTokens, fkFromMy, fkStats, ngMore: () => ngMore(), nwSummary: (d) => nwSummary(d) };
 // ===== MYFOODS END =====
+
+// ===== WATER BEGIN: one-tap water in ounces, a strip at the top of Today =====
+const waDrop = '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5c3.200 4.200 6 7.500 6 11a6 6 0 0 1-12 0c0-3.500 2.800-6.800 6-11z"/></svg>';
+const waCfg = () => { const c = (S.water || []).find((x) => x.id === 'cfg') || {}; const sz = Array.isArray(c.sizes) && c.sizes.length === 3 ? c.sizes.map((x) => Math.max(1, Math.round(+x || 0))) : [8, 16, 24]; return { goal: Math.max(16, Math.round(+c.goal || 100)), sizes: sz }; };
+const waEntries = (date) => (S.water || []).filter((x) => x.id !== 'cfg' && x.date === date).sort((a, b) => (a.time || '').localeCompare(b.time || '') || (a.created || 0) - (b.created || 0));
+const waOz = (date) => waEntries(date).reduce((a, x) => a + (+x.oz || 0), 0);
+function waAdd(oz) {
+  oz = Math.round((+oz || 0) * 10) / 10; if (!(oz > 0) || oz > 200) return false;
+  const c = waCfg(), before = waOz(todayKey()), d = new Date(), time = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  snapshot();
+  commit(() => { S.water.push({ id: uid(), date: todayKey(), time, oz, created: Date.now() }); });
+  const after = before + oz;
+  render(); if (waDlg.open) waPaint();
+  toast(before < c.goal && after >= c.goal ? `Goal reached: ${Math.round(after)} oz today` : `+${oz} oz · ${Math.round(after)} of ${c.goal} oz`, true);
+  return true;
+}
+function waStrip() {
+  const c = waCfg(), oz = waOz(todayKey()), pct = Math.min(100, Math.round(oz / c.goal * 100)), left = Math.round(c.goal - oz);
+  return `<section class="wa-strip" id="waStrip" aria-label="Water today">
+    <button type="button" class="wa-main" data-waopen aria-label="Open water log, ${Math.round(oz)} of ${c.goal} ounces">${waDrop}<span><b>${Math.round(oz)} oz</b><small>${left > 0 ? `${left} to go of ${c.goal}` : 'Goal reached'}</small></span></button>
+    <div class="wa-btns">${c.sizes.map((z) => `<button type="button" data-waadd="${z}" aria-label="Add ${z} ounces">+${z}</button>`).join('')}<button type="button" data-waother aria-label="Add another amount">…</button></div>
+    <div class="wa-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div></section>`;
+}
+document.head.insertAdjacentHTML('beforeend', `<style id="waStyle">
+.wa-strip{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 10px;align-items:center;padding:10px 12px 12px;border:1px solid var(--line);border-radius:16px;background:var(--card);box-shadow:0 1px 2px rgba(17,24,39,.05)}
+.wa-main{display:flex;align-items:center;gap:10px;min-width:0;text-align:left;color:var(--ink)}.wa-main svg{flex:none;color:#0ea5e9}
+.wa-main span{display:flex;flex-direction:column;line-height:1.15;min-width:0}.wa-main b{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums}.wa-main small{font-size:12px;color:var(--mute);font-weight:450}
+.wa-btns{display:flex;gap:6px}.wa-btns button,.wa-sizes button{min-width:46px;height:40px;padding:0 10px;border-radius:12px;background:var(--soft2);color:var(--ink);font-weight:650;font-size:14px;border:1px solid var(--line)}.wa-btns button:active,.wa-sizes button:active{background:#0ea5e9;color:#fff;border-color:#0ea5e9}
+.wa-bar{grid-column:1/-1;height:7px;border-radius:99px;background:var(--soft2);overflow:hidden}.wa-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#38bdf8,#0ea5e9);transition:width .5s}
+#waDlg .dlg{max-width:480px}#waDlg input{font-size:16px}
+.wa-big{display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px;border-radius:20px;border:1px solid var(--line);background:linear-gradient(165deg,var(--soft),var(--card) 65%)}.wa-big b{font-size:40px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums}.wa-big small{font-size:13px;color:var(--mute)}.wa-big .wa-bar{width:100%;height:10px}
+.wa-sizes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.wa-sizes button{height:54px;font-size:17px}
+.wa-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card);font-size:14px}.wa-row b{margin-left:auto;font-variant-numeric:tabular-nums}.wa-row button{width:34px;height:34px;border-radius:10px;color:var(--mute)}
+.wa-days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:end;height:96px}.wa-days div{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px;height:100%;font-size:10px;color:var(--mute)}.wa-days i{display:block;width:100%;border-radius:5px 5px 2px 2px;background:#7dd3fc;min-height:2px}.wa-days .ok i{background:#0ea5e9}.wa-days .t i{outline:2px solid var(--ink)}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="waDlg" aria-labelledby="waTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="waTitle">Water</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="waBody" style="display:flex;flex-direction:column;gap:12px"></div>
+</div></dialog>`);
+const waDlg = $('#waDlg');
+function waPaint() {
+  const c = waCfg(), t = todayKey(), oz = waOz(t), list = waEntries(t), pct = Math.min(100, Math.round(oz / c.goal * 100));
+  const days = []; for (let i = 6; i >= 0; i--) { const k = addDays(t, -i), v = waOz(k); days.push({ k, v, ok: v >= c.goal, t: i === 0 }); }
+  const mx = Math.max(c.goal * 1.2, ...days.map((d) => d.v), 1), avg = days.slice(0, 6).filter((d) => d.v > 0);
+  const wkg = (S.foodcfg || []).find((x) => x.id === 'cfg'), sug = wkg && +wkg.weight_kg > 0 ? Math.round(wkg.weight_kg * 2.2046 * 0.5) : 0;
+  $('#waBody').innerHTML = `<div class="wa-big"><b>${Math.round(oz)} oz</b><small>${oz >= c.goal ? 'Goal reached' : `${Math.round(c.goal - oz)} oz to go`} · goal ${c.goal} oz</small><div class="wa-bar"><i style="width:${pct}%"></i></div></div>
+    <div class="wa-sizes">${c.sizes.map((z) => `<button type="button" data-waadd="${z}">+${z} oz</button>`).join('')}</div>
+    <div class="frow" style="align-items:flex-end"><div class="fld"><label for="waCustom">Another amount (oz)</label><input id="waCustom" inputmode="decimal" autocomplete="off" placeholder="e.g. 12"></div><button type="button" class="btn primary" id="waCustomGo" style="height:40px;flex:none">Add</button></div>
+    ${list.length ? `<div class="ml-h" style="margin:2px 0 -4px">Today</div><div style="display:flex;flex-direction:column;gap:6px">${list.slice().reverse().map((x) => `<div class="wa-row"><span>${esc(fmtTime(x.time || ''))}</span><b>${Math.round(x.oz * 10) / 10} oz</b><button type="button" data-wadel="${esc(x.id)}" aria-label="Remove ${x.oz} ounces">✕</button></div>`).join('')}</div>` : '<div class="hint">Nothing yet today. Tap +8, +16 or +24 each time you drink.</div>'}
+    <div class="ml-h" style="margin:4px 0 -4px">Last 7 days</div>
+    <div class="wa-days" role="img" aria-label="Ounces per day, last 7 days">${days.map((d) => `<div class="${d.ok ? 'ok' : ''} ${d.t ? 't' : ''}" title="${esc(longDate(d.k))}: ${Math.round(d.v)} oz"><span>${d.v ? Math.round(d.v) : ''}</span><i style="height:${Math.max(2, Math.round(d.v / mx * 64))}px"></i><span>${['S', 'M', 'T', 'W', 'T', 'F', 'S'][parse(d.k).getDay()]}</span></div>`).join('')}</div>
+    ${avg.length >= 3 ? `<div class="hint">Average on days you logged: ${Math.round(avg.reduce((a, d) => a + d.v, 0) / avg.length)} oz.</div>` : ''}
+    <details class="ml-more"><summary>Goal and buttons</summary><div class="frow" style="margin-top:8px"><div class="fld"><label for="waGoal">Daily goal (oz)</label><input id="waGoal" inputmode="numeric" value="${c.goal}"></div></div>
+      <div class="frow" style="margin-top:8px"><div class="fld"><label for="waS1">Button 1</label><input id="waS1" inputmode="numeric" value="${c.sizes[0]}"></div><div class="fld"><label for="waS2">Button 2</label><input id="waS2" inputmode="numeric" value="${c.sizes[1]}"></div><div class="fld"><label for="waS3">Button 3</label><input id="waS3" inputmode="numeric" value="${c.sizes[2]}"></div></div>
+      ${sug ? `<div class="hint">A common rule of thumb is half an ounce per pound of body weight: about ${sug} oz for you. It is a guide, not medical advice.</div>` : ''}</details>`;
+}
+function waSaveCfg() {
+  const g = Math.round(+$('#waGoal').value || 0), sz = ['#waS1', '#waS2', '#waS3'].map((i) => Math.round(+$(i).value || 0));
+  if (!(g >= 16 && g <= 400) || sz.some((x) => !(x >= 1 && x <= 100))) { toast('Use a goal of 16 to 400 oz and buttons of 1 to 100 oz'); return; }
+  commit(() => { const ex = S.water.find((x) => x.id === 'cfg'); if (ex) Object.assign(ex, { goal: g, sizes: sz }); else S.water.push({ id: 'cfg', goal: g, sizes: sz }); });
+  render();
+  // refresh only the top of the sheet so the fields you are editing keep focus and the section stays open
+  const cc = waCfg(), oz = waOz(todayKey()), big = $('#waBody .wa-big'), szEl = $('#waBody .wa-sizes');
+  if (big) { big.querySelector('b').textContent = Math.round(oz) + ' oz'; big.querySelector('small').textContent = `${oz >= cc.goal ? 'Goal reached' : Math.round(cc.goal - oz) + ' oz to go'} · goal ${cc.goal} oz`; big.querySelector('.wa-bar i').style.width = Math.min(100, Math.round(oz / cc.goal * 100)) + '%'; }
+  if (szEl) szEl.innerHTML = cc.sizes.map((z) => `<button type="button" data-waadd="${z}">+${z} oz</button>`).join('');
+}
+function waOpen() { waPaint(); if (!waDlg.open) waDlg.showModal(); }
+waDlg.addEventListener('click', (e) => { if (e.target === waDlg || e.target.closest('[data-close]')) { waDlg.close(); return; }
+  if (e.target.closest('#waCustomGo')) { const i = $('#waCustom'); if (waAdd(i.value)) { i.value = ''; } else toast('Enter ounces, like 12'); return; }
+  const del = e.target.closest('[data-wadel]'); if (del) { snapshot(); commit(() => { S.water = S.water.filter((x) => x.id !== del.dataset.wadel); }); render(); waPaint(); toast('Removed', true); }
+});
+waDlg.addEventListener('change', (e) => { if (e.target.matches('#waGoal,#waS1,#waS2,#waS3')) waSaveCfg(); });
+waDlg.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.id === 'waCustom') { e.preventDefault(); $('#waCustomGo').click(); } });
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('[data-waadd]'); if (a) { e.preventDefault(); waAdd(+a.dataset.waadd); return; }
+  if (e.target.closest('[data-waopen]')) { e.preventDefault(); waOpen(); return; }
+  if (e.target.closest('[data-waother]')) { e.preventDefault(); waOpen(); setTimeout(() => { const i = $('#waCustom'); if (i) i.focus(); }, 60); }
+});
+// ===== WATER END =====
 
 // ===== SHIFTS BEGIN: recurring work shifts (Outback, electric) =====
 const shDlg = $('#shDlg');
@@ -12347,7 +12433,7 @@ setInterval(() => {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync) syncNow(); });
 addEventListener('online', () => { if (sync) syncNow(); });
 $('#helpBtn').onclick = () => $('#helpDlg').showModal();
-const APP_VERSION = '2026-10-30.27';
+const APP_VERSION = '2026-10-30.28';
 if ($('#verNote')) $('#verNote').textContent = 'Planner ' + APP_VERSION;
 if (!HOSTED && 'serviceWorker' in navigator && window.isSecureContext && location.protocol.startsWith('http')) {
   const hadController = !!navigator.serviceWorker.controller;

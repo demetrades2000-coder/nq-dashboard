@@ -5725,6 +5725,7 @@ function mealsTodayCard() {
   const t = todayKey(), g = mlGoals(), list = mlOn(t), tot = mlTot(list);
   return `<section class="td-card" id="mlCard"><h3>Meals<button data-mlopen>Open</button></h3>
     <div class="ml-top">${mlRing(tot.kcal, g.kcal, 96)}<div class="ml-mac">${mlBar('P', tot.p, g.p, '#2563eb')}${mlBar('C', tot.c, g.c, '#d97706')}${mlBar('F', tot.f, g.f, '#db2777')}</div></div>
+    <div class="sub" style="margin:0">${list.length ? (g.p - tot.p > 5 ? `${mlR(g.p - tot.p)} g protein to go` : 'Protein goal reached') + (g.kcal - tot.kcal > 0 ? ` · ${mlR(g.kcal - tot.kcal).toLocaleString('en-US')} kcal left` : ` · ${mlR(tot.kcal - g.kcal).toLocaleString('en-US')} kcal over`) : ''}</div>
     ${list.length ? `<div class="ml-list">${list.slice(-3).map(mlMealRow).join('')}</div>` : '<div class="sub">No meals logged yet today.</div>'}
     <div class="ml-act"><button class="btn ml-snap" data-mlsnap>Snap a meal</button><button class="btn" data-mladd>Add food</button></div></section>`;
 }

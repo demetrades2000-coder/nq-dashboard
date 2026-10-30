@@ -1180,7 +1180,7 @@ const shade = (hex, f) => { const [r, g, b] = rgb(hex); return `rgb(${Math.round
 const cvars = (hex) => `--c:${hex};--bg-c:${tint(hex, .13)};--fg:${shade(hex, .42)}`;
 
 // ---------- state ----------
-const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt']; // collections added by the Rules and Trades features
+const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan']; // collections added by the Rules and Trades features
 let S = load();
 let cursor = todayKey(), selected = cursor, miniMonth = cursor.slice(0, 7);
 let query = '', agendaDays = 30, undoSnap = null, editing = null, lastScrollView = null;
@@ -2698,7 +2698,7 @@ function renderToday() {
     <div class="td-h"><div><h2>${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}</h2><div class="sub">${own.length} event${own.length === 1 ? '' : 's'}, ${tks.length} task${tks.length === 1 ? '' : 's'} to do${doneToday ? `, ${doneToday} done` : ''}</div></div><div style="display:flex;gap:6px"><button class="btn sm" data-tweek>Plan week</button><button class="btn sm ${planned ? '' : 'primary'}" data-tplan>${planned ? 'Re-plan' : 'Plan day'}</button></div></div>
     ${risk.filter((r) => r.level !== 'info').length ? `<div class="nw-warn" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">${risk.filter((r) => r.level !== 'info').map((r) => esc(r.text)).join(' · ')}</div>` : ''}
     ${risk.filter((r) => r.level === 'info').map((r) => `<div class="nw-warn">${esc(r.text)}</div>`).join('')}
-    ${tiltTodayCard()}
+    ${tiltTodayCard()}${tradePlanTodayCard()}
     ${guardTodayCard()}
     ${shutdownCard()}
     <section class="td-card"><h3>Schedule<button data-tgo="day">Day view</button></h3>${own.length ? own.map(evRow).join('') : '<div class="empty-s">Nothing scheduled. Tap Plan day to block time for your tasks.</div>'}${pauses.length ? `<div class="hint" style="margin-top:4px">Bot pauses: ${pauses.filter((o) => /bot paused/.test(o.ev.title)).map((o) => `${fmtTime(o.ev.start)} to ${fmtTime(o.ev.end)}`).join(', ') || 'none today'}</div>` : ''}</section>
@@ -2768,6 +2768,7 @@ function route() {
   else if (h === 'earnings') { goToday(); openEarn(); }
   else if (h === 'bills') { goToday(); openBills(); }
   else if (h === 'tilt') { goToday(); openTiltSettings(); }
+  else if (h === 'trade-plan') { goToday(); tpMode = 'plan'; renderMain(); }
   else if (h === 'new-task') { goToday(); setTimeout(() => $('#taskIn').focus(), 60); }
   else if (views.includes(h)) { goToday(); setView(h); }
 }
@@ -3772,6 +3773,80 @@ setInterval(() => { // live countdown; one re-render when a cooldown ends
   if (over) { safeRender(); renderNow(); }
 }, 1000);
 // ===== TILT END =====
+
+// ===== TRADEPLAN BEGIN: pre-market trade plan that flips to a debrief after 12pm ET (synced collection `tplan`, one item per day, id 'tp:DATE') =====
+const TP_BIAS = [['long', 'Long'], ['short', 'Short'], ['neutral', 'Neutral']];
+const TP_FOLLOW = [['yes', 'Yes'], ['partly', 'Partly'], ['no', 'No']];
+let tpMode = ''; // '' = automatic (plan before 12pm ET, debrief after), or 'plan' / 'debrief' picked by hand
+document.head.insertAdjacentHTML('beforeend', `<style>
+#tpCard input,#tpCard textarea{font-size:16px}
+#tpCard textarea{min-height:60px}
+.tp-tabs{display:flex;gap:4px}.tp-tabs button{font-size:12px;font-weight:500;color:var(--mute);padding:2px 9px;border-radius:12px;border:1px solid transparent}
+.tp-tabs button[aria-pressed=true]{color:var(--ink);border-color:var(--line);background:var(--soft)}
+.tp-news{display:flex;flex-direction:column;gap:3px;font-size:13px}
+.tp-news div{display:flex;gap:8px;align-items:baseline}.tp-news i{width:8px;height:8px;border-radius:50%;background:#f59e0b;flex:none;align-self:center}.tp-news i.high{background:#dc2626}
+.tp-news b{font-variant-numeric:tabular-nums;min-width:58px;font-weight:600}
+.tp-sum{font-size:13px;line-height:1.45;overflow-wrap:anywhere}
+</style>`);
+const tpOf = (k) => S.tplan.find((x) => x.id === 'tp:' + k) || null;
+function tpSave(k, patch) { commit(() => { upsert(S.tplan, 'tp:' + k, () => ({ id: 'tp:' + k, date: k }), patch); }); }
+function tpNews(day) { // medium and high impact releases that land on this local day, in local time
+  const nw = nqBot && nqBot.news; if (!nw || !Array.isArray(nw.events)) return [];
+  return nw.events.filter((e) => e && e.impact !== 'low' && e.date && e.time).map((e) => { const l = etToLocal(e.date, e.time); return { ...e, ld: l.date, lt: l.hm }; }).filter((e) => e.ld === day).sort((a, b) => a.lt.localeCompare(b.lt));
+}
+function tpRate() { // plan-followed rate over the last 4 weeks (partly counts half)
+  const to = todayKey(), from = addDays(to, -27), l = S.tplan.filter((p) => p.date >= from && p.date <= to && TP_FOLLOW.some((f) => f[0] === p.followed));
+  const c = { yes: 0, partly: 0, no: 0 }; l.forEach((p) => { c[p.followed]++; });
+  return { n: l.length, ...c, pct: l.length ? Math.round((c.yes + c.partly * 0.5) / l.length * 100) : null };
+}
+function tpOpenLine() { // NY AM killzone start in ET, and how far away it is
+  const k = sessList()[1], a = toMin(k[1]), now = mnEt().min, fmt = fmtTime(k[1]);
+  if (now < a) { const m = a - now; return `NY open ${fmt} ET, in ${m < 90 ? m + ' min' : fmtDur(m)}.`; }
+  return `NY open was ${fmt} ET.`;
+}
+function tradePlanTodayCard() {
+  const et = mnEt(), today = todayKey(), p = tpOf(today);
+  if ((et.wd === 0 || et.wd === 6) && !p) return '';
+  const mode = tpMode || (et.min >= 720 ? 'debrief' : 'plan');
+  const tabs = `<span class="tp-tabs"><button type="button" data-tpmode="plan" aria-pressed="${mode === 'plan'}">Plan</button><button type="button" data-tpmode="debrief" aria-pressed="${mode === 'debrief'}">Debrief</button></span>`;
+  if (mode === 'plan') {
+    const news = tpNews(today);
+    return `<section class="td-card" id="tpCard" data-tpd="${today}"><h3>Trade plan${tabs}</h3>
+      <div class="hint">${esc(tpOpenLine())}${et.min < toMin(sessList()[1][1]) ? ' Decide before the open, then follow it.' : ' Write the plan you will hold yourself to.'}</div>
+      <div class="opts" role="group" aria-label="Bias"><span class="l">Bias</span>${TP_BIAS.map(([v, l]) => `<button type="button" class="opt" data-tpbias="${v}" aria-pressed="${!!p && p.bias === v}">${l}</button>`).join('')}</div>
+      <div class="fld"><label for="tpSetup">The one setup I am allowed to take</label><input id="tpSetup" class="keep" data-tpf="setup" maxlength="160" autocomplete="off" placeholder="e.g. sweep of Asia low, then reclaim" value="${esc(p ? p.setup : '')}"></div>
+      <div class="fld"><label for="tpMax">Max trades today</label><input id="tpMax" class="keep" data-tpf="max" type="number" min="1" max="20" step="1" inputmode="numeric" placeholder="e.g. 2" value="${p && p.max ? p.max : ''}"></div>
+      <div class="fld"><label for="tpLevels">Key levels and notes</label><textarea id="tpLevels" class="keep" data-tpf="levels" maxlength="600" placeholder="PDH, PDL, Asia range, anything that matters">${esc(p ? p.levels : '')}</textarea></div>
+      <div><div class="flabel" style="font-size:12px;font-weight:600;color:var(--mute);margin-bottom:4px">News windows today (${esc(tzNote())})</div>${news.length ? `<div class="tp-news" id="tpNews">${news.slice(0, 6).map((e) => `<div><i class="${e.impact === 'high' ? 'high' : ''}"></i><b>${fmtTime(e.lt)}</b><span>${esc(e.title)}${e.impact === 'high' ? ' (high impact)' : ''}</span></div>`).join('')}${news.length > 6 ? `<div class="hint">+${news.length - 6} more in News</div>` : ''}</div>` : `<div class="empty-s" id="tpNews">${nqBot && nqBot.news ? 'No medium or high impact releases today.' : 'News loads when the app is opened from your dashboard site.'}</div>`}</div>
+      <div class="hint">After 12pm ET this card turns into a debrief. Saved on every device.</div></section>`;
+  }
+  const a = tlEval(et.day, tlCfg()), pnl = a.count ? a.pnl : (typeof nqPnl[et.day] === 'number' ? nqPnl[et.day] : null);
+  const max = p && +p.max > 0 ? +p.max : 0, over = max > 0 && a.count > max, r = tpRate();
+  const planTxt = p && (p.bias || p.setup || max) ? `Plan: ${[p.bias ? TP_BIAS.find((b) => b[0] === p.bias)[1] : '', p.setup ? 'setup "' + p.setup + '"' : '', max ? 'max ' + max + ' trade' + (max === 1 ? '' : 's') : ''].filter(Boolean).map(esc).join(' · ')}.` : 'No plan was written for today.';
+  return `<section class="td-card" id="tpCard" data-tpd="${today}"><h3>Debrief${tabs}</h3>
+    <div class="tp-sum" id="tpSum">${planTxt}</div>
+    <div class="glance"><div><b class="${over ? 'neg' : ''}" id="tpCount">${a.count}${max ? ' of ' + max : ''}</b><span>trades taken${max ? ' (planned max)' : ''}</span></div><div><b class="${pnl == null ? '' : moneyCls(pnl)}" id="tpPnl">${pnl == null ? '-' : money(pnl)}</b><span>live/paper P&amp;L</span></div><div><b>${a.count ? a.wins + ' / ' + a.losses : '-'}</b><span>wins / losses</span></div></div>
+    ${over ? `<div class="hint neg">You took ${a.count - max} more trade${a.count - max === 1 ? '' : 's'} than planned.</div>` : ''}
+    <div class="opts" role="group" aria-label="Did I follow the plan?"><span class="l">Did I follow the plan?</span>${TP_FOLLOW.map(([v, l]) => `<button type="button" class="opt" data-tpfol="${v}" aria-pressed="${!!p && p.followed === v}">${l}</button>`).join('')}</div>
+    <div class="fld"><label for="tpLesson">One-line lesson</label><input id="tpLesson" class="keep" data-tpf="lesson" maxlength="200" autocomplete="off" placeholder="What I will repeat or fix" value="${esc(p ? p.lesson : '')}"></div>
+    <div class="td-acct" style="color:var(--mute)"><span id="tpRate">${r.n ? `Plan followed ${r.pct}% over 4 weeks` : 'Plan-followed rate: no debriefs yet'}</span><span>${r.n ? `${r.yes} yes · ${r.partly} partly · ${r.no} no` : ''}</span></div>
+    <div class="hint">Trades are the live and paper results the dashboard has published, never the backtest. <button type="button" class="link" data-tgo="review" style="text-decoration:underline">Weekly review</button></div></section>`;
+}
+$('#main').addEventListener('click', (e) => {
+  if (S.view !== 'today') return;
+  const t = e.target, today = todayKey();
+  const m = t.closest('[data-tpmode]'); if (m) { tpMode = m.dataset.tpmode; renderMain(); return; }
+  const b = t.closest('[data-tpbias]');
+  if (b) { const p = tpOf(today); tpSave(today, { bias: p && p.bias === b.dataset.tpbias ? '' : b.dataset.tpbias }); renderMain(); return; }
+  const f = t.closest('[data-tpfol]');
+  if (f) { const p = tpOf(today); snapshot(); tpSave(today, { followed: p && p.followed === f.dataset.tpfol ? '' : f.dataset.tpfol }); renderMain(); toast('Debrief saved', true); }
+});
+document.addEventListener('input', (e) => {
+  const t = e.target; if (!t.matches || !t.matches('[data-tpf]')) return;
+  const day = t.closest('[data-tpd]').dataset.tpd, f = t.dataset.tpf, v = t.value;
+  schedSave('tp' + day + f, () => tpSave(day, { [f]: f === 'max' ? (Math.round(+v) > 0 ? Math.min(20, Math.round(+v)) : null) : v.trim() }));
+});
+// ===== TRADEPLAN END =====
 
 // ===== LEAD2 BEGIN: goals and money =====
 const moneyOpen = new Set();

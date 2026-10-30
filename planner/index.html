@@ -2725,6 +2725,7 @@ function renderToday() {
     ${safeCard(edgeTodayCard)}
     ${safeCard(worthTodayCard)}
     ${safeCard(propTodayCard)}
+    ${safeCard(bizTodayCard)}
     ${habs.length ? `<section class="td-card"><h3>Habits<button data-tgo="habits">All habits</button></h3>${habs.map((h) => { const st = habitStats(h), on = hDone(h, today); return `<div class="td-hab" style="--c:${esc(h.color || '#2563eb')}" data-thab="${esc(h.id)}"><button aria-pressed="${on}" aria-label="${on ? 'Undo' : 'Check in'} ${esc(h.name)}">${on ? ICON_CHECK : ''}</button><span>${esc(h.name)} <small>${st.cur} day streak</small></span></div>`; }).join('')}</section>` : ''}
     ${tr ? `<section class="td-card"><h3>Trading<span style="display:flex;gap:10px;align-items:baseline"><span class="${staleCls}">${staleTxt}</span><button data-refresh>Refresh</button></span></h3>${(tr.accounts || []).map((a) => `<div class="td-acct"><span><b>${esc(a.strategy === 'LIT' ? 'Zlarior' : a.strategy || a.name)}</b> ${esc(String(a.name || '').replace('MFFU ', ''))}</span><span>${usd(a.profit)} of ${usd(a.target)} · ${a.sessions_left != null ? a.sessions_left + ' sessions left' : ''}</span></div>`).join('')}${tr.month ? `<div class="td-acct" style="color:var(--mute)"><span>${MONTHS[+tr.month.month.slice(5) - 1]} so far</span><span><b style="color:var(--ink)">${usd(tr.month.usd)}</b> · ${tr.month.trades} trade${tr.month.trades === 1 ? '' : 's'}</span></div>` : ''}</section>` : ''}
     ${goals.length ? `<section class="td-card"><h3>Goals<button data-tgo="projects">All goals</button></h3>${goals.map((g) => { const v = goalValue(g), t = +g.target || 0, pct = t > 0 ? Math.max(0, Math.min(100, v / t * 100)) : 0; return `<div><div class="td-acct"><span><b>${esc(g.title)}</b></span><span>${gnum(g, v)} of ${gnum(g, t)}</span></div><div class="bar2" style="margin-top:5px"><i style="width:${pct}%;background:var(--ok)"></i></div></div>`; }).join('')}</section>` : ''}
@@ -2793,6 +2794,7 @@ function route() {
   else if (h === 'hours') { goToday(); openHours(); }
   else if (h === 'availability') { goToday(); openAvail(); }
   else if (h === 'brief') { goToday(); openBrief(); }
+  else if (h === 'business') { goToday(); openBiz(); }
   else if (h === 'prop') { goToday(); openProp(); }
   else if (h === 'tilt') { goToday(); openTiltSettings(); }
   else if (h === 'trade-plan') { goToday(); tpMode = 'plan'; renderMain(); }
@@ -4472,6 +4474,166 @@ function propTodayCard() {
 }
 $('#main').addEventListener('click', (e) => { if (S.view === 'today' && e.target.closest('[data-ppopen]')) openProp(); });
 // ===== PROP END =====
+
+// ===== BIZ BEGIN: business profit and loss per project, from the money log (stores nothing; the bulk tag helper edits money entries) =====
+// Income and expenses come from S.money, grouped by the project tag (`proj`). Entries with no tag, or a tag whose project was deleted, are
+// shown separately as "Untagged". The mileage/expense deduction (miles log) is a separate non-cash line: expenses logged there WITH the
+// money-log checkbox (`mid`) are already in the money log and are skipped, so nothing is counted twice. Estimates, not tax advice.
+document.head.insertAdjacentHTML('beforeend', `<style>
+#bzDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}#bzDlg input,#bzDlg select{font-size:16px}
+.bz-nav{display:flex;align-items:center;justify-content:space-between;gap:8px}.bz-nav b{font-size:15px}
+.bz-t{font-size:12.5px;font-variant-numeric:tabular-nums}
+.bz-g{display:grid;grid-template-columns:minmax(0,1.5fr) repeat(4,minmax(0,1fr));gap:0 6px;width:100%;text-align:left;padding:7px 0;border-top:1px solid var(--line2);align-items:baseline}
+.bz-g.r4{grid-template-columns:minmax(0,1fr) repeat(3,minmax(0,1fr))}
+.bz-g.h{font-size:11px;font-weight:600;color:var(--mute);border-top:0}.bz-g .n{text-align:right;white-space:nowrap}
+.bz-g .nm{overflow-wrap:anywhere;font-weight:500;text-align:left}
+button.bz-g[aria-pressed=true]{background:var(--soft)}
+.bz-chart{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:10px;background:#fff}
+.bz-chart text{font-size:9px;fill:var(--mute);font-family:inherit}.bz-chart text.m{font-size:10px;fill:var(--ink2)}.bz-chart text.up{fill:#047857;font-weight:600}.bz-chart text.dn{fill:#b91c1c;font-weight:600}
+.bz-chart .bi{fill:var(--ok)}.bz-chart .bo{fill:#dc2626}.bz-chart .base{stroke:var(--line);stroke-width:1}
+.bz-leg{display:flex;gap:14px;font-size:12px;color:var(--mute)}.bz-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.bz-box{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13.5px;line-height:1.45}
+.bz-note{font-size:12px;color:#92400e;background:#fffaf0;border:1px solid #f3d9a4;border-radius:10px;padding:8px 10px;line-height:1.4}
+.bz-pick{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:2px 8px;align-items:center;padding:8px 0;border-top:1px solid var(--line2);font-size:13px}
+.bz-pick input{width:20px;height:20px}.bz-pick small{display:block;color:var(--mute);font-size:12px}.bz-pick .a{font-weight:600;font-variant-numeric:tabular-nums}
+.bz-tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.bz-tools input,.bz-tools select{height:40px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:#fff;min-width:0;width:100%}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="bzDlg" aria-labelledby="bzTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="bzTitle">Business profit and loss</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="bzBody" style="display:flex;flex-direction:column;gap:12px"></div>
+</div></dialog>`);
+const bzDlg = $('#bzDlg');
+let bzMonth = null, bzSel = 'all', bzMode = 'main', bzKind = 'all', bzQ = '', bzPicked = new Set();
+const bzUsd = (n) => { const r = Math.round((+n || 0) * 100) / 100; return (r < 0 ? '-' : '') + '$' + Math.abs(r).toLocaleString('en-US', { minimumFractionDigits: r % 1 ? 2 : 0, maximumFractionDigits: 2 }); };
+const bzWhole = (n) => { const r = Math.round(+n || 0); return (r < 0 ? '-' : '') + '$' + Math.abs(r).toLocaleString('en-US'); };
+const bzK = (n) => { const r = Math.round(+n || 0), a = Math.abs(r); return (r < 0 ? '-' : '') + '$' + (a >= 10000 ? Math.round(a / 1000) + 'k' : a >= 1000 ? (Math.round(a / 100) / 10) + 'k' : a); };
+const bzCls = (n) => (n < 0 ? 'neg' : n > 0 ? 'pos' : '');
+const bzMonthNow = () => todayKey().slice(0, 7);
+const bzAddMonths = (ym, n) => { const [y, m] = ym.split('-').map(Number), t = y * 12 + (m - 1) + n; return `${Math.floor(t / 12)}-${pad((t % 12) + 1)}`; };
+const bzMonthName = (ym) => `${MONTHS[+ym.slice(5) - 1]} ${ym.slice(0, 4)}`;
+const bzLast = (ym) => `${ym}-${pad(new Date(+ym.slice(0, 4), +ym.slice(5), 0).getDate())}`;
+const bzRows = () => S.money.filter((m) => m && YMD.test(m.date || '') && (m.kind === 'in' || m.kind === 'out') && +m.amt > 0);
+const bzTagOf = (m) => (m.proj && projOf(m.proj) ? m.proj : '');
+const bzFits = (m, sel) => sel === 'all' || (sel === '_none' ? !bzTagOf(m) : bzTagOf(m) === sel);
+function bzSum(sel, a, b) { // income, expenses and net of the entries dated a..b for project sel ('all', '_none' = untagged, or a project id)
+  let i = 0, o = 0, n = 0;
+  bzRows().forEach((m) => { if (m.date < a || m.date > b || !bzFits(m, sel)) return; n++; if (m.kind === 'in') i += +m.amt; else o += +m.amt; });
+  i = Math.round(i * 100) / 100; o = Math.round(o * 100) / 100;
+  return { in: i, out: o, net: Math.round((i - o) * 100) / 100, n };
+}
+const bzSumM = (sel, ym) => bzSum(sel, ym + '-01', bzLast(ym));
+function bzMilesOf(sel, a, b) { // deduction estimate (not cash) from the miles log; null when there is no miles log or nothing in range
+  if (typeof miVal !== 'function' || typeof miCfg !== 'function' || !Array.isArray(S.miles) || !S.miles.length) return null;
+  const cfg = miCfg(); let ded = 0, n = 0, skipped = 0;
+  S.miles.forEach((e) => {
+    if (!e || (e.kind !== 'trip' && e.kind !== 'exp') || !YMD.test(e.date || '') || e.date < a || e.date > b) return;
+    if (sel !== 'all') { const p = S.projects.find((x) => x.id === e.job || squash(x.name) === squash(e.job)); if (sel === '_none' ? p : !p || p.id !== sel) return; }
+    if (e.kind === 'exp' && e.mid) { skipped++; return; } // already in the money log: not counted again
+    ded += miVal(e, cfg); n++;
+  });
+  return n || skipped ? { ded: Math.round(ded * 100) / 100, n, skipped } : null;
+}
+const bzSelName = (sel) => (sel === 'all' ? 'All projects' : sel === '_none' ? 'Untagged' : (projOf(sel) || { name: 'Project' }).name);
+function bzChartSvg(sel, ym) {
+  const W = 340, H = 176, pl = 8, pr = 8, pt = 20, pb = 40, pw = W - pl - pr, ph = H - pt - pb, gw = pw / 6, bw = 17;
+  const months = Array.from({ length: 6 }, (_, i) => bzAddMonths(ym, i - 5)), data = months.map((m) => ({ m, ...bzSumM(sel, m) }));
+  const mx = Math.max(1, ...data.map((d) => Math.max(d.in, d.out))), base = pt + ph;
+  const bars = data.map((d, i) => {
+    const cx = pl + gw * i + gw / 2, hi = d.in / mx * ph, ho = d.out / mx * ph;
+    return `<g data-bzm="${d.m}">
+      <rect class="bi" data-bzbar="in" data-v="${d.in}" x="${(cx - bw - 1).toFixed(1)}" y="${(base - hi).toFixed(1)}" width="${bw}" height="${hi.toFixed(1)}" rx="2"/>
+      <rect class="bo" data-bzbar="out" data-v="${d.out}" x="${(cx + 1).toFixed(1)}" y="${(base - ho).toFixed(1)}" width="${bw}" height="${ho.toFixed(1)}" rx="2"/>
+      ${d.in > 0 ? `<text x="${(cx - bw / 2 - 1).toFixed(1)}" y="${(base - hi - 3).toFixed(1)}" text-anchor="middle">${bzK(d.in)}</text>` : ''}${d.out > 0 ? `<text x="${(cx + bw / 2 + 1).toFixed(1)}" y="${(base - ho - 3).toFixed(1)}" text-anchor="middle">${bzK(d.out)}</text>` : ''}
+      <text class="m" x="${cx.toFixed(1)}" y="${base + 14}" text-anchor="middle">${MONTHS[+d.m.slice(5) - 1].slice(0, 3)}</text>
+      <text class="${d.net < 0 ? 'dn' : d.net > 0 ? 'up' : ''}" x="${cx.toFixed(1)}" y="${base + 28}" text-anchor="middle">${d.net > 0 ? '+' : ''}${bzK(d.net)}</text></g>`;
+  }).join('');
+  return { data, svg: `<svg class="bz-chart" id="bzChart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Income and expenses for ${esc(bzSelName(sel))}, last 6 months"><line class="base" x1="${pl}" x2="${W - pr}" y1="${base}" y2="${base}"/>${bars}</svg>` };
+}
+function bzProjList(ym) { // projects worth a row: anything with entries in the viewed year, plus untagged
+  const y = ym.slice(0, 4), seen = new Set(bzRows().filter((m) => m.date.slice(0, 4) === y).map(bzTagOf));
+  return S.projects.filter((p) => seen.has(p.id)).map((p) => ({ id: p.id, name: p.name }));
+}
+const bzUntagged = () => bzRows().filter((m) => !bzTagOf(m));
+function bzMainHtml() {
+  const ym = bzMonth || bzMonthNow(), y = ym.slice(0, 4), sel = bzSel, ytdA = y + '-01-01', ytdB = bzLast(ym);
+  const rows = [...bzProjList(ym), ...(bzRows().some((m) => m.date.slice(0, 4) === y && !bzTagOf(m)) ? [{ id: '_none', name: 'Untagged' }] : []), { id: 'all', name: 'All projects' }];
+  const cell = (id) => { const M = bzSumM(id, ym), Y = bzSum(id, ytdA, ytdB); return `<button type="button" class="bz-g" data-bzsel="${esc(id)}" aria-pressed="${sel === id}"><span class="nm">${esc(id === 'all' ? 'All' : bzSelName(id))}</span><span class="n">${bzWhole(M.in)}</span><span class="n">${bzWhole(M.out)}</span><span class="n ${bzCls(M.net)}">${bzWhole(M.net)}</span><span class="n ${bzCls(Y.net)}">${bzWhole(Y.net)}</span></button>`; };
+  const ch = bzChartSvg(sel, ym), M = bzSumM(sel, ym), Y = bzSum(sel, ytdA, ytdB);
+  const act = Array.from({ length: +ym.slice(5) }, (_, i) => `${y}-${pad(i + 1)}`).map((m) => ({ m, ...bzSumM(sel, m) })), used = act.filter((d) => d.n > 0);
+  const best = used.length ? used.reduce((a, d) => (d.net > a.net ? d : a)) : null, worst = used.length ? used.reduce((a, d) => (d.net < a.net ? d : a)) : null;
+  let run = 0; const runRows = act.map((d) => { run = Math.round((run + d.net) * 100) / 100; return { ...d, run }; });
+  const mi = bzMilesOf(sel, ytdA, ytdB), miM = bzMilesOf(sel, ym + '-01', bzLast(ym)), un = bzUntagged();
+  return `
+    <div class="bz-nav"><button type="button" class="btn sm" data-bzmo="-1" aria-label="Previous month">&lsaquo;</button><b id="bzMonth">${bzMonthName(ym)}</b><button type="button" class="btn sm" data-bzmo="1" aria-label="Next month">&rsaquo;</button></div>
+    ${bzRows().length ? '' : '<div class="empty-s">No money entries yet. Log money in and out from Projects, and tag each with a project to see profit and loss per business.</div>'}
+    <div class="bz-t" id="bzTable"><div class="bz-g h"><span>Project</span><span class="n">In</span><span class="n">Out</span><span class="n">Net</span><span class="n">Year</span></div>${rows.map((r) => cell(r.id)).join('')}</div>
+    ${un.length ? `<div class="bz-box" id="bzUntagBox"><b>${un.length} untagged entr${un.length === 1 ? 'y' : 'ies'}</b> (${bzUsd(bzUntagged().reduce((n, m) => n + (m.kind === 'in' ? 1 : -1) * m.amt, 0))} net) do not belong to a project yet. <button type="button" class="btn sm" id="bzTagOpen" style="margin-top:6px">Tag untagged entries</button></div>` : ''}
+    <div class="flabel" style="font-size:12px;font-weight:600;color:var(--mute)">Showing: <span id="bzShowing">${esc(bzSelName(sel))}</span></div>
+    <div class="glance" id="bzTiles"><div><b class="${bzCls(M.net)}">${bzUsd(M.net)}</b><span>net, ${MONTHS[+ym.slice(5) - 1].slice(0, 3)}</span></div><div><b>${bzUsd(M.in)}</b><span>income</span></div><div><b>${bzUsd(M.out)}</b><span>expenses</span></div></div>
+    <div class="glance" id="bzYtd"><div><b class="${bzCls(Y.net)}">${bzUsd(Y.net)}</b><span>year to date</span></div><div><b>${bzUsd(Y.in)}</b><span>income ${y}</span></div><div><b>${bzUsd(Y.out)}</b><span>expenses ${y}</span></div></div>
+    ${ch.svg}<div class="bz-leg"><span><i style="background:var(--ok)"></i>Income</span><span><i style="background:#dc2626"></i>Expenses</span><span>Net under each month</span></div>
+    <div class="bz-box" id="bzBest">${best ? `Best month: <b>${MONTHS[+best.m.slice(5) - 1]}</b> ${bzUsd(best.net)}${worst && worst.m !== best.m ? `. Worst month: <b>${MONTHS[+worst.m.slice(5) - 1]}</b> ${bzUsd(worst.net)}` : used.length === 1 ? ' (the only month with entries so far)' : ''}.` : `No entries for ${esc(bzSelName(sel))} in ${y} yet.`}</div>
+    ${mi ? `<div class="bz-box" id="bzMiles">Mileage and tools deduction (estimate, not cash): <b>${bzUsd(miM ? miM.ded : 0)}</b> this month, <b>${bzUsd(mi.ded)}</b> in ${y}. Your net after it, as a tax view: <b>${bzUsd(Y.net - mi.ded)}</b>.${mi.skipped ? ` ${mi.skipped} expense${mi.skipped === 1 ? '' : 's'} you also added to the money log ${mi.skipped === 1 ? 'is' : 'are'} not counted again.` : ''}</div>` : ''}
+    <details><summary style="cursor:pointer;font-size:13px;font-weight:500">Month by month, running year to date</summary><div class="bz-t" id="bzRun" style="margin-top:6px"><div class="bz-g r4 h"><span>Month</span><span class="n">Income</span><span class="n">Expenses</span><span class="n">Running net</span></div>${runRows.map((d) => `<div class="bz-g r4"><span class="nm">${MONTHS[+d.m.slice(5) - 1].slice(0, 3)}</span><span class="n">${bzWhole(d.in)}</span><span class="n">${bzWhole(d.out)}</span><span class="n ${bzCls(d.run)}">${bzWhole(d.run)}</span></div>`).join('')}</div></details>
+    <div class="bz-note">Built from your money log only, so it is only as complete as what you log. Trading P&amp;L from the bots is not included unless you log payouts. Estimates, not tax advice.</div>`;
+}
+function bzTagList() {
+  const q = squash(bzQ), all = bzUntagged().filter((m) => (bzKind === 'all' || m.kind === bzKind) && (!q || squash(m.note).includes(q))).sort((a, b) => b.date.localeCompare(a.date) || (b.created || 0) - (a.created || 0));
+  return { all, shown: all.slice(0, 150) };
+}
+function bzTagListHtml() {
+  const { all, shown } = bzTagList();
+  return (shown.length ? shown.map((m) => `<label class="bz-pick"><input type="checkbox" data-bzpick="${esc(m.id)}"${bzPicked.has(m.id) ? ' checked' : ''}><span>${esc(m.note || (m.kind === 'in' ? 'Money in' : 'Money out'))}<small>${longDate(m.date)}</small></span><span class="a ${m.kind === 'in' ? 'pos' : 'neg'}">${m.kind === 'in' ? '+' : '-'}${bzUsd(m.amt)}</span></label>`).join('') : '<div class="empty-s">Nothing untagged matches.</div>') + (all.length > shown.length ? `<div class="hint">${all.length - shown.length} more match. Narrow the search to see them.</div>` : '');
+}
+function bzTagHtml() {
+  const n = bzPicked.size;
+  return `<div class="bz-box">Pick entries, choose a project, tap Tag. Search narrows the list, and Select all picks everything shown.</div>
+    <div class="bz-tools"><select id="bzKind" aria-label="Type"><option value="all"${bzKind === 'all' ? ' selected' : ''}>Money in and out</option><option value="in"${bzKind === 'in' ? ' selected' : ''}>Money in only</option><option value="out"${bzKind === 'out' ? ' selected' : ''}>Money out only</option></select><input id="bzQ" type="search" placeholder="Search notes" value="${esc(bzQ)}" aria-label="Search notes"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn sm" id="bzAll">Select all shown</button><button type="button" class="btn sm" id="bzNone">Clear</button></div>
+    <div id="bzTagList">${bzTagListHtml()}</div>
+    <div class="bz-tools"><select id="bzProj" aria-label="Project to tag with">${S.projects.map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select><button type="button" class="btn primary" id="bzTagGo"${n ? '' : ' disabled'}>Tag ${n} selected</button></div>
+    <button type="button" class="btn" id="bzTagBack">Back</button>`;
+}
+function bzPaint() {
+  const body = $('#bzBody'); if (!body) return;
+  $('#bzTitle').textContent = bzMode === 'tag' ? 'Tag untagged entries' : 'Business profit and loss';
+  body.innerHTML = bzMode === 'tag' ? bzTagHtml() : bzMainHtml();
+}
+function openBiz() { bzMode = 'main'; bzMonth = null; bzSel = 'all'; bzPicked = new Set(); bzPaint(); if (!bzDlg.open) bzDlg.showModal(); }
+bzDlg.addEventListener('click', (e) => {
+  const t = e.target;
+  const mo = t.closest('[data-bzmo]'); if (mo) { bzMonth = bzAddMonths(bzMonth || bzMonthNow(), +mo.dataset.bzmo); bzPaint(); return; }
+  const sl = t.closest('[data-bzsel]'); if (sl) { bzSel = sl.dataset.bzsel; bzPaint(); return; }
+  if (t.closest('#bzTagOpen')) { bzMode = 'tag'; bzPicked = new Set(); bzKind = 'all'; bzQ = ''; bzPaint(); return; }
+  if (t.closest('#bzTagBack')) { bzMode = 'main'; bzPaint(); return; }
+  if (t.closest('#bzAll')) { bzTagList().shown.forEach((m) => bzPicked.add(m.id)); bzPaint(); return; }
+  if (t.closest('#bzNone')) { bzPicked = new Set(); bzPaint(); return; }
+  if (t.closest('#bzTagGo')) {
+    const pid = $('#bzProj').value, p = projOf(pid), ids = new Set([...bzPicked]); if (!p || !ids.size) return;
+    snapshot(); commit(() => { S.money.forEach((m) => { if (ids.has(m.id) && !bzTagOf(m)) m.proj = pid; }); });
+    bzPicked = new Set(); if (!bzUntagged().length) bzMode = 'main'; bzPaint(); render(); toast(`Tagged ${ids.size} entr${ids.size === 1 ? 'y' : 'ies'} as ${p.name}`, true);
+  }
+});
+bzDlg.addEventListener('change', (e) => {
+  const t = e.target;
+  if (t.matches('[data-bzpick]')) { if (t.checked) bzPicked.add(t.dataset.bzpick); else bzPicked.delete(t.dataset.bzpick); const g = $('#bzTagGo'); g.textContent = `Tag ${bzPicked.size} selected`; g.disabled = !bzPicked.size; }
+  else if (t.id === 'bzKind') { bzKind = t.value; bzPaint(); }
+});
+bzDlg.addEventListener('input', (e) => { if (e.target.id === 'bzQ') { bzQ = e.target.value; $('#bzTagList').innerHTML = bzTagListHtml(); } });
+bzDlg.addEventListener('close', () => render());
+function bizTodayCard() {
+  if (!bzRows().length) return '';
+  const ym = bzMonthNow(), M = { in: 0, out: 0 }, un = bzUntagged();
+  S.projects.forEach((p) => { const s = bzSumM(p.id, ym); M.in += s.in; M.out += s.out; });
+  const net = Math.round((M.in - M.out) * 100) / 100, Y = S.projects.reduce((n, p) => n + bzSum(p.id, ym.slice(0, 4) + '-01-01', bzLast(ym)).net, 0);
+  return `<section class="td-card" id="bzCard"><h3>Business profit and loss<button data-bzopen>Details</button></h3><div class="glance"><div><b class="${bzCls(net)}">${bzUsd(net)}</b><span>${MONTHS[+ym.slice(5) - 1].slice(0, 3)} net</span></div><div><b>${bzUsd(M.in)}</b><span>income</span></div><div><b>${bzUsd(M.out)}</b><span>expenses</span></div></div><div class="hint">Year to date ${bzUsd(Y)} across your projects.${un.length ? ` ${un.length} untagged entr${un.length === 1 ? 'y' : 'ies'} not included. <button type="button" class="btn sm" data-bztag>Tag them</button>` : ''} Estimate from the money log.</div></section>`;
+}
+$('#main').addEventListener('click', (e) => {
+  if (S.view !== 'today') return;
+  if (e.target.closest('[data-bzopen]')) openBiz();
+  else if (e.target.closest('[data-bztag]')) { openBiz(); bzMode = 'tag'; bzPaint(); }
+});
+// ===== BIZ END =====
 
 // ===== SHIFTS BEGIN: recurring work shifts (Outback, electric) =====
 const shDlg = $('#shDlg');

@@ -5654,7 +5654,7 @@ document.body.insertAdjacentHTML('beforeend', `
   <div class="hint">Photo recognition uses Claude. It needs your own Anthropic API key: go to console.anthropic.com, add a few dollars of credit, create an API key and paste it here. The key stays in this browser on this phone. It is never synced, backed up or sent anywhere except to Anthropic. A photo costs well under a cent on Haiku and about a cent on Sonnet.</div>
   <div class="fld"><label for="mlKeyIn">API key</label><input id="mlKeyIn" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk-ant-..."></div>
   <div class="fld"><label for="mlModelIn">Model</label><select id="mlModelIn"></select></div>
-  <div class="err" id="mlSetErr" hidden></div><div class="hint" id="mlSetOk" hidden></div>
+  <div class="hint">Food numbers come from a built-in nutrition list, your own corrections, USDA and Open Food Facts. USDA shares a limited demo key; a free personal key from fdc.nal.usda.gov removes the limit (paste it in My foods and recipes).</div><div class="err" id="mlSetErr" hidden></div><div class="hint" id="mlSetOk" hidden></div>
   <div class="dlg-f"><button type="button" class="btn danger" id="mlKeyClear">Remove key</button><div><button type="button" class="btn" id="mlKeyTest">Save and test</button></div></div>
 </div></dialog>`);
 const mlDlg = $('#mlDlg'), mlSnap = $('#mlSnap'), mlSet = $('#mlSet');
@@ -12447,7 +12447,7 @@ setInterval(() => {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync) syncNow(); });
 addEventListener('online', () => { if (sync) syncNow(); });
 $('#helpBtn').onclick = () => $('#helpDlg').showModal();
-const APP_VERSION = '2026-10-30.28';
+const APP_VERSION = '2026-10-30.29';
 if ($('#verNote')) $('#verNote').textContent = 'Planner ' + APP_VERSION;
 if (!HOSTED && 'serviceWorker' in navigator && window.isSecureContext && location.protocol.startsWith('http')) {
   const hadController = !!navigator.serviceWorker.controller;

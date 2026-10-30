@@ -25,6 +25,7 @@ const hashes = ['today', 'plan', 'shifts', 'bills', 'tilt', 'trade-plan', 'searc
   // the three Today cards at phone width
   {
     const { p, errs: pe } = await open(b, { now: NOW, seed: c, state });
+    for (const id of ['#ppCard', '#bzCard', '#tqCard']) await expand.within(p, id);
     for (const id of ['#ppCard', '#bzCard', '#tqCard']) ok(await p.locator(`.tdy ${id}`).count() === 1 && await p.isVisible(id), `Today has ${id}`);
     ok(await p.evaluate(() => document.documentElement.scrollWidth) <= 390, 'Today has no sideways scroll');
     await p.screenshot({ path: '/tmp/propnav-today.png', fullPage: true });

@@ -27,7 +27,7 @@ const URL = 'http://127.0.0.1:' + (process.env.PORT || 8777) + '/nq-dashboard/pl
     return { fridays: n, done, today: key(now), daysLeft: last.getDate() - now.getDate() + 1 };
   });
   await p.reload(); await wait(1500);
-  ok(await p.isVisible('#erCard'), 'Earnings card is on Today');
+  await expand(p, 'earn'); ok(await p.isVisible('#erCard'), 'Earnings card is on Today');
   // week: $60 shift + $200 trading + $100 money in = $360 (a week that straddles a month still has the whole Friday shift in the week)
   ok(/\$360/.test(await p.textContent('#erCard')), 'card shows $360 this week: ' + await p.textContent('#erCard'));
   await expand(p, 'earn'); await p.click('#erCard [data-eropen]'); await wait(200);

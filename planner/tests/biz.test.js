@@ -19,7 +19,7 @@ const miles = [
 (async () => {
   const errs = [], ok = (c, m2) => { if (!c) errs.push(m2); };
   const b = await chromium.launch();
-  const txt = async (p, sel) => (await p.innerText(sel)).replace(/\s+/g, ' ');
+  const txt = async (p, sel) => (await expand.within(p, sel), await p.innerText(sel)).replace(/\s+/g, ' ');
   const W = (p) => p.evaluate(() => document.documentElement.scrollWidth);
 
   // ---- empty ----

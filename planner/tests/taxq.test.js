@@ -14,7 +14,7 @@ const miles = [{ id: 't1', kind: 'trip', date: '2026-08-03', from: 'Home', to: '
 (async () => {
   const errs = [], ok = (c, msg) => { if (!c) errs.push(msg); };
   const b = await chromium.launch();
-  const txt = async (p, sel) => (await p.innerText(sel)).replace(/\s+/g, ' ');
+  const txt = async (p, sel) => (await expand.within(p, sel), await p.innerText(sel)).replace(/\s+/g, ' ');
   const W = (p) => p.evaluate(() => document.documentElement.scrollWidth);
   const seed = (now, o) => nqCache(now, o || {});
 
@@ -91,7 +91,7 @@ const miles = [{ id: 't1', kind: 'trip', date: '2026-08-03', from: 'Home', to: '
     if (day === '2026-09-16') {
       const c = await txt(p, '#tqCard');
       ok(/was due Sep 15, 1 day ago/.test(c) && /\$616\.25 still to pay/.test(c), 'late card: ' + c);
-      await p.click('[data-tqlog]'); await wait(300);
+      await expand(p, 'tax'); await p.click('[data-tqlog]'); await wait(300);
       ok(await p.isVisible('#tqDlg') && await p.isVisible('#tqLate'), 'late banner in the planner: ' + (await p.locator('#tqLate').count()));
     }
     errs.push(...pe);

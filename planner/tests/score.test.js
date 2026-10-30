@@ -21,7 +21,7 @@ const trades = [etTrade('2026-11-27', '09:35', -100), etTrade('2026-11-27', '09:
   const errs = [], ok = (c, m) => { if (!c) errs.push(m); };
   const b = await chromium.launch();
   const noW = (p) => p.evaluate(() => document.documentElement.scrollWidth);
-  const txt = async (p, sel) => (await p.innerText(sel)).replace(/\s+/g, ' ');
+  const txt = async (p, sel) => (await expand.within(p, sel), await p.innerText(sel)).replace(/\s+/g, ' ');
 
   // ---- nothing known: no number, no fake zero ----
   {

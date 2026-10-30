@@ -1,5 +1,6 @@
 // Week balance: node planner/tests/weekbal.test.js  (serve the site on 127.0.0.1:8777 first, see shifts.test.js)
 const { chromium } = require('playwright');
+const expand = require('./lib-expand');
 const URL = 'http://127.0.0.1:' + (process.env.PORT || 8777) + '/nq-dashboard/planner/index.html';
 (async () => {
   const errs = [], ok = (c, m) => { if (!c) errs.push(m); }, wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -17,7 +18,7 @@ const URL = 'http://127.0.0.1:' + (process.env.PORT || 8777) + '/nq-dashboard/pl
     localStorage.setItem('planner.v1', JSON.stringify(s));
   });
   await p.reload(); await wait(1500);
-  ok(await p.isVisible('#wbCard'), 'Week balance card is on Today');
+  await expand(p, 'wb'); ok(await p.isVisible('#wbCard'), 'Week balance card is on Today');
   ok(/11 h/.test(await p.textContent('#wbCard')) && /planned this week/.test(await p.textContent('#wbCard')), 'card: 11 h planned: ' + (await p.textContent('#wbCard')));
   await p.click('#wbCard [data-wbopen]'); await wait(200);
   ok(await p.isVisible('#wbDlg'), 'sheet opens');

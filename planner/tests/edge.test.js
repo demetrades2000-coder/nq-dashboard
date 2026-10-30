@@ -16,7 +16,7 @@ let cum = 0, peak = 0, dd = 0; ts.forEach((t) => { cum += t.usd; peak = Math.max
   const errs = [], ok = (c, m) => { if (!c) errs.push(m); };
   const b = await chromium.launch();
   const noW = (p) => p.evaluate(() => document.documentElement.scrollWidth);
-  const txt = async (p, sel) => (await p.innerText(sel)).replace(/\s+/g, ' ');
+  const txt = async (p, sel) => (await expand.within(p, sel), await p.innerText(sel)).replace(/\s+/g, ' ');
   ok(DATA.length === 30 && net === 150, 'fixture sanity ' + DATA.length + ' ' + net);
 
   // ---- 1. no trades ----

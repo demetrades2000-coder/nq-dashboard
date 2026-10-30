@@ -5130,8 +5130,8 @@ const TO_CARDS = [
       return due.length ? toNowTier(late ? 'Follow-up overdue' : 'Follow up today', late ? 'red' : 'amber') : { tier: 'dash' }; },
     sum: () => { const s = plStats(); return s.openN ? `${s.openN} open deal${s.openN === 1 ? '' : 's'} worth ${usd(s.open)}` : 'no open deals'; } },
   { id: 'shutdown', n: 'Close out the day', home: 'now', fn: () => shutdownCard(), tier: () => toNowTier('Evening', 'amber') },
-  { id: 'tradeplan', n: 'Trade plan', home: 'now', fn: () => tradePlanTodayCard(), fold: true,
-    tier: () => { const et = mnEt(); return et.wd > 0 && et.wd < 6 && et.min < 570 ? toNowTier('Before NY open', 'amber') : { tier: 'today' }; } },
+  { id: 'tradeplan', n: 'Trade plan', home: 'now', fn: () => tradePlanTodayCard(),
+    tier: () => { const et = mnEt(); return et.wd > 0 && et.wd < 6 && et.min < 570 ? toNowTier('Before NY open', 'amber') : { tier: 'today', fold: true }; } },
   { id: 'setup', n: 'Get set up', home: 'now', fn: () => suCard(), fold: true, sum: () => { const x = suState(); return `${x.n} of ${x.steps.length} done`; }, tier: () => toNowTier('Getting started', 'amber', true) },
   { id: 'sched', n: 'Schedule', home: 'today', fn: () => toInl.sched,
     tier: () => { const s = toShift(); return s ? toNowTier(s.s <= toNowMin() ? 'On shift' : s.left <= 120 ? 'Shift starts soon' : 'Shift today', s.left <= 120 ? 'red' : 'amber', true) : { tier: 'today' }; } },
@@ -5186,7 +5186,7 @@ function toRank(ids, hide) {
     let t = { tier: d.home };
     try { if (d.tier) t = d.tier(html) || t; } catch (e) { console.error('Today tier failed:', d.id, e); }
     if (hide.has(d.id) && !(d.force && t.tier === 'now')) return; // a tilt stop is never hidden
-    out[t.tier].push({ fold: !!d.fold || t.tier === 'dash', d, html, label: t.label || '', cls: t.cls || 'amber', soft: !!t.soft });
+    out[t.tier].push({ fold: !!d.fold || !!t.fold || t.tier === 'dash', d, html, label: t.label || '', cls: t.cls || 'amber', soft: !!t.soft });
   });
   return out;
 }

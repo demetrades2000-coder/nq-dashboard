@@ -15,7 +15,7 @@ const withLive = () => { const c = nqCache(NOW, {}); c.doc.trade.accounts = live
 (async () => {
   const errs = [], ok = (c, m) => { if (!c) errs.push(m); };
   const b = await chromium.launch();
-  const txt = async (p, sel) => (await p.innerText(sel)).replace(/\s+/g, ' ');
+  const txt = async (p, sel) => (await expand.within(p, sel), await p.innerText(sel)).replace(/\s+/g, ' ');
   const W = (p) => p.evaluate(() => document.documentElement.scrollWidth);
 
   // ---- empty: add an account, fees and a payout by hand ----

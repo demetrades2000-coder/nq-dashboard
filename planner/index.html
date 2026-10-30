@@ -10463,7 +10463,7 @@ setInterval(() => {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync) syncNow(); });
 addEventListener('online', () => { if (sync) syncNow(); });
 $('#helpBtn').onclick = () => $('#helpDlg').showModal();
-const APP_VERSION = '2026-10-30.23';
+const APP_VERSION = '2026-10-30.24';
 if ($('#verNote')) $('#verNote').textContent = 'Planner ' + APP_VERSION;
 if (!HOSTED && 'serviceWorker' in navigator && window.isSecureContext && location.protocol.startsWith('http')) {
   const hadController = !!navigator.serviceWorker.controller;

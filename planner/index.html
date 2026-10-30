@@ -1180,7 +1180,7 @@ const shade = (hex, f) => { const [r, g, b] = rgb(hex); return `rgb(${Math.round
 const cvars = (hex) => `--c:${hex};--bg-c:${tint(hex, .13)};--fg:${shade(hex, .42)}`;
 
 // ---------- state ----------
-const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan', 'timelog', 'deals', 'waiting', 'score', 'worth']; // collections added by the Rules and Trades features
+const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan', 'timelog', 'deals', 'waiting', 'score', 'worth', 'alcfg']; // collections added by the Rules and Trades features
 let S = load();
 let cursor = todayKey(), selected = cursor, miniMonth = cursor.slice(0, 7);
 let query = '', agendaDays = 30, undoSnap = null, editing = null, lastScrollView = null;
@@ -2712,6 +2712,7 @@ function renderToday() {
     ${hxTodayCard()}
     ${wbTodayCard()}${earnTodayCard()}
     ${billsTodayCard()}
+    ${alertsTodayCard()}
     ${plTodayCard()}
     ${edgeTodayCard()}
     ${worthTodayCard()}
@@ -2777,6 +2778,7 @@ function route() {
   else if (h === 'edge') { goToday(); openEdge(); }
   else if (h === 'score') { goToday(); openScore(); }
   else if (h === 'worth') { goToday(); openWorth(); }
+  else if (h === 'alerts') { goToday(); openAlerts(); }
   else if (h === 'tilt') { goToday(); openTiltSettings(); }
   else if (h === 'trade-plan') { goToday(); tpMode = 'plan'; renderMain(); }
   else if (h === 'search' || h === 'palette') { goToday(); openPalette(); }
@@ -3216,6 +3218,157 @@ function worthTodayCard() {
 }
 $('#main').addEventListener('click', (e) => { if (S.view === 'today' && e.target.closest('[data-wtopen]')) openWorth(); });
 // ===== WORTH END =====
+// ===== ALERTS BEGIN: phone alerts, an .ics file for the next 60 days with reminders per type (synced collection `alcfg`, item id 'cfg') =====
+// iPhone PWAs cannot push notifications, so reminders come from the Calendar app: this exports a separate "Planner alerts" calendar file.
+// Every item is written as its own single VEVENT (recurring events are expanded with the same occurrence helpers the calendar uses, so
+// skipped days and end dates are right and no RRULE/EXDATE is needed). UIDs are stable ("al-<type>-<id>-<day>@planner") so importing
+// the file again updates items instead of duplicating them. Times are FLOATING local times (no Z, no TZID): the Calendar app places them
+// in the phone's own time zone, which is what you want for shifts and bills while travelling. Market times were already turned into local
+// times by buildBotEvents/etToLocal. The button for the older all-in-one export (#icsBtn) is untouched; use one or the other.
+const AL_DAYS = 60;
+const AL_TYPES = [
+  ['shift', 'Work shifts', 'time', 90], ['own', 'Your events', 'time', 10], ['bill', 'Bills due', 'day', 1],
+  ['fu', 'Deal follow-ups', 'day', 0], ['sess', 'Trading sessions (NY)', 'time', 15], ['news', 'High-impact news', 'time', 15],
+];
+const AL_LEADS = [[0, 'At the start'], [5, '5 minutes before'], [10, '10 minutes before'], [15, '15 minutes before'], [30, '30 minutes before'], [45, '45 minutes before'], [60, '1 hour before'], [90, '90 minutes before'], [120, '2 hours before'], [180, '3 hours before'], [1440, '1 day before']];
+document.head.insertAdjacentHTML('beforeend', `<style>
+#alDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}#alDlg input,#alDlg select{font-size:16px}
+.al-row{display:flex;flex-direction:column;gap:6px;padding:8px 0;border-top:1px solid var(--line2)}.al-ctl{display:flex;gap:6px;flex-wrap:wrap;padding-left:28px}
+.al-row label.al-on{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;min-width:0}
+.al-row label.al-on input{width:20px;height:20px;flex:none}
+.al-row select,.al-row input[type=time]{height:38px;border:1px solid var(--line);border-radius:8px;padding:0 8px;background:#fff;max-width:100%}
+.al-row .al-sub{padding-left:28px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--mute)}
+.al-how{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.45;background:var(--soft)}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="alDlg" aria-labelledby="alTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="alTitle">Phone alerts</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="alBody" style="display:flex;flex-direction:column;gap:12px"></div>
+</div></dialog>`);
+const alDlg = $('#alDlg');
+function alCfg() {
+  const c = S.alcfg.find((x) => x.id === 'cfg') || {}, out = { last: +c.last || 0 };
+  for (const [t, , kind, def] of AL_TYPES) {
+    out[t] = c[t] !== false;
+    if (kind === 'time') { const v = +c[t + 'Lead']; out[t + 'Lead'] = Number.isFinite(v) && c[t + 'Lead'] !== '' && c[t + 'Lead'] != null && v >= 0 && v <= 2880 ? Math.round(v) : def; }
+    else { const d = +c[t + 'Days']; out[t + 'Days'] = Number.isFinite(d) && c[t + 'Days'] != null && d >= 0 && d <= 14 ? Math.round(d) : def; out[t + 'At'] = HM.test(c[t + 'At'] || '') ? c[t + 'At'] : '09:00'; }
+  }
+  return out;
+}
+function alSet(patch) { commit(() => { upsert(S.alcfg, 'cfg', () => ({ id: 'cfg' }), patch); }); }
+// text escaping and folding to 75 OCTETS (UTF-8 bytes), never splitting a character
+const alEsc = (s) => String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n').replace(/([,;])/g, '\\$1');
+function alFold(line) {
+  const enc = new TextEncoder(), out = []; let cur = '', bytes = 0, lim = 75;
+  for (const ch of line) {
+    const n = enc.encode(ch).length;
+    if (bytes + n > lim) { out.push(cur); cur = ' '; bytes = 1; lim = 75; }
+    cur += ch; bytes += n;
+  }
+  out.push(cur);
+  return out.join('\r\n');
+}
+function alDur(min) { // minutes -> ISO duration without sign, e.g. 90 -> PT1H30M, 0 -> PT0M
+  const h = Math.floor(min / 60), m = min % 60;
+  return 'PT' + (h ? h + 'H' : '') + (m || !h ? m + 'M' : '');
+}
+const alDT = (k, min) => { let d = k; if (min >= 1440) { d = addDays(k, 1); min -= 1440; } return d.replace(/-/g, '') + 'T' + pad(Math.floor(min / 60)) + pad(min % 60) + '00'; };
+const alWhen = (lead) => (lead ? `starts in ${lead >= 1440 ? '1 day' : lead >= 60 && lead % 60 === 0 ? lead / 60 + ' h' : lead + ' min'}` : 'starts now');
+const alUid = (s) => String(s).replace(/[^A-Za-z0-9_.:\-]/g, '_').slice(0, 100);
+function alType(e) { // which alert type an event belongs to, or '' when it gets no alert
+  if (e.deal || /^fu:/.test(e.id || '')) return 'fu';
+  if (e.bot === 'Bills' || /^bill:/.test(e.id || '')) return 'bill';
+  if (e.bot) return e.layer === 'high' && !e.allDay ? 'news' : '';
+  return /^job-/.test(e.cat || '') && !e.allDay ? 'shift' : 'own';
+}
+// Everything that gets an alert from today for AL_DAYS days: [{ uid, type, k, allDay, s, e, endK, title, desc, trig, text }]
+function alBuild(from) {
+  const cfg = alCfg(), start = from || todayKey(), out = [], evs = allEvents();
+  const timedTrig = (lead) => 'TRIGGER:-' + alDur(lead);
+  const dayTrig = (days, at) => { const m = toMin(at) - days * 1440; return 'TRIGGER:' + (m < 0 ? '-' : '') + alDur(Math.abs(m)); };
+  for (let i = 0; i < AL_DAYS; i++) {
+    const k = addDays(start, i);
+    for (const ev of evs) {
+      const t = alType(ev); if (!t || !cfg[t]) continue;
+      if (occStart(ev, k) !== k) continue;
+      const timed = !ev.allDay && HM.test(ev.start || '');
+      let it;
+      if (timed) {
+        const s = toMin(ev.start); let e = HM.test(ev.end || '') ? toMin(ev.end) : s + 60; if (e <= s) e = Math.min(s + 60, 1439);
+        const lead = cfg[t + 'Lead'] != null ? cfg[t + 'Lead'] : cfg.ownLead;
+        it = { s, e, trig: timedTrig(lead), text: `${ev.title} ${alWhen(lead)}` };
+      } else {
+        const isDay = t === 'bill' || t === 'fu', days = isDay ? cfg[t + 'Days'] : 0, at = isDay ? cfg[t + 'At'] : '09:00';
+        const when = days === 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
+        it = { trig: dayTrig(days, at), text: t === 'bill' ? `${ev.title} due ${when}` : t === 'fu' ? `${ev.title} (${when})` : ev.title, endK: ev.endDate && ev.endDate > k ? ev.endDate : '' };
+      }
+      out.push({ uid: `al-${t}-${alUid(ev.id)}-${k}@planner`, type: t, k, allDay: !timed, title: ev.title, desc: ev.notes || '', cat: ev.bot ? ev.bot : cat(ev.cat).name, ...it });
+    }
+    if (cfg.sess && typeof gdSessions === 'function') {
+      for (const w of gdSessions(k, GD_NY)) {
+        if (w.cont) continue;
+        out.push({ uid: `al-sess-${alUid(w.name)}-${k}@planner`, type: 'sess', k, allDay: false, s: w.s, e: w.e, title: `${w.name} session`, desc: 'Trading session (your local time)', cat: 'Trading', trig: timedTrig(cfg.sessLead), text: `${w.name} session ${alWhen(cfg.sessLead)}` });
+      }
+    }
+  }
+  return out;
+}
+function alIcs(items, stampMs) {
+  const d = new Date(stampMs || Date.now()), stamp = d.toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Planner//Phone alerts//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Planner alerts'];
+  for (const it of items) {
+    L.push('BEGIN:VEVENT', `UID:${it.uid}`, `DTSTAMP:${stamp}`, `SUMMARY:${alEsc(it.title)}`, `CATEGORIES:${alEsc(it.cat)}`);
+    if (it.allDay) L.push(`DTSTART;VALUE=DATE:${it.k.replace(/-/g, '')}`, `DTEND;VALUE=DATE:${addDays(it.endK || it.k, 1).replace(/-/g, '')}`);
+    else L.push(`DTSTART:${alDT(it.k, it.s)}`, `DTEND:${alDT(it.k, it.e)}`);
+    if (it.desc) L.push(`DESCRIPTION:${alEsc(it.desc)}`);
+    L.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${alEsc(it.text || it.title)}`, it.trig, 'END:VALARM', 'END:VEVENT');
+  }
+  L.push('END:VCALENDAR');
+  return L.map(alFold).join('\r\n') + '\r\n';
+}
+function alCounts(items) {
+  const n = {}; items.forEach((x) => { n[x.type] = (n[x.type] || 0) + 1; }); return n;
+}
+function alPaint() {
+  const c = alCfg(), items = alBuild(), n = alCounts(items);
+  const rows = AL_TYPES.map(([t, name, kind]) => {
+    const sel = kind === 'time'
+      ? `<select data-alsel="${t}Lead" aria-label="${esc(name)} reminder">${AL_LEADS.map(([v, l]) => `<option value="${v}"${v === c[t + 'Lead'] ? ' selected' : ''}>${l}</option>`).join('')}${AL_LEADS.some((x) => x[0] === c[t + 'Lead']) ? '' : `<option value="${c[t + 'Lead']}" selected>${c[t + 'Lead']} minutes before</option>`}</select>`
+      : `<select data-alsel="${t}Days" aria-label="${esc(name)} day">${[0, 1, 2, 3, 7].map((v) => `<option value="${v}"${v === c[t + 'Days'] ? ' selected' : ''}>${v === 0 ? 'Same day' : v === 1 ? '1 day before' : v + ' days before'}</option>`).join('')}</select><input type="time" data-alsel="${t}At" value="${c[t + 'At']}" aria-label="${esc(name)} time of day">`;
+    return `<div class="al-row"><label class="al-on"><input type="checkbox" data-alon="${t}"${c[t] ? ' checked' : ''}>${esc(name)}</label>${c[t] ? `<span class="al-ctl">${sel}</span>` : ''}<div class="al-sub">${c[t] ? `${n[t] || 0} in the next ${AL_DAYS} days` : 'Off'}</div></div>`;
+  }).join('');
+  const last = c.last ? `Last saved ${diffDays(key(new Date(c.last)), todayKey()) === 0 ? 'today' : diffDays(key(new Date(c.last)), todayKey()) + ' days ago'}.` : 'Not saved yet.';
+  $('#alBody').innerHTML = `<div class="al-how" id="alHow"><b>How to use it on iPhone.</b> Tap Save, open the file on your iPhone and tap Add All, choosing a new calendar called Planner so you can delete it to start clean. Saving again later and re-importing updates the same items instead of duplicating them.</div>
+    <div>${rows}</div>
+    <div class="hint" id="alSum">${items.length} item${items.length === 1 ? '' : 's'} with an alert for the next ${AL_DAYS} days. ${last} Times follow your phone's own time zone. Bills use the time of day above, since they are all-day items. Use this OR the Calendar alerts button in the side menu, not both.</div>
+    <div class="dlg-f"><div></div><div style="display:flex;gap:8px"><button type="button" class="btn" data-close>Close</button><button type="button" class="btn primary" id="alSave">Save calendar file</button></div></div>`;
+}
+function openAlerts() { alPaint(); if (!alDlg.open) alDlg.showModal(); }
+async function alExport() {
+  const items = alBuild();
+  if (!items.length) { toast('Nothing to export yet. Turn on a type or add events.'); return; }
+  if (await download(`planner-alerts-${todayKey()}.ics`, alIcs(items), 'text/calendar')) {
+    alSet({ last: Date.now() }); alPaint(); render();
+    toast('Open the file and tap Add All to get the alerts in Calendar');
+  }
+}
+alDlg.addEventListener('change', (e) => {
+  const o = e.target.closest('[data-alon]'), s = e.target.closest('[data-alsel]');
+  if (o) { alSet({ [o.dataset.alon]: o.checked }); alPaint(); }
+  else if (s) { const f = s.dataset.alsel; alSet({ [f]: /At$/.test(f) ? (HM.test(s.value) ? s.value : '09:00') : +s.value }); alPaint(); }
+});
+alDlg.addEventListener('click', (e) => { if (e.target.closest('#alSave')) alExport(); });
+if (HOSTED) { /* claude.ai cannot save .ics files, so the entry points stay hidden */ } else {
+  $('#icsBtn').insertAdjacentHTML('afterend', '<button class="btn sm" id="alOpenBtn" title="Calendar file with reminders for shifts, bills, follow-ups and trading sessions">Phone alerts</button>');
+  $('#alOpenBtn').onclick = openAlerts;
+}
+function alertsTodayCard() {
+  if (HOSTED) return '';
+  const c = alCfg(), age = c.last ? diffDays(key(new Date(c.last)), todayKey()) : null;
+  const stale = age == null || age >= 30;
+  return `<section class="td-card" id="alCard"><h3>Phone alerts<button data-alopen>${stale ? 'Save file' : 'Settings'}</button></h3><div class="hint">${age == null ? 'Your iPhone cannot push reminders from this app. Save a calendar file with alerts for shifts, bills and follow-ups and add it to Calendar.' : age === 0 ? 'Saved today. Alerts cover the next 60 days.' : stale ? `Your last alerts file is ${age} days old. Save a fresh one so the next 60 days are covered.` : `Last saved ${age} day${age === 1 ? '' : 's'} ago. Alerts cover 60 days from then.`}</div></section>`;
+}
+$('#main').addEventListener('click', (e) => { if (S.view === 'today' && e.target.closest('[data-alopen]')) openAlerts(); });
+// ===== ALERTS END =====
 
 // ===== SHIFTS BEGIN: recurring work shifts (Outback, electric) =====
 const shDlg = $('#shDlg');

@@ -8350,6 +8350,7 @@ function fkBuildResult(food, pick, source, conf, notes, extra) {
   const note = notes.join(' ');
   return { food, name: food.name, label: fkLabel(food), grams: pick.g, nutrients, source, conf, note, range: fkRange(nutrients, conf), flags, ...(extra || {}) };
 }
+function fkRoundNutKeys(n) { const o = {}; for (const k of FK_NUT) if (n[k] != null && Number.isFinite(+n[k])) o[k] = k === 'kcal' || k === 'na' ? Math.round(+n[k]) : Math.round(+n[k] * 10) / 10; return o; }
 // A saved food (S.myfoods item) as a food with per-100 values and a portion table.
 function fkFromMy(m) {
   const fd = typeof fdFromMy === 'function' ? (() => { try { return fdFromMy(m); } catch (e) { return null; } })() : null;
@@ -8405,8 +8406,10 @@ async function fkResolve0(o) {
   const mine = fkMineFind(q);
   if (mine) {
     const food = fkFromMy(mine), notes = ['From your own foods.'];
-    if (food.noGrams && !(+o.grams > 0)) { const n = { ...food.perServing }; return { food, name: food.name, label: food.name, grams: 0, nutrients: n, source: 'mine', conf: 'high', note: notes.concat('Values are per serving.').join(' '), range: fkRange(n, 'high'), flags: [] }; }
-    return fkBuildResult(food, fkPickGrams(food, o), 'mine', 'high', notes);
+    if (food.noGrams) { const n = { ...food.perServing }; return { food, name: food.name, label: food.name, grams: 0, nutrients: n, source: 'mine', conf: 'high', note: notes.concat('Values are per serving.').join(' '), range: fkRange(n, 'high'), flags: [] }; }
+    const res = fkBuildResult(food, fkPickGrams(food, o), 'mine', 'high', notes);
+    if (food.servingGrams > 0 && Math.abs(res.grams - food.servingGrams) < 0.06) { res.nutrients = fkRoundNutKeys(food.perServing); res.range = fkRange(res.nutrients, res.conf); } // exactly one saved serving: the saved numbers
+    return res;
   }
   const hits = o.packaged ? [] : fkFind(text, 5), top = hits[0];
   if (top && top.score >= 70) {
@@ -8467,7 +8470,7 @@ function fkMealTotals(items) {
   }
   return fkRoundNut(t);
 }
-function fkPer100(n, grams) { const o = {}; for (const k of fkSumKeys) if (n[k] != null && Number.isFinite(+n[k])) { const v = +n[k] * 100 / grams; o[k] = k === 'kcal' || k === 'na' ? Math.round(v) : Math.round(v * 10) / 10; } return o; }
+function fkPer100(n, grams) { const o = {}; for (const k of fkSumKeys) if (n[k] != null && Number.isFinite(+n[k])) { const v = +n[k] * 100 / grams; o[k] = k === 'na' ? Math.round(v) : Math.round(v * 10) / 10; } return o; }
 // Remember a number set the person checked or fixed. {name, portion?, grams?, kcal, p, c, f, fiber?, sugar?, na?, sat?} are the numbers for `grams` (or the
 // portion text). Next time fkResolve answers this food first, scaled to any amount (source 'mine'). Returns the myfoods item, or null if unusable.
 function fkLearn(o) {
@@ -8537,7 +8540,7 @@ function fkSuggest(remaining, n = 3) {
   if (rem.kcal < 40) return [];
   const kc = { p: rem.p * 4, c: rem.c * 4, f: rem.f * 9 }, tot = kc.p + kc.c + kc.f || 1, usual = { p: 0.25, c: 0.45, f: 0.3 };
   const gap = ['p', 'c', 'f'].sort((a, b) => (kc[b] / tot) / usual[b] - (kc[a] / tot) / usual[a])[0], kper = { p: 4, c: 4, f: 9 };
-  const cap = Math.min(rem.kcal * 0.85, 650), cands = [];
+  const cap = Math.min(rem.kcal, 650), cands = [];
   const add = (c) => { const s = c.serv; if (!(s.kcal > 0)) return; cands.push(c); };
   fkBuild();
   for (const m of S.myfoods) {
@@ -8563,7 +8566,7 @@ function fkSuggest(remaining, n = 3) {
   out.sort((a, b) => b.s - a.s);
   const res = [], seenG = new Set(), seenW = new Set();
   for (const r of out) {
-    const w = fkTokens(r.c.name).toks[0] || r.c.name; if (seenG.has(r.c.group) || seenW.has(w)) continue; seenG.add(r.c.group); seenW.add(w);
+    const w = r.c.source === 'kb' ? fkTokens(r.c.name).toks[0] || r.c.name : ''; if (seenG.has(r.c.group) || (w && seenW.has(w))) continue; seenG.add(r.c.group); if (w) seenW.add(w);
     const grams = r.c.unitG ? Math.round(r.c.unitG * r.k) : 0, nm = { kcal: Math.round(r.kcal), p: Math.round(r.gm.p * 10) / 10, c: Math.round(r.gm.c * 10) / 10, f: Math.round(r.gm.f * 10) / 10 };
     const word = gap === 'p' ? 'protein' : gap === 'c' ? 'carbs' : 'fat', amt = Math.round(r.gm[gap]);
     res.push({ id: r.c.id, name: r.c.name, source: r.c.source, grams, label: r.k === 1 ? r.c.labelOne : `${r.k} x ${r.c.labelOne}`, ...nm, gap, reason: `+${amt} g ${word} for ${nm.kcal} kcal` });
@@ -8691,8 +8694,7 @@ function fkEditSave() {
   commit(() => {
     let m = d.id && S.myfoods.find((x) => x.id === d.id); if (!m) { const t = fkTokens(name); let id = 'u:' + t.toks.join('-'); if (!t.toks.length || S.myfoods.some((x) => x.id === id)) id = 'f' + uid(); m = { id, used: 0, last: 0, fav: false }; S.myfoods.push(m); }
     for (const k of ['fiber', 'sugar', 'na', 'sat']) delete m[k];
-    Object.assign(m, { name, brand: m.brand || '', ...ps, serving: d.serving.trim() || `${Math.round(grams * 10) / 10} g`, sg: grams, per100: fkRoundNut(full), user: true, fav: !!d.fav, updated: Date.now() });
-    m.per100.kcal = Math.round(full.kcal);
+    Object.assign(m, { name, brand: m.brand || '', ...ps, serving: d.serving.trim() || `${Math.round(grams * 10) / 10} g`, sg: grams, per100: fkPer100(full, 100), user: true, fav: !!d.fav, updated: Date.now() });
     if (bar) m.barcode = bar; else delete m.barcode;
   });
   toast('Saved ' + name); fkUi = { view: 'list', q: '', id: '', d: null, ingBusy: false }; fkMyPaint();

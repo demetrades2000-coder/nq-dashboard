@@ -2700,6 +2700,7 @@ function renderToday() {
     <div class="td-h"><div><h2>${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}</h2><div class="sub">${own.length} event${own.length === 1 ? '' : 's'}, ${tks.length} task${tks.length === 1 ? '' : 's'} to do${doneToday ? `, ${doneToday} done` : ''}</div></div><div style="display:flex;gap:6px"><button class="btn sm" data-tweek>Plan week</button><button class="btn sm ${planned ? '' : 'primary'}" data-tplan>${planned ? 'Re-plan' : 'Plan day'}</button></div></div>
     ${risk.filter((r) => r.level !== 'info').length ? `<div class="nw-warn" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">${risk.filter((r) => r.level !== 'info').map((r) => esc(r.text)).join(' · ')}</div>` : ''}
     ${risk.filter((r) => r.level === 'info').map((r) => `<div class="nw-warn">${esc(r.text)}</div>`).join('')}
+    ${briefTodayCard()}
     ${tiltTodayCard()}${tradePlanTodayCard()}
     ${guardTodayCard()}
     ${shutdownCard()}
@@ -2781,6 +2782,7 @@ function route() {
   else if (h === 'worth') { goToday(); openWorth(); }
   else if (h === 'alerts') { goToday(); openAlerts(); }
   else if (h === 'miles') { goToday(); openMiles(); }
+  else if (h === 'brief') { goToday(); openBrief(); }
   else if (h === 'tilt') { goToday(); openTiltSettings(); }
   else if (h === 'trade-plan') { goToday(); tpMode = 'plan'; renderMain(); }
   else if (h === 'search' || h === 'palette') { goToday(); openPalette(); }
@@ -3550,6 +3552,112 @@ $('#main').addEventListener('click', (e) => {
   else if (e.target.closest('[data-mirepeat]')) { const l = miLastTrip(); if (l) miAddTrip({ from: l.from, to: l.to, job: l.job, miles: l.miles }, 'Repeated ' + miRoute(l)); }
 });
 // ===== MILES END =====
+
+// ===== BRIEF BEGIN: daily brief, a plain-text summary of today you can copy or send to Notes/Messages =====
+// Reads what the app already knows. Each section is built inside brPart(), and any feature that is missing (checked with typeof)
+// or throws simply leaves its section out, so the brief never breaks.
+document.head.insertAdjacentHTML('beforeend', `<style>
+#brDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}
+.br-sec h4{font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.br-sec ul{list-style:none;display:flex;flex-direction:column;gap:3px;font-size:14px;line-height:1.4}
+.br-sec li{overflow-wrap:anywhere}.br-sec li.warn{color:#991b1b;font-weight:500}
+.br-sec{display:block}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="brDlg" aria-labelledby="brTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="brTitle">Daily brief</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="brBody" style="display:flex;flex-direction:column;gap:14px"></div>
+  <div class="dlg-f"><div><button type="button" class="btn" data-close>Close</button></div><div style="display:flex;gap:8px"><button type="button" class="btn" id="brCopy">Copy</button><button type="button" class="btn primary" id="brShare">Share</button></div></div>
+</div></dialog>`);
+const brDlg = $('#brDlg');
+const brT = (hm) => fmtTime(hm);
+const brRel = (k, today) => { const n = diffDays(today, k); return n === 0 ? 'today' : n === 1 ? 'tomorrow' : n === -1 ? 'yesterday' : n < 0 ? `${-n} days late` : `in ${n} days`; };
+// sections: [{ h, lines: [{ t, warn }] }]
+function brBuild() {
+  const today = todayKey(), now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes(), secs = [];
+  const part = (h, fn) => { try { const lines = fn(); if (lines && lines.length) secs.push({ h, lines: lines.map((l) => (typeof l === 'string' ? { t: l } : l)) }); } catch (e) { /* leave this section out */ } };
+  part('Today', () => {
+    if (typeof eventsOn !== 'function') return [];
+    const own = eventsOn(today).filter((o) => !o.ev.bot && !o.ev.milestone && !o.cont);
+    return own.map((o) => { const e = o.ev, shift = /^job-/.test(e.cat || ''); return `${e.allDay ? 'All day' : brT(e.start) + (e.end ? '-' + brT(e.end) : '')}  ${e.title}${shift ? ' (shift)' : ''}`; });
+  });
+  part('Trading windows', () => {
+    if (typeof gdWindows !== 'function') return [];
+    const w = gdWindows(today, nowMin); if (w.closed) return [];
+    const r = (a, b) => `${brT(fromMin(a))}-${b >= 1440 ? 'midnight' : brT(fromMin(b))}`;
+    const out = w.items.map((it) => it.kind === 'done' ? `${it.name}: over` : it.kind === 'blocked' ? { t: `${it.name}: blocked by ${it.why.join(', ') || 'your schedule'}`, warn: true } : `${it.name}: free ${it.free.map(([a, b]) => r(a, b)).join(', ')}${it.partial ? ` (around ${it.why.join(', ')})` : ''}`);
+    return w.items.every((it) => it.kind === 'done') ? [] : out;
+  });
+  part('Tilt and plan', () => {
+    const out = [];
+    if (typeof tzActive === 'function') { const a = tzActive(); out.push(a && a.showBanner ? { t: `Stop trading: ${a.last.kind === 'loss' ? 'daily loss stop hit' : a.last.text}${a.cooling ? ', cooldown running' : ''}`, warn: true } : 'Tilt guard: no stop hit today'); }
+    if (typeof tpOf === 'function') {
+      const p = tpOf(today);
+      out.push(p && (p.setup || p.bias) ? `Trade plan: ${[p.bias ? 'bias ' + p.bias : '', p.setup ? 'setup "' + p.setup + '"' : '', p.max ? 'max ' + p.max + ' trades' : ''].filter(Boolean).join(', ')}` : { t: 'Trade plan: not written yet', warn: true });
+    }
+    return out;
+  });
+  part('News windows', () => {
+    if (typeof tpNews !== 'function') return [];
+    return tpNews(today).slice(0, 6).map((e) => ({ t: `${brT(e.lt)}  ${e.title}${e.impact === 'high' ? ' (high impact)' : ''}`, warn: e.impact === 'high' }));
+  });
+  part('Bills due in 3 days', () => {
+    if (typeof bnList !== 'function' || typeof bnDates !== 'function') return [];
+    const out = [];
+    bnList().forEach((b) => bnDates(b, today, addDays(today, 3)).forEach((k) => out.push({ k, t: `${b.name} ${bnUsd(b.amt)}, ${brRel(k, today)}` })));
+    return out.sort((a, b) => a.k.localeCompare(b.k));
+  });
+  part('Deal follow-ups', () => {
+    if (!Array.isArray(S.deals) || typeof plIsOpen !== 'function') return [];
+    return S.deals.filter((d) => plIsOpen(d) && YMD.test(d.follow || '') && d.follow <= today).sort((a, b) => a.follow.localeCompare(b.follow)).slice(0, 8)
+      .map((d) => ({ t: `${d.name || 'Deal'}${+d.value ? ' (' + usd(+d.value) + ')' : ''}: ${d.follow < today ? brRel(d.follow, today) + ' overdue' : 'due today'}`, warn: d.follow < today }));
+  });
+  part('Tasks due', () => {
+    const due = S.tasks.filter((t) => !t.done && t.date === today), late = S.tasks.filter((t) => !t.done && t.date && t.date < today);
+    const out = due.sort((a, b) => (b.p || 0) - (a.p || 0)).slice(0, 10).map((t) => t.title);
+    if (due.length > 10) out.push(`+${due.length - 10} more`);
+    if (late.length) out.push({ t: `${late.length} overdue task${late.length === 1 ? '' : 's'}`, warn: true });
+    return out;
+  });
+  part("Yesterday's win", () => {
+    const j = typeof jrnOf === 'function' ? jrnOf(addDays(today, -1)) : null;
+    return j && j.win ? [j.win] : [];
+  });
+  return { today, title: `Brief for ${longDate(today)}`, secs };
+}
+function brText(b) {
+  const out = [b.title.toUpperCase()];
+  if (!b.secs.length) out.push('', 'Nothing on the schedule, no bills, follow-ups or tasks due.');
+  b.secs.forEach((s) => { out.push('', s.h.toUpperCase()); s.lines.forEach((l) => out.push('- ' + l.t.replace(/\s{2,}/g, ' '))); });
+  return out.join('\n');
+}
+function brHtml(b) {
+  return b.secs.length ? b.secs.map((s) => `<section class="br-sec"><h4>${esc(s.h)}</h4><ul>${s.lines.map((l) => `<li${l.warn ? ' class="warn"' : ''}>${esc(l.t)}</li>`).join('')}</ul></section>`).join('') : '<div class="empty-s">Nothing on the schedule, no bills, follow-ups or tasks due.</div>';
+}
+function openBrief() { const b = brBuild(); $('#brBody').innerHTML = brHtml(b); brDlg.dataset.text = brText(b); if (!brDlg.open) brDlg.showModal(); }
+async function brCopy(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch (e) { /* fall through to the old way */ }
+  try {
+    const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:-9999px;top:0;font-size:16px';
+    document.body.appendChild(ta); ta.select(); const ok = document.execCommand('copy'); ta.remove(); return ok;
+  } catch (e) { return false; }
+}
+brDlg.addEventListener('click', async (e) => {
+  const text = brDlg.dataset.text || '';
+  if (e.target.closest('#brCopy')) toast((await brCopy(text)) ? 'Brief copied' : 'Could not copy on this device');
+  else if (e.target.closest('#brShare')) {
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Daily brief', text }); return; } catch (err) { if (err && err.name === 'AbortError') return; }
+    }
+    toast((await brCopy(text)) ? 'Sharing is not available here, so the brief was copied' : 'Could not copy on this device');
+  }
+});
+function briefTodayCard() {
+  const b = brBuild(), n = (h) => { const s = b.secs.find((x) => x.h === h); return s ? s.lines.length : 0; };
+  const bits = [n('Today') ? `${n('Today')} on the schedule` : '', n('Bills due in 3 days') ? `${n('Bills due in 3 days')} bill${n('Bills due in 3 days') === 1 ? '' : 's'} soon` : '', n('Deal follow-ups') ? `${n('Deal follow-ups')} follow-up${n('Deal follow-ups') === 1 ? '' : 's'}` : '', n('Tasks due') ? `${n('Tasks due')} task line${n('Tasks due') === 1 ? '' : 's'}` : ''].filter(Boolean);
+  return `<section class="td-card" id="brCard"><h3>Brief<button data-bropen>Open</button></h3><div class="hint">${esc(bits.length ? bits.join(', ') : 'A clear day so far')}. Copy it or send it to your Notes.</div></section>`;
+}
+$('#main').addEventListener('click', (e) => { if (S.view === 'today' && e.target.closest('[data-bropen]')) openBrief(); });
+// ===== BRIEF END =====
 
 // ===== SHIFTS BEGIN: recurring work shifts (Outback, electric) =====
 const shDlg = $('#shDlg');

@@ -8308,8 +8308,8 @@ async function fkUsdaSearch(query) {
 // Flags impossible numbers. n: nutrients {kcal,p,c,f,fiber,sugar,sat,alc?}. opts.grams: the weight n is for (without it n is read as per 100 g).
 // Returns [] when fine, else codes: negative, not_a_number, kcal_mismatch (kcal vs 4p+4c+9f(+7 alcohol) off by more than 25%), macros_over_weight,
 // kcal_too_dense (more than 9.1 kcal per gram), fiber_over_carbs, sugar_over_carbs, sat_over_fat.
-function fkSanity(n, opts = {}) {
-  const out = []; if (!n || typeof n !== 'object') return ['not_a_number'];
+function fkSanity(n, opts) {
+  opts = opts || {}; const out = []; if (!n || typeof n !== 'object') return ['not_a_number'];
   const v = (k) => (n[k] == null ? null : +n[k]);
   for (const k of FK_NUT) { const x = v(k); if (x != null && !Number.isFinite(x)) { out.push('not_a_number'); return out; } }
   if (FK_NUT.some((k) => v(k) != null && v(k) < 0)) out.push('negative');
@@ -8376,7 +8376,7 @@ function fkPickUsda(q, list) { // best USDA record for the query words: {rec, sc
   list.forEach((r, i) => {
     const t = fkTokens(r.n), { cov, nameCov } = fkCover(q.toks, t.toks); if (cov < 0.66) return;
     const fl = fkSanity({ kcal: r.v[0], p: r.v[1], c: r.v[2], f: r.v[3], fiber: r.v[4], sugar: r.v[5], sat: r.v[7] }); if (fl.length) return;
-    let s = 100 * Math.pow(cov, 1.5) * (0.6 + 0.4 * nameCov) + (i === 0 ? 6 : 0);
+    let s = 100 * Math.pow(cov, 1.5) * (0.75 + 0.25 * nameCov) + (i === 0 ? 6 : 0);
     const st = fkUsdaFood(r).state;
     if (q.states.size === 1) { const w = [...q.states][0]; if (st === w) s += 14; else if (st && st !== w) s -= 22; }
     if (!best || s > best.score) best = { rec: r, score: s, cov };

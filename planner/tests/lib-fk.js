@@ -12,7 +12,7 @@ const CATALOG = [
   [/rutabaga/i, [usdaFood(11, 'Rutabagas, raw', 'SR Legacy', { kcal: 38, p: 1.08, c: 8.62, f: 0.16, fiber: 2.3, sugar: 4.46, na: 12, sat: 0.02 }), usdaFood(12, 'Rutabagas, cooked, boiled, drained, without salt', 'SR Legacy', { kcal: 35, p: 0.9, c: 8.1, f: 0.2, fiber: 2.2, sugar: 4.2, na: 15, sat: 0.02 })]],
   [/kohlrabi/i, [usdaFood(21, 'Kohlrabi, raw', 'Foundation', { k2047: 27, p: 1.7, c: 6.2, f: 0.1, fiber: 3.6, sugar: 2.6, na: 20, sat: 0 })]],
   [/bogus/i, [usdaFood(31, 'Bogus food, raw', 'SR Legacy', { kcal: 900, p: 0, c: 0, f: 0 })]],
-  [/venison/i, [usdaFood(41, 'Game meat, deer, raw', 'SR Legacy', { kcal: 120, p: 22.9, c: 0, f: 2.4, sat: 1 })]],
+  [/venison/i, [usdaFood(41, 'Venison, deer, raw', 'SR Legacy', { kcal: 120, p: 22.9, c: 0, f: 2.4, sat: 1 })]],
 ];
 // Mock USDA. Returns {hits, urls, mode} : mode.limit = true answers 429, mode.bad = true answers 403, mode.off = true aborts.
 async function mockUsda(ctx) {

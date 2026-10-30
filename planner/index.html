@@ -4428,6 +4428,7 @@ tlDlg.addEventListener('click', async (e) => {
   if (t.closest('[data-tlsave]')) { tlSaveForm(); return; }
   if (t.closest('[data-tldel]')) {
     const en = S.timelog.find((x) => x.id === tlEditId); if (!en) return;
+    if (!(await ask(`Delete "${en.title}"?`, 'This time entry is removed from your log and the audit.', 'Delete entry', { danger: true }))) return;
     snapshot(); commit(() => { S.timelog = S.timelog.filter((x) => x.id !== en.id); });
     toast('Entry deleted', true);
     if (tlBack === 'audit') tlShow('audit'); else tlDlg.close();

@@ -141,6 +141,10 @@ const URL = 'http://127.0.0.1:' + (process.env.PORT || 8782) + '/nq-dashboard/pl
   ok((await state()).timelog.some((e) => !e.end && e.title === 'From the Now bar'), 'timer running');
   await p.tap('#nowbar [data-tlnow]'); await wait(300); ok(!(await state()).timelog.some((e) => !e.end), 'tapping the running chip stops it');
 
+  // deep links
+  await p.goto(URL + '#time-audit'); await wait(900); ok(await p.isVisible('#tlDlg') && /Time audit/.test(await p.textContent('#tlTitle')), '#time-audit deep link'); await p.keyboard.press('Escape');
+  await p.goto(URL + '#timer'); await wait(900); ok(await p.isVisible('#tlDlg') && /Start the timer/.test(await p.textContent('#tlTitle')), '#timer deep link'); await p.keyboard.press('Escape');
+
   // palette hooks
   await p.keyboard.press('Control+k'); await wait(100); await p.fill('#pkIn', 'time audit'); await p.keyboard.press('Enter'); await wait(250);
   ok(await p.isVisible('#tlDlg') && /Time audit/.test(await p.textContent('#tlTitle')), 'palette opens the Time audit');

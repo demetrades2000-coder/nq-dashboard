@@ -111,6 +111,8 @@ const URL = 'http://127.0.0.1:' + (process.env.PORT || 8782) + '/nq-dashboard/pl
   await p.click('[data-plwdone="' + lee.id + '"]'); await wait(250); ok(!(await state()).waiting.some((w) => w.who === 'Lee'), 'Got it removes it');
   await p.click('#plDlg [data-close]'); await wait(150);
 
+  await p.goto(URL + '#deals'); await wait(900); ok(await p.isVisible('#plBoard'), '#deals deep link opens the board'); await p.keyboard.press('Escape'); await wait(100);
+
   // palette
   await p.keyboard.press('Control+k'); await wait(100); await p.fill('#pkIn', 'acme'); await wait(150);
   ok((await p.$$eval('#pkList .pk-g', (n) => n.map((x) => x.textContent))).includes('Deals'), 'palette finds deals');

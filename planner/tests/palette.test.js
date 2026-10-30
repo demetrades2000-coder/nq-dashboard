@@ -123,6 +123,9 @@ const URL = 'http://127.0.0.1:' + (process.env.PORT || 8782) + '/nq-dashboard/pl
   const recentRows = await rows(); ok(recentRows.slice(0, 5).length === 5, 'recent list has 5: ' + recentRows.slice(0, 5).join(' | '));
   await closeAll();
 
+  // deep link
+  await p.goto(URL + '#search'); await wait(900); ok(await p.isVisible('#pkDlg'), '#search deep link opens the palette'); await p.keyboard.press('Escape');
+
   // phone: header button, no sideways scroll
   const pc = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   const m = await pc.newPage(); m.on('pageerror', (e) => errs.push('phone: ' + e.message));

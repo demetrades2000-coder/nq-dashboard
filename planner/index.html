@@ -1180,7 +1180,7 @@ const shade = (hex, f) => { const [r, g, b] = rgb(hex); return `rgb(${Math.round
 const cvars = (hex) => `--c:${hex};--bg-c:${tint(hex, .13)};--fg:${shade(hex, .42)}`;
 
 // ---------- state ----------
-const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg']; // collections added by the Rules and Trades features
+const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt']; // collections added by the Rules and Trades features
 let S = load();
 let cursor = todayKey(), selected = cursor, miniMonth = cursor.slice(0, 7);
 let query = '', agendaDays = 30, undoSnap = null, editing = null, lastScrollView = null;
@@ -2698,6 +2698,7 @@ function renderToday() {
     <div class="td-h"><div><h2>${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}</h2><div class="sub">${own.length} event${own.length === 1 ? '' : 's'}, ${tks.length} task${tks.length === 1 ? '' : 's'} to do${doneToday ? `, ${doneToday} done` : ''}</div></div><div style="display:flex;gap:6px"><button class="btn sm" data-tweek>Plan week</button><button class="btn sm ${planned ? '' : 'primary'}" data-tplan>${planned ? 'Re-plan' : 'Plan day'}</button></div></div>
     ${risk.filter((r) => r.level !== 'info').length ? `<div class="nw-warn" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">${risk.filter((r) => r.level !== 'info').map((r) => esc(r.text)).join(' · ')}</div>` : ''}
     ${risk.filter((r) => r.level === 'info').map((r) => `<div class="nw-warn">${esc(r.text)}</div>`).join('')}
+    ${tiltTodayCard()}
     ${guardTodayCard()}
     ${shutdownCard()}
     <section class="td-card"><h3>Schedule<button data-tgo="day">Day view</button></h3>${own.length ? own.map(evRow).join('') : '<div class="empty-s">Nothing scheduled. Tap Plan day to block time for your tasks.</div>'}${pauses.length ? `<div class="hint" style="margin-top:4px">Bot pauses: ${pauses.filter((o) => /bot paused/.test(o.ev.title)).map((o) => `${fmtTime(o.ev.start)} to ${fmtTime(o.ev.end)}`).join(', ') || 'none today'}</div>` : ''}</section>
@@ -2766,6 +2767,7 @@ function route() {
   else if (h === 'week-balance') { goToday(); openWeekBal(); }
   else if (h === 'earnings') { goToday(); openEarn(); }
   else if (h === 'bills') { goToday(); openBills(); }
+  else if (h === 'tilt') { goToday(); openTiltSettings(); }
   else if (h === 'new-task') { goToday(); setTimeout(() => $('#taskIn').focus(), 60); }
   else if (views.includes(h)) { goToday(); setView(h); }
 }
@@ -3621,6 +3623,155 @@ function billsTodayCard() {
 }
 $('#main').addEventListener('click', (e) => { if (S.view === 'today' && e.target.closest('[data-bnopen]')) openBills(); });
 // ===== BILLS END =====
+
+// ===== TILT BEGIN: stop-trading guard over today's live/paper trades (synced collection `tilt`: id 'cfg' = settings, 'ack:DAY' = "I understand" notes) =====
+// Reads the closed live/paper trades the dashboard published (nqTrades; never the backtest). Nothing triggers without trades.
+// A stop fires on N losing trades in a row or on the day's loss reaching the daily stop; the cooldown then runs from the trade that caused it.
+// A trade entered during the cooldown (or after a daily-loss stop) counts as breaking the stop in the discipline record.
+const TL_WHY = ['Revenge urge', 'FOMO', 'Bad read of the market', 'Tired or distracted', 'It was just a normal loss'];
+document.head.insertAdjacentHTML('beforeend', `<style>
+.tl-ban{border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:13.5px;line-height:1.4}
+.tl-ban.amber{border-color:#f3d9a4;background:#fffaf0;color:#92400e}
+.tl-ban .tl-t{font-size:17px;font-weight:700;letter-spacing:-.01em}
+.tl-ban .tl-cd{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+.tl-ban .btn{align-self:flex-start;border-color:currentColor;color:inherit;background:#fff}
+.tl-rec{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.tl-rec div{border:1px solid var(--line);border-radius:10px;padding:8px 10px;text-align:center}
+.tl-rec b{display:block;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}.tl-rec span{font-size:11.5px;color:var(--mute)}
+.nowbar .nb-t small.nb-x[data-tiltlog]{cursor:pointer;text-decoration:underline;text-underline-offset:2px;font-weight:600}
+#tlDlg textarea,#tsDlg input{font-size:16px}#tlDlg textarea{width:100%;min-height:84px;border:1px solid var(--line);border-radius:8px;padding:9px 10px;line-height:1.45;resize:vertical}
+.tl-chips{display:flex;flex-wrap:wrap;gap:6px}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="tlDlg" aria-labelledby="tlTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="tlTitle">I understand. Log why.</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="hint" id="tlWhat"></div>
+  <div class="tl-chips" id="tlChips">${TL_WHY.map((w) => `<button type="button" class="btn sm" data-tlwhy="${esc(w)}">${esc(w)}</button>`).join('')}</div>
+  <div class="fld"><label for="tlText">One honest line: why did this happen?</label><textarea id="tlText" maxlength="400" placeholder="What I felt, what I will do next"></textarea></div>
+  <div class="hint neg" id="tlErr" hidden></div>
+  <div class="dlg-f"><div></div><div><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn primary" id="tlSave">Save to journal</button></div></div>
+</div></dialog>
+<dialog id="tsDlg" aria-labelledby="tsTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="tsTitle">Tilt guard settings</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="fld"><label for="tsMax">Stop after this many losing trades in a row (0 = off)</label><input id="tsMax" type="number" min="0" max="20" step="1" inputmode="numeric"></div>
+  <div class="fld"><label for="tsStop">Daily loss stop in dollars (0 = off)</label><input id="tsStop" type="number" min="0" step="10" inputmode="decimal"></div>
+  <div class="hint" id="tsDash"></div>
+  <div class="fld"><label for="tsCool">Cooldown after a stop (minutes)</label><input id="tsCool" type="number" min="0" max="240" step="5" inputmode="numeric"></div>
+  <div class="hint">Counts the live and paper trades the dashboard has published today, never the backtest. If the bot PC has not published lately the guard can be behind.</div>
+  <div class="dlg-f"><div><button type="button" class="btn sm" id="tsReset">Use the defaults</button></div><div><button type="button" class="btn primary" data-close>Done</button></div></div>
+</div></dialog>`);
+const tlDlg = $('#tlDlg'), tsDlg = $('#tsDlg');
+function tlDashLimit() { // smallest daily loss limit (dll) the dashboard reports for an account, 0 when none
+  const b = (nqBot && nqBot.trade && nqBot.trade.bots) || {};
+  const v = Object.values(b).map((x) => x && x.dll).filter((x) => typeof x === 'number' && x > 0);
+  return v.length ? Math.min(...v) : 0;
+}
+function tlCfg() {
+  const c = S.tilt.find((x) => x.id === 'cfg') || {}, n = (v, lo, hi, d) => (v != null && v !== '' && Number.isFinite(+v) ? Math.min(hi, Math.max(lo, +v)) : d);
+  const own = c.stop != null && c.stop !== '' && Number.isFinite(+c.stop), lim = tlDashLimit();
+  return { maxLoss: Math.round(n(c.maxLoss, 0, 20, 2)), stop: own ? Math.max(0, +c.stop) : lim, stopOwn: own, dash: lim, cool: Math.round(n(c.cool, 0, 240, 30)) };
+}
+const tlClose = (t) => (t.t1 || t.t0) * 1000;
+function tlEval(day, cfg) { // stops, violations and the day's numbers from the closed trades of one New York trading day
+  const ts = nqTrades.filter((t) => t && t.day === day && typeof t.usd === 'number').sort((a, b) => tlClose(a) - tlClose(b));
+  let cum = 0, streak = 0, loss = null, lock = null, viol = 0, wins = 0, losses = 0;
+  const stops = [];
+  for (const t of ts) {
+    const open = t.t0 * 1000;
+    if (loss && open > loss.at) viol++; else if (lock && open > lock.at && open < lock.until) viol++;
+    cum += t.usd; streak = t.usd < 0 ? streak + 1 : 0; if (t.usd > 0) wins++; else if (t.usd < 0) losses++;
+    const at = tlClose(t);
+    if (!loss && cfg.stop > 0 && cum <= -cfg.stop) { loss = { kind: 'loss', at, until: at + cfg.cool * 60000, text: `the day is down ${usd(-cum)} (daily loss stop ${usd(cfg.stop)})` }; stops.push(loss); }
+    else if (!loss && cfg.maxLoss > 0 && streak >= cfg.maxLoss) { lock = { kind: 'streak', at, until: at + cfg.cool * 60000, text: `${streak} losing trades in a row` }; stops.push(lock); streak = 0; }
+  }
+  return { day, trades: ts, count: ts.length, pnl: Math.round(cum * 100) / 100, wins, losses, stops, last: stops[stops.length - 1] || null, viol };
+}
+function tlActive() { // today's guard state, or null when nothing was hit
+  const cfg = tlCfg(), day = mnEt().day, ev = tlEval(day, cfg);
+  if (!ev.last) return null;
+  const last = ev.last, ack = S.tilt.find((x) => x.id === 'ack:' + day && (+x.at || 0) >= last.at) || null, left = Math.max(0, last.until - Date.now());
+  return { ...ev, cfg, ack, left, cooling: left > 0, showBanner: last.kind === 'loss' || left > 0 || !ack };
+}
+function tlRecord(days = 30) { // days a stop was hit, and whether it was respected (30 days back, from the saved trades)
+  const cfg = tlCfg(), today = mnEt().day, have = new Set(nqTrades.map((t) => t && t.day)), now = Date.now();
+  let ok = 0, bad = 0;
+  for (let i = 0; i < days; i++) {
+    const k = addDays(today, -i); if (!have.has(k)) continue;
+    const ev = tlEval(k, cfg); if (!ev.last) continue;
+    if (ev.viol > 0) bad++; else if (k < today || ev.last.until <= now) ok++;
+  }
+  return { ok, bad };
+}
+const tlCd = (ms) => { const s = Math.ceil(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return (h ? h + ':' + pad(m) : m) + ':' + pad(s % 60); };
+function tlBanner(a) {
+  if (!a || !a.showBanner) return '';
+  const l = a.last, red = l.kind === 'loss' || a.cooling;
+  const status = a.cooling ? `Cooldown <span class="tl-cd" data-tiltcd="${l.until}">${tlCd(a.left)}</span> left` : l.kind === 'loss' ? 'Done for today. No more trades.' : 'Cooldown is over. Log why before the next trade.';
+  return `<div class="tl-ban${red ? '' : ' amber'}" id="tlBan" role="alert"><div class="tl-t">Stop trading</div><div>${esc(l.kind === 'loss' ? 'Daily loss stop hit: ' + l.text : 'Stop hit after ' + l.text)}.</div><div>${status}</div>${a.viol ? `<div><b>You traded ${a.viol} time${a.viol === 1 ? '' : 's'} after the stop.</b></div>` : ''}<button type="button" class="btn sm" data-tiltlog>${a.ack ? 'Logged. Add another note' : 'I understand, log why'}</button></div>`;
+}
+function tiltTodayCard() {
+  const a = tlActive(), cfg = tlCfg(), rec = tlRecord(), ev = a || tlEval(mnEt().day, cfg);
+  const limits = [cfg.maxLoss ? `${cfg.maxLoss} losses in a row` : '', cfg.stop ? `${usd(cfg.stop)} daily loss` : '', `${cfg.cool} min cooldown`].filter(Boolean).join(' · ');
+  const built = nqBot && nqBot.trade && nqBot.trade.built ? Math.round((Date.now() - Date.parse(nqBot.trade.built)) / 3600e3) : null;
+  return `${tlBanner(a)}<section class="td-card" id="tlCard"><h3>Tilt guard<button data-tiltset>Settings</button></h3>
+    <div class="tl-rec"><div><b class="${moneyCls(ev.pnl)}">${ev.count ? money(ev.pnl) : '-'}</b><span>${ev.count} live/paper trade${ev.count === 1 ? '' : 's'} today</span></div><div><b id="tlRecord">${rec.ok} / ${rec.bad}</b><span>stops followed / broken, 30 days</span></div></div>
+    <div class="hint">Stops after: ${esc(limits)}${cfg.maxLoss || cfg.stop ? '' : ' (both off)'}.${built != null && built >= 6 ? ` Trade data is ${built >= 48 ? Math.round(built / 24) + ' days' : built + ' hours'} old, so the guard may be behind.` : ''}</div></section>`;
+}
+function tiltNowLine() { // one line for the Now bar (called from nowExtras)
+  const a = tlActive(); if (!a || !a.showBanner) return '';
+  const l = a.last;
+  return `<small class="nb-x red" data-tiltlog>Stop trading: ${esc(l.kind === 'loss' ? 'daily loss stop hit' : l.text)}. ${a.cooling ? `Cooldown <span data-tiltcd="${l.until}">${tlCd(a.left)}</span>` : l.kind === 'loss' ? 'Done for today' : 'Cooldown over'}. Tap to log why.</small>`;
+}
+function openTiltLog() {
+  const a = tlActive(); if (!a) { toast('No stop is active right now'); return; }
+  $('#tlWhat').textContent = `${a.last.kind === 'loss' ? 'Daily loss stop' : 'Stop'} at ${fmtTime(hmOf(a.last.at))}: ${a.last.text}. This adds a note to today's journal.`;
+  $('#tlText').value = ''; $('#tlErr').hidden = true; tlDlg.showModal(); setTimeout(() => $('#tlText').focus(), 30);
+}
+const hmOf = (ms) => { const d = new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+tlDlg.addEventListener('click', (e) => {
+  const w = e.target.closest('[data-tlwhy]');
+  if (w) { const t = $('#tlText'); t.value = (t.value.trim() ? t.value.trim() + '. ' : '') + w.dataset.tlwhy; t.focus(); return; }
+  if (!e.target.closest('#tlSave')) return;
+  const a = tlActive(), why = $('#tlText').value.trim();
+  if (!a) { tlDlg.close(); return; }
+  if (!why) { $('#tlErr').textContent = 'Write one line first.'; $('#tlErr').hidden = false; return; }
+  const jd = todayKey(), et = mnEt().day, line = `[Tilt stop ${fmtTime(hmOf(a.last.at))}] ${a.last.text}. Why: ${why}`;
+  snapshot();
+  commit(() => {
+    const j = upsert(S.journal, 'j:' + jd, () => ({ id: 'j:' + jd, date: jd, note: '', mood: 0, rules: '' }), {});
+    j.note = (j.note ? j.note + '\n' : '') + line;
+    upsert(S.tilt, 'ack:' + et, () => ({ id: 'ack:' + et }), { date: et, at: Date.now(), why: why.slice(0, 400) });
+  });
+  tlDlg.close(); render(); toast('Logged to your journal', true);
+});
+function tsPaint() {
+  const c = tlCfg();
+  $('#tsMax').value = c.maxLoss; $('#tsStop').value = c.stop || 0; $('#tsCool').value = c.cool;
+  $('#tsDash').textContent = c.dash ? `The dashboard's daily limit is ${usd(c.dash)}${c.stopOwn ? '' : ', used until you type your own'}.` : 'The dashboard reports no daily limit yet, so the daily stop is off until you type one.';
+}
+tsDlg.addEventListener('change', (e) => {
+  const id = e.target.id; if (!/^ts(Max|Stop|Cool)$/.test(id)) return;
+  const v = Math.max(0, +e.target.value || 0);
+  const patch = id === 'tsMax' ? { maxLoss: Math.min(20, Math.round(v)) } : id === 'tsStop' ? { stop: Math.round(v * 100) / 100 } : { cool: Math.min(240, Math.round(v)) };
+  commit(() => { upsert(S.tilt, 'cfg', () => ({ id: 'cfg' }), patch); });
+  tsPaint(); render();
+});
+tsDlg.addEventListener('click', (e) => {
+  if (!e.target.closest('#tsReset')) return;
+  commit(() => { S.tilt = S.tilt.filter((x) => x.id !== 'cfg'); }); tsPaint(); render(); toast('Back to the defaults');
+});
+function openTiltSettings() { tsPaint(); tsDlg.showModal(); }
+tsDlg.addEventListener('close', () => render());
+document.addEventListener('click', (e) => { // works from the Today banner, the card and the Now bar
+  if (e.target.closest && e.target.closest('[data-tiltlog]')) { e.stopPropagation(); e.preventDefault(); openTiltLog(); }
+}, true);
+$('#main').addEventListener('click', (e) => { if (S.view === 'today' && e.target.closest('[data-tiltset]')) openTiltSettings(); });
+setInterval(() => { // live countdown; one re-render when a cooldown ends
+  const els = document.querySelectorAll('[data-tiltcd]'); if (!els.length) return;
+  const now = Date.now(); let over = false;
+  els.forEach((el) => { const left = +el.dataset.tiltcd - now; if (left <= 0) over = true; else el.textContent = tlCd(left); });
+  if (over) { safeRender(); renderNow(); }
+}, 1000);
+// ===== TILT END =====
 
 // ===== LEAD2 BEGIN: goals and money =====
 const moneyOpen = new Set();
@@ -4696,6 +4847,7 @@ function nowExtras(bar) {
   if (S.rules.length && isWkd(today) && !ckOf(today)) h += '<small class="nb-x" data-nowrules>Checklist not done today. Tap to run it.</small>';
   const al = riskAlerts().filter((a) => a.level === 'red' || a.level === 'amber');
   if (al.length) h += `<small class="nb-x ${al[0].level === 'red' ? 'red' : ''}">${esc(al[0].text)}${al.length > 1 ? ` (+${al.length - 1} more)` : ''}</small>`;
+  h += tiltNowLine(); // TILT block
   if (h) t.insertAdjacentHTML('beforeend', h);
 }
 function renderRules() {

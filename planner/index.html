@@ -1164,7 +1164,10 @@ const key = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate(
 const parse = (k) => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
 const addDays = (k, n) => { const d = parse(k); d.setDate(d.getDate() + n); return key(d); };
 const diffDays = (a, b) => Math.round((parse(b) - parse(a)) / 864e5);
-const dow = (k) => parse(k).getDay();
+// dow/dom are pure functions of the key and sit on the hottest loops (every event x every day), so they are memoised.
+const dowC = new Map(), domC = new Map();
+const dow = (k) => { let v = dowC.get(k); if (v === undefined) { v = parse(k).getDay(); if (dowC.size > 20000) dowC.clear(); dowC.set(k, v); } return v; };
+const dom = (k) => { let v = domC.get(k); if (v === undefined) { v = parse(k).getDate(); if (domC.size > 20000) domC.clear(); domC.set(k, v); } return v; };
 const todayKey = () => key(new Date());
 const toMin = (hm) => { const [h, m] = hm.split(':').map(Number); return h * 60 + m; };
 const fromMin = (n) => `${pad(Math.floor(n / 60) % 24)}:${pad(n % 60)}`;
@@ -1247,7 +1250,7 @@ const DEVICE = /iPhone|iPad/.test(UA) ? 'iPhone' : /Android/.test(UA) ? 'Android
 const readJSON = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
 let sync = (() => { const v = readJSON(SYNC_KEY); return v && v.token && v.repo ? v : null; })();
 let botCache = readJSON(BOTS_KEY) || {};
-let extraEvents = [], syncing = false, syncAgain = false, syncTimer = null, syncState = sync ? 'busy' : 'off', syncMsg = '', lastSynced = 0, pendingRender = false;
+let extraEvents = [], extraSig = '', syncing = false, syncAgain = false, syncTimer = null, syncState = sync ? 'busy' : 'off', syncMsg = '', lastSynced = 0, pendingRender = false;
 
 const canon = (o) => Array.isArray(o) ? '[' + o.map(canon).join(',') + ']'
   : o && typeof o === 'object' ? '{' + Object.keys(o).filter((k) => o[k] !== undefined).sort().map((k) => JSON.stringify(k) + ':' + canon(o[k])).join(',') + '}'
@@ -1273,6 +1276,7 @@ function commit(fn) {
     before[k].forEach((_, id) => { if (!seen.has(id)) { S.deleted[id] = now; removed[k].push(id); } });
   });
   if (S.weekStart !== ws) S.settingsU = now;
+  if (changed.events.length || removed.events.length) evcClear(); // eventsOn() cache (see eventsOn)
   save();
   scheduleSync();
   if (DB) dbPush(changed, removed, S.weekStart !== ws);
@@ -1673,7 +1677,8 @@ function buildBotEvents() {
   out.push(...dealFollowEvents()); // PIPELINE: follow-up dates of open deals
   out.push(...payEvents(gone)); // PAYDAY: expected paydays overlay
   out.push(...taxEvents(gone)); // TAXQ: estimated-tax due dates overlay
-  extraEvents = out;
+  const sig = JSON.stringify(out); // keep the same array while the overlay is unchanged, so the eventsOn() cache survives re-renders
+  if (sig !== extraSig) { extraEvents = out; extraSig = sig; }
 }
 const projOf = (id) => (id ? S.projects.find((x) => x.id === id) : null);
 const squash = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -1750,7 +1755,7 @@ function isStart(ev, k) {
     case 'weekdays': { const w = dow(k); return w > 0 && w < 6; }
     case 'weekly': return dow(k) === dow(ev.date);
     case 'biweekly': return dow(k) === dow(ev.date) && diffDays(ev.date, k) % 14 === 0;
-    case 'monthly': return parse(k).getDate() === parse(ev.date).getDate();
+    case 'monthly': return dom(k) === dom(ev.date);
     case 'yearly': return k.slice(5) === ev.date.slice(5);
     default: return k === ev.date;
   }
@@ -1758,10 +1763,21 @@ function isStart(ev, k) {
 const span = (ev) => (ev.allDay && ev.endDate && ev.endDate > ev.date ? diffDays(ev.date, ev.endDate) : 0);
 function occStart(ev, k) {
   const n = span(ev);
+  if (!n) return isStart(ev, k) ? k : null;
   for (let i = 0; i <= n; i++) { const s = addDays(k, -i); if (isStart(ev, s)) return s; }
   return null;
 }
+// eventsOn(k) is called for the same days many times per render (every Today card, the side panel, score, bills, hours...).
+// The answer only depends on the event list, the hidden categories and layers, so it is cached per day and thrown away whenever
+// any of those change (identity checks below) or an event is added, changed or removed (commit() clears it).
+var EVC = { s: null, x: null, e: null, h: null, l: null, n: -1, m: new Map() };
+function evcClear() { if (EVC) EVC.m = new Map(); }
 function eventsOn(k, includeHidden) {
+  if (EVC.s !== S || EVC.x !== extraEvents || EVC.e !== S.events || EVC.h !== S.hidden || EVC.l !== S.layersOff || EVC.n !== S.events.length) {
+    EVC.s = S; EVC.x = extraEvents; EVC.e = S.events; EVC.h = S.hidden; EVC.l = S.layersOff; EVC.n = S.events.length; evcClear();
+  }
+  const ck = (includeHidden ? '+' : '-') + k, hit = EVC.m.get(ck);
+  if (hit) return hit.slice();
   const out = [];
   for (const ev of allEvents()) {
     if (!includeHidden && S.hidden.includes(ev.cat)) continue;
@@ -1769,7 +1785,10 @@ function eventsOn(k, includeHidden) {
     const s = occStart(ev, k);
     if (s) out.push({ ev, occ: s, cont: s !== k });
   }
-  return out.sort((a, b) => (b.ev.allDay - a.ev.allDay) || (a.ev.allDay ? 0 : toMin(a.ev.start) - toMin(b.ev.start)) || a.ev.title.localeCompare(b.ev.title));
+  out.sort((a, b) => (b.ev.allDay - a.ev.allDay) || (a.ev.allDay ? 0 : toMin(a.ev.start) - toMin(b.ev.start)) || a.ev.title.localeCompare(b.ev.title));
+  if (EVC.m.size > 4000) evcClear();
+  EVC.m.set(ck, out);
+  return out.slice();
 }
 const tasksOn = (k) => S.tasks.filter((t) => t.date === k).sort((a, b) => (a.done - b.done) || ((b.p || 0) - (a.p || 0)) || (a.created - b.created));
 const overdue = () => S.tasks.filter((t) => !t.done && t.date && t.date < todayKey()).sort((a, b) => a.date.localeCompare(b.date));

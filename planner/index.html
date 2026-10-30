@@ -1180,7 +1180,7 @@ const shade = (hex, f) => { const [r, g, b] = rgb(hex); return `rgb(${Math.round
 const cvars = (hex) => `--c:${hex};--bg-c:${tint(hex, .13)};--fg:${shade(hex, .42)}`;
 
 // ---------- state ----------
-const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard']; // collections added by the Rules and Trades features
+const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg']; // collections added by the Rules and Trades features
 let S = load();
 let cursor = todayKey(), selected = cursor, miniMonth = cursor.slice(0, 7);
 let query = '', agendaDays = 30, undoSnap = null, editing = null, lastScrollView = null;
@@ -1669,6 +1669,7 @@ function buildBotEvents() {
     if (!p.milestone || !YMD.test(p.due || '')) continue;
     out.push({ id: 'ms:' + p.id, title: `${p.name}: ${p.milestone}`, cat: typeToCat('deadline'), color: p.color, date: p.due, allDay: true, start: '', end: '', endDate: '', repeat: 'none', until: '', ex: [], notes: p.notes || '', proj: p.id, milestone: true });
   }
+  out.push(...billEvents(gone)); // BILLS block: recurring bills overlay
   extraEvents = out;
 }
 const projOf = (id) => (id ? S.projects.find((x) => x.id === id) : null);
@@ -2705,6 +2706,7 @@ function renderToday() {
       <form class="add-t" data-tadd><span>+</span><input placeholder="Quick add: call Sam fri 3pm #nq" aria-label="Add a task" autocomplete="off"></form></section>
     ${hxTodayCard()}
     ${wbTodayCard()}${earnTodayCard()}
+    ${billsTodayCard()}
     ${habs.length ? `<section class="td-card"><h3>Habits<button data-tgo="habits">All habits</button></h3>${habs.map((h) => { const st = habitStats(h), on = hDone(h, today); return `<div class="td-hab" style="--c:${esc(h.color || '#2563eb')}" data-thab="${esc(h.id)}"><button aria-pressed="${on}" aria-label="${on ? 'Undo' : 'Check in'} ${esc(h.name)}">${on ? ICON_CHECK : ''}</button><span>${esc(h.name)} <small>${st.cur} day streak</small></span></div>`; }).join('')}</section>` : ''}
     ${tr ? `<section class="td-card"><h3>Trading<span style="display:flex;gap:10px;align-items:baseline"><span class="${staleCls}">${staleTxt}</span><button data-refresh>Refresh</button></span></h3>${(tr.accounts || []).map((a) => `<div class="td-acct"><span><b>${esc(a.strategy === 'LIT' ? 'Zlarior' : a.strategy || a.name)}</b> ${esc(String(a.name || '').replace('MFFU ', ''))}</span><span>${usd(a.profit)} of ${usd(a.target)} · ${a.sessions_left != null ? a.sessions_left + ' sessions left' : ''}</span></div>`).join('')}${tr.month ? `<div class="td-acct" style="color:var(--mute)"><span>${MONTHS[+tr.month.month.slice(5) - 1]} so far</span><span><b style="color:var(--ink)">${usd(tr.month.usd)}</b> · ${tr.month.trades} trade${tr.month.trades === 1 ? '' : 's'}</span></div>` : ''}</section>` : ''}
     ${goals.length ? `<section class="td-card"><h3>Goals<button data-tgo="projects">All goals</button></h3>${goals.map((g) => { const v = goalValue(g), t = +g.target || 0, pct = t > 0 ? Math.max(0, Math.min(100, v / t * 100)) : 0; return `<div><div class="td-acct"><span><b>${esc(g.title)}</b></span><span>${gnum(g, v)} of ${gnum(g, t)}</span></div><div class="bar2" style="margin-top:5px"><i style="width:${pct}%;background:var(--ok)"></i></div></div>`; }).join('')}</section>` : ''}
@@ -2763,6 +2765,7 @@ function route() {
   else if (h === 'shifts') { goToday(); openShifts(); }
   else if (h === 'week-balance') { goToday(); openWeekBal(); }
   else if (h === 'earnings') { goToday(); openEarn(); }
+  else if (h === 'bills') { goToday(); openBills(); }
   else if (h === 'new-task') { goToday(); setTimeout(() => $('#taskIn').focus(), 60); }
   else if (views.includes(h)) { goToday(); setView(h); }
 }
@@ -3371,6 +3374,253 @@ document.addEventListener('click', (e) => {
   sb.insertAdjacentHTML('afterend', '<button class="btn" id="guardBtn" title="Check my week for clashes"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg><span class="newlabel">Check week</span></button>');
 })();
 // ===== GUARD END =====
+
+// ===== BILLS BEGIN: recurring bills on the calendar and a 30-day cash-flow forecast (synced collections `bills` and `cashcfg`) =====
+// Bills are NOT stored as calendar events: billEvents() builds all-day "Bills" items at render time (hooked into buildBotEvents),
+// so S.events never gets duplicates. The forecast is an estimate: balance you type + expected pay + trading average - bills.
+const BN_COLOR = '#e11d48';
+const BN_FREQ = [['monthly', 'Every month'], ['weekly', 'Every week'], ['biweekly', 'Every 2 weeks'], ['quarterly', 'Every 3 months'], ['yearly', 'Every year']];
+const BN_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const BN_PRESETS = ['Rent', 'Phone', 'Car payment', 'Car insurance', 'Subscription', 'Prop firm fee', 'Tax set-aside'];
+let bnEdit = false, bnEditing = null;
+document.head.insertAdjacentHTML('beforeend', `<style>
+.bn-ban{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.4;background:#fff;overflow-wrap:anywhere}
+.bn-ban.red{background:#fef2f2;border-color:#fecaca;color:#991b1b}.bn-ban.ok{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}.bn-ban.amber{background:#fffaf0;border-color:#f3d9a4;color:#92400e}
+.bn-ban b{font-weight:600}
+.bn-chart{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:10px;background:#fff}
+.bn-chart text{font-size:10px;fill:var(--mute);font-family:inherit}.bn-chart text.lo{fill:#b91c1c;font-weight:600}
+.bn-chart .ln{fill:none;stroke:var(--ink);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.bn-chart .zero{stroke:#dc2626;stroke-width:1;stroke-dasharray:3 3}.bn-chart .tick{stroke:#e11d48;stroke-width:2;opacity:.55}
+.bn-set{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.bn-chk{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.35}.bn-chk input{margin-top:2px;width:18px;height:18px;flex:none}
+.bn-row{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 0;border-top:1px solid var(--line2)}
+.bn-row .bn-n{min-width:0}.bn-row .bn-n b{display:block;font-weight:600;overflow-wrap:anywhere}.bn-row small{display:block;font-size:12px;color:var(--mute)}
+.bn-row .bn-a{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.bn-src{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 12px;font-size:13px;font-variant-numeric:tabular-nums}.bn-src span:nth-child(even){text-align:right}
+#bnDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}#bnDlg input,#bnDlg select{font-size:16px}
+.bn-pre{display:flex;flex-wrap:wrap;gap:6px}
+.bn-est{font-size:11px;font-weight:600;color:#92400e;background:#fffaf0;border:1px solid #f3d9a4;border-radius:10px;padding:1px 8px;margin-left:8px;vertical-align:middle}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="bnDlg" aria-labelledby="bnTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="bnTitle">Bills and cash flow<span class="bn-est">Estimate</span></h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="bnBody" style="display:flex;flex-direction:column;gap:12px"></div>
+</div></dialog>`);
+const bnDlg = $('#bnDlg');
+// New York clock (the market runs on it): day key, minutes since midnight and weekday. Shared by the TILT and TRADEPLAN blocks.
+function mnEt(ms) { const d = new Date(etWall(ms == null ? Date.now() : ms)); return { day: d.toISOString().slice(0, 10), min: d.getUTCHours() * 60 + d.getUTCMinutes(), wd: d.getUTCDay() }; }
+const bnUsd = (n) => { const a = Math.abs(+n || 0), r = Math.round(a * 100) / 100; return (n < 0 && r > 0 ? '-' : '') + '$' + r.toLocaleString('en-US', { minimumFractionDigits: r % 1 ? 2 : 0, maximumFractionDigits: 2 }); };
+const bnShort = (k) => { const d = parse(k); return `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}`; };
+const bnOrd = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+function bnList() {
+  return S.bills.filter((b) => b && b.name && +b.amt > 0 && BN_FREQ.some((f) => f[0] === b.freq)).map((b) => ({
+    ...b, amt: +b.amt, day: Math.min(31, Math.max(1, Math.round(+b.day) || 1)), dow: Math.min(6, Math.max(0, Math.round(+b.dow) || 0)), ymd: YMD.test(b.ymd || '') ? b.ymd : todayKey(),
+  }));
+}
+function bnDates(b, a, z) { // due dates of bill b from day a to day z (both included), stopping at its optional end date
+  const out = [], last = YMD.test(b.end || '') && b.end < z ? b.end : z;
+  if (a > last) return out;
+  const A = parse(a), Z = parse(last), ymd = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`, dim = (y, m) => new Date(y, m + 1, 0).getDate();
+  if (b.freq === 'weekly') { for (let k = addDays(a, (b.dow - dow(a) + 7) % 7); k <= last; k = addDays(k, 7)) out.push(k); }
+  else if (b.freq === 'biweekly') { const r = ((diffDays(b.ymd, a) % 14) + 14) % 14; for (let k = addDays(a, (14 - r) % 14); k <= last; k = addDays(k, 14)) out.push(k); }
+  else if (b.freq === 'yearly') {
+    const md = parse(b.ymd);
+    for (let y = A.getFullYear(); y <= Z.getFullYear(); y++) { const k = ymd(y, md.getMonth(), Math.min(md.getDate(), dim(y, md.getMonth()))); if (k >= a && k <= last) out.push(k); }
+  } else { // monthly and quarterly: a due day past the end of a short month falls on its last day
+    const q = b.freq === 'quarterly', an = parse(b.ymd), day = q ? an.getDate() : b.day, am = an.getFullYear() * 12 + an.getMonth();
+    for (let n = A.getFullYear() * 12 + A.getMonth(); n <= Z.getFullYear() * 12 + Z.getMonth(); n++) {
+      if (q && (((n - am) % 3) + 3) % 3) continue;
+      const y = Math.floor(n / 12), m = n % 12, k = ymd(y, m, Math.min(day, dim(y, m)));
+      if (k >= a && k <= last) out.push(k);
+    }
+  }
+  return out;
+}
+function billEvents(gone) { // the calendar overlay (read-only, all day, red-ish "Bills" type): two months back to about 14 months ahead
+  const list = bnList(); if (!list.length) return [];
+  const a = addDays(todayKey(), -62), z = addDays(todayKey(), 430), out = [];
+  for (const b of list) for (const k of bnDates(b, a, z)) {
+    const id = `bill:${b.id}:${k}`; if (gone && gone.has('d:' + id)) continue;
+    out.push({ id, bot: 'Bills', title: `${b.name} ${bnUsd(b.amt)}`, cat: 'bills', color: BN_COLOR, date: k, allDay: true, start: '', end: '', endDate: '', repeat: 'none', until: '', ex: [], notes: 'Recurring bill (estimate). Tap to open Bills.', proj: '' });
+  }
+  return out;
+}
+function bnCfg() {
+  const c = S.cashcfg.find((x) => x.id === 'cfg') || {}, n = (v, lo, hi, d) => (v != null && v !== '' && Number.isFinite(+v) ? Math.min(hi, Math.max(lo, +v)) : d);
+  return { bal: c.bal != null && c.bal !== '' && Number.isFinite(+c.bal) ? +c.bal : null, balDate: YMD.test(c.balDate || '') ? c.balDate : '', tax: n(c.tax, 0, 60, 20), lag: Math.round(n(c.lag, 0, 30, 0)), trade: c.trade !== false, taxOut: c.taxOut === true };
+}
+// 30-day forecast. Money in: shift pay (calendar hours x hourly rate, landing `lag` days after the shift), the last four weeks of live/paper
+// trading averaged (weekdays after today, only when positive), money-log "in" dated after today. Money out: bills (from today) and
+// money-log "out" dated after today. Today's balance is the number the person typed.
+function bnForecast(n = 30) {
+  const cfg = bnCfg(), today = todayKey(), end = addDays(today, n - 1);
+  const days = Array.from({ length: n }, (_, i) => ({ k: addDays(today, i), inc: 0, out: 0, items: [], bal: 0 }));
+  const at = new Map(days.map((d) => [d.k, d]));
+  const src = { shifts: 0, trading: 0, logIn: 0, bills: 0, logOut: 0 };
+  const add = (k, kind, src2, label, amt) => { const d = at.get(k); if (!d || !(amt > 0)) return; d.items.push({ kind, src: src2, label, amt }); if (kind === 'in') d.inc += amt; else d.out += amt; src[src2] += amt; };
+  const list = bnList();
+  list.forEach((b) => bnDates(b, today, end).forEach((k) => add(k, 'out', 'bills', b.name, b.amt)));
+  const jobs = new Map(S.jobs.map((j) => [j.id, j]));
+  for (let i = -cfg.lag; i < n - cfg.lag; i++) {
+    const k = addDays(today, i), pk = addDays(k, cfg.lag);
+    for (const o of eventsOn(k, true)) {
+      const e = o.ev, j = jobs.get(e.cat); if (!j || e.allDay || e.bot || o.cont) continue;
+      add(pk, 'in', 'shifts', 'Pay: ' + j.name, evHours(e) * (+j.rate || 0));
+    }
+  }
+  let sum = 0, have = 0;
+  for (let i = 1; i <= 28; i++) { const v = nqPnl[addDays(today, -i)]; if (typeof v === 'number') { sum += v; have++; } }
+  const tradeWeek = sum / 4;
+  if (cfg.trade && tradeWeek > 0) days.forEach((d, i) => { const w = dow(d.k); if (i > 0 && w > 0 && w < 6) add(d.k, 'in', 'trading', 'Trading (4-week average)', tradeWeek / 5); });
+  for (const m of S.money) {
+    if (!m.date || m.date <= today || m.date > end) continue;
+    if (m.kind === 'out') add(m.date, 'out', 'logOut', m.note || 'Money out', +m.amt || 0); else add(m.date, 'in', 'logIn', m.note || 'Money in', +m.amt || 0);
+  }
+  const income = src.shifts + src.trading + src.logIn, taxAmt = income * cfg.tax / 100;
+  let run = cfg.bal == null ? 0 : cfg.bal, low = null, firstNeg = null;
+  days.forEach((d) => {
+    run += d.inc - d.out - (cfg.taxOut ? d.inc * cfg.tax / 100 : 0);
+    d.bal = Math.round(run * 100) / 100;
+    if (!low || d.bal < low.bal) low = d;
+    if (!firstNeg && d.bal < 0) firstNeg = d;
+  });
+  const next7 = days.slice(0, 7).reduce((a, d) => a + d.items.filter((x) => x.src === 'bills').reduce((s, x) => s + x.amt, 0), 0);
+  return { cfg, days, src, income, taxAmt, tradeWeek, tradeDays: have, low, firstNeg, next7, list, set: cfg.bal != null, start: cfg.bal == null ? 0 : cfg.bal };
+}
+function bnWarn(f) { // one plain sentence about the next 30 days
+  if (!f.set) return { cls: 'amber', text: 'Type your balance below to see whether you will be short. Until then the line shows only the change from $0.' };
+  if (f.firstNeg) {
+    const d = f.firstNeg, big = d.items.filter((x) => x.kind === 'out').sort((a, b) => b.amt - a.amt)[0];
+    const lowTxt = f.low && f.low.k !== d.k ? ` The lowest point is ${bnUsd(f.low.bal)} on ${bnShort(f.low.k)}.` : '';
+    return { cls: 'red', text: `You are short ${bnUsd(-d.bal)} before ${bnShort(d.k)}${big ? ' ' + big.label.toLowerCase() : ''}.${lowTxt}` };
+  }
+  return { cls: 'ok', text: `No shortfall expected in the next 30 days. Lowest balance ${bnUsd(f.low.bal)} on ${bnShort(f.low.k)}.` };
+}
+function bnChart(f) {
+  const W = 320, H = 132, pl = 8, pr = 8, pt = 18, pb = 20, n = f.days.length;
+  const vals = [f.start, ...f.days.map((d) => d.bal)];
+  let lo = Math.min(...vals), hi = Math.max(...vals); if (lo < 0) hi = Math.max(hi, 0); if (hi - lo < 1) { hi += 1; lo -= 1; }
+  const pad2 = (hi - lo) * 0.08; lo -= pad2; hi += pad2;
+  const X = (i) => pl + i * (W - pl - pr) / (n - 1), Y = (v) => pt + (hi - v) / (hi - lo) * (H - pt - pb);
+  const pts = f.days.map((d, i) => `${X(i).toFixed(1)},${Y(d.bal).toFixed(1)}`).join(' ');
+  const ticks = f.days.map((d, i) => (d.items.some((x) => x.src === 'bills') ? `<line class="tick" x1="${X(i).toFixed(1)}" x2="${X(i).toFixed(1)}" y1="${H - pb}" y2="${H - pb - 7}"/>` : '')).join('');
+  const li = f.days.indexOf(f.low), lx = X(li), ly = Y(f.low.bal);
+  const anchor = lx > W - 70 ? 'end' : lx < 70 ? 'start' : 'middle', ltx = anchor === 'end' ? lx + 3 : anchor === 'start' ? lx - 3 : lx;
+  const zero = lo < 0 && hi > 0 ? `<line class="zero" x1="${pl}" x2="${W - pr}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}"/>` : '';
+  const lab = (i, a) => `<text x="${X(i).toFixed(1)}" y="${H - 5}" text-anchor="${a}">${bnShort(f.days[i].k)}</text>`;
+  return `<svg class="bn-chart" id="bnChart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Estimated balance for the next 30 days. Lowest ${bnUsd(f.low.bal)} on ${bnShort(f.low.k)}.">${zero}<polyline class="ln" points="${pts}"/>${ticks}<circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="4.5" fill="#dc2626" stroke="#fff" stroke-width="1.5" id="bnLow"/><text class="lo" x="${ltx.toFixed(1)}" y="${(ly < H - pb - 16 ? ly + 15 : Math.max(11, ly - 9)).toFixed(1)}" text-anchor="${anchor}">Low ${bnUsd(f.low.bal)}</text>${lab(0, 'start')}${lab(Math.floor((n - 1) / 2), 'middle')}${lab(n - 1, 'end')}</svg>`;
+}
+function bnDesc(b) {
+  if (b.freq === 'monthly') return `Every month on the ${bnOrd(b.day)}`;
+  if (b.freq === 'weekly') return `Every ${BN_DAYS[b.dow]}`;
+  if (b.freq === 'biweekly') return `Every 2 weeks on ${BN_DAYS[dow(b.ymd)]}`;
+  if (b.freq === 'quarterly') return `Every 3 months on the ${bnOrd(parse(b.ymd).getDate())}`;
+  return `Every year on ${bnShort(b.ymd)}`;
+}
+const bnPerMonth = (b) => b.amt * ({ monthly: 1, weekly: 52 / 12, biweekly: 26 / 12, quarterly: 1 / 3, yearly: 1 / 12 }[b.freq] || 0);
+function bnFormHtml() {
+  const b = bnList().find((x) => x.id === bnEditing) || null, t = todayKey();
+  const v = b || { name: '', amt: '', freq: 'monthly', day: parse(t).getDate(), dow: dow(t), ymd: t, end: '' };
+  return `<div class="fld"><label for="bnName">Name</label><input id="bnName" maxlength="60" autocomplete="off" placeholder="Rent, phone, car, MFFU fee..." value="${esc(v.name)}"></div>
+    ${b ? '' : `<div class="bn-pre" id="bnPre">${BN_PRESETS.map((p) => `<button type="button" class="btn sm" data-bnpre="${esc(p)}">${esc(p)}</button>`).join('')}</div>`}
+    <div class="frow"><div class="fld"><label for="bnAmt">Amount ($)</label><input id="bnAmt" type="number" min="0" step="0.01" inputmode="decimal" value="${v.amt}"></div>
+    <div class="fld"><label for="bnFreq">How often</label><select id="bnFreq">${BN_FREQ.map(([id, nm]) => `<option value="${id}"${v.freq === id ? ' selected' : ''}>${nm}</option>`).join('')}</select></div></div>
+    <div class="fld" id="bnWDay"><label for="bnDay">Due day of the month (1 to 31)</label><input id="bnDay" type="number" min="1" max="31" step="1" inputmode="numeric" value="${v.day}"></div>
+    <div class="fld" id="bnWDow"><label for="bnDow">Due on</label><select id="bnDow">${BN_DAYS.map((d, i) => `<option value="${i}"${v.dow === i ? ' selected' : ''}>${d}</option>`).join('')}</select></div>
+    <div class="fld" id="bnWYmd"><label for="bnYmd" id="bnYmdL">A date it is due</label><input id="bnYmd" type="date" value="${esc(v.ymd)}"></div>
+    <div class="fld"><label for="bnEnd">Last payment (optional)</label><input id="bnEnd" type="date" value="${esc(v.end || '')}"></div>
+    <div class="hint neg" id="bnErr" hidden></div>
+    <div class="dlg-f"><div>${b ? '<button type="button" class="btn danger" id="bnDel">Delete</button>' : ''}</div><div><button type="button" class="btn" id="bnCancel">Cancel</button><button type="button" class="btn primary" id="bnSave">Save bill</button></div></div>`;
+}
+function bnFormSync() {
+  const f = $('#bnFreq').value;
+  $('#bnWDay').hidden = f !== 'monthly'; $('#bnWDow').hidden = f !== 'weekly'; $('#bnWYmd').hidden = !['biweekly', 'quarterly', 'yearly'].includes(f);
+  $('#bnYmdL').textContent = f === 'yearly' ? 'Date it is due each year' : f === 'quarterly' ? 'A date it is due (repeats every 3 months)' : 'A date it is due (repeats every 2 weeks)';
+}
+function bnPaint() {
+  const body = $('#bnBody');
+  if (bnEdit) { body.innerHTML = bnFormHtml(); bnFormSync(); return; }
+  const f = bnForecast(), c = f.cfg, today = todayKey(), w = bnWarn(f);
+  const rows = f.list.map((b) => ({ b, next: bnDates(b, today, addDays(today, 400))[0] || '' })).sort((x, y) => (x.next || '9').localeCompare(y.next || '9'));
+  const perMonth = f.list.reduce((a, b) => a + bnPerMonth(b), 0);
+  const tile = (v, l, cls) => `<div><b class="${cls || ''}">${v}</b><span>${l}</span></div>`;
+  const stale = c.balDate && diffDays(c.balDate, today) >= 3;
+  const S2 = f.src;
+  body.innerHTML = `<div class="bn-ban ${w.cls}" id="bnWarn" role="status">${esc(w.text)}</div>
+    <div class="glance" id="bnTiles">${tile(f.set ? bnUsd(c.bal) : '-', f.set ? 'balance you entered' : 'balance not set')}${tile(f.set ? bnUsd(f.low.bal) : '-', f.set ? 'lowest in 30 days' : 'lowest', f.set && f.low.bal < 0 ? 'neg' : '')}${tile(bnUsd(f.taxAmt), `tax set aside (${c.tax}%)`)}</div>
+    ${bnChart(f)}
+    <div class="hint">Estimate for the next 30 days from today. Red ticks are bills; the red dot is the lowest balance day.</div>
+    <div class="bn-set" id="bnSet">
+      <div class="fld"><label for="bnBal">My balance now ($)</label><input id="bnBal" type="number" step="0.01" inputmode="decimal" placeholder="e.g. 1800" value="${c.bal == null ? '' : c.bal}"></div>
+      <div class="fld"><label for="bnTax">Tax set-aside (% of income)</label><input id="bnTax" type="number" min="0" max="60" step="1" inputmode="decimal" value="${c.tax}"></div>
+      <div class="fld"><label for="bnLag">Pay arrives (days after a shift)</label><input id="bnLag" type="number" min="0" max="30" step="1" inputmode="numeric" value="${c.lag}"></div>
+    </div>
+    ${stale ? `<div class="hint neg">You entered this balance ${diffDays(c.balDate, today)} days ago. Update it to keep the forecast honest.</div>` : ''}
+    <label class="bn-chk"><input type="checkbox" id="bnTr"${c.trade ? ' checked' : ''}><span>Count my trading average as income${f.tradeDays ? ` (${bnUsd(f.tradeWeek)} a week over the last 4 weeks${f.tradeWeek <= 0 ? ', so $0 is counted' : ''})` : ' (no live or paper results saved yet)'}</span></label>
+    <label class="bn-chk"><input type="checkbox" id="bnTo"${c.taxOut ? ' checked' : ''}><span>Take the tax set-aside out of the line too (otherwise it is only shown as a number)</span></label>
+    <div><b style="font-size:13px">Where the numbers come from</b>
+      <div class="bn-src" id="bnSrc"><span>Shift pay (hours x rate)</span><span>${bnUsd(S2.shifts)}</span><span>Trading average</span><span>${bnUsd(S2.trading)}</span><span>Money log, money in (future dates)</span><span>${bnUsd(S2.logIn)}</span><span>Bills</span><span>-${bnUsd(S2.bills)}</span><span>Money log, money out (future dates)</span><span>-${bnUsd(S2.logOut)}</span></div></div>
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px"><b style="font-size:13px">Bills${perMonth ? ` <span class="hint">about ${bnUsd(perMonth)} a month</span>` : ''}</b><button type="button" class="btn sm primary" id="bnAdd">+ Add bill</button></div>
+      <div id="bnList">${rows.length ? rows.map(({ b, next }) => `<button type="button" class="bn-row" data-bnedit="${esc(b.id)}"><span class="bn-n"><b>${esc(b.name)}</b><small>${esc(bnDesc(b))}${next ? ' · next ' + bnShort(next) : ' · finished'}</small></span><span class="bn-a">${bnUsd(b.amt)}</span></button>`).join('') : '<div class="empty-s">No bills yet. Add rent, phone, car, subscriptions, eval fees and your tax set-aside.</div>'}</div>
+    </div>
+    <div class="hint" id="bnNote">All of this is an estimate. Shift pay counts on the day pay arrives (set the delay above), using hourly rates from Shifts. Trading counts the last four weeks of live and paper results as an average on weekdays after today, never the backtest, and only when positive. Money-log entries count only when dated after today, because your balance already includes today and earlier. Bills show on the calendar as all-day Bills items.</div>`;
+}
+function openBills() { bnEdit = false; bnEditing = null; bnPaint(); if (!bnDlg.open) bnDlg.showModal(); }
+function bnSetCfg(patch) { commit(() => { upsert(S.cashcfg, 'cfg', () => ({ id: 'cfg' }), patch); }); }
+bnDlg.addEventListener('change', (e) => {
+  const t = e.target;
+  if (bnEdit) { if (t.id === 'bnFreq') bnFormSync(); return; }
+  if (t.id === 'bnBal') { const v = t.value.trim() === '' ? null : Math.round((+t.value || 0) * 100) / 100; bnSetCfg({ bal: v, balDate: v == null ? '' : todayKey() }); }
+  else if (t.id === 'bnTax') bnSetCfg({ tax: Math.min(60, Math.max(0, Math.round((+t.value || 0) * 10) / 10)) });
+  else if (t.id === 'bnLag') bnSetCfg({ lag: Math.min(30, Math.max(0, Math.round(+t.value || 0))) });
+  else if (t.id === 'bnTr') bnSetCfg({ trade: t.checked });
+  else if (t.id === 'bnTo') bnSetCfg({ taxOut: t.checked });
+  else return;
+  bnPaint(); render();
+});
+bnDlg.addEventListener('click', async (e) => {
+  const t = e.target;
+  if (t.closest('#bnAdd')) { bnEdit = true; bnEditing = null; bnPaint(); setTimeout(() => $('#bnName').focus(), 30); return; }
+  const ed = t.closest('[data-bnedit]'); if (ed) { bnEdit = true; bnEditing = ed.dataset.bnedit; bnPaint(); return; }
+  if (t.closest('#bnCancel')) { bnEdit = false; bnPaint(); return; }
+  const pre = t.closest('[data-bnpre]'); if (pre) { $('#bnName').value = pre.dataset.bnpre; $('#bnAmt').focus(); return; }
+  if (t.closest('#bnSave')) {
+    const err = (m) => { $('#bnErr').textContent = m; $('#bnErr').hidden = false; };
+    const name = $('#bnName').value.trim(), amt = Math.round((parseFloat($('#bnAmt').value) || 0) * 100) / 100, freq = $('#bnFreq').value;
+    const day = Math.round(+$('#bnDay').value), dw = +$('#bnDow').value, ymd = $('#bnYmd').value, end = $('#bnEnd').value;
+    if (!name) return err('Give the bill a name.');
+    if (!(amt > 0)) return err('Enter an amount above zero.');
+    if (freq === 'monthly' && !(day >= 1 && day <= 31)) return err('Pick a due day from 1 to 31.');
+    if (['biweekly', 'quarterly', 'yearly'].includes(freq) && !YMD.test(ymd)) return err('Pick a date it is due.');
+    const o = { name, amt, freq, day: day >= 1 && day <= 31 ? day : 1, dow: dw, ymd: YMD.test(ymd) ? ymd : todayKey(), end: YMD.test(end) ? end : '' };
+    snapshot();
+    commit(() => {
+      if (!S.categories.some((c) => c.id === 'bills')) S.categories.push({ id: 'bills', name: 'Bills', color: BN_COLOR });
+      const ex = S.bills.find((x) => x.id === bnEditing);
+      if (ex) Object.assign(ex, o); else S.bills.push({ id: 'bill-' + uid(), created: Date.now(), ...o });
+    });
+    const was = bnEditing; bnEdit = false; bnEditing = null; bnPaint(); render(); toast(was ? 'Bill saved' : 'Bill added', true); return;
+  }
+  if (t.closest('#bnDel')) {
+    const b = S.bills.find((x) => x.id === bnEditing); if (!b) return;
+    if (!(await ask(`Delete ${b.name}?`, 'It leaves the calendar and the forecast.', 'Delete bill', { danger: true }))) return;
+    snapshot(); commit(() => { S.bills = S.bills.filter((x) => x.id !== b.id); });
+    bnEdit = false; bnEditing = null; bnPaint(); render(); toast('Bill deleted', true);
+  }
+});
+bnDlg.addEventListener('close', () => { bnEdit = false; render(); });
+document.addEventListener('click', (e) => { // a bill on the calendar opens Bills instead of the read-only bot sheet
+  const b = e.target.closest && e.target.closest('[data-ev]');
+  if (b && /^bill:/.test(b.dataset.ev || '')) { e.stopPropagation(); e.preventDefault(); openBills(); }
+}, true);
+function billsTodayCard() {
+  const f = bnForecast(), w = bnWarn(f);
+  if (!f.list.length && !f.set) return `<section class="td-card" id="bnCard"><h3>Bills and cash flow<button data-bnopen>Set up</button></h3><div class="hint">Add rent, phone, car, subscriptions and eval fees, then type your balance. You get a 30-day estimate and a warning before you run short.</div></section>`;
+  const nxt = f.list.map((b) => ({ b, k: bnDates(b, todayKey(), addDays(todayKey(), 400))[0] })).filter((x) => x.k).sort((a, b) => a.k.localeCompare(b.k))[0];
+  return `<section class="td-card" id="bnCard"><h3>Bills and cash flow<button data-bnopen>Details</button></h3><div class="glance"><div><b>${bnUsd(f.next7)}</b><span>bills in 7 days</span></div><div><b class="${f.set && f.low.bal < 0 ? 'neg' : ''}">${f.set ? bnUsd(f.low.bal) : '-'}</b><span>lowest in 30 days</span></div><div><b>${bnUsd(f.taxAmt)}</b><span>tax set aside</span></div></div><div class="bn-ban ${f.set ? w.cls : 'amber'}" role="status">${esc(w.text)}</div>${nxt ? `<div class="hint">Next bill: ${esc(nxt.b.name)} ${bnUsd(nxt.b.amt)} on ${bnShort(nxt.k)}. Estimate only.</div>` : '<div class="hint">Estimate only.</div>'}</section>`;
+}
+$('#main').addEventListener('click', (e) => { if (S.view === 'today' && e.target.closest('[data-bnopen]')) openBills(); });
+// ===== BILLS END =====
 
 // ===== LEAD2 BEGIN: goals and money =====
 const moneyOpen = new Set();

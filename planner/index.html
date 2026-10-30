@@ -2698,6 +2698,7 @@ function renderToday() {
     ${risk.filter((r) => r.level !== 'info').length ? `<div class="nw-warn" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">${risk.filter((r) => r.level !== 'info').map((r) => esc(r.text)).join(' · ')}</div>` : ''}
     ${risk.filter((r) => r.level === 'info').map((r) => `<div class="nw-warn">${esc(r.text)}</div>`).join('')}
     ${guardTodayCard()}
+    ${shutdownCard()}
     <section class="td-card"><h3>Schedule<button data-tgo="day">Day view</button></h3>${own.length ? own.map(evRow).join('') : '<div class="empty-s">Nothing scheduled. Tap Plan day to block time for your tasks.</div>'}${pauses.length ? `<div class="hint" style="margin-top:4px">Bot pauses: ${pauses.filter((o) => /bot paused/.test(o.ev.title)).map((o) => `${fmtTime(o.ev.start)} to ${fmtTime(o.ev.end)}`).join(', ') || 'none today'}</div>` : ''}</section>
     ${ups.length ? `<section class="td-card"><h3>Market news next<button data-tgo="news">All news</button></h3>${ups.map((e) => { const m = Math.round((e.ms - Date.now()) / 60000); return `<div class="nw-row ${e.impact === 'high' ? 'high' : 'med'}" style="grid-template-columns:62px 10px minmax(0,1fr) auto"><span class="nw-t">${fmtTime(e.lt)}</span><span class="nw-i"></span><div class="nw-b"><b>${esc(e.title)}</b>${e.fc || e.prev ? `<small>${e.fc ? 'Forecast ' + esc(e.fc) : ''}${e.fc && e.prev ? ' · ' : ''}${e.prev ? 'Previous ' + esc(e.prev) : ''}</small>` : ''}</div><span class="nw-c">${m < 90 ? `in ${Math.max(m, 1)} min` : `in ${fmtDur(m)}`}</span></div>`; }).join('')}</section>` : ''}
     <section class="td-card"><h3>Tasks<button data-tgo="projects">All tasks</button></h3>${tks.length ? `<ul class="tasks">${tks.slice(0, 10).map((t) => taskLi(t, { overdue: t.date < today })).join('')}</ul>${tks.length > 10 ? `<div class="sub">+${tks.length - 10} more</div>` : ''}` : '<div class="empty-s">Nothing due. Add one below.</div>'}
@@ -2767,6 +2768,37 @@ function route() {
 }
 // ===== LEAD END =====
 
+
+// ===== SHUTDOWN BEGIN: end-of-day close-out card on Today =====
+function sdLate() { const h = new Date().getHours(); return h >= 17 || h < 3; }
+function sdOpenTasks() { const t = todayKey(); return S.tasks.filter((x) => !x.done && x.date && x.date <= t); }
+function shutdownCard() {
+  if (!sdLate()) return '';
+  const t = todayKey(), tm = addDays(t, 1), open = sdOpenTasks();
+  const evs = eventsOn(tm, true).filter((o) => !o.cont && !o.ev.bot && !o.ev.milestone && !o.ev.allDay && o.ev.start).sort((a, b) => a.ev.start.localeCompare(b.ev.start));
+  const firstTxt = evs.length ? `First thing tomorrow: <b>${esc(evs[0].ev.title)}</b> at ${fmtTime(evs[0].ev.start)}. ${evs.length} timed item${evs.length === 1 ? '' : 's'} in all.` : 'Nothing timed tomorrow yet.';
+  const j = jrnOf(t) || {};
+  const done = S.tasks.filter((x) => x.done && x.date === t).length;
+  return `<section class="td-card" id="sdCard"><h3>Close out the day</h3>
+    <div class="sub">${done} task${done === 1 ? '' : 's'} done today.${open.length ? ` ${open.length} still open.` : ' Nothing left open.'}</div>
+    ${open.length ? `<button class="btn" data-sdmove style="align-self:flex-start">Move ${open.length} open task${open.length === 1 ? '' : 's'} to tomorrow</button>` : ''}
+    <div class="sub">${firstTxt}</div>
+    <form data-sdwin class="frow" style="align-items:flex-end"><div class="fld"><label for="sdWin">One win from today</label><input id="sdWin" maxlength="140" autocomplete="off" placeholder="${j.win ? esc(j.win) : 'Followed my plan, closed 3 shifts, shipped a clip'}"></div><button class="btn primary" style="height:40px">Save</button></form>
+    ${j.win ? `<div class="sub">Saved: ${esc(j.win)}</div>` : ''}
+  </section>`;
+}
+$('#main').addEventListener('click', (e) => {
+  if (S.view !== 'today' || !e.target.closest('[data-sdmove]')) return;
+  const open = sdOpenTasks(), tm = addDays(todayKey(), 1); if (!open.length) return;
+  snapshot(); commit(() => { open.forEach((x) => { x.date = tm; }); });
+  toast(`Moved ${open.length} task${open.length === 1 ? '' : 's'} to tomorrow`, true); render();
+});
+$('#main').addEventListener('submit', (e) => {
+  const f = e.target.closest('[data-sdwin]'); if (!f) return; e.preventDefault();
+  const v = f.querySelector('input').value.trim(); if (!v) return;
+  saveJournal(todayKey(), { win: v }); toast('Win saved'); render();
+});
+// ===== SHUTDOWN END =====
 
 // ===== SHIFTS BEGIN: recurring work shifts (Outback, electric) =====
 const shDlg = $('#shDlg');

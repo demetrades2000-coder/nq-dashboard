@@ -2859,6 +2859,7 @@ function route() {
   else if (h === 'find-food') { goToday(); fdPicker({ browse: true, cta: 'Done' }).then((x) => { if (x) toast(`${x.food.name}: ${x.kcal} kcal, P ${x.p} g, C ${x.c} g, F ${x.f} g`); }); }
   else if (h === 'food-goals') { goToday(); ngOpen(); }
   else if (h === 'food-week') { goToday(); nwOpen(); }
+  else if (h === 'my-foods') { goToday(); fkMyFoodsOpen(); }
   else if (h === 'week-balance') { goToday(); openWeekBal(); }
   else if (h === 'earnings') { goToday(); openEarn(); }
   else if (h === 'bills') { goToday(); openBills(); }
@@ -6654,6 +6655,7 @@ function fdPicker(opts = {}) {
 // ===== NUTGOALS BEGIN: daily calorie and macro goals, typed in or worked out with Mifflin-St Jeor (synced collection `foodcfg`, item id 'cfg') =====
 // An estimate for everyday planning, not medical advice. The calculator never suggests less than 1,200 kcal (women) or 1,500 kcal (men).
 const NG_DEF = { kcal: 2200, p: 150, c: 250, f: 70 };
+const NG_MORE_DEF = { fiber: 30, na: 2300, sugar: 50 }; // optional extra targets; saturated fat defaults to 10 percent of calories
 const NG_ACT = [['sedentary', 'Desk day, little exercise', 1.2], ['light', 'Light: workouts 1 to 3 days a week', 1.375], ['moderate', 'Moderate: workouts 3 to 5 days a week', 1.55], ['very', 'Very active: hard training 6 to 7 days', 1.725], ['extra', 'Extra: physical job plus training', 1.9]];
 const NG_FLOOR = { f: 1200, m: 1500 };
 const NG_RATES = { lose: [[0.25, 'Slow: 0.25 kg (0.5 lb) a week'], [0.5, 'Steady: 0.5 kg (1 lb) a week'], [0.75, 'Faster: 0.75 kg (1.5 lb) a week']], gain: [[0.25, 'Slow: 0.25 kg (0.5 lb) a week'], [0.5, 'Steady: 0.5 kg (1 lb) a week']] };
@@ -6662,6 +6664,7 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .ng-tabs{display:flex;gap:6px}.ng-tabs button,.ng-seg button{flex:1;height:36px;border:1px solid var(--line);border-radius:8px;background:var(--card);font-size:14px;font-weight:500}
 .ng-tabs button[aria-pressed=true],.ng-seg button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
 .ng-seg{display:flex;gap:6px}
+.ng-more{border:1px solid var(--line);border-radius:10px;padding:8px 10px}.ng-more summary{cursor:pointer;font-weight:500}
 .ng-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.ng-form .wide{grid-column:1/-1}
 .ng-form label{display:block;font-size:12px;color:var(--mute);margin-bottom:3px}
 .ng-form input,.ng-form select{height:40px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:var(--card);min-width:0;width:100%;outline:none}
@@ -6687,6 +6690,11 @@ function ngGoals() {
   return { kcal, p: ok(c.p) ?? NG_DEF.p, c: ok(c.c) ?? NG_DEF.c, f: ok(c.f) ?? NG_DEF.f };
 }
 const ngHasGoals = () => { const c = ngCfg(); return !!c && ngNum(c.kcal) > 0; };
+// Optional daily targets from the same 'cfg' item: {fiber g (30), na sodium mg (2300), sugar g (50), sat saturated fat g (10 percent of calories)}.
+function ngMore() {
+  const c = ngCfg() || {}, ok = (v) => { const n = ngNum(v); return n != null && n > 0 ? Math.round(n) : null; }, g = ngGoals();
+  return { fiber: ok(c.fiber) ?? NG_MORE_DEF.fiber, na: ok(c.na) ?? NG_MORE_DEF.na, sugar: ok(c.sugar) ?? NG_MORE_DEF.sugar, sat: ok(c.sat) ?? Math.round(g.kcal * 0.1 / 9) };
+}
 // Mifflin-St Jeor. in: {sex 'm'|'f', age, height_cm, weight_kg, activity, goal 'lose'|'maintain'|'gain', rate (kg a week), pk (g protein per kg, default 1.8)}
 // out: {bmr, tdee, delta, raw, kcal, floor, floored, p, c, f}. kcal is rounded to the nearest 10; fat is 27 percent of kcal; carbs fill the rest.
 function ngCalc(o) {
@@ -6706,7 +6714,7 @@ const ngKg = (v, u) => (u === 'us' ? v / 2.20462 : v), ngCm = (v, u) => (u === '
 function ngLoad() {
   const c = ngCfg() || {}, g = ngGoals(), us = c.units === 'us';
   ngDraft = {
-    kcal: g.kcal, p: g.p, c: g.c, f: g.f, units: us ? 'us' : 'metric', sex: c.sex === 'm' || c.sex === 'f' ? c.sex : 'm', age: c.age || '',
+    kcal: g.kcal, p: g.p, c: g.c, f: g.f, fiber: c.fiber || '', na: c.na || '', sugar: c.sugar || '', sat: c.sat || '', units: us ? 'us' : 'metric', sex: c.sex === 'm' || c.sex === 'f' ? c.sex : 'm', age: c.age || '',
     h: c.height_cm ? (us ? Math.round(c.height_cm / 2.54 * 10) / 10 : c.height_cm) : '', w: c.weight_kg ? (us ? Math.round(c.weight_kg * 2.20462 * 10) / 10 : c.weight_kg) : '',
     activity: NG_ACT.some((x) => x[0] === c.activity) ? c.activity : 'moderate', goal: ['lose', 'maintain', 'gain'].includes(c.goal) ? c.goal : 'maintain', rate: c.rate || 0.5, pk: c.pk || 1.8,
   };
@@ -6728,6 +6736,12 @@ function ngPaint() {
       <div><label for="ngC">Carbs (g)</label><input id="ngC" type="number" inputmode="numeric" min="0" max="1000" value="${esc(d.c)}"></div>
       <div><label for="ngF">Fat (g)</label><input id="ngF" type="number" inputmode="numeric" min="0" max="400" value="${esc(d.f)}"></div></div>
       <div class="ng-sub" id="ngSum"></div>
+      <details class="ng-more" id="ngMore"${d.fiber || d.na || d.sugar || d.sat ? ' open' : ''}><summary>More targets</summary><div class="ng-form" style="margin-top:8px">
+        <div><label for="ngFib">Fiber (g)</label><input id="ngFib" type="number" inputmode="numeric" min="0" max="200" placeholder="${NG_MORE_DEF.fiber}" value="${esc(d.fiber)}"></div>
+        <div><label for="ngNa">Sodium (mg)</label><input id="ngNa" type="number" inputmode="numeric" min="0" max="20000" placeholder="${NG_MORE_DEF.na}" value="${esc(d.na)}"></div>
+        <div><label for="ngSug">Sugar (g)</label><input id="ngSug" type="number" inputmode="numeric" min="0" max="500" placeholder="${NG_MORE_DEF.sugar}" value="${esc(d.sugar)}"></div>
+        <div><label for="ngSat">Saturated fat (g)</label><input id="ngSat" type="number" inputmode="numeric" min="0" max="200" placeholder="${Math.round((+d.kcal || NG_DEF.kcal) * 0.1 / 9)}" value="${esc(d.sat)}"></div>
+        <div class="wide ng-sub">Leave a box empty to use the default: fiber ${NG_MORE_DEF.fiber} g, sodium ${NG_MORE_DEF.na.toLocaleString('en-US')} mg, sugar ${NG_MORE_DEF.sugar} g, saturated fat 10 percent of your calories.</div></div></details>
       <div class="ng-note">These numbers are your own targets. Nothing here is medical advice.</div>
       <div class="dlg-f"><button type="button" class="btn" id="ngReset">Use defaults</button><span style="flex:1"></span><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn primary" id="ngSave">Save goals</button></div>`;
   } else {
@@ -6763,6 +6777,11 @@ function ngRes() {
     <div class="ng-sub">Resting burn about ${ngK(r.bmr)} kcal; with your activity about ${ngK(r.tdee)} kcal${inp.goal === 'maintain' ? '' : `; ${inp.goal === 'lose' ? 'minus' : 'plus'} ${ngK(Math.abs(r.delta))} for your pace`}.</div>
     ${r.floored ? `<div class="ng-sub" id="ngFloorMsg"><b>Raised to the minimum.</b> That pace works out to ${ngK(r.raw)} kcal, below the ${ngK(r.floor)} kcal floor for ${inp.sex === 'f' ? 'women' : 'men'}, so the goal is set at ${ngK(r.kcal)}. Pick a slower pace or more activity instead of eating less.</div>` : ''}</div>`;
 }
+function ngMoreOut(d) { // the extra targets in the draft: a number to store, null to clear one that was stored, nothing when never set
+  const out = {}, c = ngCfg() || {};
+  for (const [k, hi] of [['fiber', 200], ['na', 20000], ['sugar', 500], ['sat', 200]]) { const n = ngNum(d[k]); if (n != null && n > 0) out[k] = Math.min(hi, Math.round(n)); else if (c[k] != null) out[k] = null; }
+  return out;
+}
 function ngSave(g, extra) {
   const rd = (v, lo, hi) => Math.min(hi, Math.max(lo, Math.round(+v || 0)));
   commit(() => { upsert(S.foodcfg, 'cfg', () => ({ id: 'cfg' }), { kcal: rd(g.kcal, 800, 8000), p: rd(g.p, 0, 500), c: rd(g.c, 0, 1000), f: rd(g.f, 0, 400), ...(extra || {}) }); });
@@ -6782,11 +6801,11 @@ $('#ngBody').addEventListener('click', (e) => {
   }
   if (t.dataset.ngs) { d.sex = t.dataset.ngs; ngPaint(); return; }
   if (t.dataset.ngg) { d.goal = t.dataset.ngg; if (NG_RATES[d.goal] && !NG_RATES[d.goal].some((r) => r[0] === +d.rate)) d.rate = 0.5; ngPaint(); return; }
-  if (t.id === 'ngReset') { Object.assign(d, NG_DEF); ngPaint(); return; }
+  if (t.id === 'ngReset') { Object.assign(d, NG_DEF, { fiber: '', na: '', sugar: '', sat: '' }); ngPaint(); return; }
   if (t.id === 'ngSave') {
     const k = ngNum(d.kcal);
     if (!(k >= 800 && k <= 8000)) { toast('Calories should be between 800 and 8,000.'); return; }
-    ngSave(d); ngDlg.close(); toast('Goals saved'); try { render(); } catch (err) { /* view not ready */ } return;
+    ngSave(d, ngMoreOut(d)); ngDlg.close(); toast('Goals saved'); try { render(); } catch (err) { /* view not ready */ } return;
   }
   if (t.id === 'ngUse') {
     const inp = ngInputs(); if (!inp) { toast('Fill in age, height and weight first.'); return; }
@@ -6799,7 +6818,8 @@ $('#ngBody').addEventListener('input', (e) => {
   const id = e.target.id, d = ngDraft, v = e.target.value;
   if (id === 'ngK') d.kcal = v; else if (id === 'ngP') d.p = v; else if (id === 'ngC') d.c = v; else if (id === 'ngF') d.f = v;
   else if (id === 'ngAge') d.age = v; else if (id === 'ngH') d.h = v; else if (id === 'ngW') d.w = v; else if (id === 'ngPK') d.pk = v;
-  else if (id === 'ngAct') d.activity = v; else if (id === 'ngRate') d.rate = +v; else return;
+  else if (id === 'ngAct') d.activity = v; else if (id === 'ngRate') d.rate = +v;
+  else if (id === 'ngFib') d.fiber = v; else if (id === 'ngNa') d.na = v; else if (id === 'ngSug') d.sugar = v; else if (id === 'ngSat') d.sat = v; else return;
   if (ngTab === 'direct') ngSum(); else ngRes();
 });
 // ===== NUTGOALS END =====
@@ -6837,12 +6857,14 @@ function nwSummary(days = 7) {
   const today = todayKey(), goal = ngGoals(), by = new Map();
   for (const m of S.meals) {
     if (!m || !YMD.test(m.date || '')) continue;
-    const d = by.get(m.date) || { n: 0, kcal: 0, p: 0, c: 0, f: 0 }; d.n++; d.kcal += +m.kcal || 0; d.p += +m.p || 0; d.c += +m.c || 0; d.f += +m.f || 0; by.set(m.date, d);
+    const d = by.get(m.date) || { n: 0, kcal: 0, p: 0, c: 0, f: 0, x: {} }; d.n++; d.kcal += +m.kcal || 0; d.p += +m.p || 0; d.c += +m.c || 0; d.f += +m.f || 0;
+    const x = nwExt(m); for (const k in x) d.x[k] = (d.x[k] || 0) + x[k];
+    by.set(m.date, d);
   }
   const list = [];
   for (let i = days - 1; i >= 0; i--) {
-    const k = addDays(today, -i), d = by.get(k) || { n: 0, kcal: 0, p: 0, c: 0, f: 0 };
-    list.push({ date: k, n: d.n, logged: d.n > 0, kcal: Math.round(d.kcal), p: Math.round(d.p * 10) / 10, c: Math.round(d.c * 10) / 10, f: Math.round(d.f * 10) / 10, today: k === today });
+    const k = addDays(today, -i), d = by.get(k) || { n: 0, kcal: 0, p: 0, c: 0, f: 0, x: {} };
+    list.push({ date: k, n: d.n, logged: d.n > 0, kcal: Math.round(d.kcal), p: Math.round(d.p * 10) / 10, c: Math.round(d.c * 10) / 10, f: Math.round(d.f * 10) / 10, today: k === today, fiber: d.x.fiber ?? null, sugar: d.x.sugar ?? null, na: d.x.na ?? null, sat: d.x.sat ?? null });
   }
   const logged = list.filter((d) => d.logged);
   const used = logged.filter((d) => !(d.today && d.kcal < goal.kcal * 0.6)); // finished days
@@ -6858,12 +6880,34 @@ function nwSummary(days = 7) {
   const off = (d) => Math.abs(d.kcal - goal.kcal);
   const ranked = used.slice().sort((a, b) => off(a) - off(b) || a.date.localeCompare(b.date));
   const ready = used.length >= NW_MIN;
+  const ext = {}; for (const k of ['fiber', 'sugar', 'na', 'sat']) { const ds = used.filter((d) => d[k] != null); ext[k] = { n: ds.length, avg: ds.length ? Math.round(ds.reduce((a, d) => a + d[k], 0) / ds.length * 10) / 10 : null }; }
+  const more = ngMore();
   return {
+    ext, more, extInsights: nwExtInsights(ext, more),
     days, goal, list, today, logged: logged.length, used: used.length, ready,
     avgKcal: Math.round(avg('kcal')), avgP: Math.round(avg('p') * 10) / 10, avgC: Math.round(avg('c') * 10) / 10, avgF: Math.round(avg('f') * 10) / 10,
     within, proteinHit: pHit, withinPct: used.length ? Math.round(within / used.length * 100) : 0, proteinPct: used.length ? Math.round(pHit / used.length * 100) : 0,
     split, best: ready ? ranked[0] : null, worst: ready ? ranked[ranked.length - 1] : null, insights: ready ? nwInsights(used, goal, avg('kcal'), avg('p'), within, days) : [],
   };
+}
+// Optional extra nutrients of one meal ({fiber, sugar, na, sat}, only the known ones): the meal's own totals, else the sum of its items.
+function nwExt(m) {
+  const o = {};
+  for (const k of ['fiber', 'sugar', 'na', 'sat']) {
+    let v = ngNum(m[k]);
+    if (v == null && Array.isArray(m.items)) { const xs = m.items.map((it) => ngNum(it && it[k])).filter((x) => x != null); if (xs.length) v = xs.reduce((a, b) => a + b, 0); }
+    if (v != null) o[k] = v;
+  }
+  return o;
+}
+// Plain notes on fiber, sodium, sugar and saturated fat; each needs at least 3 finished days that carry that nutrient.
+function nwExtInsights(ext, more) {
+  const out = [], enough = (k) => ext[k].n >= NW_MIN && ext[k].avg != null;
+  if (enough('fiber') && ext.fiber.avg < more.fiber * 0.7) out.push({ k: 'fiber', text: `Fiber averaged ${Math.round(ext.fiber.avg)} g a day, well under your ${more.fiber} g target. Beans, oats, berries and vegetables add it fastest.` });
+  if (enough('na') && ext.na.avg > more.na * 1.15) out.push({ k: 'na', text: `Sodium averaged ${nwK(ext.na.avg)} mg a day, ${Math.round((ext.na.avg / more.na - 1) * 100)}% over your ${nwK(more.na)} mg target. Restaurant meals, deli meat, sauces and soup are the usual sources.` });
+  if (enough('sugar') && ext.sugar.avg > more.sugar * 1.3) out.push({ k: 'sugar', text: `Sugar averaged ${Math.round(ext.sugar.avg)} g a day against a target of ${more.sugar} g. Drinks and desserts are the quickest cut.` });
+  if (enough('sat') && ext.sat.avg > more.sat * 1.3) out.push({ k: 'sat', text: `Saturated fat averaged ${Math.round(ext.sat.avg)} g a day, over your ${more.sat} g target. Cheese, butter, fatty meat and fried food are the main sources.` });
+  return out;
 }
 function nwInsights(used, goal, avgK, avgP, within, days) {
   const out = [], n = used.length;
@@ -6925,9 +6969,12 @@ function nwPaint() {
     <div><b>${s.logged} of ${s.days}</b><span>days logged</span></div><div><b>${s.used ? s.within + ' of ' + s.used : '-'}</b><span>days within 10% of goal</span></div>
     <div><b>${s.used ? s.proteinHit + ' of ' + s.used : '-'}</b><span>days protein at 90%+ of goal</span></div><div><b>${s.best ? nwK(s.best.kcal) : '-'}</b><span>${s.best ? 'closest to goal: ' + nwShort(s.best.date) : 'closest day (needs ' + NW_MIN + ' days)'}</span></div></div>`;
   if (s.worst) h += `<div class="nw-sub" id="nwWorst">Furthest from goal: ${nwShort(s.worst.date)}, ${nwK(s.worst.kcal)} kcal (${s.worst.kcal > s.goal.kcal ? nwK(s.worst.kcal - s.goal.kcal) + ' over' : nwK(s.goal.kcal - s.worst.kcal) + ' under'}).</div>`;
+  const xs = [['fiber', 'fiber', 'g'], ['na', 'sodium', 'mg'], ['sugar', 'sugar', 'g'], ['sat', 'saturated fat', 'g']].filter(([k]) => s.ext[k].n > 0);
+  if (xs.length) h += `<div class="nw-grid" id="nwExt">${xs.map(([k, l, u]) => `<div><b>${nwK(s.ext[k].avg)} ${u}</b><span>avg ${l} (target ${nwK(s.more[k])} ${u}; ${s.ext[k].n} day${s.ext[k].n === 1 ? '' : 's'} with data)</span></div>`).join('')}</div>`;
   if (sp) h += `<div><div class="nw-split" id="nwSplit" role="img" aria-label="Calories from protein ${sp.p}%, carbs ${sp.c}%, fat ${sp.f}%"><i style="width:${sp.p}%;background:#2563eb"></i><i style="width:${sp.c}%;background:#f59e0b"></i><i style="width:${sp.f}%;background:#a855f7"></i></div><div class="nw-leg" style="margin-top:6px"><span><i style="background:#2563eb"></i>Protein ${sp.p}%</span><span><i style="background:#f59e0b"></i>Carbs ${sp.c}%</span><span><i style="background:#a855f7"></i>Fat ${sp.f}%</span></div></div>`;
   if (s.ready) h += s.insights.map((x) => `<div class="nw-ins" data-nwi="${x.k}">${esc(x.text)}</div>`).join('');
   else h += `<div class="nw-sub" id="nwMin">Log at least ${NW_MIN} days (finished days count) and this page will point out patterns. You have ${s.used}.</div>`;
+  h += s.extInsights.map((x) => `<div class="nw-ins" data-nwi="${x.k}">${esc(x.text)}</div>`).join('');
   h += '<div class="nw-sub">Totals come from your meal log and are estimates. Today is left out of the averages until you have eaten most of your goal.</div>';
   $('#nwBody').innerHTML = h;
 }
@@ -7456,6 +7503,1240 @@ $('#main').addEventListener('click', async (e) => {
   if (wk) { const tool = wk.dataset.dvwopen; if (tool === 'today') hbGoView('today'); else if (tool === 'health') hbGoView('health'); else hbOpenTool(tool); }
 });
 // ===== DASHVIEW END =====
+// ===== FOODKB BEGIN: food knowledge base, offline reference foods with raw/cooked variants, portion table, fuzzy match (fkFind), portion text to grams (fkGrams), scaling (fkScale) =====
+// Numbers are per 100 g and follow USDA FoodData Central (SR Legacy) reference values as closely as they are known; they were typed in from
+// reference knowledge, not looked up live. Restaurant, fast-food and mixed dishes (and a few uncertain staples) carry typ:true = a typical
+// mid value, not a measurement. Nothing here is medical advice.
+// Line format: name|state|aliases (;)|kcal|protein|carbs|fat|fiber|sugar|sodium mg|saturated fat|portions (unit=grams;...)|flags (d default variant, typ typical value,
+// sug fine as a "what to eat next" idea, l liquid, alc=grams of alcohol per 100 g). Lines starting with @ name a category.
+const FK_KB_TEXT = `@Eggs and dairy
+Egg|raw|eggs;whole egg;large egg;chicken egg|143|12.6|0.7|9.5|0|0.4|142|3.1|large=50;medium=44;small=38;jumbo=63;extra large=56;each=50|d sug
+Egg|cooked|hard boiled egg;boiled egg;soft boiled egg;poached egg;hard-boiled egg|155|12.6|1.1|10.6|0|1.1|124|3.3|large=50;medium=44;small=38;each=50|
+Egg|fried|fried egg;sunny side up egg;over easy egg;egg fried|196|13.6|0.8|14.8|0|0.4|207|4.5|large=46;medium=40;each=46|
+Scrambled egg|cooked|scrambled eggs;eggs scrambled|149|10|1.6|11|0|1.4|145|3.3|large=61;each=61;cup=220|
+Egg white|raw|egg whites;white of egg|52|10.9|0.7|0.2|0|0.7|166|0|large=33;each=33;cup=243|sug
+Egg yolk|raw|egg yolks|322|15.9|3.6|26.5|0|0.6|48|9.6|large=17;each=17|
+Omelet|cooked|omelette;cheese omelet;veggie omelet|154|10.6|0.6|11.7|0|0.5|155|3.5|each=150;egg=150|typ
+Milk whole|raw|whole milk;full fat milk;milk;vitamin d milk|61|3.2|4.8|3.3|0|5.1|43|1.9|cup=244;glass=244;fl oz=30.5;pint=488|l d sug
+Milk 2%|raw|2% milk;reduced fat milk;two percent milk|50|3.3|4.8|1.9|0|5.1|47|1.2|cup=244;glass=244;fl oz=30.5|l
+Milk 1%|raw|1% milk;low fat milk|42|3.4|5|1|0|5.2|44|0.6|cup=244;glass=244;fl oz=30.5|l
+Milk skim|raw|skim milk;nonfat milk;fat free milk|34|3.4|5|0.1|0|5.1|42|0.1|cup=245;glass=245;fl oz=30.6|l sug
+Chocolate milk|raw|chocolate milk reduced fat|83|3.2|10.3|3.4|0.8|9.5|60|2.1|cup=250;glass=250;bottle=473|l
+Almond milk|raw|unsweetened almond milk;almondmilk|15|0.6|0.3|1.2|0.2|0|72|0.1|cup=240;glass=240|l typ
+Soy milk|raw|soymilk;unsweetened soy milk|33|2.9|1.7|1.6|0.4|0.4|51|0.2|cup=243;glass=243|l typ
+Oat milk|raw|oatmilk|48|1|6.7|1.5|0.8|3.3|42|0.2|cup=240;glass=240|l typ
+Heavy cream|raw|heavy whipping cream;whipping cream|340|2.8|2.8|36.1|0|2.9|27|23|tbsp=15;cup=238;tsp=5|
+Half and half|raw|half & half;half n half|131|3.1|4.3|11.5|0|4.3|40|7.2|tbsp=15;cup=242;tsp=5|
+Coffee creamer|raw|flavored creamer;french vanilla creamer;liquid creamer|225|0.7|33|10|0|33|60|1.5|tbsp=15;tsp=5|typ
+Butter|raw|salted butter;unsalted butter|717|0.9|0.1|81.1|0|0.1|643|51.4|tbsp=14.2;tsp=4.7;pat=5;stick=113;cup=227|
+Margarine|raw|margarine spread;oleo|717|0.2|0.7|80.7|0|0.2|751|15.2|tbsp=14.2;tsp=4.7;pat=5|
+Cream cheese|raw|cream cheese regular;philadelphia|342|5.9|4.1|34.2|0|3.2|321|19.3|tbsp=14.5;oz=28.35;slice=21|
+Sour cream|raw|sour cream regular|193|2.4|4.6|18|0|3.4|31|11.3|tbsp=12;cup=230|
+Yogurt greek nonfat|raw|greek yogurt;plain greek yogurt;nonfat greek yogurt;greek yoghurt|59|10.2|3.6|0.4|0|3.2|36|0.1|container=170;cup=245;serving=170|d sug
+Yogurt greek whole|raw|whole milk greek yogurt;full fat greek yogurt|97|9|3.9|5|0|3.6|35|3.2|container=170;cup=245;serving=170|sug
+Yogurt plain lowfat|raw|plain yogurt;low fat yogurt;yoghurt|63|5.3|7|1.6|0|7|70|1|cup=245;container=170;serving=170|
+Yogurt fruit|raw|flavored yogurt;fruit yogurt;strawberry yogurt;vanilla yogurt|102|4.4|19|1.4|0.2|17.5|60|0.9|cup=245;container=170;serving=170|typ
+Cottage cheese lowfat|raw|cottage cheese;2% cottage cheese;low fat cottage cheese|81|10.4|4.8|2.3|0|4|321|1.4|cup=226;half cup=113;serving=113|d sug
+Cottage cheese regular|raw|4% cottage cheese;full fat cottage cheese|98|11.1|3.4|4.3|0|2.7|364|1.7|cup=226;half cup=113|sug
+Cheddar cheese|raw|cheddar;cheese;sharp cheddar|403|22.9|3.1|33.3|0|0.5|653|18.9|slice=28;oz=28.35;cup=113;tbsp=7|d
+Mozzarella part skim|raw|mozzarella;shredded mozzarella;mozzarella cheese;low moisture mozzarella|254|24.3|2.8|15.9|0|1.1|619|10.1|slice=28;oz=28.35;cup=112;stick=28|d
+Mozzarella fresh|raw|fresh mozzarella;mozzarella whole milk;burrata|300|22.2|2.2|22.4|0|1|627|13.2|slice=28;oz=28.35;ball=28|
+String cheese|raw|cheese stick;mozzarella stick snack|254|24.3|2.8|15.9|0|1.1|619|10.1|each=28;stick=28;piece=28|sug
+Swiss cheese|raw|swiss|380|26.9|5.4|27.8|0|1.3|192|17.8|slice=28;oz=28.35|
+American cheese|raw|processed cheese;american cheese slice;cheese slice;kraft single|371|18.1|4.8|31.2|0|3.6|1671|18.5|slice=21;each=21;oz=28.35|
+Provolone cheese|raw|provolone|351|25.6|2.1|26.6|0|0.5|876|17.2|slice=28;oz=28.35|
+Pepper jack cheese|raw|monterey jack;jack cheese|373|24.5|0.7|30.3|0|0.5|536|19.1|slice=28;oz=28.35|
+Parmesan cheese|raw|parmesan;grated parmesan;parmigiano|431|38|4.1|29|0|0.9|1529|17.3|tbsp=5;oz=28.35;cup=100|
+Feta cheese|raw|feta;crumbled feta|264|14.2|4.1|21.3|0|4.1|917|14.9|oz=28.35;cup=150;tbsp=9|
+Goat cheese|raw|chevre;soft goat cheese|364|21.6|0.1|29.8|0|0.1|515|20.6|oz=28.35;tbsp=14|
+Blue cheese|raw|bleu cheese;gorgonzola;blue cheese crumbles|353|21.4|2.3|28.7|0|0.5|1395|18.7|oz=28.35;tbsp=9|
+Ricotta cheese|raw|ricotta;part skim ricotta|138|11.4|5.1|7.9|0|0.3|84|4.9|cup=246;half cup=124;tbsp=15|
+Ice cream|raw|vanilla ice cream;ice cream vanilla|207|3.5|23.6|11|0.7|21.2|80|6.8|cup=132;scoop=66;half cup=66|
+Frozen yogurt|raw|froyo|159|4|34|1|0|29|80|0.6|cup=174;half cup=87|typ
+Whipped cream|raw|whipped topping;cool whip;aerosol whipped cream|257|3.2|12.5|22.2|0|12.5|40|13.8|tbsp=4.5;cup=60|typ
+@Poultry
+Chicken breast|raw|raw chicken breast;uncooked chicken breast;chicken breast skinless raw|120|22.5|0|2.6|0|0|45|0.6|breast=170;each=170;piece=170|
+Chicken breast|cooked|chicken;chicken breast grilled;baked chicken;roasted chicken;grilled chicken;chicken breast skinless|165|31|0|3.6|0|0|74|1|breast=172;each=172;piece=120;fillet=120;strip=30|d sug
+Chicken breast|fried|fried chicken breast;breaded chicken breast;chicken cutlet|246|27.6|3.9|12.4|0.2|0|390|3.4|breast=190;each=190;piece=120;strip=40|typ
+Chicken thigh|raw|raw chicken thigh;chicken thighs raw|121|19.7|0|4.1|0|0|95|1.1|thigh=90;each=90;piece=90|
+Chicken thigh|cooked|grilled chicken thigh;baked chicken thigh;roasted chicken thigh;chicken thigh skinless|209|26|0|10.9|0|0|95|3|thigh=75;each=75;piece=75|d
+Chicken thigh|fried|fried chicken thigh|270|18|10|17|0.3|0|450|4.5|thigh=130;each=130;piece=130|typ
+Chicken drumstick|cooked|drumstick;chicken leg;baked drumstick;grilled drumstick|172|28.3|0|5.7|0|0|128|1.5|drumstick=44;each=44;piece=44|d typ
+Chicken wings|fried|wings;fried wings;chicken wing;plain wings;wings fried|300|26|2|20|0.1|0|480|5.5|wing=34;each=34;piece=34|d typ
+Chicken wings|cooked|baked wings;roasted wings;grilled wings|254|23.8|0|17|0|0|110|4.8|wing=34;each=34;piece=34|typ
+Buffalo wings|fried|hot wings;buffalo chicken wings;wings buffalo;sauced wings|290|22|2.5|21|0.2|0.5|950|6|wing=34;each=34;piece=34|d typ
+Chicken pieces|fried|fried chicken;chicken fried;kfc;southern fried chicken;crispy fried chicken|270|19|10|16|0.5|0|520|4.2|piece=130;each=130;thigh=130;breast=190|typ
+Chicken nuggets|fried|nuggets;chicken nugget;mcnuggets;breaded chicken nuggets|296|15.5|17.2|18.4|0.8|0.6|600|3.9|each=17;piece=17;nugget=17;6 piece=102|
+Chicken tenders|fried|chicken strips;chicken fingers;breaded chicken tenders;chicken tender|260|17|16|14|0.8|0.5|640|2.5|tender=45;each=45;piece=45;strip=45;finger=45|typ
+Rotisserie chicken breast|cooked|rotisserie chicken;rotisserie chicken breast meat|153|29|0|3.6|0|0|330|1|oz=28.35;cup=140;breast=200|typ
+Turkey breast|raw|raw turkey breast|114|23.7|0|1.5|0|0|40|0.4|oz=28.35|
+Turkey breast|cooked|turkey;roast turkey;roasted turkey;turkey meat|135|30|0|0.7|0|0|55|0.2|oz=28.35;slice=28;cup=140|d sug
+Ground turkey 93 7|raw|ground turkey;ground turkey 93% lean;turkey mince|150|18.7|0|8.3|0|0|69|2.2|patty=113;oz=28.35|d
+Ground turkey 93 7|cooked|cooked ground turkey;ground turkey cooked;turkey crumbles|213|27.1|0|11.2|0|0|95|3|patty=85;oz=28.35;cup=140|typ
+@Beef, pork and meats
+Ground beef 80 20|raw|raw ground beef 80/20;ground beef;hamburger meat;80/20 ground beef;beef mince|254|17.2|0|20|0|0|66|7.7|patty=113;quarter pound=113;oz=28.35;lb=453.6|d
+Ground beef 80 20|cooked|cooked ground beef 80/20;ground beef cooked;browned ground beef;beef patty;cooked hamburger meat|272|25.9|0|18.4|0|0|76|7.2|patty=85;oz=28.35;cup=135|typ
+Ground beef 85 15|raw|85/15 ground beef;ground beef 85%|215|18.6|0|15|0|0|66|5.9|patty=113;oz=28.35|
+Ground beef 85 15|cooked|cooked ground beef 85/15;ground beef 85/15 cooked;beef;cooked beef|250|25.9|0|15.4|0|0|75|6|patty=85;oz=28.35;cup=135|typ
+Ground beef 90 10|raw|90/10 ground beef;ground sirloin;ground beef 90%|176|20|0|10|0|0|66|4.1|patty=113;oz=28.35|
+Ground beef 90 10|cooked|cooked ground beef 90/10;ground beef 90/10 cooked|217|26.1|0|11.7|0|0|78|4.6|patty=85;oz=28.35;cup=135|typ
+Ground beef 93 7|raw|93/7 ground beef;lean ground beef;ground beef 93%;extra lean ground beef|152|21.4|0|7|0|0|66|3|patty=113;oz=28.35|
+Ground beef 93 7|cooked|cooked ground beef 93/7;lean ground beef cooked;93/7 cooked|190|27.4|0|8|0|0|80|3.3|patty=85;oz=28.35;cup=135|typ
+Sirloin steak|raw|raw sirloin;raw steak;uncooked steak;top sirloin raw|170|21|0|9|0|0|55|3.6|oz=28.35;steak=227|typ
+Sirloin steak|cooked|steak;sirloin;top sirloin;grilled steak;sirloin steak cooked;beef steak;broiled steak|206|29|0|9|0|0|60|3.5|oz=28.35;steak=170|d typ sug
+Ribeye steak|cooked|ribeye;rib eye;rib-eye steak;ribeye steak cooked;grilled ribeye|291|24.4|0|21|0|0|60|8.9|oz=28.35;steak=283|typ
+Ribeye steak|raw|raw ribeye;ribeye raw|250|19|0|19|0|0|55|8|oz=28.35;steak=340|typ
+New York strip steak|cooked|strip steak;ny strip;new york strip;ny strip steak;kc strip|252|27|0|15|0|0|58|5.8|oz=28.35;steak=227|typ
+Filet mignon|cooked|tenderloin steak;beef tenderloin;filet;filet mignon steak|230|27|0|13|0|0|58|5|oz=28.35;steak=170|typ
+Flank steak|cooked|flank;skirt steak;fajita steak;carne asada|192|27.8|0|8.3|0|0|75|3.3|oz=28.35|
+Prime rib|cooked|prime rib roast;roast beef;beef roast|300|23|0|23.5|0|0|65|9.5|oz=28.35;slice=227|typ
+Pot roast|cooked|chuck roast;braised beef;beef pot roast|260|30|0|15|0|0|70|6|oz=28.35|typ
+Brisket|cooked|beef brisket;bbq brisket;smoked brisket|250|29|0|14|0|0|85|5.5|oz=28.35;slice=60|typ
+Beef jerky|raw|jerky;beef jerky dried|410|33.2|11|25.6|1.8|8|1785|10.5|oz=28.35;piece=20;serving=28|sug
+Meatballs|cooked|meatball;beef meatballs;italian meatballs|220|13|8|15|0.6|1.5|450|6|each=28;piece=28;meatball=28|typ
+Pork chop|cooked|pork chops;grilled pork chop;baked pork chop;pork loin chop|231|25.7|0|13.9|0|0|60|4.9|chop=110;each=110;piece=110;oz=28.35|d typ
+Pork tenderloin|raw|raw pork tenderloin|120|20.5|0|3.5|0|0|55|1.2|oz=28.35|
+Pork tenderloin|cooked|pork tenderloin roasted;roast pork;pork loin;pork roast|143|26.2|0|3.5|0|0|57|1.2|oz=28.35;slice=40|d sug
+Pulled pork|cooked|bbq pulled pork;pulled pork sandwich meat|200|20|8|9|0.3|6|550|3|cup=140;oz=28.35|typ
+Baby back ribs|cooked|ribs;bbq ribs;pork ribs;spare ribs|290|22|7|19|0.2|5.5|520|7|oz=28.35;rib=45;each=45|typ
+Bacon|cooked|bacon strips;bacon slices;crispy bacon;fried bacon;pork bacon|541|37|1.4|41.8|0|0|1717|14|slice=8;strip=8;each=8;piece=8|d
+Bacon|raw|raw bacon;uncooked bacon|417|12.6|1.4|40.3|0|0|1157|13.9|slice=28;strip=28;each=28|
+Turkey bacon|cooked|turkey bacon strips|382|29.3|7.7|27.5|0|0|2000|8|slice=8;strip=8;each=8|typ
+Sausage links|cooked|breakfast sausage;pork sausage;sausage link;sausage patty;sausage|339|19.3|1|28.2|0|0|800|10|link=25;each=25;patty=27;piece=25;oz=28.35|typ
+Italian sausage|cooked|sweet italian sausage;pork italian sausage|290|17|2.5|23.5|0|0|720|8|link=83;each=83;oz=28.35|typ
+Bratwurst|cooked|brat;bratwurst sausage|300|13|3|27|0|1|800|9.5|link=85;each=85|typ
+Hot dog|cooked|frankfurter;hot dog frank;hot dog no bun;wiener|300|11|3|27|0|1|1000|10.5|each=45;frank=45;link=45|typ
+Hot dog with bun|cooked|hot dog bun;hot dog and bun;chili dog|280|10|24|16|1|3.5|700|6|each=100|typ
+Ham deli|raw|deli ham;sliced ham;lunch meat ham;ham slices;ham|107|17.2|1.5|3.5|0|0.9|1200|1.1|slice=28;oz=28.35|d sug
+Ham baked|cooked|cooked ham;baked ham;honey ham;ham steak|145|21|1.5|5.5|0|1.2|1200|1.8|slice=85;oz=28.35|typ
+Turkey deli|raw|deli turkey;sliced turkey;turkey slices;lunch meat turkey;turkey breast deli;oven roasted turkey|104|17|4|2|0|2.5|1050|0.5|slice=28;oz=28.35|d sug
+Roast beef deli|raw|deli roast beef;sliced roast beef;lunch meat roast beef|133|20|0.7|5.3|0|0.4|900|2|slice=28;oz=28.35|typ
+Salami|raw|hard salami;genoa salami|407|22.6|1.6|33.7|0|0.4|2260|12.2|slice=9;oz=28.35|
+Pepperoni|raw|pepperoni slices;pepperoni sliced|494|19.3|1.2|45.5|0|0.5|1582|17|slice=6;oz=28.35|
+Pork rinds|raw|chicharron;pork skins;pork crackling|544|61.3|0|31.3|0|0|1818|10.6|oz=28.35;serving=28|
+Lamb chop|cooked|lamb;lamb chops;grilled lamb|282|24|0|20|0|0|70|8.7|oz=28.35;chop=80|typ
+@Fish and seafood
+Salmon|raw|raw salmon;salmon fillet raw;atlantic salmon;sashimi salmon;salmon sashimi|208|20.4|0|13.4|0|0|59|3.1|fillet=170;oz=28.35;piece=30|
+Salmon|cooked|baked salmon;grilled salmon;salmon fillet;seared salmon;roasted salmon;pan seared salmon|206|22.1|0|12.4|0|0|61|2.6|fillet=150;oz=28.35;piece=150|d sug
+Salmon wild|cooked|wild salmon;wild caught salmon;sockeye salmon;coho salmon|182|25.4|0|8.1|0|0|56|1.3|fillet=150;oz=28.35|
+Tuna canned in water|canned|canned tuna;tuna can;tuna in water;chunk light tuna;albacore tuna;tuna|116|25.5|0|0.8|0|0|247|0.2|can=142;oz=28.35;cup=154;pouch=74|d sug
+Tuna canned in oil|canned|tuna in oil|198|29.1|0|8.2|0|0|354|1.3|can=142;oz=28.35|
+Tuna steak|cooked|ahi tuna;seared tuna;yellowfin tuna;grilled tuna|144|29.1|0|1.6|0|0|50|0.4|steak=140;oz=28.35|typ
+Tuna steak|raw|raw tuna;ahi tuna raw;tuna sashimi|109|24.4|0|0.5|0|0|39|0.1|steak=140;oz=28.35|
+Cod|raw|raw cod;cod fillet raw|82|17.8|0|0.7|0|0|54|0.1|fillet=180;oz=28.35|
+Cod|cooked|baked cod;grilled cod;cod fillet;haddock;white fish|105|22.8|0|0.9|0|0|78|0.2|fillet=140;oz=28.35|d
+Tilapia|raw|raw tilapia|96|20.1|0|1.7|0|0|52|0.6|fillet=115;oz=28.35|
+Tilapia|cooked|baked tilapia;grilled tilapia;tilapia fillet|128|26.2|0|2.7|0|0|56|0.9|fillet=115;oz=28.35|d
+Halibut|cooked|grilled halibut;baked halibut|111|22.5|0|2.3|0|0|69|0.4|fillet=159;oz=28.35|
+Fish fillet|fried|fried fish;battered fish;fish and chips fish;beer battered fish;breaded fish|232|16|14|13|0.5|0.5|480|2.5|fillet=120;piece=120;each=120|typ
+Fish sticks|fried|fish fingers;breaded fish sticks|250|12|23|12|1|1|520|2.5|stick=28;each=28;piece=28|typ
+Sardines|canned|sardines in oil;canned sardines|208|24.6|0|11.5|0|0|307|1.5|can=92;oz=28.35|
+Shrimp|raw|raw shrimp;uncooked shrimp|85|20.1|0.2|0.5|0|0|119|0.1|large=17;each=17;jumbo=22;medium=11;oz=28.35|
+Shrimp|cooked|boiled shrimp;grilled shrimp;steamed shrimp;sauteed shrimp;shrimp cooked;cocktail shrimp|99|24|0.2|0.3|0|0|111|0.1|large=14;each=14;jumbo=22;medium=9;oz=28.35;cup=145|d sug
+Shrimp breaded|fried|fried shrimp;breaded shrimp;shrimp tempura;popcorn shrimp;coconut shrimp|242|19|11.5|13|0.5|0.5|450|2.5|each=20;piece=20;oz=28.35|typ
+Crab meat|cooked|crab;crab legs;lump crab;blue crab|87|18.1|0|1.1|0|0|293|0.2|cup=135;oz=28.35|
+Crab cake|fried|crab cakes|180|13|8|10|0.5|0.8|600|2|each=90;piece=90;cake=90|typ
+Lobster|cooked|lobster tail;steamed lobster;lobster meat|89|19|0.5|0.9|0|0|486|0.2|tail=145;oz=28.35;cup=145|
+Scallops|raw|sea scallops;scallop|88|16.8|2.4|0.8|0|0|392|0.1|each=30;large=30;oz=28.35|
+Sushi roll California|cooked|california roll;sushi roll;sushi|140|3|26|2|1|4|420|0.4|piece=28;each=28;roll=170;6 piece=170|typ
+Nigiri sushi|raw|salmon nigiri;tuna nigiri;nigiri|145|7|26|1.5|0.5|4|330|0.3|piece=35;each=35|typ
+@Grains, pasta, bread and cereal
+Rice white|raw|raw rice;dry rice;uncooked rice;white rice raw;rice dry|365|7.1|80|0.7|1.3|0.1|5|0.2|cup=185;tbsp=12;oz=28.35|
+Rice white|cooked|rice;white rice;steamed rice;jasmine rice;basmati rice;cooked rice;boiled rice;long grain rice|130|2.7|28.2|0.3|0.4|0.1|1|0.1|cup=158;half cup=79;bowl=200;serving=158;scoop=100|d sug
+Rice brown|raw|raw brown rice;dry brown rice|370|7.9|77.2|2.9|3.5|0.9|7|0.6|cup=190;oz=28.35|
+Rice brown|cooked|brown rice;cooked brown rice|123|2.7|25.6|1|1.6|0.2|4|0.2|cup=195;half cup=98;bowl=200;serving=195|d
+Rice wild|cooked|wild rice|101|4|21.3|0.3|1.8|0.7|3|0|cup=164|
+Fried rice|fried|chinese fried rice;chicken fried rice;egg fried rice;shrimp fried rice;fried rice takeout|168|4.1|25|5.2|1|0.5|390|1|cup=198;bowl=250;serving=198|typ
+Quinoa|raw|dry quinoa;raw quinoa|368|14.1|64.2|6.1|7|0|5|0.7|cup=170;oz=28.35|
+Quinoa|cooked|cooked quinoa|120|4.4|21.3|1.9|2.8|0.9|7|0.2|cup=185;half cup=93|d sug
+Couscous|raw|dry couscous|376|12.8|77.4|0.6|5|0.5|10|0.1|cup=173|
+Couscous|cooked|cooked couscous|112|3.8|23.2|0.2|1.4|0.1|5|0|cup=157|d
+Pasta|raw|dry pasta;uncooked pasta;raw pasta;spaghetti dry;dry spaghetti;dry noodles;penne dry;macaroni dry|371|13|74.7|1.5|3.2|2.7|6|0.3|oz=28.35;cup=105;serving=56|
+Pasta|cooked|spaghetti;penne;macaroni;noodles;cooked pasta;boiled pasta;rigatoni;fettuccine;linguine;rotini;fusilli;spaghetti cooked|158|5.8|30.9|0.9|1.8|0.6|1|0.2|cup=140;half cup=70;bowl=200;serving=140|d sug
+Pasta whole wheat|raw|dry whole wheat pasta;whole wheat spaghetti dry|348|14.6|72|2.8|8|2.7|8|0.4|oz=28.35|
+Pasta whole wheat|cooked|whole wheat pasta;whole wheat spaghetti;whole grain pasta|124|5.3|26.5|0.5|3.9|0.6|3|0.1|cup=140|d
+Egg noodles|raw|dry egg noodles|384|14.2|71.3|4.4|3.3|1.6|21|1.1|cup=38;oz=28.35|
+Egg noodles|cooked|cooked egg noodles|138|4.5|25.2|2.1|1.2|0.4|5|0.5|cup=160|d
+Instant ramen noodles|raw|ramen;instant ramen;ramen packet;cup noodles;top ramen|450|10|62|18|2|2|1700|8.5|pack=85;block=85;serving=43;oz=28.35|typ
+Ramen noodle soup|cooked|ramen bowl;tonkotsu ramen;ramen restaurant;ramen soup|95|5|10|3.5|0.5|0.8|420|1.2|bowl=550;cup=240|typ
+Lo mein|cooked|chow mein;lo mein noodles;chinese noodles;stir fry noodles|150|5.5|20|5|1.3|2|480|1|cup=200;serving=250;plate=350|typ
+Oats|raw|rolled oats;dry oats;old fashioned oats;oatmeal dry;quick oats;steel cut oats raw|379|13.2|67.7|6.5|10.1|1|6|1.1|half cup=40;cup=81;tbsp=5;oz=28.35;serving=40|
+Oatmeal|cooked|cooked oatmeal;porridge;oatmeal made with water;cooked oats;oatmeal cooked|71|2.5|12|1.5|1.7|0.3|4|0.3|cup=234;bowl=234;half cup=117|d sug
+Grits|cooked|cooked grits;hominy grits|71|1.7|15.3|0.5|0.7|0.1|3|0.1|cup=242|
+Bread white|raw|white bread;sandwich bread;bread;bread slice;slice of bread;toast|266|8.9|49.4|3.3|2.4|5.7|491|0.7|slice=30;each=30;piece=30;roll=50|d
+Bread whole wheat|raw|wheat bread;whole grain bread;brown bread;whole wheat toast|252|12.5|42.7|3.5|6|5.7|450|0.7|slice=32;each=32;piece=32|
+Sourdough bread|raw|sourdough;sourdough toast;french bread;baguette|289|9.5|55.6|3.4|2.3|3.9|620|0.7|slice=43;each=43;piece=43;oz=28.35|typ
+Rye bread|raw|rye;pumpernickel|259|8.5|48.3|3.3|5.8|3.9|660|0.5|slice=32;each=32|
+Pita bread|raw|pita;pita pocket;pita white|275|9.1|55.7|1.2|2.2|1.2|536|0.2|each=60;pita=60;piece=60|
+Naan bread|raw|naan;garlic naan|290|9|50|5.5|2|3|520|1.5|each=90;piece=90|typ
+Bagel|raw|plain bagel;everything bagel;bagels|257|10|50.9|1.6|2.1|6.1|439|0.2|small=70;medium=100;large=130;each=105|d
+Bagel with cream cheese|raw|bagel and cream cheese;cream cheese bagel|274|9.1|40|8.9|1.6|5|420|4.8|each=135|typ
+English muffin|raw|english muffins|227|8|44|1.8|2.7|5|420|0.3|each=57;muffin=57|
+Flour tortilla|raw|tortilla;wrap;flour tortillas;burrito tortilla;tortilla wrap|310|8.3|51.6|7.7|3.1|3|700|2.6|small=30;medium=45;large=70;each=45;burrito size=70|d
+Corn tortilla|raw|corn tortillas;taco tortilla|218|5.7|44.6|2.9|6.3|0.9|45|0.4|each=26;tortilla=26|
+Hamburger bun|raw|burger bun;bun|279|10|50|4|2.5|5|480|1|each=43;bun=43|
+Hot dog bun|raw|hot dog roll|279|10|50|4|2.5|5|480|1|each=43;bun=43|
+Dinner roll|raw|roll;bread roll;dinner rolls;bun roll|310|9.7|52|7|2.5|6|520|1.5|each=28;roll=28;piece=28|typ
+Bread and butter|raw|bread and butter steakhouse;bread basket;roll and butter;dinner roll with butter;bread with butter|340|7.5|44|14|2|5|520|8|each=55;roll=55;piece=55|typ
+Croissant|raw|butter croissant;croissants|406|8.2|45.8|21|2.6|11.2|467|11.6|each=57;croissant=57|
+Biscuit|raw|buttermilk biscuit;biscuits;breakfast biscuit|353|6.5|44|16.5|1.7|3|830|5|each=65;biscuit=65|typ
+Pancakes|cooked|pancake;pancakes plain;buttermilk pancakes|227|6.4|28.3|9.7|1.1|5|439|2|small=38;each=77;pancake=77;medium=77|d typ
+Waffle|cooked|waffles;belgian waffle|291|7.9|32.9|14.1|1.5|6|511|4.1|each=75;waffle=75|typ
+French toast|cooked|french toast slices|229|7.7|25|10.8|1.2|9|479|2.6|slice=65;each=65;piece=65|typ
+Maple syrup|raw|pancake syrup;syrup|260|0|67|0.1|0|60.5|12|0|tbsp=20;tsp=6.7;cup=315;oz=37|l d
+Pancake syrup|raw|table syrup;aunt jemima syrup|262|0|67|0|0|45|50|0|tbsp=20;cup=315|l typ
+Cheerios|raw|cheerios cereal;oat cereal;oat rings cereal;honey nut cheerios|357|10.7|71.4|7.1|10.7|3.6|571|1.8|cup=28;serving=28;bowl=40|typ sug
+Corn flakes|raw|cornflakes;kellogg's corn flakes;corn flake cereal|357|7.5|84.1|0.4|3.3|9.5|729|0.1|cup=28;serving=28;bowl=40|
+Frosted flakes|raw|frosted cereal;sugary cereal;frosted flakes cereal|387|3.2|90.3|0.6|1.6|38.7|419|0.3|cup=36;serving=39;bowl=50|typ
+Granola|raw|granola cereal;homemade granola|471|10|64|20|5.3|24|26|3.6|half cup=60;cup=122;serving=55|typ
+Granola bar|raw|chewy granola bar;oat bar;cereal bar|471|10.1|64.4|20.1|5.3|25|250|3.4|bar=28;each=28|typ
+Protein bar|raw|quest bar;clif bar;rx bar;energy bar|350|33|35|10|8|10|280|4|bar=60;each=60|typ sug
+Whey protein powder|raw|protein powder;whey;whey isolate;protein shake powder;scoop of protein|400|80|8|6|0|4|150|3.5|scoop=30;each=30;tbsp=10|typ
+Protein shake|raw|protein shake ready to drink;premier protein;fairlife core power;rtd protein shake|48|9.1|2.1|1|0.9|0.6|85|0.3|bottle=340;cup=245;can=330|l typ sug
+Rice cake|raw|rice cakes;puffed rice cake|387|8.2|81.5|2.8|4.2|0.9|29|0.6|each=9;cake=9|sug
+Popcorn|cooked|air popped popcorn;popcorn plain|387|12.9|77.8|4.5|14.5|0.9|8|0.6|cup=8;bowl=24;serving=24;3 cups=24|d sug
+Popcorn oil popped|fried|movie popcorn;buttered popcorn;microwave popcorn;movie theater popcorn|500|9|57|28.1|10|0.5|600|4|cup=11;bag=100;tub=150|typ
+Pretzels|raw|hard pretzels;pretzel twists;pretzel sticks|380|10.3|79.8|2.6|2.8|2.7|1357|0.5|oz=28.35;serving=28|
+Potato chips|fried|chips;crisps;lays;potato crisps;kettle chips|536|7|52.9|34.6|4.8|0.3|525|6|oz=28.35;serving=28;bag=43;handful=28|typ
+Tortilla chips|fried|corn chips;nacho chips;doritos;tortilla chip|489|7.2|63|23|5|0.8|400|3|oz=28.35;serving=28;handful=28|typ
+Saltine crackers|raw|saltines;crackers;soda crackers|421|9|74.1|9.4|2.9|2.6|1004|1.4|each=3;cracker=3;oz=28.35|
+Butter crackers|raw|ritz crackers;round crackers|500|6.3|62.5|25|1.6|9|800|4|each=3.2;cracker=3.2;oz=28.35|typ
+Breadcrumbs|raw|bread crumbs;panko|395|13.4|72|5.3|4.5|6.2|732|1.2|cup=108;tbsp=7|
+Flour all purpose|raw|flour;white flour;wheat flour|364|10.3|76.3|1|2.7|0.3|2|0.2|cup=125;tbsp=8|
+@Fruit
+Apple|raw|apples;red apple;green apple;gala apple;fuji apple;granny smith|52|0.3|13.8|0.2|2.4|10.4|1|0|small=149;medium=182;large=223;each=182;cup=125|sug
+Banana|raw|bananas;ripe banana|89|1.1|22.8|0.3|2.6|12.2|1|0.1|small=101;medium=118;large=136;extra large=152;each=118;cup=150|sug
+Orange|raw|oranges;navel orange;mandarin;clementine;tangerine|47|0.9|11.8|0.1|2.4|9.4|0|0|small=96;medium=131;large=184;each=131;clementine=74|sug
+Grapes|raw|grape;red grapes;green grapes|69|0.7|18.1|0.2|0.9|15.5|2|0.1|cup=151;handful=80;each=5;serving=151|sug
+Strawberries|raw|strawberry|32|0.7|7.7|0.3|2|4.9|1|0|cup=152;medium=18;each=18;serving=152|sug
+Blueberries|raw|blueberry|57|0.7|14.5|0.3|2.4|10|1|0|cup=148;half cup=74;handful=70;serving=148|sug
+Raspberries|raw|raspberry|52|1.2|11.9|0.7|6.5|4.4|1|0|cup=123;half cup=62|
+Blackberries|raw|blackberry|43|1.4|9.6|0.5|5.3|4.9|1|0|cup=144|
+Watermelon|raw|watermelon slice;watermelon chunks|30|0.6|7.6|0.2|0.4|6.2|1|0|cup=152;wedge=286;slice=286|
+Cantaloupe|raw|melon;rockmelon|34|0.8|8.2|0.2|0.9|7.9|16|0.1|cup=160;wedge=69|
+Honeydew melon|raw|honeydew|36|0.5|9.1|0.1|0.8|8.1|18|0|cup=170|
+Pineapple|raw|pineapple chunks;fresh pineapple|50|0.5|13.1|0.1|1.4|9.9|1|0|cup=165;slice=84|
+Mango|raw|mangos;mango chunks|60|0.8|15|0.4|1.6|13.7|1|0.1|cup=165;each=336;whole=336|
+Peach|raw|peaches|39|0.9|9.5|0.3|1.5|8.4|0|0|medium=150;each=150;cup=154|
+Pear|raw|pears|57|0.4|15.2|0.1|3.1|9.8|1|0|medium=178;each=178;small=148;large=230|
+Plum|raw|plums|46|0.7|11.4|0.3|1.4|9.9|0|0|each=66;medium=66|
+Cherries|raw|sweet cherries;cherry|63|1.1|16|0.2|2.1|12.8|0|0|cup=154;each=8|
+Kiwi|raw|kiwifruit;kiwi fruit|61|1.1|14.7|0.5|3|9|3|0|each=69;medium=69|
+Grapefruit|raw|pink grapefruit|42|0.8|10.7|0.1|1.6|6.9|0|0|half=123;each=246;medium=246|
+Lemon|raw|lemons|29|1.1|9.3|0.3|2.8|2.5|2|0|each=58;medium=58|
+Lime|raw|limes|30|0.7|10.5|0.2|2.8|1.7|2|0|each=67;medium=67|
+Avocado|raw|avocados;half avocado;avocado slices;fresh avocado|160|2|8.5|14.7|6.7|0.7|7|2.1|each=201;whole=201;half=100;cup=146;serving=50;slice=25|d sug
+Guacamole|raw|guac|157|2|8.6|14.2|6|0.7|370|2.1|tbsp=15;cup=240;serving=30;oz=28.35|typ
+Raisins|raw|raisin;sultanas|299|3.1|79.2|0.5|3.7|59.2|11|0.1|box=43;small box=43;cup=145;oz=28.35;handful=40|
+Dates|raw|medjool dates;date;dried dates|277|1.8|75|0.2|6.7|66.5|1|0|each=24;date=24;piece=24|
+Dried cranberries|raw|craisins;cranberries dried|308|0.1|82.4|1.4|5.7|72.6|2|0.1|cup=123;oz=28.35|
+Dried apricots|raw|dried apricot|241|3.4|62.6|0.5|7.3|53.4|10|0|each=8;oz=28.35|
+Prunes|raw|dried plums;prune|240|2.2|63.9|0.4|7.1|38.1|2|0|each=9;oz=28.35|
+Applesauce|raw|apple sauce;unsweetened applesauce|42|0.2|11.3|0.1|1.2|9.4|2|0|cup=244;serving=113|
+Orange juice|raw|oj;fresh orange juice|45|0.7|10.4|0.2|0.2|8.4|1|0|cup=248;glass=248;fl oz=31|l d
+Apple juice|raw||46|0.1|11.3|0.1|0.2|9.6|4|0|cup=248;glass=248;fl oz=31|l
+Grape juice|raw||60|0.4|14.8|0.1|0.2|14.2|5|0.1|cup=253;glass=253|l
+Cranberry juice|raw|cranberry juice cocktail|54|0|13.6|0.1|0.1|12.9|3|0|cup=253;glass=253|l
+Lemonade|raw|lemonade drink|40|0.1|10.4|0|0|9.5|4|0|cup=248;glass=248|l typ
+Coconut water|raw||19|0.7|3.7|0.2|1.1|2.6|105|0.2|cup=240;bottle=330;carton=330|l
+Tomato juice|raw|vegetable juice|17|0.8|3.9|0.1|0.4|3.5|230|0|cup=243;glass=243|l
+@Vegetables
+Broccoli|raw|raw broccoli;broccoli florets raw|34|2.8|6.6|0.4|2.6|1.7|33|0|cup=91;floret=20;stalk=151|
+Broccoli|cooked|steamed broccoli;boiled broccoli;cooked broccoli;roasted broccoli|35|2.4|7.2|0.4|3.3|1.4|41|0.1|cup=156;half cup=78;serving=85|d sug
+Spinach|raw|baby spinach;raw spinach;spinach leaves|23|2.9|3.6|0.4|2.2|0.4|79|0.1|cup=30;handful=30;bag=170|d
+Spinach|cooked|cooked spinach;sauteed spinach;steamed spinach|23|3|3.8|0.3|2.4|0.4|70|0.1|cup=180;half cup=90|
+Kale|raw|raw kale;kale leaves|49|4.3|8.8|0.9|3.6|2.3|38|0.1|cup=21;handful=25|
+Kale|cooked|cooked kale;sauteed kale;steamed kale|35|2.9|4.4|1.5|4.1|0.8|29|0.2|cup=130|typ
+Lettuce romaine|raw|romaine;romaine lettuce;lettuce;green leaf lettuce;salad greens|17|1.2|3.3|0.3|2.1|1.2|8|0|cup=47;head=626;handful=30|
+Lettuce iceberg|raw|iceberg;iceberg lettuce|14|0.9|3|0.1|1.2|1.8|10|0|cup=72;leaf=20|
+Mixed greens|raw|spring mix;mixed salad greens;salad mix;arugula;mesclun|20|1.8|3.3|0.3|2|1|20|0|cup=30;handful=30;bowl=85|typ
+Cucumber|raw|cucumbers;sliced cucumber|15|0.7|3.6|0.1|0.5|1.7|2|0|each=301;cup=104;slice=7;half=150|sug
+Tomato|raw|tomatoes;sliced tomato;roma tomato;fresh tomato|18|0.9|3.9|0.2|1.2|2.6|5|0|medium=123;small=91;large=182;each=123;cup=180;slice=20|
+Cherry tomatoes|raw|grape tomatoes;cherry tomato|18|0.9|3.9|0.2|1.2|2.6|5|0|each=17;cup=149;handful=70|
+Carrots|raw|carrot;raw carrots;baby carrots;carrot sticks|41|0.9|9.6|0.2|2.8|4.7|69|0|medium=61;each=61;baby=10;cup=128;stick=15|d sug
+Carrots|cooked|cooked carrots;steamed carrots;roasted carrots|35|0.8|8.2|0.2|3|3.5|58|0|cup=156;half cup=78|
+Celery|raw|celery stalk;celery sticks|14|0.7|3|0.2|1.6|1.3|80|0|stalk=40;each=40;cup=101|
+Onion|raw|onions;white onion;red onion;yellow onion;diced onion|40|1.1|9.3|0.1|1.7|4.2|4|0|medium=110;small=70;large=150;each=110;cup=160;slice=14;tbsp=10|d
+Onion|cooked|cooked onion;sauteed onions;grilled onions;caramelized onions|44|1.4|10.2|0.2|1.4|4.7|4|0|cup=210;half cup=105|
+Green onion|raw|scallion;scallions;spring onion|32|1.8|7.3|0.2|2.6|2.3|16|0|each=15;cup=100;tbsp=6|
+Bell pepper red|raw|red bell pepper;red pepper;bell pepper;sweet pepper|31|1|6|0.3|2.1|4.2|4|0.1|medium=119;each=119;cup=149;half=60|d
+Bell pepper green|raw|green bell pepper;green pepper|20|0.9|4.6|0.2|1.7|2.4|3|0.1|medium=119;each=119;cup=149|
+Mushrooms|raw|mushroom;white mushrooms;button mushrooms;raw mushrooms|22|3.1|3.3|0.3|1|2|5|0|cup=70;each=18;medium=18|
+Mushrooms|cooked|sauteed mushrooms;cooked mushrooms;grilled mushrooms|28|2.2|5.3|0.5|2.2|2.4|2|0.1|cup=156;half cup=78|d
+Zucchini|raw|courgette;zucchini squash|17|1.2|3.1|0.3|1|2.5|8|0.1|medium=196;each=196;cup=113|
+Zucchini|cooked|cooked zucchini;sauteed zucchini;grilled zucchini|15|1.1|2.7|0.4|1.1|2.5|3|0.1|cup=180|d
+Cauliflower|raw|raw cauliflower|25|1.9|5|0.3|2|1.9|30|0.1|cup=107;floret=13|
+Cauliflower|cooked|steamed cauliflower;roasted cauliflower;cooked cauliflower|23|1.8|4.1|0.5|2.3|2.1|15|0.1|cup=124|d
+Green beans|raw|raw green beans;string beans|31|1.8|7|0.2|2.7|3.3|6|0|cup=110|
+Green beans|cooked|steamed green beans;cooked green beans;sauteed green beans;french beans|35|1.9|7.9|0.3|3.2|1.4|1|0.1|cup=125;half cup=62|d
+Asparagus|raw|raw asparagus|20|2.2|3.9|0.1|2.1|1.9|2|0|spear=16;cup=134|
+Asparagus|cooked|grilled asparagus;roasted asparagus;steamed asparagus|22|2.4|4.1|0.2|2|1.3|14|0.1|spear=16;cup=180|d
+Corn|cooked|sweet corn;corn on the cob;corn kernels;boiled corn|96|3.4|21|1.5|2.4|4.5|1|0.2|cup=154;ear=100;half cup=77|d
+Peas|cooked|green peas;boiled peas|84|5.4|15.6|0.2|5.5|5.9|3|0|cup=160;half cup=80|d
+Peas|raw|raw peas;frozen peas|81|5.4|14.5|0.4|5.1|5.7|5|0.1|cup=145|
+Cabbage|raw|green cabbage;shredded cabbage;red cabbage|25|1.3|5.8|0.1|2.5|3.2|18|0|cup=70|
+Brussels sprouts|cooked|roasted brussels sprouts;steamed brussels sprouts;brussel sprouts|36|2.6|7.1|0.5|2.6|1.4|21|0.1|cup=156;each=21|d
+Butternut squash|cooked|squash;winter squash;roasted squash|40|0.9|10.5|0.1|3.2|2.2|4|0|cup=205|
+Spaghetti squash|cooked|squash spaghetti|31|0.6|6.9|0.6|1.5|2.8|17|0.1|cup=155|
+Beets|cooked|beet;beetroot;roasted beets|44|1.7|10|0.2|2|8|77|0|cup=170;each=82|
+Eggplant|cooked|aubergine;roasted eggplant;grilled eggplant|35|0.8|8.7|0.2|2.5|3.2|1|0|cup=99|
+Garlic|raw|garlic cloves;clove of garlic|149|6.4|33.1|0.5|2.1|1|17|0.1|clove=3;each=3;tbsp=8|
+Jalapeno|raw|jalapeno pepper;jalapenos|29|0.9|6.5|0.4|2.8|4.1|3|0.1|each=14|
+Pumpkin|cooked|canned pumpkin;pumpkin puree|34|1.1|8.1|0.3|2.9|3.3|5|0.2|cup=245|
+Potato|raw|raw potato;russet potato;potatoes|77|2|17.5|0.1|2.2|0.8|6|0|medium=213;small=170;large=299;each=213;cup=150|
+Potato baked|cooked|baked potato;plain baked potato;russet baked;potato baked|93|2.5|21.2|0.1|2.2|1.2|10|0|small=138;medium=173;large=299;each=173;potato=173|d sug
+Potato boiled|cooked|boiled potatoes;boiled potato;steamed potatoes;roasted potatoes|87|1.9|20.1|0.1|1.8|0.9|5|0|cup=156;medium=135;each=135;small=100|
+Sweet potato|cooked|baked sweet potato;sweet potato baked;yam;roasted sweet potato|90|2|20.7|0.2|3.3|6.5|36|0|medium=130;small=60;large=180;each=130;cup=200|d sug
+Sweet potato|raw|raw sweet potato|86|1.6|20.1|0.1|3|4.2|55|0|medium=130;each=130|
+French fries|fried|fries;fast food fries;mcdonalds fries;shoestring fries;steak fries|312|3.4|41.4|14.7|3.8|0.3|210|2.3|small=71;medium=117;large=154;each=117;serving=117;handful=30|d
+Hash browns|fried|hash brown;hashbrowns;hash brown patty|265|3|28|16|2.6|0.5|440|2.5|patty=60;each=60;cup=150|typ
+Mashed potatoes|cooked|mashed potato;mash;creamy mashed potatoes|113|2|16.8|4.2|1.5|1.3|312|1.1|cup=210;half cup=105;scoop=100|typ
+Onion rings|fried|fried onion rings;breaded onion rings|411|4.9|38|27|2.5|4|700|5|each=14;ring=14;piece=14;serving=100|typ
+Blooming onion|fried|fried onion;awesome blossom;bloomin onion;fried onion appetizer|330|4|32|20|2.5|4|480|3.5|each=500;serving=250|typ
+Loaded baked potato|cooked|loaded potato;baked potato loaded;baked potato with toppings;baked potato with butter and sour cream and cheese|165|5.5|16|9|1.6|1.5|280|4.5|each=400;serving=400|typ
+Baked potato with butter|cooked|baked potato butter and sour cream;baked potato with sour cream|130|3|18|5.5|1.8|1.3|110|3.4|each=300|typ
+Creamed spinach|cooked|steakhouse creamed spinach|130|4|7|10|1.5|2|420|6|cup=220;serving=150|typ
+@Beans, tofu and plant protein
+Black beans|raw|dry black beans|341|21.6|62.4|1.4|15.5|2.1|5|0.4|cup=194|
+Black beans|cooked|beans;canned black beans;cooked black beans|132|8.9|23.7|0.5|8.7|0.3|1|0.1|cup=172;half cup=86;serving=86|d sug
+Kidney beans|cooked|red kidney beans;canned kidney beans|127|8.7|22.8|0.5|6.4|0.3|1|0.1|cup=177;half cup=89|
+Pinto beans|cooked|canned pinto beans|143|9|26.2|0.7|9|0.3|1|0.1|cup=171;half cup=86|
+Navy beans|cooked|white beans;cannellini beans;great northern beans|140|8.2|26.1|0.6|10.5|0.4|0|0.1|cup=182|
+Chickpeas|cooked|garbanzo beans;canned chickpeas;cooked chickpeas|164|8.9|27.4|2.6|7.6|4.8|7|0.3|cup=164;half cup=82;serving=82|
+Lentils|raw|dry lentils|352|24.6|63.4|1.1|10.7|2|6|0.2|cup=192|
+Lentils|cooked|cooked lentils;lentil|116|9|20.1|0.4|7.9|1.8|2|0.1|cup=198;half cup=99|d sug
+Refried beans|cooked|canned refried beans|90|5.4|15.2|1.3|4.9|0.8|450|0.4|cup=253;half cup=126|typ
+Baked beans|cooked|bbq beans;canned baked beans|94|4.7|21.2|0.4|5.5|9|422|0.1|cup=254;half cup=127|typ
+Edamame|cooked|edamame beans;soybeans cooked|121|11.9|8.9|5.2|5.2|2.2|6|0.6|cup=155|sug
+Tofu firm|raw|tofu;firm tofu;extra firm tofu;bean curd|144|17.3|2.8|8.7|2.3|0.6|14|1.3|half cup=126;oz=28.35;block=397;slice=85|
+Tempeh|raw|soy tempeh|192|20.3|7.6|10.8|0|0|9|2.2|oz=28.35;cup=166|typ
+Hummus|raw|chickpea dip;houmous|166|7.9|14.3|9.6|6|0.3|379|1.4|tbsp=15;cup=246;serving=30;2 tbsp=30|sug
+Veggie burger|cooked|vegetarian burger;black bean burger;plant burger|170|14|13|7|4|2|480|1|patty=71;each=71|typ
+@Nuts, seeds and spreads
+Almonds|raw|almond;raw almonds;roasted almonds|579|21.2|21.6|49.9|12.5|4.4|1|3.8|oz=28.35;handful=28;cup=143;serving=28;tbsp=9|sug
+Walnuts|raw|walnut;walnut halves|654|15.2|13.7|65.2|6.7|2.6|2|6.1|oz=28.35;handful=28;cup=117;serving=28|sug
+Cashews|raw|cashew;roasted cashews|553|18.2|30.2|43.9|3.3|5.9|12|7.8|oz=28.35;handful=28;cup=137;serving=28|
+Peanuts|raw|raw peanuts|567|25.8|16.1|49.2|8.5|4.7|18|6.8|oz=28.35;cup=146;handful=28|
+Peanuts|cooked|peanut;dry roasted peanuts;roasted peanuts;salted peanuts|585|23.7|21.5|49.7|8|4.2|6|6.9|oz=28.35;cup=146;handful=28;serving=28|d
+Pistachios|raw|pistachio;roasted pistachios|560|20.2|27.2|45.3|10.6|7.7|1|5.9|oz=28.35;handful=28;cup=123|
+Pecans|raw|pecan;pecan halves|691|9.2|13.9|72|9.6|4|0|6.2|oz=28.35;cup=99|
+Macadamia nuts|raw|macadamia|718|7.9|13.8|75.8|8.6|4.6|5|12.1|oz=28.35|
+Hazelnuts|raw|hazelnut;filberts|628|15|16.7|60.8|9.7|4.3|0|4.5|oz=28.35;cup=135|
+Mixed nuts|raw|trail nuts;nut mix;roasted mixed nuts|607|19.5|21|54|7|4|300|8|oz=28.35;handful=28;cup=137|typ
+Trail mix|raw|gorp;trail mix with chocolate|462|13.8|44.9|29.4|5|30|130|5.5|oz=28.35;cup=146;handful=40|typ
+Peanut butter|raw|pb;creamy peanut butter;smooth peanut butter;crunchy peanut butter|588|25.1|20|50.4|6|9.2|426|10.3|tbsp=16;2 tbsp=32;tsp=5;cup=258;serving=32|d
+Almond butter|raw|almond nut butter|614|21|18.8|55.5|10.3|4.4|7|4.2|tbsp=16;2 tbsp=32;serving=32|
+Sunflower seeds|raw|sunflower kernels;roasted sunflower seeds|582|19.3|24.1|49.6|11.1|2.7|3|5.2|oz=28.35;tbsp=9;cup=128|
+Pumpkin seeds|raw|pepitas;roasted pumpkin seeds|559|30.2|10.7|49|6|1.4|7|8.7|oz=28.35;tbsp=9|
+Chia seeds|raw|chia|486|16.5|42.1|30.7|34.4|0|16|3.3|tbsp=12;oz=28.35;tsp=4|
+Flax seeds|raw|flaxseed;ground flaxseed;flax meal|534|18.3|28.9|42.2|27.3|1.6|30|3.7|tbsp=10.3;oz=28.35|
+Hemp seeds|raw|hemp hearts|553|31.6|8.7|48.8|4|1.5|5|4.6|tbsp=10;oz=28.35|
+Chocolate hazelnut spread|raw|nutella;hazelnut spread;chocolate spread|539|6.3|57.5|30.9|3.4|56.3|41|10.6|tbsp=18.5;2 tbsp=37|
+Jam|raw|jelly;strawberry jam;grape jelly;preserves;fruit spread|278|0.4|68.9|0.1|1.1|48.5|32|0|tbsp=20;tsp=7|
+Honey|raw||304|0.3|82.4|0|0.2|82.1|4|0|tbsp=21;tsp=7;cup=339|l
+Sugar|raw|white sugar;granulated sugar;table sugar|387|0|99.8|0|0|99.8|1|0|tsp=4.2;tbsp=12.6;cup=200;packet=4|
+Brown sugar|raw|brown sugar packed|380|0.1|98|0|0|97|28|0|tsp=4.6;tbsp=13.8;cup=220|
+Agave nectar|raw|agave syrup|310|0.1|76.4|0.5|0.2|68|4|0|tbsp=21;tsp=7|l
+Cocoa powder|raw|unsweetened cocoa;cacao powder|228|19.6|57.9|13.7|33.2|1.8|21|8.1|tbsp=5;cup=86|
+@Oils, condiments and sauces
+Olive oil|raw|extra virgin olive oil;evoo;cooking oil olive|884|0|0|100|0|0|2|13.8|tbsp=13.5;tsp=4.5;cup=216|l d
+Vegetable oil|raw|canola oil;cooking oil;soybean oil;corn oil;sunflower oil;oil|884|0|0|100|0|0|0|10|tbsp=13.6;tsp=4.5;cup=218|l
+Coconut oil|raw||862|0|0|100|0|0|0|82.5|tbsp=13.6;tsp=4.5|l
+Avocado oil|raw||884|0|0|100|0|0|0|11.6|tbsp=13.6;tsp=4.5|l
+Mayonnaise|raw|mayo|680|1|0.6|74.9|0|0.6|635|11.2|tbsp=13.8;tsp=4.6|d
+Ketchup|raw|catsup|101|1|27.4|0.1|0.3|21.3|907|0|tbsp=17;packet=9;tsp=5.7|l
+Mustard|raw|yellow mustard;dijon mustard;prepared mustard|60|3.7|5.8|3.3|4|0.9|1135|0.2|tsp=5;tbsp=15|l
+BBQ sauce|raw|barbecue sauce;bbq;barbeque sauce|172|0.8|40.8|0.6|0.9|33|1027|0.1|tbsp=17;2 tbsp=34;cup=272|l typ
+Soy sauce|raw|tamari;shoyu|53|8.1|4.9|0.6|0.8|0.4|5493|0.1|tbsp=16;tsp=5.3|l
+Hot sauce|raw|tabasco;cholula;frank's red hot|11|0.5|1.8|0.4|0.3|1|2643|0.1|tsp=5;tbsp=15|l typ
+Sriracha|raw|sriracha sauce;chili sauce|93|1.9|19.2|0.9|2.2|15|2000|0.2|tsp=6;tbsp=18|l typ
+Teriyaki sauce|raw|teriyaki|89|5.9|15.6|0|0.1|14|3833|0|tbsp=18|l
+Salsa|raw|pico de gallo;tomato salsa;chunky salsa|36|1.5|7|0.2|1.9|4|700|0|tbsp=16;cup=259;serving=32|
+Marinara sauce|raw|pasta sauce;spaghetti sauce;tomato sauce;red sauce;marinara|50|1.4|8.6|1|1.5|5.7|430|0.2|half cup=125;cup=250;tbsp=16|l typ
+Alfredo sauce|raw|alfredo|160|3.5|3.5|14.5|0.3|1.2|450|8.5|half cup=125;cup=250;tbsp=16|l typ
+Pesto|raw|basil pesto|418|5.2|6.5|41|1.5|1|600|7|tbsp=16;2 tbsp=32|typ
+Ranch dressing|raw|ranch|430|1.1|5.9|44.7|0.5|3|860|6.7|tbsp=15;2 tbsp=30;cup=240|l d
+Italian dressing|raw|italian vinaigrette;vinaigrette;oil and vinegar|270|0.2|9|26|0|7|1050|3.8|tbsp=15;2 tbsp=30|l typ
+Caesar dressing|raw|creamy caesar|450|1.5|4|47|0|1.5|1000|7|tbsp=15;2 tbsp=30|l typ
+Blue cheese dressing|raw|bleu cheese dressing|470|2.5|5|49|0|3|900|9|tbsp=15;2 tbsp=30|l typ
+Balsamic vinegar|raw|balsamic|88|0.5|17|0|0|15|23|0|tbsp=16|l
+Lemon juice|raw|lime juice|22|0.4|6.9|0.2|0.3|2.5|1|0|tbsp=15;cup=244;tsp=5|l
+Gravy|raw|brown gravy;beef gravy|50|1.6|5.3|2.5|0.2|0.5|420|1|cup=233;quarter cup=58;tbsp=16|l typ
+Chicken broth|raw|chicken stock;broth;bone broth;beef broth|5|0.6|0.4|0.1|0|0.2|343|0|cup=240|l
+Tomatoes canned|canned|canned tomatoes;diced tomatoes;crushed tomatoes|21|1|4.6|0.1|1.5|2.9|132|0|cup=240;half cup=120|
+Pickles|raw|dill pickle;dill pickles;pickle spear;pickle chips|11|0.3|2.3|0.2|1|1.1|1208|0|spear=35;each=65;slice=7;medium=65|
+Olives|raw|green olives;black olives;olive|116|0.8|6.3|10.9|3.2|0|735|1.4|each=4;oz=28.35;tbsp=9|typ
+Sauerkraut|raw|kraut|19|0.9|4.3|0.1|2.9|1.8|661|0|cup=142;tbsp=9|
+Kimchi|raw||15|1.1|2.4|0.5|1.6|1.1|498|0.1|cup=150;half cup=75|typ
+Flour tortilla chips and queso|raw|chips and queso;queso dip;cheese dip|240|7|15|17|0.8|2|760|8|tbsp=16;cup=240|typ
+@Drinks
+Coffee|raw|black coffee;brewed coffee;drip coffee;americano;cup of coffee;iced coffee black;cold brew|1|0.1|0|0|0|0|2|0|cup=237;mug=300;fl oz=29.6;tall=355;grande=473;venti=591|l d
+Espresso|raw|espresso shot;double espresso;shot of espresso|9|0.7|1.7|0.2|0|0|14|0|shot=30;double=60;each=30|l
+Latte|raw|latte whole milk;cafe latte;caffe latte;iced latte;flat white|48|2.6|3.7|2.6|0|3.7|35|1.6|small=355;medium=473;large=591;tall=355;grande=473;venti=591;cup=240;each=473|l typ d
+Latte 2% milk|raw|latte with 2% milk;skim latte;starbucks latte|40|2.7|3.9|1.5|0|3.8|35|0.9|small=355;medium=473;large=591;tall=355;grande=473;venti=591;cup=240|l typ
+Cappuccino|raw|cappucino;iced cappuccino|36|2.1|3.2|1.5|0|3.1|27|0.9|small=355;medium=473;large=591;cup=180;each=355|l typ
+Mocha|raw|caffe mocha;mocha latte;iced mocha|70|2.7|8.8|2.7|0.4|7.9|45|1.6|small=355;medium=473;large=591;tall=355;grande=473;venti=591|l typ
+Caramel macchiato|raw|macchiato;caramel latte|53|2|7.6|1.7|0|7.3|40|1|small=355;medium=473;large=591;tall=355;grande=473;venti=591|l typ
+Frappuccino|raw|blended coffee;frappe;blended coffee drink;iced blended coffee|80|0.9|13.5|2.8|0|12.6|50|1.8|small=355;medium=473;large=591;tall=355;grande=473;venti=591|l typ
+Tea|raw|black tea;green tea;unsweetened tea;iced tea unsweetened;herbal tea|1|0|0.3|0|0|0|3|0|cup=237;mug=300;bottle=500;fl oz=29.6|l
+Sweet tea|raw|iced tea sweetened;sweetened tea;arizona tea|33|0|8.4|0|0|8.2|5|0|cup=240;glass=240;bottle=500;can=355|l typ
+Hot chocolate|raw|hot cocoa;cocoa with milk|77|3.2|11|2.6|0.4|9.6|50|1.6|cup=250;mug=300|l typ
+Milkshake|raw|shake;vanilla milkshake;chocolate milkshake|112|3.8|18|3|0.3|17|80|2|small=340;medium=450;large=600;cup=250|l typ
+Smoothie|raw|fruit smoothie;berry smoothie;banana smoothie;jamba smoothie|63|1|14.5|0.4|1|12.5|20|0.1|small=355;medium=480;large=600;cup=240|l typ
+Cola|raw|coke;pepsi;soda;soft drink;pop;coca cola|42|0|10.6|0|0|10.6|4|0|can=355;bottle=591;cup=240;glass=240;fl oz=29.6;small=355;medium=473;large=650|l d
+Diet soda|raw|diet coke;coke zero;diet pepsi;zero sugar soda;sugar free soda|0|0|0.1|0|0|0|11|0|can=355;bottle=591;cup=240;glass=240|l
+Lemon lime soda|raw|sprite;7up;ginger ale;root beer;orange soda|40|0|10.1|0|0|10|11|0|can=355;bottle=591;cup=240|l typ
+Sports drink|raw|gatorade;powerade;electrolyte drink|26|0|6.4|0|0|5.5|41|0|bottle=591;can=355;cup=240;12 oz=355;20 oz=591|l
+Energy drink|raw|red bull;monster;monster energy;rockstar|45|0.4|11|0|0|11|40|0|can=473;small can=250;8 oz=250;16 oz=473|l
+Water|raw|sparkling water;seltzer;mineral water;club soda|0|0|0|0|0|0|2|0|cup=240;glass=240;bottle=500;can=355|l
+Kombucha|raw||13|0|3|0|0|2|10|0|bottle=480;cup=240|l typ
+Beer|raw|beers;lager;pilsner;pale ale;bud light;budweiser;miller;corona|43|0.5|3.6|0|0|0|4|0|can=356;bottle=356;pint=473;glass=356;12 oz=356|l d alc=3.9
+Light beer|raw|miller lite;coors light;michelob ultra|29|0.2|1.9|0|0|0|9|0|can=356;bottle=356;pint=473;12 oz=356|l alc=3.3
+IPA beer|raw|ipa;craft beer;india pale ale;stout;craft ipa|58|0.6|4.3|0|0|0.5|8|0|can=473;bottle=355;pint=473;glass=473;12 oz=355;16 oz=473|l typ alc=5.5
+Hard seltzer|raw|white claw;truly;spiked seltzer|30|0|0.6|0|0|0.3|5|0|can=355;12 oz=355|l typ alc=3.9
+Wine red|raw|red wine;cabernet;merlot;pinot noir;glass of wine;wine|85|0.1|2.6|0|0|0.6|4|0|glass=147;5 oz=147;bottle=750;cup=240;fl oz=29.6|l d alc=9.9
+Wine white|raw|white wine;chardonnay;pinot grigio;sauvignon blanc;prosecco;champagne;rose wine|82|0.1|2.6|0|0|1|5|0|glass=147;5 oz=147;bottle=750;fl oz=29.6|l alc=9.6
+Liquor 80 proof|raw|whiskey;whisky;vodka;rum;gin;tequila;bourbon;scotch;brandy;shot of liquor;liquor|231|0|0|0|0|0|1|0|shot=42;1.5 oz=42;fl oz=28;double=84;jigger=42|l alc=32
+Margarita|raw|margaritas|120|0|14|0|0|13|100|0|glass=240;cup=240;fl oz=30|l typ alc=9
+Mixed cocktail|raw|cocktail;mojito;old fashioned;gin and tonic;rum and coke;vodka soda|110|0|7|0|0|6|10|0|glass=200;cup=200|l typ alc=9
+@Sweets and desserts
+Chocolate milk bar|raw|milk chocolate;hershey bar;chocolate bar;candy bar chocolate|535|7.7|59.4|29.7|3.4|51.5|79|18.5|bar=43;oz=28.35;square=10;piece=10|d
+Dark chocolate|raw|dark chocolate 70%;dark chocolate bar;70% dark chocolate|598|7.8|45.9|42.6|10.9|24|20|24.5|square=10;oz=28.35;bar=100;piece=10|
+Dark chocolate 50 percent|raw|semi sweet chocolate;chocolate chips|546|4.9|61.2|31.3|7|47.9|24|18.5|oz=28.35;tbsp=12;square=10;cup=170|typ
+Candy bar|raw|snickers;twix;kit kat;peanut candy bar;candy bar with caramel|480|8|60|24|2|52|150|9|each=52;bar=52;fun size=18|typ
+Peanut butter cups|raw|reeses;reese's cups;peanut butter cup|500|12|57|31|3|47|300|10|each=21;cup=21;pack=42|typ
+Gummy candy|raw|gummy bears;gummies;skittles;sour patch;fruity candy;jelly beans|343|6.9|77|0.1|0|46|70|0|oz=28.35;handful=30;serving=40;piece=3|typ
+Marshmallows|raw|marshmallow|318|1.8|81.3|0.2|0.1|60|80|0.1|each=7;cup=50;large=7|
+Chocolate chip cookie|raw|cookie;cookies;chocolate chip cookies|488|5|64|24|2.5|36|400|8|small=15;medium=30;large=60;each=30;cookie=30|d
+Sandwich cookie|raw|oreo;oreos;oreo cookies;cream filled cookie|471|4.4|73.5|20.6|2.9|41|397|5.9|each=11;cookie=11;3 cookies=34|typ
+Brownie|raw|brownies;fudge brownie|466|5|60|24|2.5|42|360|7|each=56;piece=56;brownie=56;square=56|
+Chocolate cake|raw|cake;birthday cake;slice of cake;frosted cake|371|4|53|16|2|40|300|4.5|slice=95;piece=95;each=95|typ
+Cheesecake|raw|slice of cheesecake;new york cheesecake|321|5.5|25.5|22.5|0.4|22|250|12|slice=125;piece=125;each=125|
+Apple pie|raw|pie;slice of pie;fruit pie|237|1.9|34|11|1.6|16|266|4.5|slice=125;piece=125;each=125|typ
+Pumpkin pie|raw|pumpkin pie slice|229|3.9|30|10|1.6|20|200|3|slice=109;piece=109|typ
+Donut|raw|doughnut;glazed donut;glazed doughnut;donuts;krispy kreme|421|5|49|23|1.4|20|340|5.5|each=60;donut=60;piece=60;medium=60|d
+Muffin|raw|blueberry muffin;muffins;chocolate chip muffin|377|5.7|54|16|1.5|30|420|3|each=113;muffin=113;medium=113;small=57|
+Pop-Tart|raw|pop tart;toaster pastry|400|4.5|71|11|1|35|350|2.5|each=52;pastry=52|typ
+@Fast food and restaurant
+Hamburger|cooked|burger;plain hamburger;fast food hamburger;single burger;mcdonalds hamburger|250|12.5|31|9|1.2|6|480|3.5|each=110;burger=110;sandwich=110|typ
+Cheeseburger|cooked|cheese burger;fast food cheeseburger;single cheeseburger|270|14|23|13|1.2|5.5|650|6|each=120;burger=120;sandwich=120|typ d
+Double cheeseburger|cooked|double burger;double cheese burger;big mac style|280|16|19|16|1|5|700|7|each=165;burger=165|typ
+Restaurant burger|cooked|half pound burger;steakhouse burger;pub burger;bacon cheeseburger;gourmet burger;burger and bun|285|16|18|16|1|4|560|6.5|each=330;burger=330|typ
+Chicken sandwich|fried|fried chicken sandwich;crispy chicken sandwich;mcchicken;popeyes chicken sandwich|262|13|27|11.5|1.3|4|700|2.2|each=170;sandwich=170|typ
+Grilled chicken sandwich|cooked|chicken sandwich grilled;grilled chicken burger|205|16|20|5.5|1.5|4|600|1.2|each=190;sandwich=190|typ
+Fish sandwich|fried|filet o fish;fish burger|271|11.5|27|13|1.2|4|560|2.5|each=140;sandwich=140|typ
+Pizza cheese|cooked|pizza;cheese pizza;pizza slice;slice of pizza;pizza slice cheese;margherita pizza|266|11.4|33.3|9.7|2.3|3.6|598|4.5|slice=107;piece=107;each=107;large slice=140;personal=250|d
+Pizza pepperoni|cooked|pepperoni pizza;pizza with pepperoni;pepperoni slice|298|12|34|13|2|3.6|700|5|slice=113;piece=113;each=113;large slice=145|
+Pizza supreme|cooked|meat lovers pizza;supreme pizza;sausage pizza;veggie pizza;combo pizza|285|13|27|14|2|3.5|650|5.5|slice=130;piece=130;each=130|typ
+Pizza thin crust|cooked|thin crust pizza;cauliflower crust pizza|240|11|27|9|1.8|3|580|4.2|slice=95;piece=95;each=95|typ
+Taco|cooked|beef taco;hard shell taco;tacos;crunchy taco|226|11|16|13|2|1.5|420|5.5|each=80;taco=80;piece=80|typ
+Soft taco|cooked|street taco;chicken taco;fish taco;carnitas taco;soft shell taco|200|11|20|8|2|1.5|420|3|each=100;taco=100;piece=100|typ
+Burrito|cooked|chicken burrito;beef burrito;bean burrito;burritos|190|8|24|6|2.5|1.8|520|2.5|each=300;burrito=300|typ
+Burrito bowl|cooked|chipotle bowl;rice bowl;chicken bowl;chicken burrito bowl;taco bowl;burrito bowl|150|10|16|5|3|1.5|380|1.8|bowl=450;each=450;serving=450|typ
+Quesadilla|cooked|cheese quesadilla;chicken quesadilla|290|13|26|15|1.5|1.5|600|7|each=180;quesadilla=180;wedge=60|typ
+Nachos|cooked|nachos with cheese;loaded nachos|306|8|33|16|3|2|620|5|plate=200;serving=100;cup=100|typ
+Subway sandwich|cooked|sub;sub sandwich;turkey sub;turkey sandwich;deli sandwich;ham sandwich;submarine sandwich;hoagie|150|10|21|3.5|1.5|3|550|1.2|each=230;six inch=230;footlong=460;sandwich=230|typ
+Grilled cheese sandwich|cooked|grilled cheese;cheese sandwich;toasted cheese sandwich|330|12|28|19|1|4|700|9|each=130;sandwich=130|typ
+BLT sandwich|cooked|blt|300|11|27|16|1.5|3.5|700|5|each=170;sandwich=170|typ
+Peanut butter and jelly sandwich|raw|pb&j;pbj;peanut butter jelly sandwich;pb and j|360|12|44.5|16|3|16|380|3.2|each=112;sandwich=112|typ
+Breakfast sandwich|cooked|egg and cheese sandwich;egg mcmuffin;sausage egg and cheese;breakfast burrito;bacon egg and cheese|290|13|25|15|1.2|3|700|6|each=165;sandwich=165;burrito=200|typ
+Avocado toast|raw|avocado on toast|198|4.5|23|10.6|5.2|2|230|1.8|each=125;slice=125|typ
+Caesar salad|raw|caesar salad no chicken;side caesar;caesar|150|5|8|11|1.5|1.5|450|3|bowl=250;side=150;serving=250;cup=100|typ
+Caesar salad with chicken|raw|chicken caesar salad;grilled chicken caesar;chicken caesar|145|12|6|8.5|1.3|1.3|420|2.5|bowl=350;serving=350|typ
+Cobb salad|raw|chef salad;chicken salad bowl;entree salad|150|11|5|10|1.8|2|500|3.5|bowl=400;serving=400|typ
+Garden salad|raw|house salad;side salad;green salad;side salad no dressing|20|1.3|3.8|0.2|1.4|2|20|0|bowl=200;side=150;serving=150;cup=50|typ
+Coleslaw|raw|cole slaw;slaw|150|1.1|13|10|1.5|10|240|1.5|cup=120;serving=100|typ
+Potato salad|raw||143|2.9|14.7|8.2|1.4|3|400|1.6|cup=250;serving=125|typ
+Macaroni salad|raw|pasta salad|169|3.5|18|9|1.2|3|330|1.5|cup=200;serving=125|typ
+Tuna salad|raw|tuna fish salad;tuna mayo;tuna melt filling|187|16.1|9.6|9.2|0.5|3|420|1.6|cup=205;scoop=100;serving=100|typ
+Chicken salad|raw|chicken salad sandwich filling|207|17|3.5|14|0.4|2|400|2.7|cup=200;scoop=100;serving=100|typ
+Macaroni and cheese|cooked|mac and cheese;mac n cheese;mac & cheese;kraft dinner|164|7|19|7|0.8|3|520|3.3|cup=200;bowl=250;serving=200|typ
+Spaghetti with meat sauce|cooked|spaghetti and meatballs;spaghetti bolognese;pasta with meat sauce;pasta bolognese;spaghetti meat sauce|140|7|17|5|1.5|3|350|2|plate=350;bowl=300;cup=250;serving=300|typ
+Lasagna|cooked|meat lasagna;cheese lasagna|135|8|13|6|1.2|2.5|380|3|piece=250;slice=250;serving=250;square=250|typ
+Fettuccine alfredo|cooked|alfredo pasta;chicken alfredo;pasta alfredo|190|6.5|19|10|1|1.5|360|5.5|plate=350;bowl=300;serving=300;cup=220|typ
+Chicken parmesan|fried|chicken parm;chicken parmigiana|200|16|12|10|1|3|480|3.5|piece=200;serving=250;each=200|typ
+Pad thai|cooked|pad thai noodles;thai noodles|170|8|22|6|1.5|5|550|1.2|plate=300;serving=300;cup=200|typ
+Orange chicken|fried|general tso chicken;sweet and sour chicken;chinese chicken takeout;sesame chicken|280|13|32|11|0.8|16|600|2|serving=250;plate=300;cup=170|typ
+Beef and broccoli|cooked|chinese beef and broccoli;broccoli beef;beef stir fry;chicken stir fry;stir fry|105|7|6|5.5|1.5|3|480|1.5|serving=230;plate=300;cup=200|typ
+Egg roll|fried|eggroll;spring roll;egg rolls|200|8|24|8|1.5|3|420|1.8|each=85;piece=85;roll=85|typ
+Mozzarella sticks|fried|fried cheese sticks;cheese sticks fried;fried mozzarella|300|12.5|24|16|1.2|2|620|6|each=30;piece=30;stick=30|typ
+Chili|cooked|chili with beans;beef chili;turkey chili|105|8|10|3.5|3.5|3|420|1.5|cup=250;bowl=350;serving=250|typ
+Chicken noodle soup|cooked|chicken soup;chicken and rice soup|45|3|5|1.3|0.3|0.6|330|0.4|cup=248;bowl=350;serving=248|typ
+Tomato soup|cooked|cream of tomato soup;tomato bisque|50|1|10|1|1|6|400|0.3|cup=248;bowl=350|typ
+Clam chowder|cooked|new england clam chowder;chowder;cream soup;potato soup;broccoli cheese soup|80|3.5|9|3.5|0.5|1.5|380|1.7|cup=248;bowl=350|typ
+Steak and potatoes plate|cooked|steak dinner|190|14|10|10|1.2|0.5|120|4|plate=450|typ
+@More foods
+Buttermilk|raw|cultured buttermilk|40|3.3|4.8|0.9|0|4.8|105|0.5|cup=245;glass=245|l
+Condensed milk|raw|sweetened condensed milk|321|7.9|54.4|8.7|0|54.4|127|5.5|tbsp=19;cup=306|l
+Kefir|raw|kefir drink;plain kefir|55|3.4|4.5|2|0|4.5|40|1.3|cup=243;glass=243|l typ
+Tzatziki|raw|cucumber yogurt dip|70|3|4|4.5|0.3|3|250|2.5|tbsp=15;cup=240;serving=30|typ
+Radishes|raw|radish|16|0.7|3.4|0.1|1.6|1.9|39|0|cup=116;each=4|
+Artichoke|cooked|artichokes;artichoke hearts|53|2.9|11.9|0.4|5.7|1|94|0.1|each=120;cup=168|
+Bok choy|raw|pak choi;chinese cabbage|13|1.5|2.2|0.2|1|1.2|65|0|cup=70|
+Snap peas|raw|sugar snap peas;snow peas|42|2.8|7.6|0.2|2.6|4|4|0|cup=98;handful=50|
+Okra|cooked|boiled okra|22|1.9|4.5|0.2|2.5|1.7|6|0.1|cup=160|
+Papaya|raw||43|0.5|11|0.3|1.7|7.8|8|0.1|cup=140;half=150|
+Pomegranate|raw|pomegranate seeds;pomegranate arils|83|1.7|18.7|1.2|4|13.7|3|0.1|cup=174;half cup=87|
+Figs|raw|fig|74|0.8|19.2|0.3|2.9|16.3|1|0.1|each=50;medium=50|
+Apricots|raw|apricot|48|1.4|11.1|0.4|2|9.2|1|0|each=35|
+Nectarine|raw|nectarines|44|1.1|10.6|0.3|1.7|7.9|0|0|each=142;medium=142|
+Coconut|raw|coconut meat;fresh coconut|354|3.3|15.2|33.5|9|6.2|20|29.7|oz=28.35;cup=80|
+Trout|cooked|rainbow trout;baked trout|168|22.9|0|7.4|0|0|57|2.1|fillet=100;oz=28.35|
+Smoked salmon|raw|lox;nova lox|117|18.3|0|4.3|0|0|784|0.9|slice=28;oz=28.35|
+Mussels|cooked|steamed mussels|172|23.8|7.4|4.5|0|0|369|0.9|cup=150;oz=28.35|
+Tomato paste|canned||82|4.3|18.9|0.5|4.1|12.2|59|0.1|tbsp=16;can=170|
+Enchiladas|cooked|chicken enchiladas;cheese enchiladas;beef enchiladas|175|8.5|18|7.5|2|2|520|3.5|each=150;piece=150;plate=300|typ
+Chicken tikka masala|cooked|butter chicken;tikka masala;indian curry|150|11|6|9|1|3|420|3.5|cup=240;serving=250|typ
+Chicken curry|cooked|thai curry;green curry;red curry;coconut curry|135|10|5|8.5|1.2|2.5|400|4.5|cup=240;serving=250|typ
+Falafel|fried|falafel balls|333|13.3|31.8|17.8|4.9|0|294|2.4|each=17;ball=17;piece=17|
+Potstickers|fried|dumplings;gyoza;pot stickers;wontons|210|9|25|8|1.2|2|520|2|each=30;piece=30;dumpling=30|typ
+Bologna|raw|baloney;lunch meat bologna|311|11.3|4.3|27.8|0|2|1080|10.5|slice=28;oz=28.35|typ
+Graham crackers|raw|graham cracker|430|6.7|76.7|10.6|3.4|24|580|2|each=7;sheet=14;cracker=7|typ
+Cupcake|raw|frosted cupcake|390|3.5|55|18|0.8|40|280|7|each=70;cupcake=70|typ
+Soft pretzel|raw|big soft pretzel;auntie annes|338|8.7|70|2.2|2.4|2|940|0.4|each=115;pretzel=115|typ
+Cinnamon roll|raw|cinnabon;cinnamon bun|380|5|55|15|1.5|25|420|5|each=100;roll=100|typ
+Chicken breast deli|raw|chicken lunch meat;sliced chicken breast deli;deli chicken|105|17|3|2.5|0|2|900|0.7|slice=28;oz=28.35|typ`;
+const FK_NUT = ['kcal', 'p', 'c', 'f', 'fiber', 'sugar', 'na', 'sat'];
+const FK_STATE_WORD = { raw: 'raw', uncooked: 'raw', dry: 'raw', cooked: 'cooked', grilled: 'cooked', roasted: 'cooked', roast: 'cooked', baked: 'cooked', boiled: 'cooked', steamed: 'cooked', broiled: 'cooked', sauteed: 'cooked', seared: 'cooked', braised: 'cooked', stewed: 'cooked', poached: 'cooked', toasted: 'cooked', microwaved: 'cooked', fried: 'fried', crispy: 'fried', breaded: 'fried', battered: 'fried', canned: 'canned', tinned: 'canned' };
+const FK_STOP = new Set(['of', 'the', 'a', 'an', 'some', 'and', 'with', 'in', 'on', 'my', 'for', 'to', 'about', 'approx', 'approximately', 'around', 'just', 'fresh', 'homemade', 'home', 'made', 'style', 'pan', 'deep', 'air', 'plain', 'regular', 'standard', 'whole', 'large', 'medium', 'small', 'big', 'jumbo', 'extra']);
+const fkR1 = (n) => Math.round((+n || 0) * 10) / 10;
+function fkSing(w) { // plural to singular, the same rule for the query and the food names
+  if (w.length < 4) return w;
+  if (/(ies)$/.test(w)) return w.slice(0, -3) + 'y';
+  if (/ie$/.test(w)) return w.slice(0, -2) + 'y';
+  if (/(oes|ches|shes|xes|sses)$/.test(w)) return w.slice(0, -2);
+  if (/s$/.test(w) && !/(ss|us|is)$/.test(w)) return w.slice(0, -1);
+  return w;
+}
+// Lower-case words, singular, no filler words. {words (all), toks (food words), states (Set of raw|cooked|fried|canned)}
+function fkTokens(s) {
+  s = String(s || '').toLowerCase().replace(/\(([^)]*)\)/g, ' ').replace(/&/g, ' and ').replace(/(\d+)\s*%/g, '$1pct').replace(/[^a-z0-9]+/g, ' ').trim();
+  const words = s ? s.split(' ') : [], toks = [], states = new Set();
+  for (const w0 of words) {
+    if (FK_STATE_WORD[w0]) { states.add(FK_STATE_WORD[w0]); continue; }
+    const w = fkSing(w0);
+    if (FK_STOP.has(w0) || FK_STOP.has(w)) continue;
+    toks.push(w);
+  }
+  return { words, toks, states, key: words.map(fkSing).join(' ') };
+}
+// Drops amounts from a food phrase: "2 large eggs" -> "eggs", "1/2 cup cooked rice" -> "cooked rice", "150 g chicken" -> "chicken".
+function fkCleanQuery(s) {
+  const U = '(?:g|gr|gram|grams|kg|oz|ounce|ounces|ml|l|lb|lbs|pound|pounds|cup|cups|tbsp|tbs|tsp|tablespoon|tablespoons|teaspoon|teaspoons|slice|slices|piece|pieces|serving|servings)';
+  s = String(s || '').replace(/\([^)]*\)/g, ' ').replace(new RegExp('\\b(?:\\d+\\s+)?\\d+\\s*/\\s*\\d+\\s*' + U + '\\b', 'gi'), ' ').replace(new RegExp('\\b\\d+(?:\\.\\d+)?\\s*' + U + '\\b', 'gi'), ' ');
+  const t = s.trim(); const c = t.replace(/^(?:about\s+)?\d+(?:\.\d+)?\s+(?=[a-z])/i, '').replace(/^(?:of\s+)/i, '');
+  return c.replace(/\s+/g, ' ').trim() || t;
+}
+function fkLev(a, b, max) { // edit distance (insert, delete, substitute, adjacent swap), capped at max+1
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let prev2 = null, prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i]; let lo = i;
+    for (let j = 1; j <= b.length; j++) {
+      let v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1] && prev2) v = Math.min(v, prev2[j - 2] + 1);
+      cur[j] = v; if (v < lo) lo = v;
+    }
+    if (lo > max) return max + 1;
+    prev2 = prev; prev = cur;
+  }
+  return prev[b.length];
+}
+function fkTokScore(q, w) { // one query word against one food-name word: 1 exact, .85 typed prefix, .7 / .5 typo
+  if (q === w) return 1;
+  if (q.length >= 3 && w.startsWith(q)) return 0.85;
+  if (q.length >= 5 && q[0] === w[0]) { const d = fkLev(q, w, 2); if (d === 1) return 0.88; if (d === 2 && q.length >= 8) return 0.6; }
+  return 0;
+}
+// How well query tokens qt cover a name's tokens nt: {cov (share of the query explained), nameCov (share of the name explained)}
+function fkCover(qt, nt) {
+  if (!qt.length || !nt.length) return { cov: 0, nameCov: 0 };
+  let sum = 0; const hit = new Array(nt.length).fill(0);
+  for (const q of qt) {
+    let best = 0, bi = -1;
+    for (let i = 0; i < nt.length; i++) { const v = fkTokScore(q, nt[i]); if (v > best) { best = v; bi = i; } }
+    sum += best; if (bi >= 0) hit[bi] = Math.max(hit[bi], best);
+  }
+  return { cov: sum / qt.length, nameCov: hit.reduce((a, b) => a + (b > 0 ? 1 : 0), 0) / nt.length };
+}
+// Score a query against a list of name variants [{t (tokens), key, states}]. Returns the best score or -1.
+function fkNameScore(q, names) {
+  let best = -1;
+  for (const n of names) {
+    if (!n.t.length) continue;
+    const { cov, nameCov } = fkCover(q.toks, n.t);
+    if (cov < 0.6) continue;
+    let s = 100 * Math.pow(cov, 1.5) * (0.55 + 0.45 * nameCov);
+    if (q.key && n.key === q.key) s += 25; // the same words as a name or alias, state words included
+    else if (q.toks.length === n.t.length && cov === 1 && nameCov === 1) s += 15;
+    for (const st of n.states) if (!q.states.has(st)) { s -= 25; break; } // the name says "fried" and the query did not
+    if (n.states.size && q.states.size && ![...q.states].some((x) => n.states.has(x))) s -= 40; // the query says raw, the name says cooked
+    if (s > best) best = s;
+  }
+  return best;
+}
+let fkFoods = null, fkGroups = null;
+function fkBuild() {
+  if (fkFoods) return fkFoods;
+  const out = []; let cat = '';
+  for (const line of FK_KB_TEXT.split('\n')) {
+    const l = line.trim(); if (!l) continue;
+    if (l[0] === '@') { cat = l.slice(1).trim(); continue; }
+    const a = l.split('|'); if (a.length < 13) continue;
+    const per100 = {}; FK_NUT.forEach((k, i) => { per100[k] = +a[3 + i]; });
+    const portions = {}; (a[11] || '').split(';').forEach((s) => { const m = /^(.+?)=([\d.]+)$/.exec(s.trim()); if (m) portions[m[1].trim()] = +m[2]; });
+    const flags = (a[12] || '').split(/\s+/).filter(Boolean), fl = {}; flags.forEach((x) => { const m = /^(\w+)=([\d.]+)$/.exec(x); if (m) fl[m[1]] = +m[2]; else fl[x] = true; });
+    const food = { id: '', name: a[0].trim(), state: a[1].trim(), al: (a[2] || '').split(';').map((s) => s.trim()).filter(Boolean), per100, portions, typ: !!fl.typ, d: !!fl.d, sug: !!fl.sug, liquid: !!fl.l, cat, src: 'kb' };
+    if (fl.alc) food.alc = fl.alc;
+    out.push(food);
+  }
+  fkGroups = new Map();
+  for (const f of out) { const k = f.name.toLowerCase(); if (!fkGroups.has(k)) fkGroups.set(k, []); fkGroups.get(k).push(f); }
+  const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  for (const g of fkGroups.values()) {
+    if (g.length === 1 && g[0].state !== '') g[0].state = ''; // a state only means something when there is a second variant
+    if (!g.some((x) => x.d)) g[0].d = true;
+    g.forEach((f) => { f.group = g; f.id = 'kb:' + slug(f.name) + (f.state ? '.' + f.state : ''); });
+  }
+  for (const f of out) { // name variants for matching
+    const mk = (s) => { const t = fkTokens(s); return { t: t.toks, key: t.key, states: t.states }; };
+    f.names = [mk(f.name), ...f.al.map(mk)];
+  }
+  fkFoods = out; return out;
+}
+const fkAll = () => fkBuild();
+const fkLabel = (f) => (f.state ? `${f.name}, ${f.state === 'raw' ? 'raw' : f.state}` : f.name);
+// Ranked match. fkFind('grilled chicken breast', 5) -> [{food, score}] best first. Score 0-125: >= 70 is a strong match; below 45 is a guess.
+// State words (grilled / boiled / roasted -> cooked, fried / crispy -> fried, raw / uncooked, canned) choose the raw, cooked or fried variant; with no
+// state word the food's default variant is preferred. Handles plurals, typos and typed prefixes. Only the built-in foods are searched.
+function fkFind(query, limit = 8) {
+  fkBuild();
+  const q = fkTokens(fkCleanQuery(query));
+  if (!q.toks.length) return [];
+  const want = q.states.size === 1 ? [...q.states][0] : null, res = [];
+  for (const f of fkFoods) {
+    let s = fkNameScore(q, f.names); if (s < 0) continue;
+    const multi = f.group.length > 1;
+    if (want && multi) {
+      if (f.state === want) s += 14; else if (f.group.some((x) => x.state === want)) s -= 22;
+    } else if (!want && multi && f.d) s += 6;
+    else if (f.d) s += 3;
+    res.push({ food: f, score: Math.round(s * 10) / 10 });
+  }
+  res.sort((a, b) => b.score - a.score || (b.food.d ? 1 : 0) - (a.food.d ? 1 : 0));
+  return res.slice(0, Math.max(1, limit | 0));
+}
+
+// ---- portion text to grams ----
+const FK_NUMW = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, couple: 2, few: 3, dozen: 12, half: 0.5, quarter: 0.25 };
+const FK_FRAC = { '½': 0.5, '¼': 0.25, '¾': 0.75, '⅓': 1 / 3, '⅔': 2 / 3, '⅛': 0.125 };
+const FK_UNIT = { g: 'g', gram: 'g', gr: 'g', gm: 'g', kg: 'kg', kilo: 'kg', kilogram: 'kg', oz: 'oz', ounce: 'oz', lb: 'lb', pound: 'lb', ml: 'ml', milliliter: 'ml', millilitre: 'ml', l: 'l', liter: 'l', litre: 'l', cup: 'cup', c: 'cup', tbsp: 'tbsp', tbs: 'tbsp', tbl: 'tbsp', tablespoon: 'tbsp', tsp: 'tsp', teaspoon: 'tsp', floz: 'floz', pc: 'piece', pcs: 'piece' };
+const FK_SIZES = ['extra large', 'jumbo', 'large', 'medium', 'small', 'mini'];
+// Leading quantity: "1 1/2", "1/2", "1.5", "2-3" (middle), "½", "two", "a", "half a". Returns {q, rest} or null.
+function fkQty(s) {
+  s = s.trim().replace(/(\d)\s*([½¼¾⅓⅔⅛])/g, (m, d, fr) => `${d} ${FK_FRAC[fr]}`).replace(/[½¼¾⅓⅔⅛]/g, (m) => String(FK_FRAC[m])).trim();
+  let m;
+  if ((m = /^(\d+)\s+(\d+)\s*\/\s*(\d+)/.exec(s))) return { q: +m[1] + m[2] / m[3], rest: s.slice(m[0].length) };
+  if ((m = /^(\d+)\s*\/\s*(\d+)/.exec(s))) return { q: m[1] / m[2], rest: s.slice(m[0].length) };
+  if ((m = /^(\d+(?:\.\d+)?)\s*(?:-|to|–)\s*(\d+(?:\.\d+)?)(?!\s*\/)/.exec(s))) return { q: (+m[1] + +m[2]) / 2, rest: s.slice(m[0].length) };
+  if ((m = /^(\d*\.?\d+)/.exec(s))) return { q: +m[1], rest: s.slice(m[0].length) };
+  if ((m = /^(half an?|a half|a quarter|a couple of|a couple|a dozen|a few)\b/i.exec(s))) { const w = m[1].toLowerCase(); return { q: /half/.test(w) ? 0.5 : /quarter/.test(w) ? 0.25 : /couple/.test(w) ? 2 : /dozen/.test(w) ? 12 : 3, rest: s.slice(m[0].length) }; }
+  if ((m = /^([a-z]+)\b/i.exec(s)) && FK_NUMW[m[1].toLowerCase()] != null) return { q: FK_NUMW[m[1].toLowerCase()], rest: s.slice(m[0].length) };
+  return null;
+}
+// Look a unit up in a food's portion table: exact, singular, "size + unit", then any key that contains it.
+function fkPortion(food, unit, size) {
+  const p = (food && food.portions) || {}, u = unit.replace(/s$/, ''), keys = Object.keys(p);
+  const tries = [];
+  if (size && unit) tries.push(size + ' ' + unit, size + ' ' + u);
+  if (unit) tries.push(unit, u, unit + 's');
+  for (const k of tries) if (p[k] != null) return p[k];
+  if (size && p[size] != null) return p[size];
+  if (unit && !size) { const k = keys.find((x) => x.endsWith(' ' + u) || x.startsWith(u + ' ')); if (k) return p[k]; }
+  return null;
+}
+// Text like "1 cup", "2 slices", "about 150 g", "1/2 cup", "3 oz", "1 medium", "2 large eggs", "1 tbsp" to grams. Uses the food's portion table, then generic
+// conversions. Returns {grams, via: 'g'|'portion'|'derived'|'generic', approx} or null when the text cannot be understood.
+function fkGramsInfo(text, food) {
+  let s = String(text || '').toLowerCase().replace(/\bfl\.?\s*oz\.?\b|\bfluid ounces?\b/g, 'floz').replace(/\bheaping\b|\bscant\b|\bapprox(?:imately)?\b|\babout\b|\baround\b|\broughly\b|~|\bapprox\.?/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!s) return null;
+  const pm = /\(\s*(?:about |~)?(\d+(?:\.\d+)?)\s*(g|grams?|ml)\b/.exec(s); // "1 medium (118 g)": the weight in brackets is the whole amount
+  if (pm && +pm[1] > 0) return { grams: fkR1(+pm[1]), via: 'g', approx: false };
+  s = s.replace(/\([^)]*\)/g, ' ').replace(/\bof\b/g, ' ').replace(/\s+/g, ' ').trim();
+  const qq = fkQty(s) || (/^[a-z]/.test(s) ? { q: 1, rest: ' ' + s } : null); if (!qq) return null;
+  const qty = qq.q; let rest = qq.rest.replace(/^[\s.,]+/, '').replace(/-/g, ' ').replace(/\bsized?\b/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!(qty > 0)) return null;
+  let size = ''; for (const z of FK_SIZES) if (rest.startsWith(z + ' ') || rest === z) { size = z; rest = rest.slice(z.length).trim(); break; }
+  const wds = rest.split(/[^a-z0-9%]+/).filter(Boolean); let unit = wds[0] || '';
+  const uk = FK_UNIT[unit] || FK_UNIT[unit.replace(/s$/, '')] || (unit === 'floz' ? 'floz' : '');
+  const dens = food && food.portions && food.portions.cup > 0 ? food.portions.cup / 240 : 1, liquid = !!(food && food.liquid);
+  if (uk === 'g') return { grams: fkR1(qty), via: 'g', approx: false };
+  if (uk === 'kg') return { grams: fkR1(qty * 1000), via: 'g', approx: false };
+  if (uk === 'lb') return { grams: fkR1(qty * 453.6), via: 'g', approx: false };
+  if (uk === 'ml') return { grams: fkR1(qty * (liquid ? dens : 1)), via: 'generic', approx: !liquid };
+  if (uk === 'l') return { grams: fkR1(qty * 1000 * (liquid ? dens : 1)), via: 'generic', approx: !liquid };
+  if (uk === 'oz') {
+    if (liquid) { const fp = fkPortion(food, 'fl oz'); return { grams: fkR1(qty * (fp || 29.6 * dens)), via: fp ? 'portion' : 'generic', approx: !fp }; }
+    return { grams: fkR1(qty * 28.35), via: 'g', approx: false };
+  }
+  if (uk === 'floz') { const fp = fkPortion(food, 'fl oz'); return { grams: fkR1(qty * (fp || 29.6 * dens)), via: fp ? 'portion' : 'generic', approx: !fp && !liquid }; }
+  if (uk === 'cup' || uk === 'tbsp' || uk === 'tsp') {
+    const direct = fkPortion(food, uk, ''); if (direct != null) return { grams: fkR1(qty * direct), via: 'portion', approx: false };
+    const P = (food && food.portions) || {};
+    const cupG = P.cup || (P.tbsp ? P.tbsp * 16 : P.tsp ? P.tsp * 48 : 0);
+    if (cupG) return { grams: fkR1(qty * cupG * (uk === 'cup' ? 1 : uk === 'tbsp' ? 1 / 16 : 1 / 48)), via: 'derived', approx: false };
+    const cg = liquid ? 240 : 150; // a rough cup of an unknown solid
+    return { grams: fkR1(qty * cg * (uk === 'cup' ? 1 : uk === 'tbsp' ? 1 / 16 : 1 / 48)), via: 'generic', approx: true };
+  }
+  // counted units: slice, piece, medium, egg, can, serving ...
+  if (food && food.portions) {
+    const noun = wds.length ? wds.join(' ') : '';
+    let g = null;
+    if (unit) g = fkPortion(food, unit, size) ?? (wds[1] ? fkPortion(food, wds[1], size) : null) ?? (noun ? fkPortion(food, noun, size) : null);
+    if (g == null && size) g = food.portions[size] ?? null;
+    if (g == null && (!unit || FK_SIZES.includes(unit) || /^(serving|portion|piece|whole|each|one|egg|item|unit)s?$/.test(unit) || fkFoodWordsHas(food, unit))) g = food.portions.each ?? food.portions.serving ?? food.portions.piece ?? null;
+    if (g == null && unit && !uk) g = null;
+    if (g != null) return { grams: fkR1(qty * g), via: 'portion', approx: false };
+  }
+  return null;
+}
+function fkFoodWordsHas(food, w) { const t = w.replace(/s$/, ''); return !!food.names && food.names.some((n) => n.t.includes(fkSing(w)) || n.t.includes(t)); }
+const fkGrams = (text, food) => { const r = fkGramsInfo(text, food); return r ? r.grams : null; };
+// Scale per-100 g values to an amount of grams. food: a KB / USDA / user food ({per100}) or a bare per-100 object. Optional fields stay absent when unknown.
+function fkScale(food, grams) {
+  const p = food && food.per100 ? food.per100 : food || {}, g = Math.max(0, +grams || 0), k = g / 100, out = {};
+  for (const key of FK_NUT) {
+    if (p[key] == null || !Number.isFinite(+p[key])) { if (key === 'kcal' || key === 'p' || key === 'c' || key === 'f') out[key] = 0; continue; }
+    const v = +p[key] * k; out[key] = key === 'kcal' || key === 'na' ? Math.round(v) : Math.round(v * 10) / 10;
+  }
+  return out;
+}
+// ===== FOODKB END =====
+
+// ===== FOODRESOLVE BEGIN: (name, grams) -> verified numbers: your own foods, then the built-in knowledge base, then USDA FoodData Central, then Open Food Facts; sanity checks and error bands =====
+// The photo AI should only say WHAT a food is and HOW MANY GRAMS. fkResolve turns that into numbers from real data. It never throws and returns null when
+// nothing credible is found, so the caller can keep the AI's own estimate. USDA lookups use your own free key (localStorage 'planner.usdakey') or the
+// shared DEMO_KEY (about 30 lookups an hour, 50 a day); every answer is cached for good in localStorage 'planner.fkcache' (400 entries, oldest dropped).
+const FK_CACHE_KEY = 'planner.fkcache', FK_CACHE_MAX = 400, FK_KEY_NAME = 'planner.usdakey', FK_USAGE_KEY = 'planner.fkusage';
+const FK_USDA_URL = 'https://api.nal.usda.gov/fdc/v1/foods/search';
+const FK_LIMIT_MSG = 'USDA rate limit reached (the shared demo key allows about 30 lookups an hour). Add your own free key in My foods to keep looking foods up.';
+let fkLimitMem = 0, fkLimitToastAt = 0, fkLastNote = '', fkBadKey = false;
+const fkInflight = new Map();
+const fkStats = { usdaCalls: 0, cacheHits: 0, cacheMisses: 0, offCalls: 0 };
+const fkLS = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } },
+};
+function fkUsdaKey() { const k = (fkLS.get(FK_KEY_NAME) || '').trim(); return k || 'DEMO_KEY'; }
+function fkSetUsdaKey(k) { k = String(k || '').trim(); if (k) fkLS.set(FK_KEY_NAME, k); else { try { localStorage.removeItem(FK_KEY_NAME); } catch (e) { /* none */ } } fkLimitMem = 0; fkBadKey = false; }
+// ---- permanent cache, keyed by the normalized words of the query ----
+function fkCacheRead() { try { const o = JSON.parse(fkLS.get(FK_CACHE_KEY) || 'null'); if (o && typeof o === 'object' && o.e && typeof o.e === 'object') return { seq: +o.seq || 0, e: o.e }; } catch (e) { /* corrupt: start again */ } return { seq: 0, e: {} }; }
+function fkCacheKey(query) { const t = fkTokens(fkCleanQuery(query)); return [...t.toks].sort().join(' ') + (t.states.size ? '|' + [...t.states].sort().join(',') : ''); }
+function fkCacheGet(query) { // -> the cached list (maybe empty), or null when unknown. A hit counts as use, so the oldest entry is the one dropped.
+  const key = fkCacheKey(query), o = fkCacheRead(), e = o.e[key]; if (!e || !Array.isArray(e.r)) return null;
+  if (!e.r.length && Date.now() - (e.t || 0) > 86400000) return null; // "found nothing" is only trusted for a day
+  o.seq++; e.s = o.seq; fkLS.set(FK_CACHE_KEY, JSON.stringify(o)); return e.r;
+}
+function fkCachePut(query, list) {
+  const key = fkCacheKey(query); if (!key) return;
+  const o = fkCacheRead(); o.seq++; o.e[key] = { s: o.seq, t: Date.now(), r: list };
+  const ks = Object.keys(o.e); if (ks.length > FK_CACHE_MAX) { ks.sort((a, b) => (o.e[a].s || 0) - (o.e[b].s || 0)); ks.slice(0, ks.length - FK_CACHE_MAX).forEach((k) => { delete o.e[k]; }); }
+  if (!fkLS.set(FK_CACHE_KEY, JSON.stringify(o))) { // storage full: keep the newest half
+    const k2 = Object.keys(o.e).sort((a, b) => (o.e[b].s || 0) - (o.e[a].s || 0)).slice(0, Math.floor(FK_CACHE_MAX / 2)), n = { seq: o.seq, e: {} }; k2.forEach((k) => { n.e[k] = o.e[k]; }); fkLS.set(FK_CACHE_KEY, JSON.stringify(n));
+  }
+}
+const fkCacheSize = () => Object.keys(fkCacheRead().e).length;
+// ---- rate limit bookkeeping (shared DEMO_KEY only) ----
+function fkUsage() { let a = []; try { a = JSON.parse(fkLS.get(FK_USAGE_KEY) || '[]'); } catch (e) { a = []; } const now = Date.now(); return (Array.isArray(a) ? a : []).filter((t) => now - t < 86400000); }
+function fkUsageAdd() { const a = fkUsage(); a.push(Date.now()); fkLS.set(FK_USAGE_KEY, JSON.stringify(a.slice(-100))); }
+function fkLimitedUntil() { // timestamp until which USDA calls are paused, or 0
+  let until = fkLimitMem > Date.now() ? fkLimitMem : 0;
+  if (fkUsdaKey() === 'DEMO_KEY') {
+    const L = fkUsage(), now = Date.now(), h = L.filter((t) => now - t < 3600000);
+    if (h.length >= 28) until = Math.max(until, Math.min(...h) + 3600000);
+    else if (L.length >= 48) until = Math.max(until, Math.min(...L) + 86400000);
+  }
+  return until;
+}
+function fkStatus() {
+  const until = fkLimitedUntil(), own = fkUsdaKey() !== 'DEMO_KEY', now = Date.now();
+  return { usda: { key: own ? 'own' : 'demo', limited: until > now, until, badKey: fkBadKey, message: until > now ? FK_LIMIT_MSG : fkBadKey ? 'The USDA key was not accepted. Check it in My foods.' : '', callsLastHour: fkUsage().filter((t) => now - t < 3600000).length }, cacheSize: fkCacheSize(), stats: { ...fkStats }, lastNote: fkLastNote };
+}
+function fkNoteLimit() { fkLastNote = FK_LIMIT_MSG; if (Date.now() - fkLimitToastAt > 1800000) { fkLimitToastAt = Date.now(); try { toast(FK_LIMIT_MSG); } catch (e) { /* no UI yet */ } } }
+async function fkHttp(url) { // JSON with an 8 second timeout; never throws
+  const ac = new AbortController(), t = setTimeout(() => ac.abort(), 8000);
+  try { const r = await fetch(url, { signal: ac.signal, headers: { Accept: 'application/json' } }); let j = null; try { j = await r.json(); } catch (e) { /* no body */ } return { ok: r.ok, status: r.status, json: j }; }
+  catch (e) { return { ok: false, status: 0, json: null }; } finally { clearTimeout(t); }
+}
+// ---- USDA ----
+const fkUsdaNum = (v) => { const n = typeof v === 'number' ? v : parseFloat(v); return Number.isFinite(n) ? n : null; };
+// A USDA search hit -> compact record {id, n (description), dt (data type), v: [kcal, p, c, f, fiber, sugar, na, sat] per 100 g (null = not given)} or null.
+function fkUsdaMap(it) {
+  if (!it || !it.description) return null;
+  const by = {}; for (const n of (Array.isArray(it.foodNutrients) ? it.foodNutrients : [])) { const id = n.nutrientId ?? (n.nutrient && n.nutrient.id) ?? n.nutrientNumber, v = fkUsdaNum(n.value ?? n.amount); if (id != null && v != null) by[String(id)] = v; }
+  const g = (...ids) => { for (const i of ids) if (by[i] != null) return by[i]; return null; };
+  const p = g('1003'), c = g('1005'), f = g('1004'); let kcal = g('1008', '2047', '2048');
+  if (kcal == null && p != null && c != null && f != null) kcal = 4 * p + 4 * c + 9 * f;
+  if (kcal == null || p == null || c == null || f == null) return null;
+  return { id: 'usda:' + (it.fdcId || it.description), n: String(it.description), dt: it.dataType || '', v: [kcal, p, c, f, g('1079'), g('2000'), g('1093'), g('1258')] };
+}
+function fkUsdaFood(r) { // compact record -> food
+  const per100 = {}; FK_NUT.forEach((k, i) => { if (r.v[i] != null) per100[k] = r.v[i]; });
+  const t = fkTokens(r.n), st = /\braw\b/i.test(r.n) ? 'raw' : /\bfried\b/i.test(r.n) ? 'fried' : /\bcanned\b/i.test(r.n) ? 'canned' : /\b(cooked|roasted|baked|boiled|broiled|grilled|braised|steamed)\b/i.test(r.n) ? 'cooked' : '';
+  return { id: r.id, name: r.n, state: st, per100, portions: {}, typ: false, src: 'usda', dt: r.dt, names: [{ t: t.toks, key: t.key, states: t.states }] };
+}
+// Search USDA (cache first). -> {list: [records], status: 'ok'|'cache'|'limited'|'badkey'|'error'}
+async function fkUsdaSearch(query) {
+  const hit = fkCacheGet(query); if (hit) { fkStats.cacheHits++; return { list: hit, status: 'cache' }; }
+  fkStats.cacheMisses++;
+  const until = fkLimitedUntil(); if (until > Date.now()) { fkNoteLimit(); return { list: [], status: 'limited' }; }
+  const key = fkUsdaKey(), ck = fkCacheKey(query);
+  if (fkInflight.has(ck)) return fkInflight.get(ck);
+  const run = (async () => {
+    const url = `${FK_USDA_URL}?query=${encodeURIComponent(query)}&dataType=Foundation,SR%20Legacy&pageSize=5&api_key=${encodeURIComponent(key)}`;
+    fkStats.usdaCalls++; if (key === 'DEMO_KEY') fkUsageAdd();
+    const r = await fkHttp(url), code = r.json && r.json.error && r.json.error.code;
+    if (r.status === 429 || code === 'OVER_RATE_LIMIT') { fkLimitMem = Date.now() + 3600000; fkNoteLimit(); return { list: [], status: 'limited' }; }
+    if (r.status === 403 || r.status === 401 || /API_KEY/.test(code || '')) { fkBadKey = true; fkLastNote = 'The USDA key was not accepted.'; return { list: [], status: 'badkey' }; }
+    if (!r.ok || !r.json || !Array.isArray(r.json.foods)) return { list: [], status: 'error' };
+    fkBadKey = false;
+    const list = r.json.foods.map(fkUsdaMap).filter(Boolean); fkCachePut(query, list); return { list, status: 'ok' };
+  })();
+  fkInflight.set(ck, run); try { return await run; } finally { fkInflight.delete(ck); }
+}
+// ---- sanity and error bands ----
+// Flags impossible numbers. n: nutrients {kcal,p,c,f,fiber,sugar,sat,alc?}. opts.grams: the weight n is for (without it n is read as per 100 g).
+// Returns [] when fine, else codes: negative, not_a_number, kcal_mismatch (kcal vs 4p+4c+9f(+7 alcohol) off by more than 25%), macros_over_weight,
+// kcal_too_dense (more than 9.1 kcal per gram), fiber_over_carbs, sugar_over_carbs, sat_over_fat.
+function fkSanity(n, opts = {}) {
+  const out = []; if (!n || typeof n !== 'object') return ['not_a_number'];
+  const v = (k) => (n[k] == null ? null : +n[k]);
+  for (const k of FK_NUT) { const x = v(k); if (x != null && !Number.isFinite(x)) { out.push('not_a_number'); return out; } }
+  if (FK_NUT.some((k) => v(k) != null && v(k) < 0)) out.push('negative');
+  const kcal = v('kcal') || 0, p = v('p') || 0, c = v('c') || 0, f = v('f') || 0, alc = +(n.alc ?? opts.alc) || 0, w = +opts.grams > 0 ? +opts.grams : 100;
+  const atw = 4 * p + 4 * c + 9 * f + 7 * alc, hi = Math.max(kcal, atw);
+  if (Math.abs(kcal - atw) > 0.25 * hi && Math.abs(kcal - atw) > 12 * (w / 100)) out.push('kcal_mismatch');
+  if (p + c + f > w * 1.01 + 0.5) out.push('macros_over_weight');
+  if (kcal > 9.1 * w + 5) out.push('kcal_too_dense');
+  if (v('fiber') != null && v('fiber') > c + 0.6) out.push('fiber_over_carbs');
+  if (v('sugar') != null && v('sugar') > c + 0.6) out.push('sugar_over_carbs');
+  if (v('sat') != null && v('sat') > f + 0.6) out.push('sat_over_fat');
+  return out;
+}
+const FK_SANITY_TEXT = { negative: 'A value is negative.', not_a_number: 'A value is not a number.', kcal_mismatch: 'Calories do not match protein, carbs and fat.', macros_over_weight: 'Protein, carbs and fat weigh more than the food.', kcal_too_dense: 'More than 9 kcal per gram is not possible.', fiber_over_carbs: 'Fiber is more than the carbs.', sugar_over_carbs: 'Sugar is more than the carbs.', sat_over_fat: 'Saturated fat is more than the fat.' };
+const fkSanityText = (flags) => (flags || []).map((x) => FK_SANITY_TEXT[x] || x).join(' ');
+const FK_BAND = { high: 0.08, medium: 0.15, low: 0.3 };
+// Error band for display: fkRange({kcal: 248}, 'high') -> {kcal: 248, low: 228, high: 268, pct: 8}. conf: 'high' +-8%, 'medium' +-15%, 'low' +-30%.
+function fkRange(n, conf) {
+  const kcal = typeof n === 'number' ? n : +(n && n.kcal) || 0, b = FK_BAND[conf] ?? FK_BAND.medium;
+  return { kcal: Math.round(kcal), low: Math.round(kcal * (1 - b)), high: Math.round(kcal * (1 + b)), pct: Math.round(b * 100) };
+}
+// ---- resolving ----
+const fkDown = (c) => (c === 'high' ? 'medium' : 'low');
+const fkStripAmount = fkCleanQuery;
+function fkPickGrams(food, o) { // -> {g, approx, how}
+  if (+o.grams > 0) return { g: Math.round(+o.grams * 10) / 10, approx: false, how: 'given' };
+  if (o.portion) { const r = fkGramsInfo(o.portion, food); if (r && r.grams > 0) return { g: r.grams, approx: !!r.approx, how: r.via }; }
+  const P = food.portions || {}, d = P.serving ?? P.each ?? P.piece ?? (food.servingGrams > 0 ? food.servingGrams : 0);
+  return { g: d > 0 ? d : 100, approx: true, how: 'default' };
+}
+function fkBuildResult(food, pick, source, conf, notes, extra) {
+  const nutrients = fkScale(food, pick.g);
+  if (pick.approx) conf = fkDown(conf);
+  if (pick.how === 'default') notes.push(`No amount given, used one typical serving (${Math.round(pick.g)} g).`);
+  else if (pick.approx) notes.push('The portion was converted with a generic estimate.');
+  const flags = source === 'kb' ? [] : fkSanity(nutrients, { grams: pick.g, alc: food.alc ? food.alc * pick.g / 100 : 0 }); // the built-in list is checked offline by the tests
+  if (flags.length && source !== 'mine') { conf = 'low'; notes.push(fkSanityText(flags)); }
+  const note = notes.join(' ');
+  return { food, name: food.name, label: fkLabel(food), grams: pick.g, nutrients, source, conf, note, range: fkRange(nutrients, conf), flags, ...(extra || {}) };
+}
+// A saved food (S.myfoods item) as a food with per-100 values and a portion table.
+function fkFromMy(m) {
+  const fd = typeof fdFromMy === 'function' ? (() => { try { return fdFromMy(m); } catch (e) { return null; } })() : null;
+  const sg = +m.sg > 0 ? +m.sg : fd && fd.serving.grams > 0 ? fd.serving.grams : 0, per = { kcal: +m.kcal || 0, p: +m.p || 0, c: +m.c || 0, f: +m.f || 0 };
+  FK_NUT.slice(4).forEach((k) => { if (m[k] != null && Number.isFinite(+m[k])) per[k] = +m[k]; });
+  let per100 = null;
+  if (m.per100 && m.per100.kcal != null && Number.isFinite(+m.per100.kcal)) { per100 = {}; FK_NUT.forEach((k) => { if (m.per100[k] != null && Number.isFinite(+m.per100[k])) per100[k] = +m.per100[k]; }); }
+  else if (sg > 0) { per100 = {}; Object.keys(per).forEach((k) => { per100[k] = per[k] * 100 / sg; }); }
+  const t = fkTokens(m.name + ' ' + (m.brand || ''));
+  return { id: m.id, name: m.name, state: '', per100: per100 || per, perServing: per, servingGrams: sg, portions: sg > 0 ? { serving: sg, each: sg } : {}, typ: false, src: 'mine', my: m.id, recipe: !!m.recipe, user: !!m.user, noGrams: !per100, names: [{ t: t.toks, key: t.key, states: t.states }] };
+}
+function fkMineFind(q) { // the best saved food for the words, or null when nothing is close to an exact match
+  let best = null, bs = -1;
+  for (const m of S.myfoods) {
+    if (!m || !m.name || !(m.per100 || +m.kcal >= 0)) continue;
+    const t = fkTokens(m.name + ' ' + (m.brand || '')), s0 = fkNameScore(q, [{ t: t.toks, key: t.key, states: t.states }]); if (s0 < 0) continue;
+    const s = s0 + (m.user ? 8 : 0) + (m.fav ? 2 : 0) + Math.min(+m.used || 0, 5) * 0.4;
+    if (s > bs) { bs = s; best = m; }
+  }
+  return bs >= 85 ? best : null;
+}
+function fkPickUsda(q, list) { // best USDA record for the query words: {rec, score, cov} or null
+  let best = null;
+  list.forEach((r, i) => {
+    const t = fkTokens(r.n), { cov, nameCov } = fkCover(q.toks, t.toks); if (cov < 0.66) return;
+    const fl = fkSanity({ kcal: r.v[0], p: r.v[1], c: r.v[2], f: r.v[3], fiber: r.v[4], sugar: r.v[5], sat: r.v[7] }); if (fl.length) return;
+    let s = 100 * Math.pow(cov, 1.5) * (0.6 + 0.4 * nameCov) + (i === 0 ? 6 : 0);
+    const st = fkUsdaFood(r).state;
+    if (q.states.size === 1) { const w = [...q.states][0]; if (st === w) s += 14; else if (st && st !== w) s -= 22; }
+    if (!best || s > best.score) best = { rec: r, score: s, cov };
+  });
+  return best && best.score >= 45 ? best : null;
+}
+function fkPickOff(q, list) {
+  let best = null;
+  for (const f of list) {
+    const t = fkTokens(f.name + ' ' + (f.brand || '')), { cov, nameCov } = fkCover(q.toks, t.toks); if (cov < 0.8) continue;
+    if (fkSanity({ kcal: f.per100.kcal, p: f.per100.p, c: f.per100.c, f: f.per100.f, fiber: f.per100.fiber }).length) continue;
+    const s = 100 * Math.pow(cov, 1.5) * (0.6 + 0.4 * nameCov);
+    if (!best || s > best.score) best = { food: f, score: s, cov };
+  }
+  return best && best.score >= 50 ? best : null;
+}
+// Main entry. o: {name, grams, portion, query, packaged}. grams wins over portion text ("1 cup", "2 slices"); query (default name) is what is searched.
+// -> Promise<{food, name, label, grams, nutrients {kcal,p,c,f,fiber?,sugar?,na?,sat?}, source: 'mine'|'kb'|'usda'|'off', conf: 'high'|'medium'|'low', note, range, flags}|null>
+async function fkResolve(o) {
+  try { return await fkResolve0(o || {}); } catch (e) { return null; }
+}
+async function fkResolve0(o) {
+  fkLastNote = '';
+  const raw = String(o.query || o.name || '').trim(); if (!raw) return null;
+  const text = fkStripAmount(raw), q = fkTokens(text); if (!q.toks.length) return null;
+  const mine = fkMineFind(q);
+  if (mine) {
+    const food = fkFromMy(mine), notes = ['From your own foods.'];
+    if (food.noGrams && !(+o.grams > 0)) { const n = { ...food.perServing }; return { food, name: food.name, label: food.name, grams: 0, nutrients: n, source: 'mine', conf: 'high', note: notes.concat('Values are per serving.').join(' '), range: fkRange(n, 'high'), flags: [] }; }
+    return fkBuildResult(food, fkPickGrams(food, o), 'mine', 'high', notes);
+  }
+  const hits = o.packaged ? [] : fkFind(text, 5), top = hits[0];
+  if (top && top.score >= 70) {
+    const f = top.food, notes = []; let conf = f.typ ? 'medium' : 'high';
+    if (top.score < 85) conf = fkDown(conf);
+    const other = f.group.find((x) => x !== f && x.state !== 'fried' && x.state !== f.state);
+    if (f.group.length > 1 && !q.states.size && other && Math.abs(f.per100.kcal - other.per100.kcal) / f.per100.kcal > 0.15) notes.push(`Assumed ${f.state}${f.state === 'raw' ? ' (weigh before cooking)' : ''}.`);
+    if (f.typ) notes.push('Typical value, not a measurement.');
+    return fkBuildResult(f, fkPickGrams(f, o), 'kb', conf, notes);
+  }
+  const viaUsda = async () => {
+    const u = await fkUsdaSearch(text);
+    if (u.status === 'limited' && !u.list.length) fkLastNote = FK_LIMIT_MSG;
+    const pk = u.list.length ? fkPickUsda(q, u.list) : null; if (!pk) return null;
+    const f = fkUsdaFood(pk.rec), conf = pk.cov >= 0.99 && pk.score >= 65 ? 'high' : 'medium';
+    return fkBuildResult(f, fkPickGrams(f, o), 'usda', conf, [`USDA FoodData Central: ${pk.rec.n}.`]);
+  };
+  const viaOff = async () => {
+    try {
+      fkStats.offCalls++;
+      const list = typeof fdSearch === 'function' ? await fdSearch(text) : [], pk = fkPickOff(q, list); if (!pk) return null;
+      const f = pk.food, food = { id: 'off:' + (f.barcode || f.name), name: f.brand ? `${f.name} (${f.brand})` : f.name, state: '', per100: f.per100, portions: f.serving && f.serving.grams > 0 ? { serving: f.serving.grams, each: f.serving.grams } : {}, typ: false, src: 'off', names: [] };
+      return fkBuildResult(food, fkPickGrams(food, o), 'off', pk.cov >= 0.99 ? 'medium' : 'low', ['Open Food Facts (volunteer data), check the label if it matters.']);
+    } catch (e) { return null; }
+  };
+  for (const step of (o.packaged ? [viaOff, viaUsda] : [viaUsda, viaOff])) { const r = await step(); if (r) return r; }
+  if (top && top.score >= 45) {
+    const f = top.food, notes = ['Closest built-in match, not exact.'];
+    if (f.typ) notes.push('Typical value, not a measurement.');
+    return fkBuildResult(f, fkPickGrams(f, o), 'kb', 'low', notes);
+  }
+  return null;
+}
+// Resolve several items at once: fkResolveAll([{name, grams}, ...]) -> array (null where nothing was found), same order.
+const fkResolveAll = (items) => Promise.all((Array.isArray(items) ? items : []).map((it) => fkResolve(it)));
+// A resolved result as a meal item for S.meals[].items[] (extended nutrients only when known).
+function fkItem(res, name) {
+  if (!res) return null;
+  const n = res.nutrients, it = { name: name || res.name, qty: 1, unit: res.grams ? `${Math.round(res.grams)} g` : '', grams: res.grams, kcal: n.kcal, p: n.p, c: n.c, f: n.f, src: res.source, conf: res.conf };
+  ['fiber', 'sugar', 'na', 'sat'].forEach((k) => { if (n[k] != null) it[k] = n[k]; });
+  return it;
+}
+// ===== FOODRESOLVE END =====
+
+// ===== MYFOODS BEGIN: your own verified foods (learned from your corrections), the My foods sheet (#my-foods), recipes, and "what should I eat next" ideas (synced collection `myfoods`) =====
+// A learned food is a myfoods item with id 'u:<words>' and user:true. It keeps the numbers per serving at the top level (so the Find a food picker reads
+// it too), plus per100 {kcal,p,c,f,fiber,sugar,na,sat}, sg (serving grams), serving (label), corr (times corrected), used, last, fav. A recipe has recipe:true,
+// servings and ingredients [{name, grams, per100}], and its numbers per serving. fkResolve answers from these first (source 'mine').
+const fkNumOrNull = (v) => { if (v === '' || v == null) return null; const n = typeof v === 'number' ? v : parseFloat(v); return Number.isFinite(n) ? n : null; };
+const fkSumKeys = ['kcal', 'p', 'c', 'f', 'fiber', 'sugar', 'na', 'sat'];
+function fkRoundNut(n) { const o = {}; for (const k of fkSumKeys) if (n[k] != null && Number.isFinite(+n[k])) o[k] = k === 'kcal' || k === 'na' ? Math.round(+n[k]) : Math.round(+n[k] * 10) / 10; return o; }
+// Totals of a meal's items: kcal, p, c, f always; fiber, sugar, na (mg), sat only when at least one item carries them.
+function fkMealTotals(items) {
+  const t = { kcal: 0, p: 0, c: 0, f: 0 }, seen = {};
+  for (const it of (Array.isArray(items) ? items : [])) {
+    if (!it) continue;
+    for (const k of fkSumKeys) { const v = fkNumOrNull(it[k]); if (v == null) continue; if (k === 'kcal' || k === 'p' || k === 'c' || k === 'f') t[k] += v; else { seen[k] = true; t[k] = (t[k] || 0) + v; } }
+  }
+  return fkRoundNut(t);
+}
+function fkPer100(n, grams) { const o = {}; for (const k of fkSumKeys) if (n[k] != null && Number.isFinite(+n[k])) { const v = +n[k] * 100 / grams; o[k] = k === 'kcal' || k === 'na' ? Math.round(v) : Math.round(v * 10) / 10; } return o; }
+// Remember a number set the person checked or fixed. {name, portion?, grams?, kcal, p, c, f, fiber?, sugar?, na?, sat?} are the numbers for `grams` (or the
+// portion text). Next time fkResolve answers this food first, scaled to any amount (source 'mine'). Returns the myfoods item, or null if unusable.
+function fkLearn(o) {
+  o = o || {}; const name = String(o.name || '').trim(); if (!name) return null;
+  const kcal = fkNumOrNull(o.kcal); if (kcal == null || kcal < 0) return null;
+  const per = { kcal, p: fkNumOrNull(o.p) ?? 0, c: fkNumOrNull(o.c) ?? 0, f: fkNumOrNull(o.f) ?? 0 };
+  for (const k of ['fiber', 'sugar', 'na', 'sat']) { const v = fkNumOrNull(o[k]); if (v != null && v >= 0) per[k] = v; }
+  if (fkSanity(per).some((x) => x === 'negative' || x === 'not_a_number')) return null;
+  const t = fkTokens(name), id = 'u:' + (t.toks.join('-') + (t.states.size ? '.' + [...t.states].sort().join('') : '')); if (id === 'u:') return null;
+  let grams = fkNumOrNull(o.grams) > 0 ? fkNumOrNull(o.grams) : 0;
+  if (!grams && o.portion) { const h = fkFind(name, 1)[0], r = fkGramsInfo(o.portion, h && h.food); if (r && r.grams > 0) grams = r.grams; }
+  if (grams && kcal > 9.1 * grams + 5) return null;
+  let saved = null;
+  commit(() => {
+    let m = S.myfoods.find((x) => x.id === id); if (!m) { m = { id, used: 0, last: 0, fav: false, corr: 0 }; S.myfoods.push(m); }
+    const per100 = grams ? fkPer100(per, grams) : null;
+    Object.assign(m, { name, brand: '', ...fkRoundNut(per), serving: String(o.portion || '').trim() || (grams ? `${Math.round(grams * 10) / 10} g` : '1 serving'), user: true, corr: (+m.corr || 0) + 1, updated: Date.now() });
+    ['fiber', 'sugar', 'na', 'sat'].forEach((k) => { if (per[k] == null) delete m[k]; });
+    if (grams) { m.sg = Math.round(grams * 10) / 10; m.per100 = per100; } else { delete m.sg; delete m.per100; }
+    saved = m;
+  });
+  return saved;
+}
+// ---- recipes ----
+// ings: [{name, grams, per100 {kcal,p,c,f,...}}]. -> {total, perServing, grams, servingGrams, per100, servings}
+function fkRecipeCalc(ings, servings) {
+  const sv = Math.max(0.25, fkNumOrNull(servings) || 1), tot = {}; let grams = 0;
+  for (const ing of (ings || [])) {
+    const g = fkNumOrNull(ing.grams) || 0; if (!(g > 0) || !ing.per100) continue; grams += g;
+    const n = fkScale(ing.per100, g); for (const k of fkSumKeys) if (n[k] != null) tot[k] = (tot[k] || 0) + n[k];
+  }
+  const per = {}; for (const k of Object.keys(tot)) per[k] = tot[k] / sv;
+  const per100 = grams > 0 ? Object.fromEntries(Object.keys(tot).map((k) => [k, tot[k] * 100 / grams])) : null;
+  return { total: fkRoundNut(tot), perServing: fkRoundNut(per), grams: Math.round(grams * 10) / 10, servingGrams: Math.round(grams / sv * 10) / 10, per100, servings: sv };
+}
+function fkRecipeSave(d) { // d: {id?, name, servings, ings}. Returns the saved myfoods item or null
+  const name = String(d.name || '').trim(), calc = fkRecipeCalc(d.ings, d.servings); if (!name || !calc.grams) return null;
+  let saved = null;
+  commit(() => {
+    let m = d.id && S.myfoods.find((x) => x.id === d.id); if (!m) { m = { id: 'r:' + uid(), used: 0, last: 0, fav: false }; S.myfoods.push(m); }
+    const p100 = calc.per100 ? fkPer100(calc.per100, 100) : null;
+    for (const k of ['fiber', 'sugar', 'na', 'sat']) delete m[k];
+    Object.assign(m, { name, brand: '', ...calc.perServing, serving: '1 serving', sg: calc.servingGrams, per100: p100, recipe: true, user: true, servings: calc.servings, ingredients: d.ings.filter((i) => (fkNumOrNull(i.grams) || 0) > 0 && i.per100).map((i) => ({ name: String(i.name || ''), grams: fkNumOrNull(i.grams), per100: fkRoundNut(i.per100) })), updated: Date.now() });
+    saved = m;
+  });
+  return saved;
+}
+const fkHm = () => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+// Log a saved recipe as one meal (one item) in one step. servings default 1. opts: {date, time, slot}. Returns the meal or null.
+function fkLogRecipe(id, servings = 1, opts = {}) {
+  const m = S.myfoods.find((x) => x.id === id && x.recipe), sv = fkNumOrNull(servings) > 0 ? fkNumOrNull(servings) : 1; if (!m) return null;
+  const sc = (k) => (m[k] != null ? +m[k] * sv : null), n = {}; for (const k of fkSumKeys) if (sc(k) != null) n[k] = sc(k);
+  const r = fkRoundNut(n), item = { name: m.name, qty: sv, unit: sv === 1 ? '1 serving' : `${sv} servings`, ...r, src: 'recipe' };
+  if (m.sg > 0) item.grams = Math.round(m.sg * sv);
+  const meal = { id: uid(), created: Date.now(), date: opts.date || todayKey(), time: opts.time || fkHm(), slot: opts.slot || (typeof mlSlotNow === 'function' ? mlSlotNow() : 'lunch'), name: m.name, items: [item], ...r, src: 'recipe', note: '', thumb: '' };
+  snapshot();
+  commit(() => { S.meals.push(meal); m.used = (+m.used || 0) + 1; m.last = Date.now(); });
+  try { render(); } catch (e) { /* view not ready */ }
+  toast(`Logged ${m.name}: ${r.kcal} kcal`, true);
+  return meal;
+}
+// ---- what should I eat next ----
+// remaining {kcal,p,c,f}: what is left today. -> up to n ideas [{name, grams, label, kcal, p, c, f, gap: 'p'|'c'|'f', reason, source: 'mine'|'kb', id}]
+// The biggest gap is the macro furthest behind a usual 25/45/30 protein/carb/fat split of what is left; ideas must fit the calories left.
+function fkSuggest(remaining, n = 3) {
+  const rem = { kcal: Math.max(0, +(remaining && remaining.kcal) || 0), p: Math.max(0, +(remaining && remaining.p) || 0), c: Math.max(0, +(remaining && remaining.c) || 0), f: Math.max(0, +(remaining && remaining.f) || 0) };
+  if (rem.kcal < 40) return [];
+  const kc = { p: rem.p * 4, c: rem.c * 4, f: rem.f * 9 }, tot = kc.p + kc.c + kc.f || 1, usual = { p: 0.25, c: 0.45, f: 0.3 };
+  const gap = ['p', 'c', 'f'].sort((a, b) => (kc[b] / tot) / usual[b] - (kc[a] / tot) / usual[a])[0], kper = { p: 4, c: 4, f: 9 };
+  const cap = Math.min(rem.kcal * 0.85, 650), cands = [];
+  const add = (c) => { const s = c.serv; if (!(s.kcal > 0)) return; cands.push(c); };
+  fkBuild();
+  for (const m of S.myfoods) {
+    if (!m || !m.name || !(+m.kcal >= 30)) continue;
+    add({ id: m.id, name: m.name, source: 'mine', unitG: +m.sg > 0 ? +m.sg : 0, serv: { kcal: +m.kcal, p: +m.p || 0, c: +m.c || 0, f: +m.f || 0 }, bonus: (m.fav ? 8 : 0) + Math.min(+m.used || 0, 6) + (m.recipe ? 3 : 0), group: 'my:' + m.id, labelOne: m.serving || '1 serving' });
+  }
+  for (const f of fkFoods) {
+    if (!f.sug) continue; const g = f.portions.serving ?? f.portions.each ?? f.portions.piece ?? (f.liquid ? 240 : 100);
+    const s = fkScale(f, g); add({ id: f.id, name: fkLabel(f), source: 'kb', unitG: g, serv: { kcal: s.kcal, p: s.p, c: s.c, f: s.f }, bonus: 0, group: 'kb:' + f.name, labelOne: `${Math.round(g)} g` });
+  }
+  const out = [];
+  for (const c of cands) {
+    let best = null;
+    for (const k of [0.5, 1, 1.5, 2, 3]) {
+      const kcal = c.serv.kcal * k; if (kcal > cap || kcal < 40) continue;
+      const gm = { p: c.serv.p * k, c: c.serv.c * k, f: c.serv.f * k }, gain = Math.min(gm[gap], rem[gap]);
+      let over = 0; for (const m of ['p', 'c', 'f']) over += Math.max(0, gm[m] - rem[m]) * kper[m];
+      const s = (gain * kper[gap] / kcal) * 60 + 30 * Math.min(1, gm[gap] / Math.max(1, rem[gap])) - (over / kcal) * 50 + c.bonus + (kcal >= 0.25 * Math.min(rem.kcal, 800) ? 6 : 0);
+      if (!best || s > best.s) best = { k, kcal, gm, s };
+    }
+    if (best && best.gm[gap] >= (gap === 'f' ? 3 : 5)) out.push({ c, ...best });
+  }
+  out.sort((a, b) => b.s - a.s);
+  const res = [], seenG = new Set(), seenW = new Set();
+  for (const r of out) {
+    const w = fkTokens(r.c.name).toks[0] || r.c.name; if (seenG.has(r.c.group) || seenW.has(w)) continue; seenG.add(r.c.group); seenW.add(w);
+    const grams = r.c.unitG ? Math.round(r.c.unitG * r.k) : 0, nm = { kcal: Math.round(r.kcal), p: Math.round(r.gm.p * 10) / 10, c: Math.round(r.gm.c * 10) / 10, f: Math.round(r.gm.f * 10) / 10 };
+    const word = gap === 'p' ? 'protein' : gap === 'c' ? 'carbs' : 'fat', amt = Math.round(r.gm[gap]);
+    res.push({ id: r.c.id, name: r.c.name, source: r.c.source, grams, label: r.k === 1 ? r.c.labelOne : `${r.k} x ${r.c.labelOne}`, ...nm, gap, reason: `+${amt} g ${word} for ${nm.kcal} kcal` });
+    if (res.length >= Math.max(1, n | 0)) break;
+  }
+  return res;
+}
+// ---- the My foods sheet ----
+document.head.insertAdjacentHTML('beforeend', `<style>
+#fkMyDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}#fkMyDlg input,#fkMyDlg select{font-size:16px}
+.fk-bar{display:flex;gap:8px}.fk-bar input{flex:1;min-width:0;height:44px;border:1px solid var(--line);border-radius:10px;padding:0 12px;background:var(--card);color:var(--ink);outline:none}.fk-bar input:focus{border-color:var(--ink)}
+.fk-acts{display:flex;gap:8px;flex-wrap:wrap}.fk-acts .btn{flex:1;justify-content:center;min-width:0}
+.fk-row{display:flex;align-items:stretch;border-top:1px solid var(--line2)}
+.fk-row .fk-pick{flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;text-align:left;padding:9px 4px;align-items:baseline}
+.fk-row b{font-weight:500;overflow-wrap:anywhere}.fk-row small{color:var(--mute);font-size:12px;overflow-wrap:anywhere}.fk-row .n{grid-row:1/3;grid-column:2;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.fk-star{width:40px;flex:none;color:var(--faint);display:inline-flex;align-items:center;justify-content:center}.fk-star[aria-pressed=true]{color:#d97706}
+.fk-log{align-self:center;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);font-size:13px;font-weight:500;margin-right:4px}
+.fk-tag{display:inline-block;font-size:11px;font-weight:600;color:var(--mute);border:1px solid var(--line);border-radius:6px;padding:0 5px;margin-left:6px;vertical-align:1px}
+.fk-note{font-size:13px;color:var(--mute);line-height:1.4;overflow-wrap:anywhere}
+.fk-warn{font-size:13px;color:var(--ink2);background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:8px 10px;line-height:1.4}
+.fk-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.fk-form .wide{grid-column:1/-1}
+.fk-form label{display:block;font-size:12px;color:var(--mute);margin-bottom:3px}
+.fk-form input{height:40px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:var(--card);color:var(--ink);min-width:0;width:100%;outline:none}
+.fk-form input:focus{border-color:var(--ink)}
+.fk-h{font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.04em;margin:4px 0 0}
+.fk-ing{display:grid;grid-template-columns:minmax(0,1fr) 78px 34px;gap:8px;align-items:center;border-top:1px solid var(--line2);padding:6px 0}
+.fk-ing input{height:36px;border:1px solid var(--line);border-radius:8px;padding:0 8px;background:var(--card);color:var(--ink);min-width:0;width:100%}
+.fk-ing small{display:block;color:var(--mute);font-size:12px}.fk-ing .x{width:34px;height:34px;border-radius:8px;color:var(--mute)}
+.fk-tot{border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-variant-numeric:tabular-nums;line-height:1.5}.fk-tot b{font-size:18px}
+.fk-key{border:1px solid var(--line);border-radius:10px;padding:8px 10px}.fk-key summary{cursor:pointer;font-weight:500}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="fkMyDlg" aria-labelledby="fkMyTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="fkMyTitle">My foods</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="fkMyBody" style="display:flex;flex-direction:column;gap:12px"></div>
+</div></dialog>`);
+const fkMyDlg = $('#fkMyDlg');
+let fkUi = { view: 'list', q: '', id: '', d: null, ingBusy: false };
+const fkK = (n) => Math.round(+n || 0).toLocaleString('en-US');
+const fkFmt1 = (n) => (Math.round((+n || 0) * 10) / 10).toLocaleString('en-US', { maximumFractionDigits: 1 });
+const FK_FIELDS = [['kcal', 'Calories', 'kcal'], ['p', 'Protein (g)', 'p'], ['c', 'Carbs (g)', 'c'], ['f', 'Fat (g)', 'f'], ['fiber', 'Fiber (g)', 'fiber'], ['sugar', 'Sugar (g)', 'sugar'], ['na', 'Sodium (mg)', 'na'], ['sat', 'Saturated fat (g)', 'sat']];
+function fkMyRows() {
+  const q = fkTokens(fkUi.q).toks, items = S.myfoods.filter((m) => m && m.name).filter((m) => { if (!q.length) return true; const t = fkTokens(m.name + ' ' + (m.brand || '')).toks; return q.every((x) => t.some((w) => fkTokScore(x, w) > 0)); })
+    .sort((a, b) => (b.fav ? 1 : 0) - (a.fav ? 1 : 0) || (+b.used || 0) - (+a.used || 0) || a.name.localeCompare(b.name));
+  const row = (m) => `<div class="fk-row"><button type="button" class="fk-pick" data-fk-edit="${esc(m.id)}"><b>${esc(m.name)}${m.recipe ? '<span class="fk-tag">recipe</span>' : m.user ? '<span class="fk-tag">yours</span>' : ''}</b><small>${esc(m.serving || '1 serving')}${m.used ? ' · used ' + m.used + 'x' : ''}</small><span class="n">${fkK(m.kcal)} kcal</span></button>${m.recipe ? `<button type="button" class="fk-log" data-fk-log="${esc(m.id)}" aria-label="Log ${esc(m.name)} now">Log</button>` : ''}<button type="button" class="fk-star" data-fk-fav="${esc(m.id)}" aria-pressed="${!!m.fav}" aria-label="${m.fav ? 'Remove from favorites' : 'Add to favorites'}">${m.fav ? FD_STAR : FD_STAR0}</button></div>`;
+  return items.length ? items.map(row).join('') : `<div class="fk-note">${S.myfoods.length ? 'Nothing matches.' : 'No foods yet. When you fix the numbers on a photo or typed meal, the corrected food lands here and is used first next time. You can also add foods and recipes by hand.'}</div>`;
+}
+function fkMyList() {
+  const st = fkStatus();
+  return `<div class="fk-bar"><input id="fkQ" type="search" enterkeyhint="search" autocomplete="off" placeholder="Search my foods" aria-label="Search my foods" value="${esc(fkUi.q)}"></div>
+    <div class="fk-acts"><button type="button" class="btn" data-fk-new="1">Add a food</button><button type="button" class="btn" data-fk-recipe="1">Make a recipe</button></div>
+    <div id="fkList">${fkMyRows()}</div>
+    <details class="fk-key"><summary>Food data settings</summary><div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+      <div class="fk-note" id="fkKeyMsg">${st.usda.key === 'own' ? 'Using your own USDA key.' : 'Using the shared USDA demo key (about 30 lookups an hour).'} ${esc(st.usda.message)} Looked-up foods are remembered on this phone for good (${st.cacheSize} so far).</div>
+      <div class="fk-bar"><input id="fkKey" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Your free USDA key" aria-label="USDA key" value="${esc(fkLS.get(FK_KEY_NAME) || '')}"><button type="button" class="btn" data-fk-key="1">Save</button></div>
+      <div class="fk-note">Get a free key at fdc.nal.usda.gov (Get an API key). It stays on this phone and is not synced or backed up.</div></div></details>`;
+}
+function fkEditDraft(m) {
+  const per = m && m.per100 ? m.per100 : m ? (() => { const f = fkFromMy(m); return f.per100; })() : {};
+  const sg = m ? (+m.sg > 0 ? +m.sg : fkFromMy(m).servingGrams) : 0;
+  return { id: m ? m.id : '', name: m ? m.name : '', serving: m ? m.serving || '' : '', sg: sg ? String(sg) : '', barcode: m && m.barcode ? m.barcode : '', fav: !!(m && m.fav), per: Object.fromEntries(FK_FIELDS.map(([k]) => [k, per && per[k] != null ? String(Math.round(per[k] * 10) / 10) : ''])) };
+}
+function fkMyEdit() {
+  const d = fkUi.d, f = (id, label, v, extra = '') => `<div><label for="${id}">${label}</label><input id="${id}" type="text" inputmode="decimal" autocomplete="off" value="${esc(v)}" ${extra}></div>`;
+  return `<div class="fk-form"><div class="wide"><label for="fkName">Name</label><input id="fkName" type="text" autocomplete="off" value="${esc(d.name)}"></div>
+    <div><label for="fkServ">Serving (e.g. 1 cup)</label><input id="fkServ" type="text" autocomplete="off" value="${esc(d.serving)}"></div>${f('fkSg', 'Serving weight (g)', d.sg)}
+    <div class="wide"><label for="fkBar">Barcode (optional)</label><input id="fkBar" type="text" inputmode="numeric" autocomplete="off" value="${esc(d.barcode)}"></div></div>
+    <div class="fk-h">Numbers per 100 g</div>
+    <div class="fk-form">${FK_FIELDS.map(([k, l]) => f('fkP_' + k, l, d.per[k])).join('')}</div>
+    <div class="fk-warn" id="fkWarn" hidden></div>
+    <div class="dlg-f"><button type="button" class="btn" data-fk-back="1">Back</button>${d.id ? '<button type="button" class="btn danger" data-fk-del="1">Delete</button>' : ''}<span style="flex:1"></span><button type="button" class="btn primary" data-fk-save="1">Save</button></div>`;
+}
+function fkRecipeDraftTotals() {
+  const d = fkUi.d, c = fkRecipeCalc(d.ings, d.servings), el = $('#fkTot'); if (!el) return;
+  el.innerHTML = c.grams ? `<b>${fkK(c.perServing.kcal)} kcal</b> per serving<br>P ${fkFmt1(c.perServing.p)} g · C ${fkFmt1(c.perServing.c)} g · F ${fkFmt1(c.perServing.f)} g${c.perServing.fiber != null ? ' · fiber ' + fkFmt1(c.perServing.fiber) + ' g' : ''}${c.perServing.na != null ? ' · sodium ' + fkK(c.perServing.na) + ' mg' : ''}<br><span class="fk-note">${c.servings === 1 ? 'One serving' : fkFmt1(c.servings) + ' servings'}, ${fkK(c.total.kcal)} kcal and ${fkK(c.grams)} g in all.</span>` : '<span class="fk-note">Add ingredients to see the numbers.</span>';
+}
+function fkMyRecipe() {
+  const d = fkUi.d;
+  return `<div class="fk-form"><div><label for="fkRName">Recipe name</label><input id="fkRName" type="text" autocomplete="off" value="${esc(d.name)}"></div><div><label for="fkRServ">Servings it makes</label><input id="fkRServ" type="text" inputmode="decimal" autocomplete="off" value="${esc(d.servings)}"></div></div>
+    <div class="fk-h">Ingredients</div>
+    <div id="fkIngs">${d.ings.map((g, i) => `<div class="fk-ing"><div><b style="font-weight:500;overflow-wrap:anywhere">${esc(g.name)}</b><small>${fkK(fkScale(g.per100, g.grams).kcal)} kcal</small></div><input type="text" inputmode="decimal" data-fk-ig="${i}" value="${esc(g.grams)}" aria-label="Grams of ${esc(g.name)}"><button type="button" class="x ib" data-fk-ix="${i}" aria-label="Remove ${esc(g.name)}">&times;</button></div>`).join('') || '<div class="fk-note">No ingredients yet.</div>'}</div>
+    <div class="fk-form"><div><label for="fkIngQ">Ingredient (e.g. rice, cooked)</label><input id="fkIngQ" type="text" autocomplete="off"></div><div><label for="fkIngG">Grams</label><input id="fkIngG" type="text" inputmode="decimal" autocomplete="off"></div></div>
+    <div class="fk-acts"><button type="button" class="btn" data-fk-ing="1"${fkUi.ingBusy ? ' disabled' : ''}>Add ingredient</button><button type="button" class="btn" data-fk-ings="1">Search foods</button></div>
+    <div class="fk-tot" id="fkTot"></div>
+    <div class="dlg-f"><button type="button" class="btn" data-fk-back="1">Back</button>${d.id ? '<button type="button" class="btn danger" data-fk-del="1">Delete</button><button type="button" class="btn" data-fk-rlog="1">Log 1 serving</button>' : ''}<span style="flex:1"></span><button type="button" class="btn primary" data-fk-rsave="1">Save recipe</button></div>`;
+}
+function fkMyPaint() {
+  $('#fkMyTitle').textContent = fkUi.view === 'edit' ? (fkUi.d.id ? 'Edit food' : 'Add a food') : fkUi.view === 'recipe' ? (fkUi.d.id ? 'Edit recipe' : 'Make a recipe') : 'My foods';
+  $('#fkMyBody').innerHTML = fkUi.view === 'edit' ? fkMyEdit() : fkUi.view === 'recipe' ? fkMyRecipe() : fkMyList();
+  if (fkUi.view === 'recipe') fkRecipeDraftTotals(); else if (fkUi.view === 'edit') fkEditWarn();
+}
+function fkEditRead() { // the form as {per (numbers per 100 g), sg}
+  const d = fkUi.d, per = {}; for (const [k] of FK_FIELDS) { const v = fkNumOrNull(String(d.per[k]).replace(',', '.')); if (v != null) per[k] = v; }
+  return { per, sg: fkNumOrNull(String(d.sg).replace(',', '.')) };
+}
+function fkEditWarn() {
+  const el = $('#fkWarn'); if (!el) return; const r = fkEditRead(), fl = r.per.kcal == null ? [] : fkSanity({ kcal: r.per.kcal, p: r.per.p || 0, c: r.per.c || 0, f: r.per.f || 0, fiber: r.per.fiber, sugar: r.per.sugar, sat: r.per.sat });
+  el.hidden = !fl.length; el.textContent = fl.length ? 'Check these numbers: ' + fkSanityText(fl) + ' You can still save them.' : '';
+}
+function fkMyFoodsOpen() { fkUi = { view: 'list', q: '', id: '', d: null, ingBusy: false }; fkMyPaint(); if (!fkMyDlg.open) fkMyDlg.showModal(); }
+async function fkAddIngredient(text, grams) {
+  const d = fkUi.d; text = String(text || '').trim(); const g = fkNumOrNull(String(grams).replace(',', '.'));
+  if (!text) { toast('Type an ingredient first.'); return; }
+  if (!(g > 0)) { toast('Add the grams for ' + text + '.'); return; }
+  fkUi.ingBusy = true; const btn = $('[data-fk-ing]'); if (btn) btn.disabled = true;
+  const r = await fkResolve({ name: text, grams: g });
+  fkUi.ingBusy = false; if (!fkMyDlg.open || fkUi.view !== 'recipe') return;
+  if (!r) { toast('No match for "' + text + '". Try Search foods.'); fkMyPaint(); return; }
+  const f = r.food, per100 = f.per100 || fkSumKeys.reduce((a, k) => { if (r.nutrients[k] != null) a[k] = r.nutrients[k] * 100 / g; return a; }, {});
+  d.ings.push({ name: r.label || r.name || text, grams: g, per100: { ...per100 } }); fkMyPaint();
+}
+async function fkSearchIngredient() {
+  const x = await fdPicker({ title: 'Add an ingredient', cta: 'Add ingredient', autofocus: true });
+  if (!x || !fkMyDlg.open || fkUi.view !== 'recipe') return;
+  const f = x.food, g = x.grams || f.serving.grams || 100, per100 = f.per100 ? { ...f.per100 } : { kcal: x.kcal * 100 / g, p: x.p * 100 / g, c: x.c * 100 / g, f: x.f * 100 / g };
+  fkUi.d.ings.push({ name: f.name, grams: g, per100 }); fkMyPaint();
+}
+function fkEditSave() {
+  const d = fkUi.d, name = d.name.trim(), { per, sg } = fkEditRead();
+  if (!name) { toast('Give the food a name.'); return; }
+  if (per.kcal == null || per.kcal < 0) { toast('Add the calories per 100 g.'); return; }
+  const full = { kcal: per.kcal, p: per.p || 0, c: per.c || 0, f: per.f || 0 }; ['fiber', 'sugar', 'na', 'sat'].forEach((k) => { if (per[k] != null) full[k] = per[k]; });
+  if (fkSanity(full).some((x) => x === 'negative' || x === 'not_a_number' || x === 'kcal_too_dense')) { toast('Those numbers are not possible. Check them.'); return; }
+  const grams = sg > 0 ? sg : 100, ps = fkRoundNut(Object.fromEntries(Object.entries(full).map(([k, v]) => [k, v * grams / 100])));
+  const bar = d.barcode.replace(/\D/g, '');
+  commit(() => {
+    let m = d.id && S.myfoods.find((x) => x.id === d.id); if (!m) { const t = fkTokens(name); let id = 'u:' + t.toks.join('-'); if (!t.toks.length || S.myfoods.some((x) => x.id === id)) id = 'f' + uid(); m = { id, used: 0, last: 0, fav: false }; S.myfoods.push(m); }
+    for (const k of ['fiber', 'sugar', 'na', 'sat']) delete m[k];
+    Object.assign(m, { name, brand: m.brand || '', ...ps, serving: d.serving.trim() || `${Math.round(grams * 10) / 10} g`, sg: grams, per100: fkRoundNut(full), user: true, fav: !!d.fav, updated: Date.now() });
+    m.per100.kcal = Math.round(full.kcal);
+    if (bar) m.barcode = bar; else delete m.barcode;
+  });
+  toast('Saved ' + name); fkUi = { view: 'list', q: '', id: '', d: null, ingBusy: false }; fkMyPaint();
+}
+fkMyDlg.addEventListener('click', async (e) => {
+  const t = e.target.closest('button'); if (!t) return; const d = fkUi.d;
+  if (t.dataset.fkFav) { const m = S.myfoods.find((x) => x.id === t.dataset.fkFav); if (m) { commit(() => { m.fav = !m.fav; }); fkMyPaint(); } return; }
+  if (t.dataset.fkEdit) { const m = S.myfoods.find((x) => x.id === t.dataset.fkEdit); if (!m) return;
+    if (m.recipe) { fkUi = { view: 'recipe', q: '', id: m.id, d: { id: m.id, name: m.name, servings: String(m.servings || 1), ings: (m.ingredients || []).map((g) => ({ name: g.name, grams: g.grams, per100: { ...g.per100 } })) }, ingBusy: false }; }
+    else fkUi = { view: 'edit', q: '', id: m.id, d: fkEditDraft(m), ingBusy: false };
+    fkMyPaint(); return; }
+  if (t.dataset.fkNew) { fkUi = { view: 'edit', q: '', id: '', d: fkEditDraft(null), ingBusy: false }; fkMyPaint(); return; }
+  if (t.dataset.fkRecipe) { fkUi = { view: 'recipe', q: '', id: '', d: { id: '', name: '', servings: '1', ings: [] }, ingBusy: false }; fkMyPaint(); return; }
+  if (t.dataset.fkBack) { fkUi = { view: 'list', q: '', id: '', d: null, ingBusy: false }; fkMyPaint(); return; }
+  if (t.dataset.fkLog) { fkLogRecipe(t.dataset.fkLog, 1); fkMyPaint(); return; }
+  if (t.dataset.fkKey) { fkSetUsdaKey($('#fkKey').value); toast($('#fkKey').value.trim() ? 'USDA key saved on this phone' : 'Using the shared demo key'); fkMyPaint(); return; }
+  if (t.dataset.fkSave) { fkEditSave(); return; }
+  if (t.dataset.fkDel) {
+    const m = S.myfoods.find((x) => x.id === d.id); if (!m) return;
+    if (!(await ask(`Delete ${m.name}?`, m.recipe ? 'The recipe is removed. Meals you already logged keep their numbers.' : 'It is removed from My foods. Meals you already logged keep their numbers.', 'Delete', { danger: true }))) return;
+    snapshot(); commit(() => { S.myfoods = S.myfoods.filter((x) => x.id !== m.id); }); fkUi = { view: 'list', q: '', id: '', d: null, ingBusy: false }; fkMyPaint(); toast('Deleted ' + m.name, true); return;
+  }
+  if (t.dataset.fkIng) { await fkAddIngredient($('#fkIngQ').value, $('#fkIngG').value); return; }
+  if (t.dataset.fkIngs) { await fkSearchIngredient(); return; }
+  if (t.dataset.fkIx) { d.ings.splice(+t.dataset.fkIx, 1); fkMyPaint(); return; }
+  if (t.dataset.fkRsave) {
+    const saved = fkRecipeSave(d); if (!saved) { toast(d.name.trim() ? 'Add at least one ingredient with grams.' : 'Give the recipe a name.'); return; }
+    toast('Saved ' + saved.name); fkUi = { view: 'list', q: '', id: '', d: null, ingBusy: false }; fkMyPaint(); return;
+  }
+  if (t.dataset.fkRlog) { const saved = fkRecipeSave(d); if (!saved) { toast('Add at least one ingredient with grams.'); return; } fkLogRecipe(saved.id, 1); fkUi = { view: 'list', q: '', id: '', d: null, ingBusy: false }; fkMyPaint(); }
+});
+fkMyDlg.addEventListener('input', (e) => {
+  const id = e.target.id, d = fkUi.d, v = e.target.value;
+  if (id === 'fkQ') { fkUi.q = v; const l = $('#fkList'); if (l) l.innerHTML = fkMyRows(); return; }
+  if (!d) return;
+  if (fkUi.view === 'edit') {
+    if (id === 'fkName') d.name = v; else if (id === 'fkServ') d.serving = v; else if (id === 'fkSg') d.sg = v; else if (id === 'fkBar') d.barcode = v; else if (id.startsWith('fkP_')) { d.per[id.slice(4)] = v; fkEditWarn(); }
+  } else if (fkUi.view === 'recipe') {
+    if (id === 'fkRName') d.name = v; else if (id === 'fkRServ') { d.servings = v; fkRecipeDraftTotals(); } else if (e.target.dataset.fkIg != null) { const g = d.ings[+e.target.dataset.fkIg]; if (g) { g.grams = v; fkRecipeDraftTotals(); const sm = e.target.closest('.fk-ing').querySelector('small'); if (sm) sm.textContent = fkK(fkScale(g.per100, fkNumOrNull(String(v).replace(',', '.')) || 0).kcal) + ' kcal'; } }
+  }
+});
+fkMyDlg.addEventListener('close', () => { fkUi = { view: 'list', q: '', id: '', d: null, ingBusy: false }; });
+if (window.PLANNER_TEST) window.__fk = { fkFind, fkGrams, fkGramsInfo, fkScale, fkResolve, fkResolveAll, fkSanity, fkSanityText, fkRange, fkLearn, fkSuggest, fkMealTotals, fkRecipeCalc, fkRecipeSave, fkLogRecipe, fkMyFoodsOpen, fkItem, fkStatus, fkSetUsdaKey, fkUsdaKey, fkCacheSize, fkCacheGet, fkCachePut, fkCacheKey, fkAll, fkLabel, fkTokens, fkFromMy, fkStats, ngMore: () => ngMore(), nwSummary: (d) => nwSummary(d) };
+// ===== MYFOODS END =====
 
 // ===== SHIFTS BEGIN: recurring work shifts (Outback, electric) =====
 const shDlg = $('#shDlg');

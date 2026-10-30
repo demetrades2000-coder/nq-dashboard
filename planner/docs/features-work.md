@@ -1,0 +1,17 @@
+# Payday, Hours and overtime, Availability (text to merge into the Help sheet and README)
+
+## Payday and Check my paycheck
+- **Payday** (card on Today, or the link `#payday`): pick a job, say how often it pays (every week, every 2 weeks, twice a month, once a month), give a payday date (or the day of the month), and how many days behind it pays (for example 5 if your Friday check covers work through the Sunday before). Tips you log in Shifts can be counted on the check too.
+- Paydays then show on the calendar as all-day green **Payday** items with the pay you should expect: your scheduled hours in that pay period times the job's hourly rate, plus tips logged in the period. They are worked out each time you open the app and never stored as events, so changing your shifts updates them. Untick Show paydays on the calendar to hide a job's paydays.
+- **Check my paycheck**: choose a payday, type the gross amount on your stub and it compares it with your calendar. If you were paid more than $5 less than the hours suggest it says so in plain words (for example "You were paid $38 less than your scheduled hours suggest: check your stub") and roughly how many hours are missing. The shifts counted are listed so you can spot a missing one. Saved checks are kept in a list that syncs.
+- Estimates only, gross (before tax). Overtime, bonuses and tax are not included, and none of it is tax or payroll advice.
+
+## Hours and overtime
+- **Hours this week** (card on Today, or the link `#hours`): a bar of hours worked so far and hours projected with the shifts still to come, across all your jobs, with your weekly limit marked on it. It also shows next week's scheduled hours.
+- Set a combined weekly limit (default 40 h), an overtime threshold per job (default 40 h, 0 for none) and the overtime rate (default 1.5x). When your scheduled shifts go over, it says which shift does it and the estimate, for example "Thursday's Outback shift puts you over 40 h. The week adds up to 43 h, 3 h overtime at 1.5x = about $X extra". The extra is the premium over your normal rate, before tax.
+- Rest warnings: less than 8 h (you can change it) between the end of one shift and the start of the next (a closing shift into an opening shift, or two jobs on one day), and 6 or more days in a row with a shift and no day off. The settings sync.
+
+## Availability and Request off
+- **Availability** (card on Today, or the link `#availability`): for each job tap Free or No for morning, afternoon and evening on each weekday, add a note per day, and set when evening starts (for example 4pm). Days and parts of days that clash with something already on your calendar (your other job, a personal event, a vacation or day off) show as Busy and are left out automatically.
+- **Copy availability message** gives a ready plain-text message for the week you pick (next week by default), such as "Mon Nov 9: 4pm-close (Electric 7am-3:30pm)". Edit the text first if you like, or untick the box to leave the reasons out. The Today card has a one-tap copy for next week.
+- **Request off**: pick the first and last day and a reason and copy a polite message (it mentions any shifts you are scheduled for those days). The request is saved with a status of Sent, Approved or Denied so you remember to follow up. For an approved request, **Add Day off to calendar** puts an all-day Day off on the calendar, and that job is then shown as unavailable on those days.

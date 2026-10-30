@@ -4024,11 +4024,11 @@ hrDlg.addEventListener('close', () => { render(); });
 function hrTodayCard() {
   const a = hrAll(), w = a.w0;
   if (!w.total && !a.w1.total) return '';
-  const warns = [...a.warns, ...a.rest].slice(0, 4);
+  const all = [...a.warns, ...a.rest], warns = all.slice(0, 5);
   return `<section class="td-card" id="hrCard"><h3>Hours this week<button data-hropen>Details</button></h3>
     ${hrBarHtml(w)}
     <div class="hint">${esc(hrSummary(w))}${a.w1.total ? ` Next week: ${hrNum(a.w1.total)} h scheduled.` : ''}</div>
-    ${warns.map((x) => `<div class="hr-warn${x.level === 'red' ? ' red' : ''}" role="status">${esc(x.text)}</div>`).join('')}</section>`;
+    ${warns.map((x) => `<div class="hr-warn${x.level === 'red' ? ' red' : ''}" role="status">${esc(x.text)}</div>`).join('')}${all.length > warns.length ? `<div class="hint">${all.length - warns.length} more in Details.</div>` : ''}</section>`;
 }
 $('#main').addEventListener('click', (e) => { if (S.view === 'today' && e.target.closest('[data-hropen]')) openHours(); });
 // ===== HOURS END =====

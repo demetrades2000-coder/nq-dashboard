@@ -6235,7 +6235,7 @@ function fdDetailUpdate() {
   $('#fdOutSub').textContent = fdSel.serving.grams > 0 ? `${fdFmt(r.qty)} serving${r.qty === 1 ? '' : 's'} = ${fdFmt(r.grams)} g. Values are estimates.` : `${fdFmt(r.qty)} serving${r.qty === 1 ? '' : 's'}. Values are estimates.`;
 }
 function fdSetAmt(v) { // clamp and store the typed or stepped amount
-  if (fdMode === 'srv') fdQty = Math.min(10, Math.max(0.25, Math.round(v * 4) / 4 || 1)); else fdGrams = Math.min(2000, Math.max(1, Math.round(v) || 100));
+  if (fdMode === 'srv') fdQty = Number.isFinite(v) ? Math.min(10, Math.max(0.25, Math.round(v * 4) / 4)) : 1; else fdGrams = Number.isFinite(v) ? Math.min(2000, Math.max(1, Math.round(v))) : 100;
 }
 function fdChoose(food, qty) { fdSel = food; fdMode = 'srv'; fdQty = qty || 1; fdGrams = food.serving.grams > 0 ? Math.round(food.serving.grams * fdQty) : 100; fdPaintDetail(); }
 function fdRunOnline() {
@@ -6265,7 +6265,7 @@ $('#fdBody').addEventListener('click', (e) => {
   const code = t.closest('[data-fdcode]'); if (code) { fdLookup(code.dataset.fdcode).then((f) => { if (!fdDlg.open) return; if (f) fdChoose(f, 1); else toast('Not found in the food database.'); }); return; }
   if (t.closest('#fdScanBtn')) { fdDoScan(); return; }
   if (t.closest('#fdDetFav')) { fdToggleFav(fdSel); fdPaintDetail(); return; }
-  const m = t.closest('[data-fdm]'); if (m && fdSel && !m.disabled) { fdMode = m.dataset.fdm; if (fdMode === 'g') fdGrams = Math.max(1, Math.round(fdSel.serving.grams * fdQty)); else fdQty = Math.min(10, Math.max(0.25, Math.round(fdGrams / fdSel.serving.grams * 4) / 4 || 1)); fdPaintDetail(); return; }
+  const m = t.closest('[data-fdm]'); if (m && fdSel && !m.disabled) { fdMode = m.dataset.fdm; if (fdMode === 'g') fdGrams = Math.max(1, Math.round(fdSel.serving.grams * fdQty)); else fdQty = Math.min(10, Math.max(0.25, Math.round(fdGrams / fdSel.serving.grams * 4) / 4)); fdPaintDetail(); return; }
   const st = t.closest('[data-fdstep]');
   if (st && fdSel) { const a = $('#fdAmt'), d = +st.dataset.fdstep; fdSetAmt((+a.value || 0) + d * (fdMode === 'srv' ? 0.25 : fdGrams >= 100 ? 10 : 5)); a.value = fdMode === 'srv' ? fdQty : fdGrams; fdDetailUpdate(); return; }
   if (t.closest('#fdBack')) { fdSel = null; fdPaintFind(); return; }

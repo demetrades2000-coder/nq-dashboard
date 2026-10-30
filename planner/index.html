@@ -8316,7 +8316,9 @@ $('#importFile').onchange = async (e) => {
     if (!data || !Array.isArray(data.events)) throw new Error('not a planner backup');
     if (!(await ask('Restore backup?', `${data.events.length} events and ${(data.tasks || []).length} tasks. This replaces your calendar${sync ? ' on every synced device' : ''}.`, 'Restore', { danger: true }))) return;
     const d = normalize(data);
-    snapshot(); commit(() => { SYNCED.forEach((k) => { S[k] = Array.isArray(d[k]) ? d[k] : S[k]; }); S.weekStart = d.weekStart; }); render(); toast('Backup restored', true);
+    // A collection the backup does not have at all (an older backup, from before that feature existed) is left as it is,
+    // instead of being wiped to empty or reset to the defaults that normalize() fills in.
+    snapshot(); commit(() => { SYNCED.forEach((k) => { S[k] = Array.isArray(data[k]) && Array.isArray(d[k]) ? d[k] : S[k]; }); if (data.weekStart === 0 || data.weekStart === 1) S.weekStart = d.weekStart; }); render(); toast('Backup restored', true);
   } catch (err) { toast('That file is not a Planner backup'); }
 };
 

@@ -262,6 +262,32 @@ Deep links: `#prop`, `#business`, `#taxes`. New synced collections: `propacct`, 
 - **Customize Today** (button at the bottom of Today, or the link #customize): turn any card off with its switch, move cards up or down inside their group, or tap Reset to default. Your choices sync between your devices. A card you turn off is only hidden from Today; the tool is still in All tools.
 - A tilt stop that is active always shows, even if you hid the Tilt guard card.
 - Nothing was removed. Every card is the same card as before.
+### Meals (AI food tracker)
+- **Meals** (card on Today, or `#meals`): snap a photo of your food and the AI estimates the calories, protein, carbs and fat. Check the numbers, change anything, then save. The card shows a calorie ring and protein, carb and fat bars for the day.
+- **Describe it**: type what you ate and the AI estimates it without a photo. **Not right?** Tell the AI ("it is 2 chicken thighs") and it re-estimates.
+- **Add food** searches foods (a built-in list and Open Food Facts) and **Scan barcode** reads a package. **Log again** puts your usual meals back in one tap.
+- Photo and text estimates need your own Anthropic API key (one-time setup in **AI settings**). The key stays on this phone and is never synced or backed up. Only the installed app can reach the AI, not the claude.ai copy. A photo costs well under a cent on Haiku.
+- **Food goals** (`#food-goals`) sets daily calories and macros, with a calculator. **Eating this week** (`#food-week`) shows 7 and 30 day averages. All numbers are estimates, not medical advice.
+### Find a food (`#find-food`)
+- Search any food by name. Your saved foods and a built-in list of about 150 common foods answer instantly and work offline; online results from Open Food Facts are added underneath when you have a connection.
+- Scan a barcode with the camera, or type the number under the bars. If the camera is blocked or the page is not secure, the typed number still works.
+- Pick an amount in servings (0.25 to 10) or in grams, and see calories, protein, carbs and fat before you add it.
+- Tap the star to keep a food as a favorite. Favorites and recent foods are at the top when the search box is empty.
+- All values are estimates. Packaged-food data comes from volunteers, so check it against the label when it matters.
+
+### Daily food goals (`#food-goals`)
+- Type your own calories, protein, carbs and fat, or let the calculator work them out from sex, age, height, weight, activity and goal (lose, maintain or gain, at a pace you choose).
+- The calculator uses the Mifflin-St Jeor formula, protein defaults to 1.8 g per kg (you can change it), and it never suggests less than 1,200 kcal a day (women) or 1,500 (men). It is an estimate, not medical advice.
+- Until you set goals, 2,200 kcal, 150 g protein, 250 g carbs and 70 g fat are used.
+
+### Eating this week and month (`#food-week`)
+- Bars for each of the last 7 or 30 days against your calorie goal; today is outlined. Tap a bar for that day's numbers.
+- Average calories and protein, days logged, days within 10 percent of your goal, days protein reached 90 percent of the goal, the split of calories from protein, carbs and fat, and the days closest to and furthest from your goal.
+- Plain-language notes appear only after 3 finished logged days. Today is left out of the averages until you have eaten 60 percent of your goal.
+
+### Notes for the lead (not for the Help sheet)
+- Test hook: set `window.PLANNER_TEST = true` before load to get `window.__food` (used only by the tests).
+- Extra optional fields written to `foodcfg` item `cfg` by the calculator: `rate` (kg per week) and `pk` (g protein per kg). `myfoods` items match the data contract exactly.
 - **Backup:** Back up opens the share sheet so you can save the file to iCloud Drive. The app reminds you if it's been 14 days.
 
 Tests: `node planner/tests/<name>.test.js` (Playwright). `lead`, `money`, `swipe` and `now` need the app served next to `data.json` (see the header of each).

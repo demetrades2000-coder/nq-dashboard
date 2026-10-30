@@ -55,26 +55,32 @@ const URL = 'http://127.0.0.1:' + (process.env.PORT || 8777) + '/nq-dashboard/pl
   // manual add
   await p.click('#mlCard [data-mladd]'); await wait(300);
   ok(await p.isVisible('#mlSnap'), 'add food opens the editor');
-  if (await p.isVisible('#mlFdOpen')) { /* helper picker may be present */ }
-  const hasItem = (await p.$$('.ml-item')).length;
-  if (!hasItem) { await p.click('#mlAddItem'); await wait(200); }
+  if (await p.evaluate(() => typeof document.querySelector('#fdDlg') !== 'undefined' && !!document.querySelector('dialog[open]:not(#mlSnap)'))) await p.keyboard.press('Escape');
+  await wait(200); await p.click('#mlAddManual'); await wait(200);
   await p.fill('.ml-item[data-i="0"] [data-f="name"]', 'Protein shake'); await p.fill('.ml-item[data-i="0"] [data-f="kcal"]', '180'); await p.fill('.ml-item[data-i="0"] [data-f="p"]', '30');
   await p.click('#mlSave'); await wait(300);
   const st2 = await p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')).meals);
   ok(st2.length === 2 && st2.some((m) => m.name === 'Protein shake' && m.kcal === 180 && m.src !== 'ai'), 'manual meal saved ' + JSON.stringify(st2.map((m) => [m.name, m.kcal, m.src])));
+  // search a food with the picker and add it to a meal
+  await p.click('#mlCard [data-mladd]'); await p.waitForSelector('#fdDlg[open]', { timeout: 5000 });
+  await p.fill('#fdQ', 'egg'); await wait(900); await p.click('#fdList .fd-pick'); await wait(300); await p.click('#fdAdd'); await wait(400);
+  ok(await p.isVisible('#mlSnap') && (await p.$$('.ml-item')).length === 1 && parseFloat(await p.inputValue('.ml-item[data-i="0"] [data-f="kcal"]')) > 5, 'picked food lands in the meal editor: ' + await p.evaluate(() => document.querySelector('#mlSnapBody').innerText.slice(0, 200)));
+  await p.click('#mlSave'); await wait(300);
+  ok((await p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')).meals.some((m) => m.src === 'search'))), 'search meal saved');
+  ok((await p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')).myfoods.length)) >= 1, 'picked food remembered in My foods');
   // daily sheet, edit, log again, delete
   await p.click('#mlCard [data-mlopen]'); await wait(300);
-  ok(await p.isVisible('#mlDlg') && (await p.$$('#mlMeals .ml-row')).length === 2, 'sheet lists both meals');
+  ok(await p.isVisible('#mlDlg') && (await p.$$('#mlMeals .ml-row')).length === 3, 'sheet lists all meals');
   await p.click('#mlMeals .ml-row'); await wait(200); ok(await p.isVisible('#mlDel'), 'tap a meal to edit');
   await p.click('#mlAgain'); await wait(300);
-  ok((await p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')).meals.length)) === 3, 'log again duplicates it');
+  ok((await p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')).meals.length)) === 4, 'log again duplicates it');
   await p.click('#mlMeals .ml-row'); await wait(200); await p.click('#mlDel'); await p.waitForSelector('#askDlg[open]'); await p.click('#askYes'); await wait(300);
-  ok((await p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')).meals.length)) === 2, 'delete asks first and removes');
+  ok((await p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')).meals.length)) === 3, 'delete asks first and removes');
   // describe in words (no photo), then one-tap log again
   await p.click('#mlDlg [data-mldesc]'); await p.fill('#mlDesc', '3 scrambled eggs and 2 slices of toast'); await p.click('#mlDescGo'); await p.waitForSelector('#mlSave', { timeout: 8000 });
   const last = reqs[reqs.length - 1].body.messages[0].content; ok(last.length === 1 && last[0].type === 'text' && /scrambled eggs/.test(last[0].text), 'text-only request, no image');
   ok(await p.isVisible('#mlFix'), 'can correct a described meal'); await p.click('#mlSave'); await wait(300);
-  ok((await p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')).meals.length)) === 3, 'described meal saved');
+  ok((await p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')).meals.length)) === 4, 'described meal saved');
   const chips = await p.$$('#mlUsual [data-mlq1]'); ok(chips.length >= 1, 'usual meals offered'); await chips[0].click(); await wait(300);
   ok((await p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')).meals.filter((m) => m.src === 'repeat').length)) === 1, 'one tap logs a usual meal again');
   await p.click('#mlPrev'); ok(/Nothing logged/.test(await p.textContent('#mlMeals')), 'yesterday is empty');

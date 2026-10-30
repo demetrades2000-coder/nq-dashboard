@@ -3003,7 +3003,7 @@ function scParts(k) { // what the app knows about day k, one entry per part: {id
   P.rules = { have: !!(j && j.rules in scFrac), frac: j && j.rules in scFrac ? scFrac[j.rules] : 0, text: j && j.rules in scFrac ? 'You answered ' + j.rules : 'Not answered', hint: 'answer "Followed my rules?" in your journal', open: true };
   const tp = S.tplan.find((x) => x.id === 'tp:' + k);
   P.plan = { have: !!(tp && tp.followed in scFrac), frac: tp && tp.followed in scFrac ? scFrac[tp.followed] : 0, text: tp && tp.followed in scFrac ? 'You answered ' + tp.followed : 'Not answered', hint: 'answer "Did I follow the plan?" in the debrief', open: true };
-  const ev = tlEval(k, tlCfg()), hit = ev.count > 0 && ev.last;
+  const ev = tzEval(k, tzCfg()), hit = ev.count > 0 && ev.last;
   P.tilt = { have: !!hit, frac: hit && !ev.viol ? 1 : 0, text: hit ? (ev.viol ? `Traded ${ev.viol} time${ev.viol === 1 ? '' : 's'} after a stop` : 'A stop was hit and respected') : 'No stop was hit', hint: '' };
   const w = S.workouts.some((x) => x.date === k), tracking = S.workouts.some((x) => x.date < k && x.date >= addDays(k, -14));
   P.work = { have: w || tracking, frac: w ? 1 : 0, text: w ? 'Workout logged' : tracking ? 'No workout logged' : 'You have not logged workouts lately', hint: 'log your workout', open: true };

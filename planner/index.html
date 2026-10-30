@@ -873,7 +873,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,[contenteditable
 <header class="top">
   <div class="brand">
     <span class="logo" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>
-    Planner
+    <span class="bt">Planner</span>
   </div>
   <div class="nav">
     <button class="btn" id="todayBtn" title="Go to today (T)">Today</button>
@@ -5815,6 +5815,13 @@ document.addEventListener('click', (e) => {
   }
 });
 document.addEventListener('keydown', (e) => { if (e.target && e.target.id === 'mlKeyQuick' && e.key === 'Enter') { e.preventDefault(); const b = $('#mlKeyGo'); if (b) b.click(); } });
+// header shortcut: one tap to Meals from anywhere
+(function mlHeaderBtn() {
+  const sb = $('#shiftBtn'); if (!sb || $('#mlBtn')) return;
+  document.head.insertAdjacentHTML('beforeend', '<style>@media (max-width:480px){.brand .bt{display:none}}#mlBtn{order:1}@media (max-width:1700px){#mlBtn{width:36px;padding:0;justify-content:center}#mlBtn .newlabel{display:none}}</style>');
+  sb.insertAdjacentHTML('beforebegin', '<button class="btn" id="mlBtn" type="button" title="Meals" aria-label="Meals" aria-haspopup="dialog"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v7a2 2 0 0 0 2 2v9M10 3v7a2 2 0 0 1-2 2M8 3v5M17 21V3c-2 1.5-3 4-3 7 0 2 1 3 3 3"/></svg><span class="newlabel">Meals</span></button>');
+  $('#mlBtn').onclick = () => mlOpen();
+})();
 // ===== MEALS END =====
 // ===== FOODDB BEGIN: food lookup (Open Food Facts + offline starter list), barcode scanner and the "Find a food" picker (reads/writes synced `myfoods`) =====
 // All numbers in the built-in list are rough estimates for typical foods, not lab values. Online data is whatever Open Food Facts has.
@@ -10259,7 +10266,7 @@ setInterval(() => {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync) syncNow(); });
 addEventListener('online', () => { if (sync) syncNow(); });
 $('#helpBtn').onclick = () => $('#helpDlg').showModal();
-const APP_VERSION = '2026-10-30.21';
+const APP_VERSION = '2026-10-30.22';
 if ($('#verNote')) $('#verNote').textContent = 'Planner ' + APP_VERSION;
 if (!HOSTED && 'serviceWorker' in navigator && window.isSecureContext && location.protocol.startsWith('http')) {
   const hadController = !!navigator.serviceWorker.controller;

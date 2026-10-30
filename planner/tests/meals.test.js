@@ -25,6 +25,7 @@ const URL = 'http://127.0.0.1:' + (process.env.PORT || 8777) + '/nq-dashboard/pl
   ok(/2,200|2200/.test(await p.textContent('#mlCard')) === false || true, 'ring renders');
   const pick = (name) => p.evaluate(async (n) => { const c = document.createElement('canvas'); c.width = 320; c.height = 240; const x = c.getContext('2d'); x.fillStyle = '#c0841a'; x.fillRect(0, 0, 320, 240); x.fillStyle = '#fff'; x.beginPath(); x.arc(160, 120, 80, 0, 7); x.fill();
     const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.9)); const f = new File([blob], n, { type: 'image/jpeg' }); const dt = new DataTransfer(); dt.items.add(f); const i = document.querySelector('#mlFile'); i.files = dt.files; i.dispatchEvent(new Event('change', { bubbles: true })); }, name);
+  await p.click('#mlBtn'); await wait(300); ok(await p.isVisible('#mlDlg'), 'header Meals button opens the sheet'); await p.click('#mlDlg [data-close]'); await wait(200);
   // no key yet: setup panel
   await pick('a.jpg'); await wait(900);
   ok(await p.isVisible('#mlKeyQuick'), 'asks for the key the first time');

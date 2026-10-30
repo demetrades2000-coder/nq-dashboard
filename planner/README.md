@@ -252,6 +252,9 @@ Deep links: `#prop`, `#business`, `#taxes`. New synced collections: `propacct`, 
 - Log each payment with its date and quarter. The table shows suggested against paid, and a quarter past its date with a shortfall is marked Late.
 - The due dates are drawn on the calendar when it is built (never stored), so turning them off or changing the rate never leaves copies behind.
 - Always an estimate from your own numbers, not tax advice.
+### All tools and setup
+- **All tools** (button in the header, or the link `#tools`): every tool in one place, grouped as Money, Work, Trading, Me and Calendar. Search the list, tap a tile to open the tool. Recently opened tools are listed first, and you can pin up to 4 favorites that show on Today as **Quick tools**.
+- **Get set up** (card on Today until you finish or hide it): a checklist of the steps that make the tools useful (real shift times and pay, bills, tilt limits, income goal, backup). Each step shows done or not from your real data, and a button opens the right tool.
 - **Backup:** Back up opens the share sheet so you can save the file to iCloud Drive. The app reminds you if it's been 14 days.
 
 Tests: `node planner/tests/<name>.test.js` (Playwright). `lead`, `money`, `swipe` and `now` need the app served next to `data.json` (see the header of each).

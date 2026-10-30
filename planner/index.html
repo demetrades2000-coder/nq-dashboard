@@ -811,6 +811,14 @@ body.focusing .toast{bottom:76px}
   .top .right,.side,.nav button{display:none}
   body,main,.layout{overflow:visible;height:auto;display:block}
 }
+/* Touch screens: small buttons get a 36px tall target (Apple asks for 44; this is the least that is reliably tappable).
+   Tiny inline controls keep their look and only grow the area that reacts to a finger. */
+@media (pointer:coarse){
+  body .btn.sm,body .pill,body .pl-chip,body .pl-mv button,body .ib,body .td-ev,body .srow,body .bz-g,body #views button,body #moreBtn,body summary{min-height:36px}
+  body #miniPrev,body #miniNext,body .ib{min-width:36px}
+  .tdel,.tmove,.tdet,.pri,.link,.pp .star,.pl-name,button[data-gbed]{position:relative}
+  .tdel::after,.tmove::after,.tdet::after,.pri::after,.link::after,.pp .star::after,.pl-name::after,button[data-gbed]::after{content:"";position:absolute;inset:-10px -5px}
+}
 </style>
 </head>
 <body>
@@ -1105,7 +1113,7 @@ body.focusing .toast{bottom:76px}
     <h4>Markets</h4>
     <ul><li>Market layers on the calendar: high, medium and low USD releases, Fed speakers, mega-cap earnings and session shading. Turn them on or off in <b>Market on the calendar</b>.</li><li><b>News</b> lists releases with forecast and previous, and headlines tagged risk-on or risk-off. Tap Refresh for the newest data your dashboard has published.</li><li>All market times are converted from New York time to your phone's time zone.</li><li>If a banner says the data is old, your bot PC has not published recently. Check the bots and ForexFactory directly.</li></ul>
     <h4>Discipline and money</h4>
-    <ul><li><b>Rules</b>: your pre-trade checklist, run once per trading day. <b>Trades</b>: notes and tags on each live or paper trade, plus a payout planner.</li><li><b>Review</b>: your week at a glance. <b>Journal</b>: note, mood and whether you followed your rules.</li><li><b>Projects</b> holds Goals and the Money log. <b>Health</b> holds sleep, workouts and trends.</li><li><b>Week balance</b> (card on Today): hours planned per event type against weekly targets you set, with free hours left after 8 h of sleep a day. <b>Earnings</b> (card on Today): estimated pay this week and month from shifts (hours x hourly rate), live and paper trading, and the money log, with a monthly income goal and what you need per week. Both are before tax.</li><li><b>Check my week</b> (shield button, or the banner on Today) lists clashes for today and the next 7 days: events that overlap (red) and work shifts that run into a New York killzone or a high-impact news pause (amber). Tap one to open the event.</li><li><b>When can I trade today?</b> on Today shows the free parts of each killzone after shifts, events and news pauses, plus the best free block of the week for deep work.</li><li><b>Bedtime</b> (evening on Today, and a line in Plan day) takes tomorrow's first event, shift or marked trading session, subtracts your get-ready minutes and sleep hours, and says when to be asleep. Change the numbers with the Change button.</li><li><b>Bills</b> (Today, or <code>#bills</code>): your recurring bills show on the calendar in red and feed a 30-day cash forecast that warns you before you run short. An estimate, before tax.</li><li><b>Tilt guard</b>: after 2 losing trades in a row or your daily loss limit, a red Stop trading banner and a cooldown timer appear. <b>Trade plan</b> (before the NY open) turns into a debrief at 12 pm ET.</li><li><b>Close out the day</b> (Today, from 5 pm): move open tasks to tomorrow, see your first commitment tomorrow, save one win.</li><li><b>Find</b> (Ctrl/Cmd+K, or the Find button): searches everything and runs commands like <i>new task call Sam fri</i>, <i>start clipper edit</i> or <i>next friday</i>.</li><li><b>Time log</b>: start a timer for what you are working on, or log time you forgot. <b>Time audit</b> compares what you planned with what you logged.</li><li><b>Deals</b>: a board for leads, clients and sponsors with follow-up dates on the calendar, a Waiting on list, and a one-tap way to log the money from a won deal.</li><li><b>Edge finder</b> (<code>#edge</code>): where you make and lose money by weekday, hour and tag, with plain findings. Small samples are greyed out. <b>Daily score</b> (<code>#score</code>): a 0-100 score from what you did, with streaks. <b>Net worth</b> (<code>#worth</code>): your accounts, savings goal and emergency fund, typed by hand.</li><li><b>Phone alerts</b> (<code>#alerts</code>): makes a calendar file with reminders for shifts, events, bills and follow-ups. Open it on your iPhone and tap Add All, and Calendar will notify you. <b>Miles and expenses</b> (<code>#miles</code>): log trips and tools with a deduction estimate (your own numbers, not tax advice). <b>Daily brief</b> (<code>#brief</code>): a morning summary you can copy or share.</li><li><b>Payday</b> (<code>#payday</code>): paydays on the calendar with what each should be, and a check that tells you if a paycheck looks short. <b>Hours</b> (<code>#hours</code>): weekly hours across jobs with overtime and rest warnings. <b>Availability</b> (<code>#availability</code>): copy a ready message for your manager and track days-off requests.</li><li><b>Prop firms</b> (<code>#prop</code>): a ledger of every eval and funded account with fees, payouts, ROI and the payout still needed to break even. <b>Business</b> (<code>#business</code>): monthly profit and loss per project from your money log. <b>Taxes</b> (<code>#taxes</code>): a quarterly set-aside estimate with due dates on the calendar. Estimates only, not tax advice.</li></ul>
+    <ul><li><b>Rules</b>: your pre-trade checklist, run once per trading day. <b>Trades</b>: notes and tags on each live or paper trade, plus a payout planner.</li><li><b>Review</b>: your week at a glance. <b>Journal</b>: note, mood and whether you followed your rules.</li><li><b>Projects</b> holds Goals and the Money log. <b>Health</b> holds sleep, workouts and trends.</li><li><b>Week balance</b> (card on Today): hours planned per event type against weekly targets you set, with free hours left after 8 h of sleep a day. <b>Earnings</b> (card on Today): estimated pay this week and month from shifts (hours x hourly rate), live and paper trading, and the money log, with a monthly income goal and what you need per week. Both are before tax.</li><li><b>Check my week</b> (shield button, or the banner on Today) lists clashes for today and the next 7 days: events that overlap (red) and work shifts that run into a New York killzone or a high-impact news pause (amber). Tap one to open the event.</li><li><b>When can I trade today?</b> on Today shows the free parts of each killzone after shifts, events and news pauses, plus the best free block of the week for deep work.</li><li><b>Bedtime</b> (evening on Today, and a line in Plan day) takes tomorrow's first event, shift or marked trading session, subtracts your get-ready minutes and sleep hours, and says when to be asleep. Change the numbers with the Change button.</li><li><b>Bills</b> (Today, or <code>#bills</code>): your recurring bills show on the calendar in red and feed a 30-day cash forecast that warns you before you run short. An estimate, before tax.</li><li><b>Tilt guard</b>: after 2 losing trades in a row or your daily loss limit, a red Stop trading banner and a cooldown timer appear. <b>Trade plan</b> (before the NY open) turns into a debrief at 12 pm ET.</li><li><b>Close out the day</b> (Today, from 5 pm): move open tasks to tomorrow, see your first commitment tomorrow, save one win.</li><li><b>Find</b> (Ctrl/Cmd+K, or the Find button): searches everything and runs commands like <i>new task call Sam fri</i>, <i>start clipper edit</i> or <i>next friday</i>.</li><li><b>Time log</b>: start a timer for what you are working on, or log time you forgot. <b>Time audit</b> compares what you planned with what you logged.</li><li><b>Deals</b>: a board for leads, clients and sponsors with follow-up dates on the calendar, a Waiting on list, and a one-tap way to log the money from a won deal.</li><li><b>Edge finder</b> (<code>#edge</code>): where you make and lose money by weekday, hour and tag, with plain findings. Small samples are greyed out. <b>Daily score</b> (<code>#score</code>): a 0-100 score from what you did, with streaks. <b>Net worth</b> (<code>#worth</code>): your accounts, savings goal and emergency fund, typed by hand.</li><li><b>Phone alerts</b> (<code>#alerts</code>): makes a calendar file with reminders for shifts, events, bills and follow-ups. Open it on your iPhone and tap Add All, and Calendar will notify you. <b>Miles and expenses</b> (<code>#miles</code>): log trips and tools with a deduction estimate (your own numbers, not tax advice). <b>Daily brief</b> (<code>#brief</code>): a morning summary you can copy or share.</li><li><b>Payday</b> (<code>#payday</code>): paydays on the calendar with what each should be, and a check that tells you if a paycheck looks short. <b>Hours</b> (<code>#hours</code>): weekly hours across jobs with overtime and rest warnings. <b>Availability</b> (<code>#availability</code>): copy a ready message for your manager and track days-off requests.</li><li><b>Prop firms</b> (<code>#prop</code>): a ledger of every eval and funded account with fees, payouts, ROI and the payout still needed to break even. <b>Business</b> (<code>#business</code>): monthly profit and loss per project from your money log. <b>Taxes</b> (<code>#taxes</code>): a quarterly set-aside estimate with due dates on the calendar. Estimates only, not tax advice.</li><li><b>All tools</b> (header button or <code>#tools</code>): every tool in one searchable list, with your recent and favorite tools first. <b>Get set up</b> on Today walks you through the settings that make the tools useful.</li></ul>
     <h4>Shortcuts and Back Tap</h4>
     <p>In the iPhone Shortcuts app, add an <b>Open URL</b> action with this app's address plus one of these endings, then set Back Tap (Settings, Accessibility, Touch) to run it:</p>
     <ul><li><code>#today</code> <code>#plan</code> <code>#plan-week</code> <code>#new-event</code> <code>#new-task</code> <code>#shifts</code> <code>#week-balance</code> <code>#earnings</code></li><li><code>#log-workout</code> <code>#health</code> <code>#projects</code> <code>#week</code> <code>#agenda</code></li></ul>
@@ -1164,7 +1172,10 @@ const key = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate(
 const parse = (k) => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
 const addDays = (k, n) => { const d = parse(k); d.setDate(d.getDate() + n); return key(d); };
 const diffDays = (a, b) => Math.round((parse(b) - parse(a)) / 864e5);
-const dow = (k) => parse(k).getDay();
+// dow/dom are pure functions of the key and sit on the hottest loops (every event x every day), so they are memoised.
+const dowC = new Map(), domC = new Map();
+const dow = (k) => { let v = dowC.get(k); if (v === undefined) { v = parse(k).getDay(); if (dowC.size > 20000) dowC.clear(); dowC.set(k, v); } return v; };
+const dom = (k) => { let v = domC.get(k); if (v === undefined) { v = parse(k).getDate(); if (domC.size > 20000) domC.clear(); domC.set(k, v); } return v; };
 const todayKey = () => key(new Date());
 const toMin = (hm) => { const [h, m] = hm.split(':').map(Number); return h * 60 + m; };
 const fromMin = (n) => `${pad(Math.floor(n / 60) % 24)}:${pad(n % 60)}`;
@@ -1180,7 +1191,7 @@ const shade = (hex, f) => { const [r, g, b] = rgb(hex); return `rgb(${Math.round
 const cvars = (hex) => `--c:${hex};--bg-c:${tint(hex, .13)};--fg:${shade(hex, .42)}`;
 
 // ---------- state ----------
-const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan', 'timelog', 'deals', 'waiting', 'score', 'worth', 'alcfg', 'miles', 'milecfg', 'paycfg', 'paychk', 'hrcfg', 'avail', 'avreq', 'propacct', 'taxcfg', 'taxpay']; // collections added by the Rules and Trades features
+const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan', 'timelog', 'deals', 'waiting', 'score', 'worth', 'alcfg', 'miles', 'milecfg', 'paycfg', 'paychk', 'hrcfg', 'avail', 'avreq', 'propacct', 'taxcfg', 'taxpay', 'hub']; // collections added by the Rules and Trades features
 let S = load();
 let cursor = todayKey(), selected = cursor, miniMonth = cursor.slice(0, 7);
 let query = '', agendaDays = 30, undoSnap = null, editing = null, lastScrollView = null;
@@ -1247,7 +1258,7 @@ const DEVICE = /iPhone|iPad/.test(UA) ? 'iPhone' : /Android/.test(UA) ? 'Android
 const readJSON = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
 let sync = (() => { const v = readJSON(SYNC_KEY); return v && v.token && v.repo ? v : null; })();
 let botCache = readJSON(BOTS_KEY) || {};
-let extraEvents = [], syncing = false, syncAgain = false, syncTimer = null, syncState = sync ? 'busy' : 'off', syncMsg = '', lastSynced = 0, pendingRender = false;
+let extraEvents = [], extraSig = '', syncing = false, syncAgain = false, syncTimer = null, syncState = sync ? 'busy' : 'off', syncMsg = '', lastSynced = 0, pendingRender = false;
 
 const canon = (o) => Array.isArray(o) ? '[' + o.map(canon).join(',') + ']'
   : o && typeof o === 'object' ? '{' + Object.keys(o).filter((k) => o[k] !== undefined).sort().map((k) => JSON.stringify(k) + ':' + canon(o[k])).join(',') + '}'
@@ -1273,6 +1284,7 @@ function commit(fn) {
     before[k].forEach((_, id) => { if (!seen.has(id)) { S.deleted[id] = now; removed[k].push(id); } });
   });
   if (S.weekStart !== ws) S.settingsU = now;
+  if (changed.events.length || removed.events.length) evcClear(); // eventsOn() cache (see eventsOn)
   save();
   scheduleSync();
   if (DB) dbPush(changed, removed, S.weekStart !== ws);
@@ -1673,7 +1685,8 @@ function buildBotEvents() {
   out.push(...dealFollowEvents()); // PIPELINE: follow-up dates of open deals
   out.push(...payEvents(gone)); // PAYDAY: expected paydays overlay
   out.push(...taxEvents(gone)); // TAXQ: estimated-tax due dates overlay
-  extraEvents = out;
+  const sig = JSON.stringify(out); // keep the same array while the overlay is unchanged, so the eventsOn() cache survives re-renders
+  if (sig !== extraSig) { extraEvents = out; extraSig = sig; }
 }
 const projOf = (id) => (id ? S.projects.find((x) => x.id === id) : null);
 const squash = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -1750,7 +1763,7 @@ function isStart(ev, k) {
     case 'weekdays': { const w = dow(k); return w > 0 && w < 6; }
     case 'weekly': return dow(k) === dow(ev.date);
     case 'biweekly': return dow(k) === dow(ev.date) && diffDays(ev.date, k) % 14 === 0;
-    case 'monthly': return parse(k).getDate() === parse(ev.date).getDate();
+    case 'monthly': return dom(k) === dom(ev.date);
     case 'yearly': return k.slice(5) === ev.date.slice(5);
     default: return k === ev.date;
   }
@@ -1758,10 +1771,21 @@ function isStart(ev, k) {
 const span = (ev) => (ev.allDay && ev.endDate && ev.endDate > ev.date ? diffDays(ev.date, ev.endDate) : 0);
 function occStart(ev, k) {
   const n = span(ev);
+  if (!n) return isStart(ev, k) ? k : null;
   for (let i = 0; i <= n; i++) { const s = addDays(k, -i); if (isStart(ev, s)) return s; }
   return null;
 }
+// eventsOn(k) is called for the same days many times per render (every Today card, the side panel, score, bills, hours...).
+// The answer only depends on the event list, the hidden categories and layers, so it is cached per day and thrown away whenever
+// any of those change (identity checks below) or an event is added, changed or removed (commit() clears it).
+var EVC = { s: null, x: null, e: null, h: null, l: null, n: -1, m: new Map() };
+function evcClear() { if (EVC) EVC.m = new Map(); }
 function eventsOn(k, includeHidden) {
+  if (EVC.s !== S || EVC.x !== extraEvents || EVC.e !== S.events || EVC.h !== S.hidden || EVC.l !== S.layersOff || EVC.n !== S.events.length) {
+    EVC.s = S; EVC.x = extraEvents; EVC.e = S.events; EVC.h = S.hidden; EVC.l = S.layersOff; EVC.n = S.events.length; evcClear();
+  }
+  const ck = (includeHidden ? '+' : '-') + k, hit = EVC.m.get(ck);
+  if (hit) return hit.slice();
   const out = [];
   for (const ev of allEvents()) {
     if (!includeHidden && S.hidden.includes(ev.cat)) continue;
@@ -1769,7 +1793,10 @@ function eventsOn(k, includeHidden) {
     const s = occStart(ev, k);
     if (s) out.push({ ev, occ: s, cont: s !== k });
   }
-  return out.sort((a, b) => (b.ev.allDay - a.ev.allDay) || (a.ev.allDay ? 0 : toMin(a.ev.start) - toMin(b.ev.start)) || a.ev.title.localeCompare(b.ev.title));
+  out.sort((a, b) => (b.ev.allDay - a.ev.allDay) || (a.ev.allDay ? 0 : toMin(a.ev.start) - toMin(b.ev.start)) || a.ev.title.localeCompare(b.ev.title));
+  if (EVC.m.size > 4000) evcClear();
+  EVC.m.set(ck, out);
+  return out.slice();
 }
 const tasksOn = (k) => S.tasks.filter((t) => t.date === k).sort((a, b) => (a.done - b.done) || ((b.p || 0) - (a.p || 0)) || (a.created - b.created));
 const overdue = () => S.tasks.filter((t) => !t.done && t.date && t.date < todayKey()).sort((a, b) => a.date.localeCompare(b.date));
@@ -2704,6 +2731,7 @@ function renderToday() {
     <div class="td-h"><div><h2>${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}</h2><div class="sub">${own.length} event${own.length === 1 ? '' : 's'}, ${tks.length} task${tks.length === 1 ? '' : 's'} to do${doneToday ? `, ${doneToday} done` : ''}</div></div><div style="display:flex;gap:6px"><button class="btn sm" data-tweek>Plan week</button><button class="btn sm ${planned ? '' : 'primary'}" data-tplan>${planned ? 'Re-plan' : 'Plan day'}</button></div></div>
     ${risk.filter((r) => r.level !== 'info').length ? `<div class="nw-warn" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">${risk.filter((r) => r.level !== 'info').map((r) => esc(r.text)).join(' · ')}</div>` : ''}
     ${risk.filter((r) => r.level === 'info').map((r) => `<div class="nw-warn">${esc(r.text)}</div>`).join('')}
+    ${safeCard(hbTodayCard)}
     ${safeCard(briefTodayCard)}
     ${safeCard(tiltTodayCard)}${safeCard(tradePlanTodayCard)}
     ${safeCard(guardTodayCard)}
@@ -2805,6 +2833,8 @@ function route() {
   else if (h === 'time-audit') { goToday(); openTimeAudit(); }
   else if (h === 'timer') { goToday(); openTimeStart(); }
   else if (h === 'deals') { goToday(); openPipeline(); }
+  else if (h === 'tools') { goToday(); openHub(); }
+  else if (h === 'setup') { goToday(); suOpen(); }
   else if (h === 'new-task') { goToday(); setTimeout(() => $('#taskIn').focus(), 60); }
   else if (views.includes(h)) { goToday(); setView(h); }
 }
@@ -4798,6 +4828,252 @@ $('#main').addEventListener('click', (e) => {
 });
 // ===== TAXQ END =====
 
+// ===== HUB BEGIN: All tools (every tool in one searchable sheet, #tools), recent tools, up to 4 pinned "Quick tools" on Today =====
+// One list (HB_TOOLS) that opens every tool with the openers that already exist (the same ones route() and the palette use).
+// Synced collection `hub`: id 'cfg' = { favs: [tool ids, max 4], suHide: true once the Setup card was hidden }. Recent tools are per device (localStorage).
+const HB_RECENT_KEY = 'planner.hub.recent', HB_MAX_FAV = 4, HB_MAX_RECENT = 6;
+const HB_GROUPS = ['Start here', 'Money', 'Work', 'Trading', 'Me', 'Calendar'];
+const hbDaysTxt = (n) => (n <= 0 ? 'today' : n === 1 ? 'tomorrow' : `in ${n} days`);
+function hbGoView(v) { goToday(); setView(v); }
+function hbAgo(ms) { const d = Math.floor((Date.now() - ms) / 864e5); return d <= 0 ? 'today' : d === 1 ? 'yesterday' : `${d} days ago`; }
+const HB_TOOLS = [
+  { id: 'setup', g: 'Start here', n: 'Setup', d: 'The steps that make the tools useful', k: 'get set up checklist start begin', open: () => suOpen(), st: () => { const s = suState(); return s.n >= s.steps.length ? 'all done' : `${s.n} of ${s.steps.length} done`; } },
+  { id: 'earnings', g: 'Money', n: 'Earnings', d: 'What you will make this week and month', k: 'income pay make money goal', pk: 1, open: () => openEarn(), st: () => (erGoal() > 0 ? `goal ${usd(erGoal())}/month` : 'no monthly goal yet') },
+  { id: 'bills', g: 'Money', n: 'Bills', d: 'Rent, phone, car and subscriptions on the calendar', k: 'rent due recurring subscriptions', open: () => openBills(), st: () => {
+    const t = todayKey(); let best = null;
+    S.bills.forEach((b) => { const k = bnDates(b, t, addDays(t, 400))[0]; if (k && (!best || k < best)) best = k; });
+    return best ? `next due ${hbDaysTxt(diffDays(t, best))}` : 'no bills yet'; } },
+  { id: 'cashflow', g: 'Money', n: 'Cash flow', d: '30-day forecast of your balance', k: 'balance forecast money in out runway', open: () => openBills(), st: () => { const c = bnCfg(); return c.bal == null ? 'add your balance' : `balance ${usd(c.bal)}`; } },
+  { id: 'payday', g: 'Money', n: 'Payday', d: 'When each job pays you, and check a paycheck', k: 'paycheck pay schedule', open: () => openPayday(), st: () => {
+    const t = todayKey(); let best = null;
+    S.jobs.forEach((j) => { const c = pdCfgOf(j); if (c.set && c.on) { const k = pdPaydays(c, t, addDays(t, 90))[0]; if (k && (!best || k < best)) best = k; } });
+    return best ? `next payday ${hbDaysTxt(diffDays(t, best))}` : 'schedule not set'; } },
+  { id: 'taxes', g: 'Money', n: 'Taxes', d: 'Quarterly estimated-tax planner', k: 'tax irs quarterly estimate set aside', open: () => openTax(), st: () => '' },
+  { id: 'worth', g: 'Money', n: 'Net worth', d: 'Accounts, savings goal and emergency fund', k: 'savings accounts debt assets', open: () => openWorth(), st: () => (S.worth.some((x) => /^a:/.test(x.id)) ? `net ${usd(wtTotal())}` : 'add your accounts') },
+  { id: 'business', g: 'Money', n: 'Business', d: 'Profit and loss for each business', k: 'p&l profit loss projects revenue', open: () => openBiz(), st: () => '' },
+  { id: 'prop', g: 'Money', n: 'Prop firms', d: 'Every eval and funded account, fees and payouts', k: 'prop firm ledger roi eval funded payout', open: () => openProp(), st: () => (S.propacct.length ? `${S.propacct.length} account${S.propacct.length === 1 ? '' : 's'}` : 'none added yet') },
+  { id: 'miles', g: 'Money', n: 'Miles', d: 'Mileage and work expenses', k: 'mileage driving expenses deduction', open: () => openMiles(), st: () => '' },
+  { id: 'shifts', g: 'Work', n: 'Shifts', d: 'Your job shift times, pay and weekly pattern', k: 'work outback electric schedule', pk: 1, open: () => openShifts(), st: () => {
+    const t = todayKey(); let n = 0;
+    S.jobs.forEach((j) => { for (let i = 0; i < 7; i++) eventsOn(addDays(t, i), true).forEach((o) => { if (o.ev.cat === j.id && !o.cont) n++; }); });
+    return n ? `${n} shift${n === 1 ? '' : 's'} in the next 7 days` : 'none in the next 7 days'; } },
+  { id: 'hours', g: 'Work', n: 'Hours', d: 'Hours across all jobs, overtime and rest warnings', k: 'overtime week total rest', open: () => openHours(), st: () => `${hrNum(hrWeek(startOfWeek(todayKey())).total)} h this week` },
+  { id: 'availability', g: 'Work', n: 'Availability', d: 'When you can work, and a message for your manager', k: 'request off manager schedule', open: () => openAvail(), st: () => '' },
+  { id: 'deals', g: 'Work', n: 'Deals', d: 'Leads, clients and sponsors you are following up', k: 'pipeline leads clients sponsors follow up waiting', pk: 1, open: () => openPipeline(), st: () => {
+    const t = todayKey(), n = S.deals.filter((d) => plIsOpen(d) && YMD.test(d.follow || '') && d.follow <= t).length;
+    return n ? `${n} follow-up${n === 1 ? '' : 's'}` : `${S.deals.filter(plIsOpen).length} open`; } },
+  { id: 'timelog', g: 'Work', n: 'Time log', d: 'What you actually did, and where the week went', k: 'timer track audit planned actual hours', open: () => openTimeAudit(), st: () => (tlRunning() ? 'timer running' : '') },
+  { id: 'tradeplan', g: 'Trading', n: 'Trade plan', d: 'Your plan before the open and a debrief after', k: 'plan premarket debrief', open: () => { goToday(); tpMode = 'plan'; renderMain(); setTimeout(() => { const c = $('#tpCard'); if (c) c.scrollIntoView({ block: 'center' }); }, 60); }, st: () => (S.tplan.some((x) => x.id === 'tp:' + todayKey()) ? 'plan written today' : 'no plan yet today') },
+  { id: 'tilt', g: 'Trading', n: 'Tilt guard', d: 'Stop-trading limits after losses', k: 'stop losing streak cooldown daily loss', open: () => openTiltSettings(), st: () => { const a = tzActive(); return a ? (a.cooling || a.last.kind === 'loss' ? 'stop active' : 'stop hit today') : 'all clear'; } },
+  { id: 'trades', g: 'Trading', n: 'Trades', d: 'Closed trades, notes and payout planner', k: 'notes payout live paper', pk: 1, open: () => hbGoView('trades'), st: () => { const d = mnEt().day, n = nqTrades.filter((t) => t && t.day === d).length; return n ? `${n} trade${n === 1 ? '' : 's'} today` : ''; } },
+  { id: 'edge', g: 'Trading', n: 'Edge finder', d: 'Where you make and lose money', k: 'stats best worst setups', open: () => openEdge(), st: () => '' },
+  { id: 'rules', g: 'Trading', n: 'Rules', d: 'Your pre-trade checklist', k: 'checklist discipline', pk: 1, open: () => hbGoView('rules'), st: () => (S.rules.length ? `${S.rules.length} rule${S.rules.length === 1 ? '' : 's'}` : '') },
+  { id: 'journal', g: 'Trading', n: 'Journal', d: 'Write today: what happened and what you learned', k: 'notes diary reflect day', open: () => { goToday(); jOpen.day = true; openDay(todayKey()); }, st: () => { const j = jrnOf(todayKey()); return j && (j.note || j.rules) ? 'written today' : 'not written today'; } },
+  { id: 'score', g: 'Me', n: 'Daily score', d: 'A 0 to 100 score for how today went', k: 'streak grade points', open: () => openScore(), st: () => { const d = scDay(todayKey()); return d.used ? `${d.score} today` : ''; } },
+  { id: 'habits', g: 'Me', n: 'Habits', d: 'Daily habits and streaks', k: 'streak routine', pk: 1, open: () => hbGoView('habits'), st: () => { const t = todayKey(), due = S.habits.filter((h) => hDue(h, t)); return due.length ? `${due.filter((h) => hDone(h, t)).length} of ${due.length} done today` : ''; } },
+  { id: 'health', g: 'Me', n: 'Health', d: 'Check-in, workouts, sleep', k: 'workout sleep weight fitness', pk: 1, open: () => hbGoView('health'), st: () => '' },
+  { id: 'weekbalance', g: 'Me', n: 'Week balance', d: 'Hours planned against your weekly targets', k: 'budget free time targets', pk: 1, open: () => openWeekBal(), st: () => '' },
+  { id: 'review', g: 'Me', n: 'Review', d: 'Look back at the week and plan the next', k: 'weekly review reflect', pk: 1, open: () => hbGoView('review'), st: () => '' },
+  { id: 'brief', g: 'Me', n: 'Daily brief', d: 'A plain-text summary of today to copy or send', k: 'summary morning share', open: () => openBrief(), st: () => '' },
+  { id: 'checkweek', g: 'Calendar', n: 'Check my week', d: 'Clashes, trading windows and bedtime', k: 'conflicts guard sleep', pk: 1, open: () => openGuard(), st: () => '' },
+  { id: 'alerts', g: 'Calendar', n: 'Phone alerts', d: 'A calendar file that makes your phone remind you', k: 'reminders ics notifications import', open: () => openAlerts(), st: () => { const l = alCfg().last; return l ? `file made ${hbAgo(l)}` : 'file not made yet'; } },
+  { id: 'backup', g: 'Calendar', n: 'Backup', d: 'Save a copy of everything to your phone or computer', k: 'export save restore safe', open: () => { $('#exportBtn').click(); setTimeout(() => { if (S.view === 'today') render(); }, 1200); }, st: () => (S.lastBackup ? `last backup ${hbAgo(S.lastBackup)}` : 'never backed up') },
+];
+const hbTool = (id) => HB_TOOLS.find((t) => t.id === id) || null;
+function hbStatus(t) { try { return String(t.st() || ''); } catch (e) { return ''; } }
+// recent tools (this device only)
+function hbRecent() { try { const v = JSON.parse(localStorage.getItem(HB_RECENT_KEY)); return Array.isArray(v) ? v.filter((id) => hbTool(id) && id !== 'setup').slice(0, HB_MAX_RECENT) : []; } catch (e) { return []; } }
+function hbRemember(id) {
+  if (id === 'setup') return;
+  try { localStorage.setItem(HB_RECENT_KEY, JSON.stringify([id, ...hbRecent().filter((x) => x !== id)].slice(0, HB_MAX_RECENT))); } catch (e) { /* convenience only */ }
+}
+// pinned tools (synced)
+const hbCfg = () => S.hub.find((x) => x.id === 'cfg') || {};
+const hbFavs = () => { const f = hbCfg().favs; return Array.isArray(f) ? f.filter((id, i) => hbTool(id) && f.indexOf(id) === i).slice(0, HB_MAX_FAV) : []; };
+function hbToggleFav(id) {
+  const f = hbFavs();
+  if (f.includes(id)) commit(() => { upsert(S.hub, 'cfg', () => ({ id: 'cfg' }), { favs: f.filter((x) => x !== id) }); });
+  else if (f.length >= HB_MAX_FAV) { toast(`You can pin ${HB_MAX_FAV} tools. Unpin one first.`); return; }
+  else commit(() => { upsert(S.hub, 'cfg', () => ({ id: 'cfg' }), { favs: [...f, id] }); });
+  hbPaint(); if (S.view === 'today') render();
+}
+function hbOpenTool(id) {
+  const t = hbTool(id); if (!t) return;
+  hbRemember(id);
+  if (hbDlg.open) hbDlg.close();
+  try { t.open(); } catch (e) { console.error('Tool failed to open:', id, e); toast('Could not open ' + t.n); }
+}
+
+document.head.insertAdjacentHTML('beforeend', `<style>
+#hbDlg{width:min(720px,calc(100vw - 24px))}#hbDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}#hbDlg input{font-size:16px}
+.hub-q{flex:none;height:44px;border:1px solid var(--line);border-radius:10px;padding:0 12px;width:100%;outline:none;background:#fff}
+.hub-q:focus{border-color:var(--ink)}
+.hub-sec{display:block;font-size:11.5px;font-weight:600;color:var(--mute);letter-spacing:.02em;margin:10px 0 6px}
+.hub-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (min-width:600px){.hub-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.hub-tile{position:relative;border:1px solid var(--line);border-radius:12px;background:#fff;min-width:0}
+.hub-tile:hover{background:var(--soft)}
+.hub-open{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;min-height:92px;padding:11px 40px 10px 12px;text-align:left;border-radius:12px}
+.hub-open b{font-size:14px;font-weight:600;overflow-wrap:anywhere}
+.hub-open small{font-size:12px;color:var(--mute);line-height:1.35;overflow-wrap:anywhere}
+.hub-chip{font-size:11px;font-weight:600;color:var(--ink2);background:var(--soft2);border-radius:10px;padding:1px 8px;margin-top:auto;max-width:100%;overflow-wrap:anywhere;text-align:left}
+.hub-chip.warn{background:#fffaf0;color:#92400e}
+.hub-star{position:absolute;top:2px;right:2px;width:40px;height:40px;display:grid;place-items:center;color:var(--faint);border-radius:10px}
+.hub-star:hover{color:var(--ink)}.hub-star[aria-pressed=true]{color:#ca8a04}
+.hub-star[aria-pressed=true] svg{fill:currentColor}
+.hub-none{font-size:13px;color:var(--mute);padding:14px 4px}
+.hub-quick{display:flex;flex-wrap:wrap;gap:8px}.hub-quick .btn{height:40px}
+#hbBtn{order:1}
+@media (min-width:961px) and (max-width:1180px){.right{gap:6px}.search{width:64px}}
+@media (max-width:1700px){#hbBtn{width:36px;padding:0;justify-content:center}#hbBtn .newlabel{display:none}}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="hbDlg" aria-labelledby="hbTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="hbTitle">All tools</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <input id="hbQ" class="hub-q" type="search" placeholder="Find a tool, like bills or tilt" aria-label="Find a tool" autocomplete="off" autocapitalize="off" spellcheck="false">
+  <div id="hbBody"></div>
+  <div class="hint">Tap the star on a tool to pin it to Today (up to ${HB_MAX_FAV}).</div>
+</div></dialog>`);
+const hbDlg = $('#hbDlg'), hbQ = $('#hbQ');
+const HB_STAR = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>';
+function hbTile(t, favs) {
+  const s = hbStatus(t), pinned = favs.includes(t.id), warn = /stop active|follow-up|never backed up|not made yet|schedule not set/.test(s);
+  return `<div class="hub-tile"><button type="button" class="hub-open" data-hbtool="${esc(t.id)}"><b>${esc(t.n)}</b><small>${esc(t.d)}</small>${s ? `<span class="hub-chip${warn ? ' warn' : ''}">${esc(s)}</span>` : ''}</button>${t.id === 'setup' ? '' : `<button type="button" class="hub-star" data-hbfav="${esc(t.id)}" aria-pressed="${pinned}" aria-label="${pinned ? 'Unpin' : 'Pin'} ${esc(t.n)}" title="${pinned ? 'Unpin from Today' : 'Pin to Today'}">${HB_STAR}</button>`}</div>`;
+}
+function hbMatch(t, q) { const hay = `${t.n} ${t.d} ${t.k} ${t.g}`.toLowerCase(); return q.split(/\s+/).filter(Boolean).every((w) => hay.includes(w)); }
+function hbPaint() {
+  const q = hbQ.value.trim().toLowerCase(), favs = hbFavs(); let html = '';
+  const sec = (title, list) => { if (list.length) html += `<div class="hub-sec">${esc(title)}</div><div class="hub-grid">${list.map((t) => hbTile(t, favs)).join('')}</div>`; };
+  if (!q) sec('Recent', hbRecent().map(hbTool).filter(Boolean));
+  HB_GROUPS.forEach((g) => sec(g, HB_TOOLS.filter((t) => t.g === g && hbMatch(t, q))));
+  $('#hbBody').innerHTML = html || `<div class="hub-none">No tool matches "${esc(q)}". Try a shorter word, like "bill" or "shift".</div>`;
+}
+function openHub() { closeMore(); hbQ.value = ''; hbPaint(); if (!hbDlg.open) hbDlg.showModal(); }
+hbQ.addEventListener('input', hbPaint);
+hbQ.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); const b = $('#hbBody [data-hbtool]'); if (b) hbOpenTool(b.dataset.hbtool); } });
+$('#hbBody').addEventListener('click', (e) => {
+  const f = e.target.closest('[data-hbfav]'); if (f) { hbToggleFav(f.dataset.hbfav); return; }
+  const b = e.target.closest('[data-hbtool]'); if (b) hbOpenTool(b.dataset.hbtool);
+});
+// Today: the Setup card and a row of pinned tools
+function hbTodayCard() {
+  let html = '';
+  try { html += suCard(); } catch (e) { console.error('Setup card failed', e); }
+  const favs = hbFavs().map(hbTool).filter(Boolean);
+  html += `<section class="td-card" id="hbQuick"><h3>Quick tools<button data-hbopen>All tools</button></h3>${favs.length ? `<div class="hub-quick">${favs.map((t) => `<button type="button" class="btn" data-hbgo="${esc(t.id)}">${esc(t.n)}</button>`).join('')}</div>` : '<div class="hint">Pin the tools you use most. Open All tools and tap the star on up to 4.</div>'}</section>`;
+  return html;
+}
+$('#main').addEventListener('click', (e) => {
+  if (S.view !== 'today') return;
+  const g = e.target.closest('[data-hbgo]'); if (g) { hbOpenTool(g.dataset.hbgo); return; }
+  if (e.target.closest('[data-hbopen]')) openHub();
+});
+(function hbButton() {
+  const sb = $('#shiftBtn'); if (!sb) return;
+  sb.insertAdjacentHTML('beforebegin', '<button class="btn" id="hbBtn" type="button" title="All tools" aria-label="All tools" aria-haspopup="dialog"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span class="newlabel">All tools</span></button>');
+  $('#hbBtn').onclick = () => openHub();
+})();
+// ===== HUB END =====
+
+// ===== SETUP BEGIN: "Get set up" checklist (10 steps, every done state is read from your real data; only the hidden flag is stored in the synced `hub` item 'cfg') =====
+// Each step says what it checks and has a button that opens the right tool. The Today card shows progress and the next step until all are
+// done or it is hidden; after that the checklist lives in All tools under "Setup".
+const suDef = (j) => { const d = defaultJobs().find((x) => x.id === j.id); return d && d.start === j.start && d.end === j.end && !(j.days || []).length; };
+const suJobReady = (j) => (+j.rate || 0) > 0 && !suDef(j);
+function suWeekShifts() {
+  const t = todayKey(); let n = 0;
+  S.jobs.forEach((j) => { for (let i = 0; i < 7; i++) eventsOn(addDays(t, i), true).forEach((o) => { if (o.ev.cat === j.id && !o.cont) n++; }); });
+  return n;
+}
+const SU_STEPS = [
+  { id: 'jobs', t: 'Set your jobs\' real shift times and hourly pay', why: 'Earnings, Hours and Cash flow all multiply your hours by your pay.', btn: 'Open Shifts',
+    done: () => S.jobs.length > 0 && S.jobs.every(suJobReady),
+    note: () => { const bad = S.jobs.filter((j) => !suJobReady(j)); return bad.length ? `Still to do: ${bad.map((j) => j.name).join(', ')}` : 'All jobs are set'; },
+    go: () => { const bad = S.jobs.find((j) => !suJobReady(j)); if (bad) shJob = bad.id; openShifts(); } },
+  { id: 'shifts', t: 'Add this week\'s shifts', why: 'Puts your shifts on the calendar so clashes and hours are checked.', btn: 'Add shifts',
+    done: () => suWeekShifts() > 0, note: () => { const n = suWeekShifts(); return n ? `${n} shift${n === 1 ? '' : 's'} in the next 7 days` : 'No shifts in the next 7 days'; },
+    go: () => openShifts() },
+  { id: 'bills', t: 'Add your bills and your balance', why: 'Gives you the 30-day cash-flow forecast and bill reminders.', btn: 'Open Bills',
+    done: () => S.bills.length > 0 && bnCfg().bal != null, note: () => `${S.bills.length} bill${S.bills.length === 1 ? '' : 's'}, balance ${bnCfg().bal == null ? 'not entered' : 'entered'}`,
+    go: () => openBills() },
+  { id: 'payday', t: 'Set the pay schedule for each job', why: 'Shows paydays on the calendar and checks your paycheck.', btn: 'Open Payday',
+    done: () => S.jobs.length > 0 && S.jobs.every((j) => { const c = pdCfgOf(j); return c.set || !c.on; }),
+    note: () => { const bad = S.jobs.filter((j) => { const c = pdCfgOf(j); return !c.set && c.on; }); return bad.length ? `Still to do: ${bad.map((j) => j.name).join(', ')}` : 'All jobs are set'; },
+    go: () => { const bad = S.jobs.find((j) => { const c = pdCfgOf(j); return !c.set && c.on; }); openPayday(bad ? bad.id : undefined); } },
+  { id: 'tilt', t: 'Set your tilt guard limits', why: 'Stops you trading after too many losses in a row or a bad day.', btn: 'Open Tilt guard',
+    done: () => { const c = S.tilt.find((x) => x.id === 'cfg'); return !!c && (c.maxLoss != null || c.stop != null); }, note: () => 'Using the default limits until you save your own',
+    go: () => openTiltSettings() },
+  { id: 'goal', t: 'Set a monthly income goal', why: 'Earnings shows how close you are to it.', btn: 'Open Earnings',
+    done: () => erGoal() > 0, note: () => (erGoal() > 0 ? `Goal ${usd(erGoal())} a month` : 'No goal yet'), go: () => openEarn() },
+  { id: 'targets', t: 'Set weekly time targets', why: 'Week balance compares your planned hours with these.', btn: 'Open Week balance',
+    done: () => S.budgets.some((b) => +b.hours > 0), note: () => 'No weekly targets yet',
+    go: () => { openWeekBal(); wbEdit = true; wbPaint(); } },
+  { id: 'prop', t: 'Add your prop accounts', why: 'Tracks what each eval costs and pays, and your real return.', btn: 'Open Prop firms',
+    done: () => S.propacct.length > 0, note: () => `${S.propacct.length} account${S.propacct.length === 1 ? '' : 's'} added`, go: () => openProp() },
+  { id: 'alerts', t: 'Set your phone alerts and import the file', why: 'Your phone reminds you before shifts, bills and sessions.', btn: 'Open Phone alerts',
+    done: () => alCfg().last > 0, note: () => 'The alerts file has not been made yet', go: () => openAlerts() },
+  { id: 'backup', t: 'Make a backup', why: 'Saves a copy of everything in case this phone is lost.', btn: 'Back up now',
+    done: () => S.lastBackup > 0, note: () => 'Never backed up', go: () => { $('#exportBtn').click(); setTimeout(() => { if (S.view === 'today') render(); }, 1200); } },
+];
+function suState() {
+  const steps = SU_STEPS.map((s) => { let done = false, note = ''; try { done = !!s.done(); note = s.note(); } catch (e) { console.error('Setup step failed', s.id, e); } return { ...s, isDone: done, nt: note }; });
+  const n = steps.filter((s) => s.isDone).length;
+  return { steps, n, next: steps.find((s) => !s.isDone) || null };
+}
+const suHidden = () => hbCfg().suHide === true;
+function suSetHidden(v) { commit(() => { upsert(S.hub, 'cfg', () => ({ id: 'cfg' }), { suHide: v }); }); }
+function suGo(id) {
+  const s = SU_STEPS.find((x) => x.id === id); if (!s) return;
+  if (suDlg.open) suDlg.close();
+  try { s.go(); } catch (e) { console.error('Setup step failed to open', id, e); toast('Could not open that step'); }
+}
+
+document.head.insertAdjacentHTML('beforeend', `<style>
+#suDlg{width:min(560px,calc(100vw - 24px))}#suDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}
+.su-next{border:1px solid var(--ink);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.su-next b{font-size:14px;font-weight:600}
+.su-row{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line2)}
+.su-row.next{background:var(--soft);margin:0 -8px;padding:9px 8px;border-radius:10px}
+.su-row b{display:block;font-weight:600;font-size:14px;overflow-wrap:anywhere}.su-row small{display:block;font-size:12px;color:var(--mute);overflow-wrap:anywhere}
+.su-dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;color:#fff;flex:none}
+.su-row.done .su-dot{background:var(--ok);border-color:var(--ok)}.su-row.done b{color:var(--mute);font-weight:500}
+.su-bt{display:flex;gap:8px;flex-wrap:wrap}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="suDlg" aria-labelledby="suTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="suTitle">Get set up</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="suBody" style="display:flex;flex-direction:column;gap:6px"></div>
+  <div class="dlg-f"><div><button type="button" class="btn sm" id="suToggle"></button></div><div><button type="button" class="btn primary" data-close>Close</button></div></div>
+</div></dialog>`);
+const suDlg = $('#suDlg');
+const SU_TICK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>';
+function suPaint() {
+  const s = suState(), pct = Math.round(s.n / s.steps.length * 100);
+  $('#suBody').innerHTML = `<div class="sub" id="suCount"><b>${s.n} of ${s.steps.length} done</b></div><div class="prog" aria-hidden="true"><i style="width:${pct}%"></i></div>` +
+    s.steps.map((x, i) => `<div class="su-row${x.isDone ? ' done' : ''}${s.next && s.next.id === x.id ? ' next' : ''}" data-sustep="${esc(x.id)}"><span class="su-dot">${x.isDone ? SU_TICK : ''}</span><div><b>${i + 1}. ${esc(x.t)}</b><small>${esc(x.nt)}</small></div><button type="button" class="btn sm${s.next && s.next.id === x.id ? ' primary' : ''}" data-sugo="${esc(x.id)}">${x.isDone ? 'Review' : esc(x.btn)}</button></div>`).join('');
+  $('#suToggle').textContent = suHidden() ? 'Show the card on Today' : 'Hide the card on Today';
+}
+function suOpen() { suPaint(); if (!suDlg.open) suDlg.showModal(); }
+suDlg.addEventListener('click', (e) => {
+  const g = e.target.closest('[data-sugo]'); if (g) { suGo(g.dataset.sugo); return; }
+  if (e.target.closest('#suToggle')) { suSetHidden(!suHidden()); suPaint(); render(); }
+});
+suDlg.addEventListener('close', () => render());
+function suCard() {
+  if (suHidden()) return '';
+  const s = suState(); if (s.n >= s.steps.length) return '';
+  const pct = Math.round(s.n / s.steps.length * 100), nx = s.next;
+  return `<section class="td-card" id="suCard"><h3>Get set up<span class="sub" id="suCardCount">${s.n} of ${s.steps.length} done</span></h3>
+    <div class="prog" aria-hidden="true"><i style="width:${pct}%"></i></div>
+    <div class="su-next"><span class="hint">Next step</span><b>${esc(nx.t)}</b><div class="hint">${esc(nx.why)}</div><button type="button" class="btn primary" data-sugo="${esc(nx.id)}">${esc(nx.btn)}</button></div>
+    <div class="su-bt"><button type="button" class="btn sm" data-suall>See all ${s.steps.length} steps</button><button type="button" class="btn sm" data-suhide>Hide for now</button></div></section>`;
+}
+$('#main').addEventListener('click', (e) => {
+  if (S.view !== 'today') return;
+  const g = e.target.closest('#suCard [data-sugo]'); if (g) { suGo(g.dataset.sugo); return; }
+  if (e.target.closest('[data-suall]')) { suOpen(); return; }
+  if (e.target.closest('[data-suhide]')) { suSetHidden(true); render(); toast('Hidden. Find it any time in All tools, under Setup.'); }
+});
+// ===== SETUP END =====
+
 // ===== SHIFTS BEGIN: recurring work shifts (Outback, electric) =====
 const shDlg = $('#shDlg');
 let shJob = null, shDays = [];
@@ -6046,6 +6322,9 @@ const PK_CMDS = [
   { id: 'v-trades', l: 'Trades', k: 'trade notes payout', run: () => setView('trades') },
   { id: 'help', l: 'Help', k: 'how to guide', run: () => $('#helpDlg').showModal() },
 ];
+// every tool from the All tools hub (HUB block) that has no command yet
+HB_TOOLS.forEach((t) => { if (!t.pk) PK_CMDS.push({ id: 'tool-' + t.id, l: t.n, k: t.k, run: () => hbOpenTool(t.id) }); });
+PK_CMDS.push({ id: 'all-tools', l: 'All tools', k: 'tools hub menu everything find', run: () => openHub() });
 const PK_DEFAULT = ['new-event', 'new-task', 'plan-day', 'shifts', 'earnings', 'week-balance', 'check-week', 'timer-start', 'deals'];
 const pkCmdRow = (c, why) => ({ g: why || 'Actions', title: c.l, sub: '', kind: '', rec: { t: 'cmd', id: c.id }, run: c.run });
 const pkDateRow = (k) => ({ g: 'Go to date', title: (k === todayKey() ? 'Today' : 'Go to ' + longDate(k)), sub: k === todayKey() ? longDate(k) : pkWhenWord(k), kind: 'Date', rec: { t: 'date', id: k }, run: () => { if (k === todayKey()) { goToday(); setView('today'); } else openDay(k); } });
@@ -8297,7 +8576,9 @@ $('#importFile').onchange = async (e) => {
     if (!data || !Array.isArray(data.events)) throw new Error('not a planner backup');
     if (!(await ask('Restore backup?', `${data.events.length} events and ${(data.tasks || []).length} tasks. This replaces your calendar${sync ? ' on every synced device' : ''}.`, 'Restore', { danger: true }))) return;
     const d = normalize(data);
-    snapshot(); commit(() => { SYNCED.forEach((k) => { S[k] = Array.isArray(d[k]) ? d[k] : S[k]; }); S.weekStart = d.weekStart; }); render(); toast('Backup restored', true);
+    // A collection the backup does not have at all (an older backup, from before that feature existed) is left as it is,
+    // instead of being wiped to empty or reset to the defaults that normalize() fills in.
+    snapshot(); commit(() => { SYNCED.forEach((k) => { S[k] = Array.isArray(data[k]) && Array.isArray(d[k]) ? d[k] : S[k]; }); if (data.weekStart === 0 || data.weekStart === 1) S.weekStart = d.weekStart; }); render(); toast('Backup restored', true);
   } catch (err) { toast('That file is not a Planner backup'); }
 };
 
@@ -8367,7 +8648,7 @@ setInterval(() => {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync) syncNow(); });
 addEventListener('online', () => { if (sync) syncNow(); });
 $('#helpBtn').onclick = () => $('#helpDlg').showModal();
-const APP_VERSION = '2026-10-30.17';
+const APP_VERSION = '2026-10-30.18';
 if ($('#verNote')) $('#verNote').textContent = 'Planner ' + APP_VERSION;
 if (!HOSTED && 'serviceWorker' in navigator && window.isSecureContext && location.protocol.startsWith('http')) {
   const hadController = !!navigator.serviceWorker.controller;

@@ -16,7 +16,7 @@ const URL = 'http://127.0.0.1:' + (process.env.PORT || 8777) + '/nq-dashboard/pl
     if (mode === '401') return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: { message: 'invalid x-api-key' } }) });
     if (mode === 'billing') return route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Your credit balance is too low' } }) });
     if (mode === 'nofood') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ content: [{ type: 'text', text: JSON.stringify({ is_food: false, notes: 'That is a keyboard.' }) }], stop_reason: 'end_turn' }) });
-    const note = JSON.stringify(body.messages && body.messages[0].content[1].text || '');
+    const note = JSON.stringify(body.messages && (body.messages[0].content[1] || body.messages[0].content[0]).text || '');
     const out = /thighs/.test(note) ? { ...AI, meal_name: 'Chicken thighs', items: [{ name: 'Chicken thighs', portion: '2 pieces', kcal: 420, protein_g: 46, carbs_g: 0, fat_g: 26 }] } : AI;
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ content: [{ type: 'text', text: '```json\n' + JSON.stringify(out) + '\n```' }], stop_reason: 'end_turn' }) });
   });
@@ -70,6 +70,13 @@ const URL = 'http://127.0.0.1:' + (process.env.PORT || 8777) + '/nq-dashboard/pl
   ok((await p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')).meals.length)) === 3, 'log again duplicates it');
   await p.click('#mlMeals .ml-row'); await wait(200); await p.click('#mlDel'); await p.waitForSelector('#askDlg[open]'); await p.click('#askYes'); await wait(300);
   ok((await p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')).meals.length)) === 2, 'delete asks first and removes');
+  // describe in words (no photo), then one-tap log again
+  await p.click('#mlDlg [data-mldesc]'); await p.fill('#mlDesc', '3 scrambled eggs and 2 slices of toast'); await p.click('#mlDescGo'); await p.waitForSelector('#mlSave', { timeout: 8000 });
+  const last = reqs[reqs.length - 1].body.messages[0].content; ok(last.length === 1 && last[0].type === 'text' && /scrambled eggs/.test(last[0].text), 'text-only request, no image');
+  ok(await p.isVisible('#mlFix'), 'can correct a described meal'); await p.click('#mlSave'); await wait(300);
+  ok((await p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')).meals.length)) === 3, 'described meal saved');
+  const chips = await p.$$('#mlUsual [data-mlq1]'); ok(chips.length >= 1, 'usual meals offered'); await chips[0].click(); await wait(300);
+  ok((await p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')).meals.filter((m) => m.src === 'repeat').length)) === 1, 'one tap logs a usual meal again');
   await p.click('#mlPrev'); ok(/Nothing logged/.test(await p.textContent('#mlMeals')), 'yesterday is empty');
   // inputs 16px, no sideways scroll
   const small = await p.evaluate(() => [...document.querySelectorAll('#mlDlg input,#mlSnap input,#mlSnap select,#mlSet input,#mlSet select')].filter((e) => e.type !== 'hidden' && e.type !== 'file' && parseFloat(getComputedStyle(e).fontSize) < 16).map((e) => e.id || e.dataset.f));

@@ -5344,14 +5344,14 @@ function mlParse(text) {
 let mlAbort = null;
 async function mlAsk(dataUrl, note) {
   const key = mlKey(); if (!key) throw Object.assign(new Error('No AI key yet.'), { code: 'nokey' });
-  const b64 = dataUrl.split(',')[1];
+  const b64 = dataUrl ? dataUrl.split(',')[1] : '';
   const mk = (withEffort) => ({
     model: mlModel(), max_tokens: 1500, system: mlSys,
     ...(withEffort ? { output_config: { effort: 'low' } } : {}),
-    messages: [{ role: 'user', content: [
+    messages: [{ role: 'user', content: dataUrl ? [
       { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
       { type: 'text', text: note ? `The user adds: "${note}". Please re-estimate with that in mind.` : 'Identify and estimate this meal.' },
-    ] }],
+    ] : [{ type: 'text', text: `There is no photo. The user describes what they ate: "${note}". Estimate it, assuming typical portions where they did not say.` }] }],
   });
   const call = async (body) => {
     if (mlAbort) mlAbort.abort();
@@ -5442,7 +5442,8 @@ document.body.insertAdjacentHTML('beforeend', `
   <div class="dlg-h"><h3 id="mlTitle">Meals</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <div class="row" style="display:flex;align-items:center;justify-content:space-between;gap:8px"><button type="button" class="btn sm" id="mlPrev" aria-label="Previous day">‹</button><b id="mlDay" style="font-size:14px"></b><button type="button" class="btn sm" id="mlNext" aria-label="Next day">›</button></div>
   <div class="ml-top" id="mlSum"></div>
-  <div class="ml-act"><button type="button" class="btn ml-snap" data-mlsnap>Snap a meal</button><button type="button" class="btn" data-mladd>Add food</button><button type="button" class="btn" data-mlscan hidden>Scan barcode</button></div>
+  <div class="ml-act"><button type="button" class="btn ml-snap" data-mlsnap>Snap a meal</button><button type="button" class="btn" data-mladd>Add food</button><button type="button" class="btn" data-mldesc>Describe it</button><button type="button" class="btn" data-mlscan hidden>Scan barcode</button></div>
+  <div id="mlUsual"></div>
   <div id="mlMeals"></div>
   <div class="ml-act" style="margin-top:4px"><button type="button" class="btn sm" id="mlGoalsBtn" hidden>Daily goals</button><button type="button" class="btn sm" id="mlWeekBtn" hidden>Week and month</button><button type="button" class="btn sm" id="mlSetBtn">AI settings</button></div>
   <div class="hint">Calories and macros are estimates. Photo estimates can be off by 20% or more, so check the numbers before you save.</div>
@@ -5475,6 +5476,8 @@ function mlPaintDlg() {
     const l = list.filter((m) => m.slot === id); if (!l.length) return '';
     return `<div class="ml-slot">${nm} · ${mlR(mlTot(l).kcal)} kcal</div><div class="ml-list">${l.map(mlMealRow).join('')}</div>`;
   }).join('') : '<div class="empty-s" style="padding:14px 0">Nothing logged yet. Snap a photo of your next meal.</div>';
+  const us = mlUsuals().filter((m) => isToday);
+  $('#mlUsual').innerHTML = us.length ? `<div class="ml-slot">Log again</div><div class="ml-act">${us.map((m) => `<button type="button" class="btn sm" data-mlq1="${esc(m.id)}" title="${mlR(m.kcal)} kcal">${esc(m.name.length > 22 ? m.name.slice(0, 21) + '…' : m.name)} · ${mlR(m.kcal)}</button>`).join('')}</div>` : '';
   $('#mlGoalsBtn').hidden = typeof ngOpen !== 'function'; $('#mlWeekBtn').hidden = typeof nwOpen !== 'function';
   document.querySelectorAll('#mlDlg [data-mlscan]').forEach((b) => { b.hidden = typeof fdScan !== 'function'; });
   $('#mlSetBtn').textContent = mlKey() ? 'AI settings' : 'Set up AI photos';
@@ -5507,7 +5510,7 @@ function mlPaintDraft(keepFocus) {
     <div class="ml-list" id="mlItems">${d.items.map(mlItemHtml).join('') || '<div class="sub">No foods yet. Add one below.</div>'}</div>
     <div class="ml-act"><button type="button" class="btn sm" id="mlAddItem">+ Add food</button>${typeof fdScan === 'function' ? '<button type="button" class="btn sm" id="mlAddScan">Scan barcode</button>' : ''}</div>
     <div class="ml-tot"><div>${mlR(t.kcal)} kcal<span> · P ${mlR(t.p)} g · C ${mlR(t.c)} g · F ${mlR(t.f)} g</span></div></div>
-    ${mlPhoto && mlKey() ? `<div class="fld"><label for="mlFix">Not right? Tell the AI</label><div class="frow" style="align-items:flex-end"><input id="mlFix" maxlength="160" placeholder="e.g. it is 2 chicken thighs with skin" autocomplete="off"><button type="button" class="btn" id="mlRedo" style="height:40px;flex:none">Re-estimate</button></div></div>` : ''}
+    ${(mlPhoto || d.desc) && mlKey() ? `<div class="fld"><label for="mlFix">Not right? Tell the AI</label><div class="frow" style="align-items:flex-end"><input id="mlFix" maxlength="160" placeholder="e.g. it is 2 chicken thighs with skin" autocomplete="off"><button type="button" class="btn" id="mlRedo" style="height:40px;flex:none">Re-estimate</button></div></div>` : ''}
     <div class="frow"><div class="fld"><label for="mlSlot">Meal type</label><select id="mlSlot">${mlSlots.map(([id, nm]) => `<option value="${id}"${d.slot === id ? ' selected' : ''}>${nm}</option>`).join('')}</select></div><div class="fld"><label for="mlTime">Time</label><input type="time" id="mlTimeIn" value="${esc(d.time)}"></div><div class="fld"><label for="mlDateIn">Day</label><input type="date" id="mlDateIn" value="${esc(d.date)}"></div></div>
     <div class="err" id="mlErr" hidden></div>
     <div class="dlg-f">${d.id ? '<button type="button" class="btn danger" id="mlDel">Delete</button><button type="button" class="btn" id="mlAgain">Log again now</button>' : '<span></span>'}<div><button type="button" class="btn primary" id="mlSave">${d.id ? 'Save changes' : 'Save meal'}</button></div></div>`;
@@ -5568,7 +5571,7 @@ mlSnap.addEventListener('click', async (e) => {
     ['kcal', 'p', 'c', 'f'].forEach((f) => { it[f] = f === 'kcal' ? mlR(it[f] * k) : mlR1(it[f] * k); });
     it.qty = nq; mlPaintDraft(); return;
   }
-  if (t.closest('#mlRedo')) { const note = $('#mlFix').value.trim(); if (!note) { mlErr('Type what is different first.'); return; } mlSyncName(); await mlRun(mlPhoto, note, true); return; }
+  if (t.closest('#mlRedo')) { const note = $('#mlFix').value.trim(); if (!note) { mlErr('Type what is different first.'); return; } mlSyncName(); await mlRun(mlPhoto, mlPhoto ? note : (mlDraft.desc || '') + '. Correction: ' + note, true); return; }
   if (t.closest('#mlSave')) { mlSave(); return; }
   if (t.closest('#mlAgain')) { mlSyncName(); const d = new Date(); mlDraft.id = ''; mlDraft.date = todayKey(); mlDraft.time = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); mlDraft.slot = mlSlotNow(); mlSave(); return; }
   if (t.closest('#mlDel')) {
@@ -5593,20 +5596,20 @@ function mlSave() {
 async function mlRun(dataUrl, note, redo) {
   const body = $('#mlSnapBody'); const token = ++mlBusy;
   const keep = mlDraft;
-  body.innerHTML = `<div class="ml-photo"><img src="${esc(dataUrl)}" alt="Your meal"><div class="ml-scan"></div></div><div class="ml-status" id="mlStatus">Spotting the food...</div><div class="ml-act"><button type="button" class="btn" id="mlCancelAi">Cancel</button></div>`;
+  body.innerHTML = `${dataUrl ? `<div class="ml-photo"><img src="${esc(dataUrl)}" alt="Your meal"><div class="ml-scan"></div></div>` : ''}<div class="ml-status" id="mlStatus">${dataUrl ? 'Spotting the food...' : 'Reading your description...'}</div><div class="ml-act"><button type="button" class="btn" id="mlCancelAi">Cancel</button></div>`;
   const msgs = ['Spotting the food...', 'Estimating portions...', 'Doing the math...']; let i = 0;
   const iv = setInterval(() => { const s = $('#mlStatus'); if (s) s.textContent = msgs[++i % msgs.length]; }, 1600);
   try {
     const r = await mlAsk(dataUrl, note);
     if (token !== mlBusy) return;
-    const d = mlNewDraft({ name: r.name, items: r.items, conf: r.conf, notes: r.notes, src: 'ai', thumb: keep && keep.thumb || '' });
+    const d = mlNewDraft({ name: r.name, items: r.items, conf: r.conf, notes: r.notes, src: 'ai', thumb: keep && keep.thumb || '', desc: dataUrl ? '' : (keep && keep.desc ? keep.desc : note) });
     if (redo && keep) { d.id = keep.id; d.date = keep.date; d.time = keep.time; d.slot = keep.slot; }
     mlDraft = d; mlPaintDraft();
   } catch (e) {
     if (token !== mlBusy) return;
-    if (e.code === 'nokey') { mlKeyPanel(dataUrl); return; }
+    if (e.code === 'nokey') { mlKeyPanel(dataUrl, note); return; }
     const reason = esc(e.message || 'Something went wrong.');
-    body.innerHTML = `<div class="ml-photo"><img src="${esc(dataUrl)}" alt="Your meal"></div><div class="err">${reason}</div><div class="ml-act"><button type="button" class="btn primary" id="mlRetry">Try again</button><button type="button" class="btn" id="mlManual">Enter it myself</button>${/auth|billing/.test(e.code || '') ? '<button type="button" class="btn" id="mlToSet">AI settings</button>' : ''}</div>`;
+    body.innerHTML = `${dataUrl ? `<div class="ml-photo"><img src="${esc(dataUrl)}" alt="Your meal"></div>` : ''}<div class="err">${reason}</div><div class="ml-act"><button type="button" class="btn primary" id="mlRetry">Try again</button><button type="button" class="btn" id="mlManual">Enter it myself</button>${/auth|billing/.test(e.code || '') ? '<button type="button" class="btn" id="mlToSet">AI settings</button>' : ''}</div>`;
     body.querySelector('#mlRetry').onclick = () => mlRun(dataUrl, note, redo);
     body.querySelector('#mlManual').onclick = () => { mlDraft = keep && redo ? keep : mlNewDraft({ thumb: keep && keep.thumb || '' }); mlPhoto = dataUrl; mlPaintDraft(); };
     const ts = body.querySelector('#mlToSet'); if (ts) ts.onclick = () => { mlSnap.close(); mlOpenSettings(); };
@@ -5614,8 +5617,8 @@ async function mlRun(dataUrl, note, redo) {
 }
 mlSnap.addEventListener('click', (e) => { if (e.target.closest('#mlCancelAi')) { mlBusy++; if (mlAbort) mlAbort.abort(); mlPhoto = mlPhoto || null; mlSnap.close(); } });
 mlSnap.addEventListener('close', () => { mlBusy++; if (mlAbort) mlAbort.abort(); });
-function mlKeyPanel(dataUrl) {
-  $('#mlSnapBody').innerHTML = `<div class="ml-photo"><img src="${esc(dataUrl)}" alt="Your meal"></div>
+function mlKeyPanel(dataUrl, note) {
+  $('#mlSnapBody').innerHTML = `${dataUrl ? `<div class="ml-photo"><img src="${esc(dataUrl)}" alt="Your meal"></div>` : ''}
     <div class="hint" style="font-size:13px"><b>One-time setup for AI photos.</b> Go to console.anthropic.com, add a few dollars of credit, create an API key and paste it below. It stays on this phone only. A photo costs well under a cent.</div>
     <div class="fld"><label for="mlKeyQuick">Anthropic API key</label><input id="mlKeyQuick" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk-ant-..."></div>
     <div class="err" id="mlErr" hidden></div>
@@ -5624,7 +5627,7 @@ function mlKeyPanel(dataUrl) {
     const k = $('#mlKeyQuick').value.trim();
     if (!/^sk-ant-/.test(k)) { mlErr('That does not look like an Anthropic key. It starts with sk-ant-.'); return; }
     try { localStorage.setItem(mlKeyName, k); } catch (e) { mlErr('Could not save the key on this device.'); return; }
-    mlRun(dataUrl, '', false);
+    mlRun(dataUrl, note || '', false);
   };
   $('#mlSkipAi').onclick = () => { mlDraft = mlNewDraft(); mlPhoto = dataUrl; mlPaintDraft(); };
 }
@@ -5638,6 +5641,31 @@ async function mlHandleFile(file) {
 }
 for (const id of ['#mlFile', '#mlFileLib']) $(id).addEventListener('change', (e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; mlHandleFile(f); });
 function mlSnapStart() { if (mlDlg.open) { /* stay on top of the sheet */ } $('#mlFile').click(); }
+
+// ---- describe a meal in words (no photo) ----
+function mlDescribe() {
+  mlDraft = mlNewDraft({ date: mlDate || todayKey() }); mlPhoto = null; $('#mlSnapTitle').textContent = 'Describe a meal';
+  $('#mlSnapBody').innerHTML = `<div class="fld"><label for="mlDesc">What did you eat?</label><textarea id="mlDesc" rows="4" maxlength="400" placeholder="e.g. 3 scrambled eggs, 2 slices of toast with butter, black coffee"></textarea></div>
+    <div class="ml-act"><button type="button" class="btn primary" id="mlDescGo">Estimate with AI</button><button type="button" class="btn" id="mlDescManual">Enter it myself</button></div>
+    <div class="hint">Say amounts if you know them. Without them the AI assumes typical portions.</div>`;
+  if (!mlSnap.open) mlSnap.showModal();
+  $('#mlDescGo').onclick = () => { const t = $('#mlDesc').value.trim(); if (t.length < 3) { $('#mlDesc').focus(); return; } mlRun(null, t, false); };
+  $('#mlDescManual').onclick = () => { const t = $('#mlDesc').value.trim(); mlDraft = mlNewDraft({ date: mlDate || todayKey(), name: t.slice(0, 60) }); mlPaintDraft(); };
+  setTimeout(() => $('#mlDesc').focus(), 60);
+}
+// ---- quick log: your usual meals, one tap ----
+function mlUsuals() {
+  const since = addDays(todayKey(), -45), by = new Map();
+  S.meals.filter((m) => m.date >= since && m.name).forEach((m) => { const k = m.name.toLowerCase(); const e = by.get(k) || { m, n: 0 }; e.n++; if ((m.created || 0) > (e.m.created || 0)) e.m = m; by.set(k, e); });
+  return [...by.values()].sort((a, b) => b.n - a.n || (b.m.created || 0) - (a.m.created || 0)).slice(0, 6).map((e) => e.m);
+}
+function mlQuickLog(id) {
+  const m = S.meals.find((x) => x.id === id); if (!m) return;
+  const d = new Date(), time = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  snapshot();
+  commit(() => { const { id: _i, created: _c, ...rest } = m; S.meals.push({ ...rest, id: uid(), created: Date.now(), date: todayKey(), time, slot: mlSlotNow(), src: 'repeat' }); });
+  mlDate = todayKey(); render(); if (mlDlg.open) mlPaintDlg(); toast(`Logged ${m.name}: ${mlR(m.kcal)} kcal`, true);
+}
 
 // ---- settings ----
 function mlOpenSettings() {
@@ -5674,6 +5702,8 @@ mlDlg.addEventListener('click', (e) => {
 document.addEventListener('click', (e) => {
   const t = e.target;
   if (t.closest('[data-mlsnap]')) { e.preventDefault(); mlSnapStart(); return; }
+  if (t.closest('[data-mldesc]')) { e.preventDefault(); mlDescribe(); return; }
+  const q1 = t.closest('[data-mlq1]'); if (q1) { e.preventDefault(); mlQuickLog(q1.dataset.mlq1); return; }
   if (t.closest('[data-mladd]')) { e.preventDefault(); mlOpenDraft({ date: todayKey() }, null); mlPick(false); return; }
   if (t.closest('[data-mlscan]')) { e.preventDefault(); mlOpenDraft({ date: mlDate }, null); mlPick(true); return; }
   if (t.closest('[data-mlopen]')) { e.preventDefault(); mlOpen(); return; }

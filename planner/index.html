@@ -7047,6 +7047,19 @@ button.dv-t:hover{background:var(--soft)}button.dv-t:focus-visible{outline:2px s
 .dv-att .tx{flex:1;min-width:0;overflow-wrap:anywhere}
 .dv-note{font-size:11.5px;color:var(--mute);line-height:1.4}
 @media(max-width:640px){.dv{padding:0 16px 90px}.dv-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.dv-t{padding:10px 10px 9px;min-height:122px}.dv-big{font-size:23px}.dv-week{grid-template-columns:repeat(3,minmax(0,1fr))}.dv-per button{padding:0 9px}}
+
+/* polish: calmer cards, bigger numbers, quiet set-up row */
+.dv-grid{gap:12px}
+.dv-t{border-radius:18px;padding:14px 14px 12px;box-shadow:0 1px 2px rgba(17,24,39,.05);transition:transform .12s,box-shadow .12s}
+.dv-t:active{transform:scale(.985)}
+.dv-tt{font-size:12px;font-weight:600;letter-spacing:.03em;color:var(--mute)}
+.dv-big{font-size:30px;line-height:1.1;font-weight:700;letter-spacing:-.02em}.dv-big small{font-size:13px;font-weight:500;color:var(--mute);letter-spacing:0}
+.dv-su{grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+.dv-su .dv-t.empty{min-height:0;flex-direction:row;align-items:center;flex-wrap:wrap;gap:4px 10px;padding:11px 12px;border-style:dashed;border-radius:14px;box-shadow:none;background:transparent}
+.dv-su .dv-t.empty .dv-big,.dv-su .dv-t.empty .dv-st,.dv-su .dv-t.empty .dv-pb{display:none}
+.dv-su .dv-t.empty .dv-th{flex:1;min-width:0}.dv-su .dv-t.empty .dv-tt{color:var(--ink2);font-size:13px;letter-spacing:0}
+.dv-su .dv-t.empty .dv-setup{margin:0}
+.dv-chips button{font-weight:600}
 </style>`);
 // ---------- small helpers ----------
 const dvNum = (v) => (Number.isFinite(+v) ? +v : 0);
@@ -7450,7 +7463,15 @@ function dvSection(sec) {
     h += `<div class="dv-h">Needs attention</div><div class="dv-att" id="dvAtt">${att.length ? att.map((a) => `<button type="button" data-dvatt="${esc(a.tool)}" data-dvaid="${esc(a.id)}"><span class="lb ${a.cls}">${esc(a.label)}</span><span class="tx">${esc(a.text)}</span></button>`).join('') : '<div class="ok">Nothing needs you right now.</div>'}</div>`;
     h += `<div class="dv-h">This week</div><div class="dv-week" id="dvWeek">${dvWeekStrip(c)}</div><div class="dv-h">The numbers that matter</div>`;
   }
-  h += `<div class="dv-grid" id="dvGrid" data-dvsec="${sec}">${grid || '<div class="dv-note">Everything in this section is hidden. Tap Edit to bring tiles back.</div>'}</div>`;
+  if (dvEdit) {
+    h += `<div class="dv-grid" id="dvGrid" data-dvsec="${sec}">${grid || '<div class="dv-note">Everything in this section is hidden. Tap Edit to bring tiles back.</div>'}</div>`;
+  } else {
+    // Tiles with numbers first; tiles that still need setting up wait in one quiet row underneath instead of filling the screen with dashes.
+    const live = [], todo = [];
+    shown.forEach((id) => { const r = dvTile(id); (r && r.setup ? todo : live).push(dvTileHtml(id, ids.indexOf(id), ids, false)); });
+    h += `<div class="dv-grid" id="dvGrid" data-dvsec="${sec}">${live.join('') || (todo.length ? '<div class="dv-note">Nothing to show yet. Set up a tool below and its numbers land here.</div>' : '<div class="dv-note">Everything in this section is hidden. Tap Edit to bring tiles back.</div>')}</div>`;
+    if (todo.length) h += `<div class="dv-h">Set up next</div><div class="dv-grid dv-su">${todo.join('')}</div>`;
+  }
   return h;
 }
 function dvRender() {

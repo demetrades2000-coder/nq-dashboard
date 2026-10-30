@@ -1,6 +1,7 @@
 // Deep links and phone width for the prop, business and tax features: node planner/tests/propnav.test.js  (PORT env, default 8786)
 process.env.PORT = process.env.PORT || '8786';
 const { chromium } = require('playwright');
+const expand = require('./lib-expand');
 const { wait, nqCache, open } = require('./lib-fin');
 const NOW = Date.parse('2026-09-01T15:10:00Z'); // 14 days before the Q3 estimated-tax date
 const fee = (id, kind, amt, date) => ({ id, kind, amt, date, mid: '' });
@@ -29,7 +30,7 @@ const hashes = ['today', 'plan', 'shifts', 'bills', 'tilt', 'trade-plan', 'searc
     await p.screenshot({ path: '/tmp/propnav-today.png', fullPage: true });
     // every dialog stays inside the phone width with its content open
     for (const [btn, dlg] of [['[data-ppopen]', '#ppDlg'], ['[data-bzopen]', '#bzDlg'], ['[data-tqopen]', '#tqDlg']]) {
-      await p.click(btn); await wait(250);
+      await expand(p, ({ '[data-ppopen]': 'prop', '[data-bzopen]': 'biz', '[data-tqopen]': 'tax' })[btn]); await p.click(btn); await wait(250);
       const r = await p.evaluate((d) => { const el = document.querySelector(d + ' .dlg'), q = el.getBoundingClientRect(); return { r: q.right, sw: el.scrollWidth, cw: el.clientWidth }; }, dlg);
       ok(r.r <= 391 && r.sw <= r.cw + 1, `${dlg} fits 390px: ${JSON.stringify(r)}`);
       await p.keyboard.press('Escape'); await wait(200);

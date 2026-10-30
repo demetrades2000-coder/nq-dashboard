@@ -1,4 +1,5 @@
 const { chromium } = require('playwright');
+const expand = require('./lib-expand');
 const URL = 'http://127.0.0.1:8777/nq-dashboard/planner/index.html';
 const errs = [];
 (async () => {
@@ -14,14 +15,14 @@ const errs = [];
   await p.click('[data-hx="sleep+"]'); let h = (await st()).health.find((x) => x.date === today); ok(h && h.sleepH === 8, 'sleep+ starts from target 7.5 -> 8: ' + JSON.stringify(h));
   await p.click('[data-hx="sleep-"]'); await p.click('[data-hx="sleep-"]'); h = (await st()).health.find((x) => x.date === today); ok(h.sleepH === 7, 'sleep- steps by 0.5: ' + h.sleepH);
   await p.click('[data-hx="set:energy:4"]'); await p.click('[data-hx="set:stress:2"]'); await p.click('[data-hx="set:sleepQ:3"]');
-  for (let i = 0; i < 3; i++) await p.click('[data-hx="water+"]'); await p.click('[data-hx="caf+"]'); await p.click('[data-hx="caf+"]'); await p.click('[data-hx="caf-"]');
+  for (let i = 0; i < 3; i++) await expand(p, 'health'); await p.click('[data-hx="water+"]'); await p.click('[data-hx="caf+"]'); await p.click('[data-hx="caf+"]'); await p.click('[data-hx="caf-"]');
   await p.fill('#hxSteps', '8,432'); await p.press('#hxSteps', 'Tab'); await p.fill('#hxWeight', '181.4'); await p.press('#hxWeight', 'Tab'); await wait(300);
   h = (await st()).health.find((x) => x.date === today);
   ok(h.energy === 4 && h.stress === 2 && h.sleepQ === 3 && h.water === 3 && h.caf === 1 && h.steps === 8432 && h.weight === 181.4, 'check-in saved ' + JSON.stringify(h));
   await p.click('[data-hx="set:energy:4"]'); ok(((await st()).health.find((x) => x.date === today)).energy === 0, 'tapping again clears');
   await p.click('[data-hx="set:energy:4"]');
   // previous day navigation and backfill
-  await p.click('[data-hxd="-1"]'); await wait(200); ok(!(await p.isDisabled('[data-hxd="1"]')) , 'can move forward again'); await p.click('[data-hx="water+"]');
+  await p.click('[data-hxd="-1"]'); await wait(200); ok(!(await p.isDisabled('[data-hxd="1"]')) , 'can move forward again'); await expand(p, 'health'); await p.click('[data-hx="water+"]');
   const y = await p.evaluate((t) => { const d = new Date(t + 'T12:00'); d.setDate(d.getDate() - 1); const pad = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }, today);
   ok(((await st()).health.find((x) => x.date === y) || {}).water === 1, 'backfilled yesterday'); await p.click('[data-hxd="1"]'); ok(await p.isDisabled('[data-hxd="1"]'), 'cannot go into the future');
   // sleep planner math: wake 07:00, need 7.5 -> bed 11:30pm
@@ -65,7 +66,7 @@ const errs = [];
   // today card + deep link + phone
   const m = await (await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 })).newPage(); m.on('pageerror', (e) => errs.push('m ' + e.message));
   await m.goto(URL); await wait(3500);
-  ok(/Health/.test(await m.textContent('.tdy')), 'health card on Today'); await m.click('.tdy [data-hx="water+"]'); await wait(300);
+  ok(/Health/.test(await m.textContent('.tdy')), 'health card on Today'); await expand(m, 'health'); await m.click('.tdy [data-hx="water+"]'); await wait(300);
   { const mh = await m.evaluate((t) => (JSON.parse(localStorage.getItem('planner.v1')).health.find((x) => x.date === t) || {}).water, today); ok(mh === 1, 'water from Today card ' + mh); }
   await m.click('#moreBtn'); await m.click('#moreMenu [data-v=health]'); await wait(300);
   for (const t of ['today', 'workouts', 'trends']) { await m.click(`[data-hxtab=${t}]`); await wait(200); ok(await m.evaluate(() => document.documentElement.scrollWidth) <= 390, 'phone overflow in ' + t); if (t === 'today') await m.screenshot({ path: 'shots/H-phone.png' }); }

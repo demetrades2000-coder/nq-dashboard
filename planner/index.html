@@ -1218,7 +1218,7 @@ const shade = (hex, f) => { const [r, g, b] = rgb(hex); return `rgb(${Math.round
 const cvars = (hex) => `--c:${hex};--bg-c:${tint(hex, .13)};--fg:${shade(hex, .42)}`;
 
 // ---------- state ----------
-const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan', 'timelog', 'deals', 'waiting', 'score', 'worth', 'alcfg', 'miles', 'milecfg', 'paycfg', 'paychk', 'hrcfg', 'avail', 'avreq', 'propacct', 'taxcfg', 'taxpay', 'hub']; // collections added by the Rules and Trades features
+const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan', 'timelog', 'deals', 'waiting', 'score', 'worth', 'alcfg', 'miles', 'milecfg', 'paycfg', 'paychk', 'hrcfg', 'avail', 'avreq', 'propacct', 'taxcfg', 'taxpay', 'hub', 'toorg']; // collections added by the Rules and Trades features
 let S = load();
 let cursor = todayKey(), selected = cursor, miniMonth = cursor.slice(0, 7);
 let query = '', agendaDays = 30, undoSnap = null, editing = null, lastScrollView = null;
@@ -2754,39 +2754,23 @@ function renderToday() {
   const risk = (typeof riskAlerts === 'function') ? riskAlerts() : [];
   const hrsOld = tr && tr.built ? Math.round((Date.now() - Date.parse(tr.built)) / 3600e3) : null;
   const staleTxt = hrsOld == null ? '' : hrsOld < 2 ? 'live' : hrsOld < 48 ? `${hrsOld} h old` : `${Math.round(hrsOld / 24)} days old`, staleCls = hrsOld != null && hrsOld >= 6 ? 'neg' : 'sub';
+  const inl = {
+    sched: `<section class="td-card"><h3>Schedule<button data-tgo="day">Day view</button></h3>${own.length ? own.map(evRow).join('') : '<div class="empty-s">Nothing scheduled. Tap Plan day to block time for your tasks.</div>'}${pauses.length ? `<div class="hint" style="margin-top:4px">Bot pauses: ${pauses.filter((o) => /bot paused/.test(o.ev.title)).map((o) => `${fmtTime(o.ev.start)} to ${fmtTime(o.ev.end)}`).join(', ') || 'none today'}</div>` : ''}</section>`,
+    news: ups.length ? `<section class="td-card"><h3>Market news next<button data-tgo="news">All news</button></h3>${ups.map((e) => { const m = Math.round((e.ms - Date.now()) / 60000); return `<div class="nw-row ${e.impact === 'high' ? 'high' : 'med'}" style="grid-template-columns:62px 10px minmax(0,1fr) auto"><span class="nw-t">${fmtTime(e.lt)}</span><span class="nw-i"></span><div class="nw-b"><b>${esc(e.title)}</b>${e.fc || e.prev ? `<small>${e.fc ? 'Forecast ' + esc(e.fc) : ''}${e.fc && e.prev ? ' · ' : ''}${e.prev ? 'Previous ' + esc(e.prev) : ''}</small>` : ''}</div><span class="nw-c">${m < 90 ? `in ${Math.max(m, 1)} min` : `in ${fmtDur(m)}`}</span></div>`; }).join('')}</section>` : '',
+    tasks: `<section class="td-card"><h3>Tasks<button data-tgo="projects">All tasks</button></h3>${tks.length ? `<ul class="tasks">${tks.slice(0, 10).map((t) => taskLi(t, { overdue: t.date < today })).join('')}</ul>${tks.length > 10 ? `<div class="sub">+${tks.length - 10} more</div>` : ''}` : '<div class="empty-s">Nothing due. Add one below.</div>'}
+      <form class="add-t" data-tadd><span>+</span><input placeholder="Quick add: call Sam fri 3pm #nq" aria-label="Add a task" autocomplete="off"></form></section>`,
+    habits: habs.length ? `<section class="td-card"><h3>Habits<button data-tgo="habits">All habits</button></h3>${habs.map((h) => { const st = habitStats(h), on = hDone(h, today); return `<div class="td-hab" style="--c:${esc(h.color || '#2563eb')}" data-thab="${esc(h.id)}"><button aria-pressed="${on}" aria-label="${on ? 'Undo' : 'Check in'} ${esc(h.name)}">${on ? ICON_CHECK : ''}</button><span>${esc(h.name)} <small>${st.cur} day streak</small></span></div>`; }).join('')}</section>` : '',
+    trading: tr ? `<section class="td-card"><h3>Trading<span style="display:flex;gap:10px;align-items:baseline"><span class="${staleCls}">${staleTxt}</span><button data-refresh>Refresh</button></span></h3>${(tr.accounts || []).map((a) => `<div class="td-acct"><span><b>${esc(a.strategy === 'LIT' ? 'Zlarior' : a.strategy || a.name)}</b> ${esc(String(a.name || '').replace('MFFU ', ''))}</span><span>${usd(a.profit)} of ${usd(a.target)} · ${a.sessions_left != null ? a.sessions_left + ' sessions left' : ''}</span></div>`).join('')}${tr.month ? `<div class="td-acct" style="color:var(--mute)"><span>${MONTHS[+tr.month.month.slice(5) - 1]} so far</span><span><b style="color:var(--ink)">${usd(tr.month.usd)}</b> · ${tr.month.trades} trade${tr.month.trades === 1 ? '' : 's'}</span></div>` : ''}</section>` : '',
+    goals: goals.length ? `<section class="td-card"><h3>Goals<button data-tgo="projects">All goals</button></h3>${goals.map((g) => { const v = goalValue(g), t = +g.target || 0, pct = t > 0 ? Math.max(0, Math.min(100, v / t * 100)) : 0; return `<div><div class="td-acct"><span><b>${esc(g.title)}</b></span><span>${gnum(g, v)} of ${gnum(g, t)}</span></div><div class="bar2" style="margin-top:5px"><i style="width:${pct}%;background:var(--ok)"></i></div></div>`; }).join('')}</section>` : '',
+    journal: `<section class="td-card"><h3>Journal</h3><div class="sub">${j && (j.note || j.rules) ? 'Written today. Open the Day view to edit it.' : 'Not written yet. End the day by noting what you did and whether you followed your rules.'}</div><div><button class="btn sm" data-tgo="day">Open journal</button></div></section>`,
+  };
+  const TL = toLayout(inl);
   return `<div class="tdy">
     <div class="td-h"><div><h2>${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}</h2><div class="sub">${own.length} event${own.length === 1 ? '' : 's'}, ${tks.length} task${tks.length === 1 ? '' : 's'} to do${doneToday ? `, ${doneToday} done` : ''}</div></div><div style="display:flex;gap:6px"><button class="btn sm" data-tweek>Plan week</button><button class="btn sm ${planned ? '' : 'primary'}" data-tplan>${planned ? 'Re-plan' : 'Plan day'}</button></div></div>
+    ${TL.strip}
     ${risk.filter((r) => r.level !== 'info').length ? `<div class="nw-warn" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">${risk.filter((r) => r.level !== 'info').map((r) => esc(r.text)).join(' · ')}</div>` : ''}
     ${risk.filter((r) => r.level === 'info').map((r) => `<div class="nw-warn">${esc(r.text)}</div>`).join('')}
-    ${safeCard(hbTodayCard)}
-    ${safeCard(briefTodayCard)}
-    ${safeCard(tiltTodayCard)}${safeCard(tradePlanTodayCard)}
-    ${safeCard(guardTodayCard)}
-    ${safeCard(shutdownCard)}
-    ${safeCard(scoreTodayCard)}
-    <section class="td-card"><h3>Schedule<button data-tgo="day">Day view</button></h3>${own.length ? own.map(evRow).join('') : '<div class="empty-s">Nothing scheduled. Tap Plan day to block time for your tasks.</div>'}${pauses.length ? `<div class="hint" style="margin-top:4px">Bot pauses: ${pauses.filter((o) => /bot paused/.test(o.ev.title)).map((o) => `${fmtTime(o.ev.start)} to ${fmtTime(o.ev.end)}`).join(', ') || 'none today'}</div>` : ''}</section>
-    ${ups.length ? `<section class="td-card"><h3>Market news next<button data-tgo="news">All news</button></h3>${ups.map((e) => { const m = Math.round((e.ms - Date.now()) / 60000); return `<div class="nw-row ${e.impact === 'high' ? 'high' : 'med'}" style="grid-template-columns:62px 10px minmax(0,1fr) auto"><span class="nw-t">${fmtTime(e.lt)}</span><span class="nw-i"></span><div class="nw-b"><b>${esc(e.title)}</b>${e.fc || e.prev ? `<small>${e.fc ? 'Forecast ' + esc(e.fc) : ''}${e.fc && e.prev ? ' · ' : ''}${e.prev ? 'Previous ' + esc(e.prev) : ''}</small>` : ''}</div><span class="nw-c">${m < 90 ? `in ${Math.max(m, 1)} min` : `in ${fmtDur(m)}`}</span></div>`; }).join('')}</section>` : ''}
-    <section class="td-card"><h3>Tasks<button data-tgo="projects">All tasks</button></h3>${tks.length ? `<ul class="tasks">${tks.slice(0, 10).map((t) => taskLi(t, { overdue: t.date < today })).join('')}</ul>${tks.length > 10 ? `<div class="sub">+${tks.length - 10} more</div>` : ''}` : '<div class="empty-s">Nothing due. Add one below.</div>'}
-      <form class="add-t" data-tadd><span>+</span><input placeholder="Quick add: call Sam fri 3pm #nq" aria-label="Add a task" autocomplete="off"></form></section>
-    ${safeCard(tlTodayCard)}
-    ${safeCard(hxTodayCard)}
-    ${safeCard(wbTodayCard)}${safeCard(earnTodayCard)}
-    ${safeCard(billsTodayCard)}
-    ${safeCard(pdTodayCard)}
-    ${safeCard(hrTodayCard)}
-    ${safeCard(avTodayCard)}
-    ${safeCard(taxTodayCard)}
-    ${safeCard(milesTodayCard)}
-    ${safeCard(alertsTodayCard)}
-    ${safeCard(plTodayCard)}
-    ${safeCard(edgeTodayCard)}
-    ${safeCard(worthTodayCard)}
-    ${safeCard(propTodayCard)}
-    ${safeCard(bizTodayCard)}
-    ${habs.length ? `<section class="td-card"><h3>Habits<button data-tgo="habits">All habits</button></h3>${habs.map((h) => { const st = habitStats(h), on = hDone(h, today); return `<div class="td-hab" style="--c:${esc(h.color || '#2563eb')}" data-thab="${esc(h.id)}"><button aria-pressed="${on}" aria-label="${on ? 'Undo' : 'Check in'} ${esc(h.name)}">${on ? ICON_CHECK : ''}</button><span>${esc(h.name)} <small>${st.cur} day streak</small></span></div>`; }).join('')}</section>` : ''}
-    ${tr ? `<section class="td-card"><h3>Trading<span style="display:flex;gap:10px;align-items:baseline"><span class="${staleCls}">${staleTxt}</span><button data-refresh>Refresh</button></span></h3>${(tr.accounts || []).map((a) => `<div class="td-acct"><span><b>${esc(a.strategy === 'LIT' ? 'Zlarior' : a.strategy || a.name)}</b> ${esc(String(a.name || '').replace('MFFU ', ''))}</span><span>${usd(a.profit)} of ${usd(a.target)} · ${a.sessions_left != null ? a.sessions_left + ' sessions left' : ''}</span></div>`).join('')}${tr.month ? `<div class="td-acct" style="color:var(--mute)"><span>${MONTHS[+tr.month.month.slice(5) - 1]} so far</span><span><b style="color:var(--ink)">${usd(tr.month.usd)}</b> · ${tr.month.trades} trade${tr.month.trades === 1 ? '' : 's'}</span></div>` : ''}</section>` : ''}
-    ${goals.length ? `<section class="td-card"><h3>Goals<button data-tgo="projects">All goals</button></h3>${goals.map((g) => { const v = goalValue(g), t = +g.target || 0, pct = t > 0 ? Math.max(0, Math.min(100, v / t * 100)) : 0; return `<div><div class="td-acct"><span><b>${esc(g.title)}</b></span><span>${gnum(g, v)} of ${gnum(g, t)}</span></div><div class="bar2" style="margin-top:5px"><i style="width:${pct}%;background:var(--ok)"></i></div></div>`; }).join('')}</section>` : ''}
-    <section class="td-card"><h3>Journal</h3><div class="sub">${j && (j.note || j.rules) ? 'Written today. Open the Day view to edit it.' : 'Not written yet. End the day by noting what you did and whether you followed your rules.'}</div><div><button class="btn sm" data-tgo="day">Open journal</button></div></section>
+    ${TL.html}
   </div>`;
 }
 $('#main').addEventListener('click', (e) => {
@@ -2855,12 +2839,13 @@ function route() {
   else if (h === 'business') { goToday(); openBiz(); }
   else if (h === 'prop') { goToday(); openProp(); }
   else if (h === 'tilt') { goToday(); openTiltSettings(); }
-  else if (h === 'trade-plan') { goToday(); tpMode = 'plan'; renderMain(); }
+  else if (h === 'trade-plan') { goToday(); tpMode = 'plan'; toOpenSet('tradeplan', true); renderMain(); }
   else if (h === 'search' || h === 'palette') { goToday(); openPalette(); }
   else if (h === 'time-audit') { goToday(); openTimeAudit(); }
   else if (h === 'timer') { goToday(); openTimeStart(); }
   else if (h === 'deals') { goToday(); openPipeline(); }
   else if (h === 'tools') { goToday(); openHub(); }
+  else if (h === 'customize') { goToday(); toOpenSheet(); }
   else if (h === 'setup') { goToday(); suOpen(); }
   else if (h === 'new-task') { goToday(); setTimeout(() => $('#taskIn').focus(), 60); }
   else if (views.includes(h)) { goToday(); setView(h); }
@@ -4890,7 +4875,7 @@ const HB_TOOLS = [
     const t = todayKey(), n = S.deals.filter((d) => plIsOpen(d) && YMD.test(d.follow || '') && d.follow <= t).length;
     return n ? `${n} follow-up${n === 1 ? '' : 's'}` : `${S.deals.filter(plIsOpen).length} open`; } },
   { id: 'timelog', g: 'Work', n: 'Time log', d: 'What you actually did, and where the week went', k: 'timer track audit planned actual hours', open: () => openTimeAudit(), st: () => (tlRunning() ? 'timer running' : '') },
-  { id: 'tradeplan', g: 'Trading', n: 'Trade plan', d: 'Your plan before the open and a debrief after', k: 'plan premarket debrief', open: () => { goToday(); tpMode = 'plan'; renderMain(); setTimeout(() => { const c = $('#tpCard'); if (c) c.scrollIntoView({ block: 'center' }); }, 60); }, st: () => (S.tplan.some((x) => x.id === 'tp:' + todayKey()) ? 'plan written today' : 'no plan yet today') },
+  { id: 'tradeplan', g: 'Trading', n: 'Trade plan', d: 'Your plan before the open and a debrief after', k: 'plan premarket debrief', open: () => { goToday(); tpMode = 'plan'; toOpenSet('tradeplan', true); renderMain(); setTimeout(() => { const c = $('#tpCard'); if (c) c.scrollIntoView({ block: 'center' }); }, 60); }, st: () => (S.tplan.some((x) => x.id === 'tp:' + todayKey()) ? 'plan written today' : 'no plan yet today') },
   { id: 'tilt', g: 'Trading', n: 'Tilt guard', d: 'Stop-trading limits after losses', k: 'stop losing streak cooldown daily loss', open: () => openTiltSettings(), st: () => { const a = tzActive(); return a ? (a.cooling || a.last.kind === 'loss' ? 'stop active' : 'stop hit today') : 'all clear'; } },
   { id: 'trades', g: 'Trading', n: 'Trades', d: 'Closed trades, notes and payout planner', k: 'notes payout live paper', pk: 1, open: () => hbGoView('trades'), st: () => { const d = mnEt().day, n = nqTrades.filter((t) => t && t.day === d).length; return n ? `${n} trade${n === 1 ? '' : 's'} today` : ''; } },
   { id: 'edge', g: 'Trading', n: 'Edge finder', d: 'Where you make and lose money', k: 'stats best worst setups', open: () => openEdge(), st: () => '' },
@@ -4985,6 +4970,10 @@ $('#hbBody').addEventListener('click', (e) => {
 function hbTodayCard() {
   let html = '';
   try { html += suCard(); } catch (e) { console.error('Setup card failed', e); }
+  return html + hbQuickCard();
+}
+function hbQuickCard() {
+  let html = '';
   const favs = hbFavs().map(hbTool).filter(Boolean);
   html += `<section class="td-card" id="hbQuick"><h3>Quick tools<button data-hbopen>All tools</button></h3>${favs.length ? `<div class="hub-quick">${favs.map((t) => `<button type="button" class="btn" data-hbgo="${esc(t.id)}">${esc(t.n)}</button>`).join('')}</div>` : '<div class="hint">Pin the tools you use most. Open All tools and tap the star on up to 4.</div>'}</section>`;
   return html;
@@ -5100,6 +5089,200 @@ $('#main').addEventListener('click', (e) => {
   if (e.target.closest('[data-suhide]')) { suSetHidden(true); render(); toast('Hidden. Find it any time in All tools, under Setup.'); }
 });
 // ===== SETUP END =====
+
+// ===== TODAYORG BEGIN: Today in three tiers (Needs you now / Today / Dashboards), status strip, Customize Today (synced collection `toorg`: item 'cfg' = { hide: [ids], order: [ids] }) =====
+// Every card keeps its own function as the single source of its content; this block only ranks, wraps and orders them.
+// Dashboards cards are folded into one summary row each (a <details>, so the full card stays in the page); open/closed is remembered per card on this device only.
+const TO_OPEN_KEY = 'planner.toOpen';
+const toOpenGet = () => { try { const v = JSON.parse(localStorage.getItem(TO_OPEN_KEY)); return v && typeof v === 'object' ? v : {}; } catch (e) { return {}; } };
+function toOpenSet(id, on) { try { const v = toOpenGet(); if (on) v[id] = 1; else delete v[id]; localStorage.setItem(TO_OPEN_KEY, JSON.stringify(v)); } catch (e) { /* storage blocked: the row just starts folded next time */ } }
+const toCfg = () => S.toorg.find((x) => x.id === 'cfg') || {};
+const toHideSet = () => new Set(Array.isArray(toCfg().hide) ? toCfg().hide : []);
+const toText = (h) => String(h).replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim();
+const toCut = (s, n) => (s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s);
+const toNowMin = () => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); };
+let toInl = {};
+// The next shift (an event whose type is one of my jobs) on today's calendar that has not finished yet, or null.
+function toShift() {
+  const nowMin = toNowMin(), ids = new Set(S.jobs.map((j) => j.id));
+  let best = null;
+  eventsOn(todayKey()).forEach((o) => {
+    const e = o.ev; if (e.bot || e.allDay || !e.start || !ids.has(e.cat)) return;
+    const s = toMin(e.start), en = e.end ? toMin(e.end) : s + 60; if (en > s && en <= nowMin) return;
+    if (!best || s < best.s) best = { s, e };
+  });
+  return best ? { ...best, left: best.s - nowMin } : null;
+}
+const toNowTier = (label, cls, soft) => ({ tier: 'now', label, cls, soft: !!soft });
+// id, name, home tier, content function, optional dynamic tier (decides the tier right now), optional summary line for the Dashboards row
+const TO_CARDS = [
+  { id: 'tilt', n: 'Tilt guard', home: 'now', fn: () => tiltTodayCard(), force: true,
+    tier: () => { const a = tzActive(); return a && a.showBanner ? toNowTier('Stop trading', 'red') : { tier: 'dash' }; },
+    sum: () => { const r = tzRecord(); return `${r.ok} stops followed, ${r.bad} broken (30 days)`; } },
+  { id: 'guard', n: 'Clashes and trading windows', home: 'now', fn: () => guardTodayCard(),
+    tier: () => { const i = guardIssues(), red = i.some((x) => x.sev === 'red'); return i.length ? toNowTier(red ? 'Double-booked' : 'Trading clash', red ? 'red' : 'amber') : { tier: 'today' }; } },
+  { id: 'bills', n: 'Bills and cash flow', home: 'now', fn: () => billsTodayCard(),
+    tier: () => { const f = bnForecast(), short = f.set && f.firstNeg, due = f.days.slice(0, 3).some((d) => d.items.some((x) => x.src === 'bills'));
+      return short ? toNowTier('Short on cash', 'red') : due ? toNowTier('Bill due soon', 'amber') : { tier: 'dash' }; },
+    sum: () => { const f = bnForecast(); return f.set ? `${bnUsd(f.next7)} due in 7 days, lowest ${bnUsd(f.low.bal)}` : `${bnUsd(f.next7)} due in 7 days`; } },
+  { id: 'deals', n: 'Deals and follow-ups', home: 'now', fn: () => plTodayCard(),
+    tier: () => { const t = todayKey(), due = S.deals.filter((d) => plIsOpen(d) && YMD.test(d.follow || '') && d.follow <= t), late = due.some((d) => d.follow < t);
+      return due.length ? toNowTier(late ? 'Follow-up overdue' : 'Follow up today', late ? 'red' : 'amber') : { tier: 'dash' }; },
+    sum: () => { const s = plStats(); return s.openN ? `${s.openN} open deal${s.openN === 1 ? '' : 's'} worth ${usd(s.open)}` : 'no open deals'; } },
+  { id: 'shutdown', n: 'Close out the day', home: 'now', fn: () => shutdownCard(), tier: () => toNowTier('Evening', 'amber') },
+  { id: 'tradeplan', n: 'Trade plan', home: 'now', fn: () => tradePlanTodayCard(), fold: true,
+    tier: () => { const et = mnEt(); return et.wd > 0 && et.wd < 6 && et.min < 570 ? toNowTier('Before NY open', 'amber') : { tier: 'today' }; } },
+  { id: 'setup', n: 'Get set up', home: 'now', fn: () => suCard(), fold: true, sum: () => { const x = suState(); return `${x.n} of ${x.steps.length} done`; }, tier: () => toNowTier('Getting started', 'amber', true) },
+  { id: 'sched', n: 'Schedule', home: 'today', fn: () => toInl.sched,
+    tier: () => { const s = toShift(); return s ? toNowTier(s.s <= toNowMin() ? 'On shift' : s.left <= 120 ? 'Shift starts soon' : 'Shift today', s.left <= 120 ? 'red' : 'amber', true) : { tier: 'today' }; } },
+  { id: 'tasks', n: 'Tasks', home: 'today', fn: () => toInl.tasks },
+  { id: 'news', n: 'Market news', home: 'today', fn: () => toInl.news },
+  { id: 'habits', n: 'Habits', home: 'today', fn: () => toInl.habits },
+  { id: 'quick', n: 'Quick tools', home: 'today', fn: () => hbQuickCard() },
+  { id: 'timelog', n: 'Time log', home: 'today', fn: () => tlTodayCard(), fold: true, sum: () => { const r = tlRunning(); return r ? 'running: ' + toCut(r.title, 24) : 'nothing running'; } },
+  { id: 'brief', n: 'Brief', home: 'today', fn: () => briefTodayCard(), fold: true },
+  { id: 'health', n: 'Health', home: 'today', fn: () => hxTodayCard(), fold: true, sum: () => `water ${(hxOn(todayKey()) || {}).water || 0} of ${hxCfg().waterGoal}` },
+  { id: 'trading', n: 'Trading accounts', home: 'today', fn: () => toInl.trading, fold: true, sum: () => { const m = nqBot && nqBot.trade && nqBot.trade.month; return m ? `${usd(m.usd)} this month` : 'bot data'; } },
+  { id: 'goals', n: 'Goals', home: 'today', fn: () => toInl.goals, fold: true, sum: () => toCut(S.goals.slice().sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999'))[0].title, 36) },
+  { id: 'journal', n: 'Journal', home: 'today', fn: () => toInl.journal, fold: true, sum: () => { const j = jrnOf(todayKey()); return j && (j.note || j.rules) ? 'written today' : 'not written yet'; } },
+  { id: 'earn', n: 'Earnings', home: 'dash', fn: () => earnTodayCard(), sum: () => `${usd(earnRanges().W.total)} this week` },
+  { id: 'wb', n: 'Week balance', home: 'dash', fn: () => wbTodayCard() },
+  { id: 'hr', n: 'Hours', home: 'dash', fn: () => hrTodayCard(), sum: () => { const a = hrAll(); return `${hrNum(a.w0.total)} h this week${a.warns.length ? `, ${a.warns.length} warning${a.warns.length === 1 ? '' : 's'}` : ''}`; } },
+  { id: 'score', n: 'Daily score', home: 'dash', fn: () => scoreTodayCard(), sum: () => { const h = scHistory(), t = h[h.length - 1]; return t.score == null ? 'nothing to score yet' : `${t.score} of 100 today`; } },
+  { id: 'edge', n: 'Edge finder', home: 'dash', fn: () => edgeTodayCard(), sum: () => { const c = edCalc(); return c.n ? `${edUsd(c.net)} net, ${c.n} trade${c.n === 1 ? '' : 's'}` : 'no trades yet'; } },
+  { id: 'worth', n: 'Net worth', home: 'dash', fn: () => worthTodayCard() },
+  { id: 'prop', n: 'Prop firms', home: 'dash', fn: () => propTodayCard(), sum: () => { const l = ppAll(); return l.length ? `${ppUsd(ppStats(l).net)} net` : ''; } },
+  { id: 'biz', n: 'Business', home: 'dash', fn: () => bizTodayCard() },
+  { id: 'tax', n: 'Taxes', home: 'dash', fn: () => taxTodayCard() },
+  { id: 'miles', n: 'Miles', home: 'dash', fn: () => milesTodayCard() },
+  { id: 'payday', n: 'Payday', home: 'dash', fn: () => pdTodayCard() },
+  { id: 'avail', n: 'Availability', home: 'dash', fn: () => avTodayCard(), sum: () => { const w = S.avreq.filter((r) => r.status === 'sent').length; return w ? `waiting on ${w} repl${w === 1 ? 'y' : 'ies'}` : 'copy a message for your manager'; } },
+  { id: 'alerts', n: 'Phone alerts', home: 'dash', fn: () => alertsTodayCard(), sum: () => { const c = alCfg(); if (!c.last) return 'file not saved yet'; const a = diffDays(key(new Date(c.last)), todayKey()); return a === 0 ? 'file saved today' : `file saved ${a} days ago`; } },
+];
+const TO_BY = Object.fromEntries(TO_CARDS.map((c) => [c.id, c]));
+const TO_HOME = { now: 'Needs you now', today: 'Today', dash: 'Dashboards' };
+// The order cards are drawn in: the saved order first; a card it does not mention keeps its built-in place.
+function toOrder() {
+  const saved = Array.isArray(toCfg().order) ? toCfg().order : [];
+  const pos = (c, i) => { const j = saved.indexOf(c.id); return j >= 0 ? j : 1000 + i; };
+  return TO_CARDS.map((c, i) => [c, pos(c, i)]).sort((a, b) => a[1] - b[1]).map((x) => x[0].id);
+}
+// Cheap one-line summary of a Dashboards card: its own sum(), else the first big number of the card, else its first sentence.
+function toSummary(d, html) {
+  let s = '';
+  try { s = d.sum ? d.sum() : ''; } catch (e) { s = ''; }
+  if (s) return s;
+  if (/data-[a-z]*open>Set up</.test(html)) return 'not set up yet';
+  const g = html.match(/<div class="glance"><div><b[^>]*>(.*?)<\/b><span>(.*?)<\/span>/);
+  if (g) return toCut(`${toText(g[1])} ${toText(g[2])}`, 44);
+  const m = html.match(/role="status"[^>]*>(.*?)<\/div>/) || html.match(/<b[^>]*>(.*?)<\/b>/) || html.match(/class="hint"[^>]*>(.*?)<\/div>/);
+  return m ? toCut(toText(m[1]), 44) : '';
+}
+// The ranking: decides which tier each card is in right now, from live state. A card whose function returns '' stays out. Returns { now, today, dash } lists of rows in draw order.
+function toRank(ids, hide) {
+  const out = { now: [], today: [], dash: [] };
+  ids.forEach((id) => {
+    const d = TO_BY[id], html = safeCard(d.fn); if (!html) return;
+    let t = { tier: d.home };
+    try { if (d.tier) t = d.tier(html) || t; } catch (e) { console.error('Today tier failed:', d.id, e); }
+    if (hide.has(d.id) && !(d.force && t.tier === 'now')) return; // a tilt stop is never hidden
+    out[t.tier].push({ fold: !!d.fold || t.tier === 'dash', d, html, label: t.label || '', cls: t.cls || 'amber', soft: !!t.soft });
+  });
+  return out;
+}
+function toStatus(r) {
+  const parts = [], n = r.now.filter((x) => !x.soft).length;
+  parts.push(n ? `${n} thing${n === 1 ? '' : 's'} need${n === 1 ? 's' : ''} you` : 'Nothing urgent');
+  try {
+    const nm = toNowMin();
+    const nx = eventsOn(todayKey()).filter((o) => !o.ev.bot && !o.ev.allDay && o.ev.start && toMin(o.ev.start) >= nm).sort((a, b) => a.ev.start.localeCompare(b.ev.start))[0];
+    if (nx) parts.push(`next: ${toCut(nx.ev.title, 24)} ${fmtTime(nx.ev.start)}`);
+  } catch (e) { /* skip */ }
+  try { if (typeof earnRanges === 'function') { const w = earnRanges().W.total; if (w) parts.push(`${usd(w)} this week`); } } catch (e) { /* skip */ }
+  return parts.join(' · ');
+}
+function toLayout(inl) {
+  toInl = inl;
+  const r = toRank(toOrder(), toHideSet()), open = toOpenGet();
+  const head = (k, c) => `<div class="to-h ${c || ''}">${TO_HOME[k]}</div>`;
+  const wrap = (x, cls) => `<div class="to-w ${cls}" data-toid="${x.d.id}">${x.label ? `<span class="to-lbl ${x.cls}">${esc(x.label)}</span>` : ''}${x.html}</div>`;
+  const row = (x) => `<details class="to-acc" data-toid="${x.d.id}"${open[x.d.id] ? ' open' : ''}><summary><span class="to-t">${esc(x.d.n)}</span><span class="to-k">${esc(toSummary(x.d, x.html))}</span><span class="to-c" aria-hidden="true"></span></summary><div class="to-body">${x.label ? `<span class="to-lbl ${x.cls}">${esc(x.label)}</span>` : ''}${x.html}</div></details>`;
+  const tier = (k, cls) => { const full = r[k].filter((x) => !x.fold), fold = r[k].filter((x) => x.fold); return full.map((x) => wrap(x, cls)).join('') + (fold.length ? `<div class="to-dash"${k === 'dash' ? ' id="toDash"' : ''}>${fold.map(row).join('')}</div>` : ''); };
+  let h = '';
+  if (r.now.length) h += head('now', 'red') + tier('now', 'to-now');
+  if (r.today.length) h += (r.now.length || r.dash.length ? head('today') : '') + tier('today', 'to-plain');
+  if (r.dash.length) h += head('dash') + tier('dash', '');
+  h += '<div class="to-foot"><button type="button" class="btn" id="toCustBtn" data-tocust>Customize Today</button></div>';
+  return { strip: `<div class="to-strip" id="toStrip" role="status">${esc(toStatus(r))}</div>`, html: h };
+}
+document.head.insertAdjacentHTML('beforeend', `<style>
+.to-strip{font-size:13px;font-weight:500;color:var(--ink2);background:var(--soft);border-radius:10px;padding:9px 12px;line-height:1.35;overflow-wrap:anywhere}
+.to-h{font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);margin:4px 2px -6px}
+.to-h.red{color:#b91c1c}
+.to-w{display:flex;flex-direction:column;gap:14px;min-width:0}.to-w.to-plain{display:contents}
+.to-lbl{align-self:flex-start;font-size:11px;font-weight:700;border-radius:999px;padding:2px 9px;margin-bottom:-8px;border:1px solid}
+.to-lbl.red{color:#991b1b;background:#fef2f2;border-color:#fecaca}.to-lbl.amber{color:#92400e;background:#fffaf0;border-color:#f3d9a4}
+.to-dash{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+.to-acc+.to-acc{border-top:1px solid var(--line2)}
+.to-acc>summary{list-style:none;display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 12px;cursor:pointer;font-size:13.5px}
+.to-acc>summary::-webkit-details-marker{display:none}
+.to-t{font-weight:600;flex:none}.to-k{flex:1;min-width:0;text-align:right;color:var(--mute);font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.to-c{width:8px;height:8px;border-right:2px solid var(--mute);border-bottom:2px solid var(--mute);transform:rotate(45deg);flex:none;margin:0 4px 3px 2px;transition:transform .15s}
+.to-acc[open]>summary .to-c{transform:rotate(-135deg);margin-top:5px}
+.to-acc[open]>summary{border-bottom:1px solid var(--line2)}
+.to-body{padding:10px;display:flex;flex-direction:column;gap:10px}.to-body>.td-card{border:0;padding:2px}
+.to-foot{display:flex;justify-content:center;padding:6px 0 0}
+#toDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}
+.to-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:6px;align-items:center;padding:7px 0;border-top:1px solid var(--line2)}
+.to-row b{font-weight:600;font-size:14px;overflow-wrap:anywhere}.to-row.off b{color:var(--mute);font-weight:500}
+.to-mv{width:40px;height:40px;border:1px solid var(--line);border-radius:10px;font-size:16px;line-height:1;display:grid;place-items:center}.to-mv:disabled{opacity:.3}
+.to-sw{position:relative;width:46px;height:28px;flex:none}.to-sw input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;z-index:1}
+.to-sw i{position:absolute;inset:0;border-radius:999px;background:var(--line);transition:background .15s}.to-sw i::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+.to-sw input:checked+i{background:var(--ok)}.to-sw input:checked+i::after{transform:translateX(18px)}.to-sw input:focus-visible+i{outline:2px solid var(--ink);outline-offset:2px}
+.to-gh{font-size:12px;font-weight:600;color:var(--mute);margin-top:10px}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="toDlg" aria-labelledby="toTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="toTitle">Customize Today</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="hint" id="toHelp">Urgent things jump to the top by themselves. Use the switch to hide a card from Today (the tool is still in All tools) and the arrows to change the order inside its group. Dashboards cards show as one line you can tap open.</div>
+  <div id="toBody"></div>
+  <div class="dlg-f"><div><button type="button" class="btn" id="toReset">Reset to default</button></div><div><button type="button" class="btn primary" data-close>Done</button></div></div>
+</div></dialog>`);
+const toDlg = $('#toDlg');
+function toPaint() {
+  const hide = toHideSet(), order = toOrder();
+  $('#toBody').innerHTML = ['now', 'today', 'dash'].map((g) => {
+    const ids = order.filter((id) => TO_BY[id].home === g);
+    return `<div class="to-gh">${TO_HOME[g]}${g === 'now' ? ' (when something is urgent)' : ''}</div>` + ids.map((id, i) => `<div class="to-row${hide.has(id) ? ' off' : ''}" data-torow="${id}"><b>${esc(TO_BY[id].n)}</b><label class="to-sw"><input type="checkbox" role="switch" data-toshow="${id}" ${hide.has(id) ? '' : 'checked'} aria-label="Show ${esc(TO_BY[id].n)} on Today"><i></i></label><button type="button" class="to-mv" data-toup="${id}" aria-label="Move ${esc(TO_BY[id].n)} up" ${i === 0 ? 'disabled' : ''}>&uarr;</button><button type="button" class="to-mv" data-todown="${id}" aria-label="Move ${esc(TO_BY[id].n)} down" ${i === ids.length - 1 ? 'disabled' : ''}>&darr;</button></div>`).join('');
+  }).join('');
+}
+function toOpenSheet() { toPaint(); if (!toDlg.open) toDlg.showModal(); }
+function toSave(patch) { commit(() => { upsert(S.toorg, 'cfg', () => ({ id: 'cfg' }), patch); }); toPaint(); render(); }
+function toMove(id, dir) {
+  const order = toOrder(), g = TO_BY[id].home, i = order.indexOf(id);
+  let j = i + dir; while (j >= 0 && j < order.length && TO_BY[order[j]].home !== g) j += dir;
+  if (j < 0 || j >= order.length) return;
+  [order[i], order[j]] = [order[j], order[i]];
+  toSave({ order });
+}
+toDlg.addEventListener('change', (e) => {
+  const c = e.target.closest('[data-toshow]'); if (!c) return;
+  const hide = toHideSet();
+  if (c.checked) hide.delete(c.dataset.toshow); else hide.add(c.dataset.toshow);
+  toSave({ hide: [...hide] });
+});
+toDlg.addEventListener('click', async (e) => {
+  const u = e.target.closest('[data-toup]'), d = e.target.closest('[data-todown]');
+  if (u) { toMove(u.dataset.toup, -1); return; }
+  if (d) { toMove(d.dataset.todown, 1); return; }
+  if (e.target.closest('#toReset')) {
+    if (!(await ask('Reset Today?', 'Every card comes back and the order goes back to the built-in one.', 'Reset'))) return;
+    toSave({ hide: [], order: [] }); toast('Today is back to default');
+  }
+});
+$('#main').addEventListener('click', (e) => { if (S.view === 'today' && e.target.closest('[data-tocust]')) toOpenSheet(); });
+// remember which Dashboards rows are open (the toggle event does not bubble, so listen while it travels down)
+$('#main').addEventListener('toggle', (e) => { const d = e.target; if (d && d.classList && d.classList.contains('to-acc')) toOpenSet(d.dataset.toid, d.open); }, true);
+// ===== TODAYORG END =====
 
 // ===== SHIFTS BEGIN: recurring work shifts (Outback, electric) =====
 const shDlg = $('#shDlg');

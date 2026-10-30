@@ -2,6 +2,7 @@
 process.env.PORT = process.env.PORT || '8784';
 const fs = require('fs');
 const { chromium } = require('playwright');
+const expand = require('./lib-expand');
 const { wait, nqCache, open, st } = require('./lib-money');
 (async () => {
   const errs = [], ok = (c, m) => { if (!c) errs.push(m); };
@@ -72,10 +73,10 @@ const { wait, nqCache, open, st } = require('./lib-money');
   await p.click('#miDlg [data-close]');
   ok(/Miles and expenses/.test(await p.textContent('#miCard')) && /Repeat last trip/.test(await p.textContent('#miCard')), 'Today card');
   const before = (await st(p)).miles.length;
-  await p.click('[data-mirepeat]'); await wait(200);
+  await expand(p, 'miles'); await p.click('[data-mirepeat]'); await wait(200);
   ok((await st(p)).miles.length === before + 1, 'repeat from the Today card');
   ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'no sideways scroll on Today');
-  await p.click('[data-miopen]'); await wait(200);
+  await expand(p, 'miles'); await p.click('[data-miopen]'); await wait(200);
   ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.querySelector('#miBody').scrollWidth <= document.querySelector('#miBody').clientWidth), 'sheet fits at 390px');
   await p.screenshot({ path: '/tmp/miles-sheet.png' });
   ok(pe.length === 0, 'no page errors: ' + pe.join(' | '));

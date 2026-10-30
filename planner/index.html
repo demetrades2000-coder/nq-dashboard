@@ -1180,7 +1180,7 @@ const shade = (hex, f) => { const [r, g, b] = rgb(hex); return `rgb(${Math.round
 const cvars = (hex) => `--c:${hex};--bg-c:${tint(hex, .13)};--fg:${shade(hex, .42)}`;
 
 // ---------- state ----------
-const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan', 'timelog', 'deals', 'waiting', 'score', 'worth', 'alcfg', 'miles', 'milecfg', 'paycfg', 'paychk', 'hrcfg', 'avail', 'avreq']; // collections added by the Rules and Trades features
+const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan', 'timelog', 'deals', 'waiting', 'score', 'worth', 'alcfg', 'miles', 'milecfg', 'paycfg', 'paychk', 'hrcfg', 'avail', 'avreq', 'propacct']; // collections added by the Rules and Trades features
 let S = load();
 let cursor = todayKey(), selected = cursor, miniMonth = cursor.slice(0, 7);
 let query = '', agendaDays = 30, undoSnap = null, editing = null, lastScrollView = null;
@@ -2724,6 +2724,7 @@ function renderToday() {
     ${safeCard(plTodayCard)}
     ${safeCard(edgeTodayCard)}
     ${safeCard(worthTodayCard)}
+    ${safeCard(propTodayCard)}
     ${habs.length ? `<section class="td-card"><h3>Habits<button data-tgo="habits">All habits</button></h3>${habs.map((h) => { const st = habitStats(h), on = hDone(h, today); return `<div class="td-hab" style="--c:${esc(h.color || '#2563eb')}" data-thab="${esc(h.id)}"><button aria-pressed="${on}" aria-label="${on ? 'Undo' : 'Check in'} ${esc(h.name)}">${on ? ICON_CHECK : ''}</button><span>${esc(h.name)} <small>${st.cur} day streak</small></span></div>`; }).join('')}</section>` : ''}
     ${tr ? `<section class="td-card"><h3>Trading<span style="display:flex;gap:10px;align-items:baseline"><span class="${staleCls}">${staleTxt}</span><button data-refresh>Refresh</button></span></h3>${(tr.accounts || []).map((a) => `<div class="td-acct"><span><b>${esc(a.strategy === 'LIT' ? 'Zlarior' : a.strategy || a.name)}</b> ${esc(String(a.name || '').replace('MFFU ', ''))}</span><span>${usd(a.profit)} of ${usd(a.target)} · ${a.sessions_left != null ? a.sessions_left + ' sessions left' : ''}</span></div>`).join('')}${tr.month ? `<div class="td-acct" style="color:var(--mute)"><span>${MONTHS[+tr.month.month.slice(5) - 1]} so far</span><span><b style="color:var(--ink)">${usd(tr.month.usd)}</b> · ${tr.month.trades} trade${tr.month.trades === 1 ? '' : 's'}</span></div>` : ''}</section>` : ''}
     ${goals.length ? `<section class="td-card"><h3>Goals<button data-tgo="projects">All goals</button></h3>${goals.map((g) => { const v = goalValue(g), t = +g.target || 0, pct = t > 0 ? Math.max(0, Math.min(100, v / t * 100)) : 0; return `<div><div class="td-acct"><span><b>${esc(g.title)}</b></span><span>${gnum(g, v)} of ${gnum(g, t)}</span></div><div class="bar2" style="margin-top:5px"><i style="width:${pct}%;background:var(--ok)"></i></div></div>`; }).join('')}</section>` : ''}
@@ -2792,6 +2793,7 @@ function route() {
   else if (h === 'hours') { goToday(); openHours(); }
   else if (h === 'availability') { goToday(); openAvail(); }
   else if (h === 'brief') { goToday(); openBrief(); }
+  else if (h === 'prop') { goToday(); openProp(); }
   else if (h === 'tilt') { goToday(); openTiltSettings(); }
   else if (h === 'trade-plan') { goToday(); tpMode = 'plan'; renderMain(); }
   else if (h === 'search' || h === 'palette') { goToday(); openPalette(); }
@@ -4246,6 +4248,230 @@ $('#main').addEventListener('click', async (e) => {
   if (q) { const j = S.jobs.find((x) => x.id === q.dataset.avquick); if (j) toast((await avCopy(avMessage(j, addDays(startOfWeek(todayKey()), 7), true))) ? `Availability for ${j.name} copied` : 'Could not copy on this device'); }
 });
 // ===== AVAIL END =====
+// ===== PROP BEGIN: prop firm ledger and ROI (synced collection `propacct`) =====
+// One item per eval or funded account attempt: { id, created, firm, name, size, start, end, status, split, acct, proj,
+// fees: [{ id, kind, amt, date, mid }], pays: [{ id, amt, date, mid }] }. `mid` links a fee or payout to its optional money-log entry
+// (src:'prop'). `acct` is an optional name of an account in the dashboard data; when empty the account name is matched instead.
+// Everything is typed by hand; the live line only reads the dashboard data when it exists. Not tax or financial advice.
+const ppStatuses = [['active', 'Eval running'], ['passed', 'Passed eval'], ['funded', 'Funded'], ['paid', 'Payout received'], ['failed', 'Failed']];
+const ppFeeKinds = [['eval', 'Eval fee'], ['reset', 'Reset fee'], ['data', 'Monthly data fee'], ['act', 'Activation fee'], ['other', 'Other fee']];
+const ppPassedSet = ['passed', 'funded', 'paid'];
+document.head.insertAdjacentHTML('beforeend', `<style>
+#ppDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}#ppDlg input,#ppDlg select{font-size:16px}
+.pp-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.pp-form .wide{grid-column:1/-1}
+.pp-form input,.pp-form select{height:40px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:#fff;min-width:0;width:100%;outline:none}
+.pp-form input:focus,.pp-form select:focus{border-color:var(--ink)}
+.pp-chk{display:flex;align-items:center;gap:8px;font-size:13px}.pp-chk input{width:20px;height:20px;flex:none}
+.pp-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;width:100%;text-align:left;padding:10px 4px;border-top:1px solid var(--line2);align-items:start}
+.pp-row b{font-weight:600;overflow-wrap:anywhere}.pp-row small{display:block;color:var(--mute);font-size:12px;overflow-wrap:anywhere}
+.pp-row .pp-a{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pp-line{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px;line-height:1.45;background:var(--soft)}
+.pp-stats{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 12px;font-size:13px;font-variant-numeric:tabular-nums}.pp-stats span:nth-child(even){text-align:right;font-weight:600}
+.pp-note{font-size:12px;color:#92400e;background:#fffaf0;border:1px solid #f3d9a4;border-radius:10px;padding:8px 10px;line-height:1.4}
+.pp-sub{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line2);font-size:13px}.pp-sub span{min-width:0;overflow-wrap:anywhere}
+.pp-badge{font-size:11px;font-weight:600;border-radius:10px;padding:1px 8px;border:1px solid var(--line);color:var(--ink2);white-space:nowrap}
+.pp-badge.ok{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}.pp-badge.bad{background:#fef2f2;border-color:#fecaca;color:#991b1b}
+.pp-chips{display:flex;flex-wrap:wrap;gap:6px}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="ppDlg" aria-labelledby="ppTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="ppTitle">Prop firm ledger</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="ppBody" style="display:flex;flex-direction:column;gap:12px"></div>
+</div></dialog>`);
+const ppDlg = $('#ppDlg');
+let ppEditId = null, ppDraft = null;
+const ppRound = (n) => Math.round((+n || 0) * 100) / 100;
+const ppUsd = (n) => { const r = ppRound(n); return (r < 0 ? '-' : '') + '$' + Math.abs(r).toLocaleString('en-US', { minimumFractionDigits: r % 1 ? 2 : 0, maximumFractionDigits: 2 }); };
+const ppShort = (k) => { const d = parse(k); return `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}`; };
+const ppStatusName = (s) => (ppStatuses.find((x) => x[0] === s) || ppStatuses[0])[1];
+const ppFees = (a) => (Array.isArray(a.fees) ? a.fees : []).filter((f) => f && +f.amt > 0);
+const ppPays = (a) => (Array.isArray(a.pays) ? a.pays : []).filter((p) => p && +p.amt > 0);
+const ppSplitOf = (a) => (+a.split > 0 && +a.split <= 100 ? +a.split : 90);
+const ppAll = () => S.propacct.filter((a) => a && a.id).sort((a, b) => (b.start || '').localeCompare(a.start || '') || (b.created || 0) - (a.created || 0));
+const ppSum = (arr) => ppRound(arr.reduce((n, x) => n + (+x.amt || 0), 0));
+const ppTitle = (a) => [a.firm, a.name].filter(Boolean).join(' · ') || 'Account';
+// Totals over a list of accounts. A "pass" is any account that got past the eval (passed, funded or payout received).
+function ppStats(list) {
+  const fees = list.flatMap(ppFees), pays = list.flatMap(ppPays), spent = ppSum(fees), paid = ppSum(pays), net = ppRound(paid - spent);
+  const passL = list.filter((a) => ppPassedSet.includes(a.status)), failN = list.filter((a) => a.status === 'failed').length, done = passL.length + failN;
+  const days = passL.filter((a) => YMD.test(a.start || '') && YMD.test(a.end || '') && a.end >= a.start).map((a) => diffDays(a.start, a.end));
+  const split = passL.length ? passL.reduce((n, a) => n + ppSplitOf(a), 0) / passL.length : 90, need = Math.max(0, ppRound(spent - paid));
+  return {
+    n: list.length, spent, paid, net, roi: spent > 0 ? net / spent * 100 : null, passed: passL.length, failed: failN, active: list.filter((a) => a.status === 'active').length,
+    passRate: done ? passL.length / done * 100 : null, perPass: passL.length ? spent / passL.length : null, avgDays: days.length ? days.reduce((a, b) => a + b, 0) / days.length : null, daysN: days.length,
+    need, split, needGross: need / (split / 100),
+  };
+}
+const ppLine = (s) => (s.n ? `Evals have cost you ${ppUsd(s.spent)} and paid ${ppUsd(s.paid)}: net ${ppUsd(s.net)}.` : '');
+const ppBreak = (s) => (s.need > 0 ? `Break-even: ${ppUsd(s.need)} more in payouts (about ${ppUsd(s.needGross)} of profit at a ${Math.round(s.split)}% split).` : s.spent > 0 ? `You are past break-even by ${ppUsd(s.net)}.` : 'No fees logged yet.');
+const ppLiveAccts = () => ((nqBot && nqBot.trade && Array.isArray(nqBot.trade.accounts)) ? nqBot.trade.accounts : []).filter((x) => x && x.name);
+// The dashboard account that belongs to ledger entry a: the account picked in the form, else a name match. Null when none (graceful).
+function ppLiveFor(a) {
+  const live = ppLiveAccts(); if (!live.length) return null;
+  if (a.acct) { const k = squash(a.acct); return live.find((l) => squash(l.name) === k) || null; }
+  const keys = [a.name, [a.firm, a.name].filter(Boolean).join(' ')].map(squash).filter((k) => k.length >= 3);
+  return live.find((l) => { const n = squash(l.name); return keys.some((k) => n === k || n.includes(k) || k.includes(n)); }) || null;
+}
+function ppLiveText(l) {
+  if (!l) return '';
+  const bits = [String(l.stage || '') + (l.status ? ' ' + l.status : '')].filter((x) => x.trim());
+  if (typeof l.profit === 'number' && typeof l.target === 'number') bits.push(`${ppUsd(l.profit)} of ${ppUsd(l.target)} profit`);
+  if (typeof l.sessions_left === 'number') bits.push(`${l.sessions_left} session${l.sessions_left === 1 ? '' : 's'} left`);
+  return `Live: ${l.name}${bits.length ? ' · ' + bits.join(' · ') : ''}`;
+}
+const ppAcctNet = (a) => ppRound(ppSum(ppPays(a)) - ppSum(ppFees(a)));
+function ppRowHtml(a) {
+  const net = ppAcctNet(a), live = ppLiveFor(a), cls = ppPassedSet.includes(a.status) ? 'ok' : a.status === 'failed' ? 'bad' : '';
+  return `<button type="button" class="pp-row" data-ppedit="${esc(a.id)}"><span><b>${esc(ppTitle(a))}</b><small>${+a.size ? ppUsd(+a.size) + ' account · ' : ''}${YMD.test(a.start || '') ? 'started ' + ppShort(a.start) + ' · ' : ''}<span class="pp-badge ${cls}">${esc(ppStatusName(a.status))}</span></small><small>Fees ${ppUsd(ppSum(ppFees(a)))} · paid out ${ppUsd(ppSum(ppPays(a)))}</small>${live ? `<small>${esc(ppLiveText(live))}</small>` : ''}</span><span class="pp-a ${net < 0 ? 'neg' : net > 0 ? 'pos' : ''}">${ppUsd(net)}</span></button>`;
+}
+function ppProjOptions(sel) { return '<option value="">No project</option>' + S.projects.map((p) => `<option value="${esc(p.id)}"${p.id === sel ? ' selected' : ''}>${esc(p.name)}</option>`).join(''); }
+function ppEditHtml(a, isNew) {
+  const v = (f, d = '') => esc(a[f] != null && a[f] !== '' ? a[f] : d), live = ppLiveAccts(), s = a.status || 'active';
+  const names = [...new Set([...live.map((l) => l.name), a.acct].filter(Boolean))];
+  const done = ppPassedSet.includes(s) || s === 'failed', fees = isNew ? [] : ppFees(a), pays = isNew ? [] : ppPays(a), lv = isNew ? null : ppLiveFor(a);
+  const money = (x) => (x.mid ? ' · in money log' : '');
+  return `<div class="pp-form" id="ppForm">
+      <div class="fld"><label for="ppf-firm">Firm</label><input id="ppf-firm" data-ppf="firm" maxlength="60" value="${v('firm')}" placeholder="e.g. MFFU, Topstep"></div>
+      <div class="fld"><label for="ppf-name">Account name</label><input id="ppf-name" data-ppf="name" maxlength="60" value="${v('name')}" placeholder="e.g. 50K eval"></div>
+      <div class="fld"><label for="ppf-size">Account size ($)</label><input id="ppf-size" data-ppf="size" type="number" inputmode="decimal" min="0" step="1000" value="${v('size')}" placeholder="50000"></div>
+      <div class="fld"><label for="ppf-start">Start date</label><input id="ppf-start" data-ppf="start" type="date" value="${v('start', todayKey())}"></div>
+      <div class="fld"><label for="ppf-status">Status</label><select id="ppf-status" data-ppf="status">${ppStatuses.map((x) => `<option value="${x[0]}"${x[0] === s ? ' selected' : ''}>${x[1]}</option>`).join('')}</select></div>
+      <div class="fld"><label for="ppf-split">Profit split to you (%)</label><input id="ppf-split" data-ppf="split" type="number" inputmode="decimal" min="1" max="100" step="1" value="${v('split', 90)}"></div>
+      ${done ? `<div class="fld"><label for="ppf-end">${s === 'failed' ? 'Date it failed' : 'Date you passed'}</label><input id="ppf-end" data-ppf="end" type="date" value="${v('end')}"></div>` : ''}
+      <div class="fld"><label for="ppf-proj">Money log project</label><select id="ppf-proj" data-ppf="proj">${ppProjOptions(a.proj || '')}</select></div>
+      <div class="fld wide"><label for="ppf-acct">Link to a live dashboard account (optional)</label><select id="ppf-acct" data-ppf="acct"><option value="">${live.length ? 'Match by name' : 'No live accounts in the dashboard data'}</option>${names.map((n) => `<option value="${esc(n)}"${n === a.acct ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></div>
+    </div>
+    ${lv ? `<div class="hint" id="ppLiveLine">${esc(ppLiveText(lv))}</div>` : ''}
+    ${isNew
+    ? `<div class="pp-form"><div class="fld"><label for="ppf-fee0">Eval fee paid ($, optional)</label><input id="ppf-fee0" data-ppd="fee0" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(a.fee0 || '')}" placeholder="e.g. 107"></div>
+      <label class="pp-chk" style="align-self:end;min-height:40px"><input type="checkbox" id="ppf-fee0m" data-ppd="fee0m"${a.fee0m ? ' checked' : ''}> Also log it as money out</label></div>
+      <div class="hint">Resets, monthly data fees and payouts can be added after you save.</div>
+      <div style="display:flex;gap:8px"><button type="button" class="btn primary" id="ppSave" style="flex:1">Add account</button><button type="button" class="btn" id="ppBack">Cancel</button></div>`
+    : `<div><div class="flabel" style="font-size:12px;font-weight:600;color:var(--mute)">Fees (${ppUsd(ppSum(fees))})</div><div id="ppFees">${fees.length ? fees.slice().sort((x, y) => (y.date || '').localeCompare(x.date || '')).map((f) => `<div class="pp-sub"><span>${esc((ppFeeKinds.find((k) => k[0] === f.kind) || ppFeeKinds[4])[1])} · ${YMD.test(f.date || '') ? ppShort(f.date) : ''}${money(f)}</span><span><b>${ppUsd(f.amt)}</b> <button type="button" class="btn sm" data-ppfeedel="${esc(f.id)}" aria-label="Remove fee">Remove</button></span></div>`).join('') : '<div class="empty-s">No fees yet.</div>'}</div></div>
+      <div class="pp-form" id="ppFeeForm"><div class="fld"><label for="ppf-fk">Fee type</label><select id="ppf-fk">${ppFeeKinds.map((k) => `<option value="${k[0]}">${k[1]}</option>`).join('')}</select></div>
+        <div class="fld"><label for="ppf-fa">Amount ($)</label><input id="ppf-fa" type="number" inputmode="decimal" min="0" step="0.01" placeholder="e.g. 85"></div>
+        <div class="fld"><label for="ppf-fd">Date</label><input id="ppf-fd" type="date" value="${todayKey()}"></div>
+        <label class="pp-chk" style="align-self:end;min-height:40px"><input type="checkbox" id="ppf-fm"> Also log as money out</label>
+        <button type="button" class="btn wide" id="ppAddFee">Add fee</button></div>
+      <div><div class="flabel" style="font-size:12px;font-weight:600;color:var(--mute)">Payouts received (${ppUsd(ppSum(pays))})</div><div id="ppPays">${pays.length ? pays.slice().sort((x, y) => (y.date || '').localeCompare(x.date || '')).map((p) => `<div class="pp-sub"><span>${YMD.test(p.date || '') ? ppShort(p.date) : 'Payout'}${money(p)}</span><span><b>${ppUsd(p.amt)}</b> <button type="button" class="btn sm" data-pppaydel="${esc(p.id)}" aria-label="Remove payout">Remove</button></span></div>`).join('') : '<div class="empty-s">No payouts yet.</div>'}</div></div>
+      <div class="pp-form" id="ppPayForm"><div class="fld"><label for="ppf-pa">Payout amount ($, what you received)</label><input id="ppf-pa" type="number" inputmode="decimal" min="0" step="0.01" placeholder="e.g. 1500"></div>
+        <div class="fld"><label for="ppf-pd">Date</label><input id="ppf-pd" type="date" value="${todayKey()}"></div>
+        <label class="pp-chk wide"><input type="checkbox" id="ppf-pm"> Also log as money in</label>
+        <button type="button" class="btn wide" id="ppAddPay">Add payout</button></div>
+      <div style="display:flex;gap:8px"><button type="button" class="btn primary" id="ppBack" style="flex:1">Done</button><button type="button" class="btn danger" id="ppDel">Delete account</button></div>`}`;
+}
+function ppPaint() {
+  const body = $('#ppBody'); if (!body) return;
+  if (ppEditId) {
+    const isNew = ppEditId === 'new', a = isNew ? ppDraft : S.propacct.find((x) => x.id === ppEditId);
+    if (!a) { ppEditId = null; return ppPaint(); }
+    $('#ppTitle').textContent = isNew ? 'Add account' : ppTitle(a);
+    body.innerHTML = ppEditHtml(a, isNew); return;
+  }
+  $('#ppTitle').textContent = 'Prop firm ledger';
+  const list = ppAll(), s = ppStats(list), live = ppLiveAccts(), linked = new Set(list.map((a) => { const l = ppLiveFor(a); return l ? l.name : ''; }));
+  const missing = live.filter((l) => !linked.has(l.name));
+  body.innerHTML = `
+    ${list.length ? `<div class="glance" id="ppTiles"><div><b>${ppUsd(s.spent)}</b><span>total spent</span></div><div><b>${ppUsd(s.paid)}</b><span>paid out</span></div><div><b class="${s.net < 0 ? 'neg' : 'pos'}">${ppUsd(s.net)}</b><span>net</span></div></div>
+    <div class="pp-line" id="ppPlain">${esc(ppLine(s))} ${esc(ppBreak(s))}</div>
+    <div class="pp-stats" id="ppStats"><span>ROI</span><span>${s.roi == null ? 'n/a' : Math.round(s.roi) + '%'}</span><span>Pass rate</span><span>${s.passRate == null ? 'n/a' : Math.round(s.passRate) + '% (' + s.passed + ' of ' + (s.passed + s.failed) + ')'}</span><span>Cost per pass</span><span>${s.perPass == null ? 'no pass yet' : ppUsd(s.perPass)}</span><span>Average days to pass</span><span>${s.avgDays == null ? 'n/a' : (Math.round(s.avgDays * 10) / 10) + ' days'}</span><span>Accounts</span><span>${s.n} (${s.active} running)</span></div>`
+    : '<div class="empty-s">Nothing logged yet. Add each eval or funded account, then its fees and payouts, to see what the evals really cost and pay.</div>'}
+    <div class="pp-note">Hand-entered numbers for your own tracking, not financial or tax advice. Payouts are what you received after the firm's split.</div>
+    <button type="button" class="btn primary" id="ppAdd">Add account</button>
+    ${missing.length ? `<div><div class="flabel" style="font-size:12px;font-weight:600;color:var(--mute);margin-bottom:4px">In your dashboard, not in the ledger</div><div class="pp-chips" id="ppMissing">${missing.map((l) => `<button type="button" class="btn sm" data-ppnew="${esc(l.name)}">Add ${esc(l.name)}</button>`).join('')}</div></div>` : ''}
+    <div id="ppList">${list.map(ppRowHtml).join('')}</div>`;
+}
+const ppDefaultProj = () => (S.projects.some((p) => p.id === 'nq') ? 'nq' : '');
+function ppMissingDraft(name) { // prefill from a dashboard account name like "MFFU Builder 50K"
+  const k = /(\d+(?:\.\d+)?)\s*k\b/i.exec(name || ''), words = String(name || '').split(/\s+/);
+  return { firm: words.length > 1 ? words[0] : '', name: String(name || ''), size: k ? Math.round(+k[1] * 1000) : '', start: todayKey(), status: 'active', split: 90, acct: name, proj: ppDefaultProj() };
+}
+function openProp() { ppEditId = null; ppDraft = null; ppPaint(); if (!ppDlg.open) ppDlg.showModal(); }
+function ppCoerce(f, raw) { // form text -> stored value, or undefined when it should be ignored
+  const t = String(raw == null ? '' : raw).trim();
+  if (f === 'size') return t === '' ? '' : (+t >= 0 ? ppRound(+t) : undefined);
+  if (f === 'split') return +t > 0 && +t <= 100 ? ppRound(+t) : undefined;
+  if (f === 'start') return YMD.test(t) ? t : undefined;
+  if (f === 'end') return t === '' || YMD.test(t) ? t : undefined;
+  return t;
+}
+function ppMoney(kind, amt, date, note, proj) { const id = uid(); S.money.push({ id, created: Date.now(), kind, amt, date, note, proj: proj || '', src: 'prop' }); return id; }
+ppDlg.addEventListener('change', (e) => {
+  const el = e.target, d = el.dataset && el.dataset.ppd;
+  if (d) { if (ppDraft) ppDraft[d] = el.type === 'checkbox' ? el.checked : el.value; return; }
+  const f = el.dataset && el.dataset.ppf; if (!f || !ppEditId) return;
+  const val = ppCoerce(f, el.value);
+  if (ppEditId === 'new') { if (val !== undefined) ppDraft[f] = val; if (f === 'status') { if ((ppPassedSet.includes(val) || val === 'failed') && !ppDraft.end) ppDraft.end = todayKey(); ppPaint(); } return; }
+  const a = S.propacct.find((x) => x.id === ppEditId); if (!a) return;
+  if (val === undefined) { toast(f === 'start' ? 'Pick a start date' : 'That number is not valid'); ppPaint(); return; }
+  commit(() => {
+    a[f] = val;
+    if (f === 'status' && (ppPassedSet.includes(val) || val === 'failed') && !YMD.test(a.end || '')) a.end = todayKey();
+  });
+  if (f === 'status' || f === 'acct') ppPaint();
+});
+ppDlg.addEventListener('click', async (e) => {
+  const t = e.target;
+  if (t.closest('#ppAdd')) { ppDraft = { firm: '', name: '', size: '', start: todayKey(), status: 'active', split: 90, acct: '', proj: ppDefaultProj(), fee0: '', fee0m: false }; ppEditId = 'new'; ppPaint(); return; }
+  const nw = t.closest('[data-ppnew]'); if (nw) { ppDraft = { ...ppMissingDraft(nw.dataset.ppnew), fee0: '', fee0m: false }; ppEditId = 'new'; ppPaint(); return; }
+  const ed = t.closest('[data-ppedit]'); if (ed) { ppEditId = ed.dataset.ppedit; ppPaint(); $('#ppBody').scrollIntoView({ block: 'start' }); return; }
+  if (t.closest('#ppBack')) { ppEditId = null; ppDraft = null; ppPaint(); render(); return; }
+  if (t.closest('#ppSave')) {
+    const d = ppDraft; if (!d) return;
+    ['firm', 'name', 'size', 'split', 'start', 'end', 'status', 'proj', 'acct'].forEach((f) => { const el = $('#ppf-' + f); if (el) { const v = ppCoerce(f, el.value); if (v !== undefined) d[f] = v; } });
+    d.fee0 = $('#ppf-fee0') ? $('#ppf-fee0').value : d.fee0; d.fee0m = $('#ppf-fee0m') ? $('#ppf-fee0m').checked : d.fee0m;
+    if (!d.firm && !d.name) return toast('Give the account a firm or a name');
+    if (!YMD.test(d.start || '')) return toast('Pick a start date');
+    const fee = ppRound(parseFloat(d.fee0) || 0), id = uid();
+    snapshot();
+    commit(() => {
+      const a = { id, created: Date.now(), firm: d.firm || '', name: d.name || '', size: d.size === '' ? '' : +d.size || 0, start: d.start, end: d.end || '', status: d.status || 'active', split: +d.split > 0 ? +d.split : 90, acct: d.acct || '', proj: d.proj || '', fees: [], pays: [] };
+      if (fee > 0) { const f = { id: uid(), kind: 'eval', amt: fee, date: d.start, mid: '' }; if (d.fee0m) f.mid = ppMoney('out', fee, d.start, `Prop fee: ${ppTitle(a)} eval fee`, a.proj); a.fees.push(f); }
+      S.propacct.push(a);
+    });
+    ppEditId = id; ppDraft = null; ppPaint(); render(); toast('Account added', true); return;
+  }
+  const a = S.propacct.find((x) => x.id === ppEditId);
+  if (t.closest('#ppAddFee') && a) {
+    const amt = ppRound(parseFloat($('#ppf-fa').value) || 0), date = $('#ppf-fd').value, kind = $('#ppf-fk').value;
+    if (!(amt > 0)) return toast('Enter the fee amount');
+    if (!YMD.test(date)) return toast('Pick a date');
+    const label = (ppFeeKinds.find((k) => k[0] === kind) || ppFeeKinds[4])[1], wantMoney = $('#ppf-fm').checked;
+    snapshot();
+    commit(() => { const f = { id: uid(), kind, amt, date, mid: '' }; if (wantMoney) f.mid = ppMoney('out', amt, date, `Prop fee: ${ppTitle(a)} ${label.toLowerCase()}`, a.proj); a.fees = [...ppFees(a), f]; });
+    ppPaint(); render(); toast(`${label} added: ${ppUsd(amt)}`, true); return;
+  }
+  if (t.closest('#ppAddPay') && a) {
+    const amt = ppRound(parseFloat($('#ppf-pa').value) || 0), date = $('#ppf-pd').value;
+    if (!(amt > 0)) return toast('Enter the payout amount');
+    if (!YMD.test(date)) return toast('Pick a date');
+    const wantMoney = $('#ppf-pm').checked;
+    snapshot();
+    commit(() => { const p = { id: uid(), amt, date, mid: '' }; if (wantMoney) p.mid = ppMoney('in', amt, date, `Prop payout: ${ppTitle(a)}`, a.proj); a.pays = [...ppPays(a), p]; });
+    ppPaint(); render(); toast(`Payout added: ${ppUsd(amt)}`, true); return;
+  }
+  const fd = t.closest('[data-ppfeedel]'), pd = t.closest('[data-pppaydel]');
+  if ((fd || pd) && a) {
+    const id = (fd || pd).dataset.ppfeedel || (fd || pd).dataset.pppaydel, arr = fd ? ppFees(a) : ppPays(a), x = arr.find((q) => q.id === id); if (!x) return;
+    snapshot();
+    commit(() => { if (fd) a.fees = arr.filter((q) => q.id !== id); else a.pays = arr.filter((q) => q.id !== id); if (x.mid) S.money = S.money.filter((m) => m.id !== x.mid); });
+    ppPaint(); render(); toast(fd ? 'Fee removed' : 'Payout removed', true); return;
+  }
+  if (t.closest('#ppDel') && a) {
+    if (!(await ask(`Delete ${ppTitle(a)}?`, 'Its fees and payouts leave the ledger totals. Money-log entries you made from them stay. You can undo right after.', 'Delete account', { danger: true }))) return;
+    snapshot(); commit(() => { S.propacct = S.propacct.filter((x) => x.id !== a.id); });
+    ppEditId = null; ppPaint(); render(); toast('Account deleted', true);
+  }
+});
+ppDlg.addEventListener('close', () => { ppEditId = null; ppDraft = null; render(); });
+function propTodayCard() {
+  const list = ppAll(), live = ppLiveAccts();
+  if (!list.length && !live.length) return `<section class="td-card" id="ppCard"><h3>Prop firm ledger<button data-ppopen>Set up</button></h3><div class="hint">Log every eval and funded account with its fees and payouts to see what they really cost and pay.</div></section>`;
+  if (!list.length) return `<section class="td-card" id="ppCard"><h3>Prop firm ledger<button data-ppopen>Set up</button></h3><div class="hint">${live.length} account${live.length === 1 ? '' : 's'} in your dashboard. Add them to the ledger with their fees to see your ROI.</div></section>`;
+  const s = ppStats(list);
+  return `<section class="td-card" id="ppCard"><h3>Prop firm ledger<button data-ppopen>Details</button></h3><div class="glance"><div><b>${ppUsd(s.spent)}</b><span>spent</span></div><div><b>${ppUsd(s.paid)}</b><span>paid out</span></div><div><b class="${s.net < 0 ? 'neg' : 'pos'}">${ppUsd(s.net)}</b><span>net</span></div></div><div class="hint">${esc(ppLine(s))}${s.need > 0 ? ' ' + esc(ppUsd(s.need)) + ' more to break even.' : ''}${s.passRate != null ? ` Pass rate ${Math.round(s.passRate)}%.` : ''}</div></section>`;
+}
+$('#main').addEventListener('click', (e) => { if (S.view === 'today' && e.target.closest('[data-ppopen]')) openProp(); });
+// ===== PROP END =====
 
 // ===== SHIFTS BEGIN: recurring work shifts (Outback, electric) =====
 const shDlg = $('#shDlg');

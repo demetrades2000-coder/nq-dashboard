@@ -5139,7 +5139,7 @@ const TO_CARDS = [
   { id: 'news', n: 'Market news', home: 'today', fn: () => toInl.news },
   { id: 'habits', n: 'Habits', home: 'today', fn: () => toInl.habits },
   { id: 'quick', n: 'Quick tools', home: 'today', fn: () => hbQuickCard() },
-  { id: 'timelog', n: 'Time log', home: 'today', fn: () => tlTodayCard(), fold: true, sum: () => { const r = tlRunning(); return r ? 'running: ' + toCut(r.title, 24) : 'nothing running'; } },
+  { id: 'timelog', n: 'Time log', home: 'today', fn: () => tlTodayCard(), fold: true, tier: () => ({ tier: 'today', fold: !tlRunning() }), sum: () => { const r = tlRunning(); return r ? 'running: ' + toCut(r.title, 24) : 'nothing running'; } },
   { id: 'brief', n: 'Brief', home: 'today', fn: () => briefTodayCard(), fold: true },
   { id: 'health', n: 'Health', home: 'today', fn: () => hxTodayCard(), fold: true, sum: () => `water ${(hxOn(todayKey()) || {}).water || 0} of ${hxCfg().waterGoal}` },
   { id: 'trading', n: 'Trading accounts', home: 'today', fn: () => toInl.trading, fold: true, sum: () => { const m = nqBot && nqBot.trade && nqBot.trade.month; return m ? `${usd(m.usd)} this month` : 'bot data'; } },
@@ -5186,7 +5186,7 @@ function toRank(ids, hide) {
     let t = { tier: d.home };
     try { if (d.tier) t = d.tier(html) || t; } catch (e) { console.error('Today tier failed:', d.id, e); }
     if (hide.has(d.id) && !(d.force && t.tier === 'now')) return; // a tilt stop is never hidden
-    out[t.tier].push({ fold: !!d.fold || !!t.fold || t.tier === 'dash', d, html, label: t.label || '', cls: t.cls || 'amber', soft: !!t.soft });
+    out[t.tier].push({ fold: t.fold !== undefined ? !!t.fold : (!!d.fold || t.tier === 'dash'), d, html, label: t.label || '', cls: t.cls || 'amber', soft: !!t.soft });
   });
   return out;
 }

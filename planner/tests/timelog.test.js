@@ -1,5 +1,6 @@
 // Time log + weekly Time Audit: node planner/tests/timelog.test.js  (serve the site first, see shifts.test.js; PORT=... overrides, default 8782)
 const { chromium } = require('playwright');
+const expand = require('./lib-expand');
 const URL = 'http://127.0.0.1:' + (process.env.PORT || 8782) + '/nq-dashboard/planner/index.html';
 (async () => {
   const errs = [], ok = (c, m) => { if (!c) errs.push(m); }, wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -7,7 +8,7 @@ const URL = 'http://127.0.0.1:' + (process.env.PORT || 8782) + '/nq-dashboard/pl
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   const p = await ctx.newPage(); p.on('pageerror', (e) => errs.push(e.message));
   await p.route(/data\.json/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
-  await p.goto(URL); await wait(1200);
+  await p.goto(URL); await wait(1200); await expand(p, 'timelog');
   const state = () => p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')));
   // seed: week starts Sunday. Planned: 6 h of Clipper (two 3 h events), 2 h of Trading. Logged: Clipper 2.5 h, Trading 3.5 h, Personal 3 h (not planned).
   await p.evaluate(() => {

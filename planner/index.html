@@ -5458,17 +5458,9 @@ function mlCtx() {
   } catch (e) { return ''; }
 }
 let mlAbort = null;
-async function mlAsk(dataUrl, note) {
+// One place that talks to the Claude API (the user's own key, straight from this phone) and turns every failure into a plain message.
+async function mlPost(mk) {
   const key = mlKey(); if (!key) throw Object.assign(new Error('No AI key yet.'), { code: 'nokey' });
-  const b64 = dataUrl ? dataUrl.split(',')[1] : '';
-  const mk = (withEffort) => ({
-    model: mlModel(), max_tokens: 2500, system: mlSys + mlCtx(),
-    ...(withEffort ? { output_config: { effort: 'low' } } : {}),
-    messages: [{ role: 'user', content: dataUrl ? [
-      { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
-      { type: 'text', text: note ? `The user adds: "${note}". Please re-estimate with that in mind.` : 'Identify and estimate this meal.' },
-    ] : [{ type: 'text', text: `There is no photo. The user describes what they ate: "${note}". Estimate it, assuming typical portions where they did not say.` }] }],
-  });
   const call = async (body) => {
     if (mlAbort) mlAbort.abort();
     const ac = new AbortController(); mlAbort = ac;
@@ -5496,9 +5488,20 @@ async function mlAsk(dataUrl, note) {
     throw Object.assign(new Error(msg ? 'The AI said: ' + msg.slice(0, 140) : 'The AI request failed (' + res.status + ').'), { code: 'other' });
   }
   const j = await res.json();
-  if (j.stop_reason === 'refusal') throw Object.assign(new Error('The AI declined that photo. Try a different one.'), { code: 'nofood' });
-  const text = (j.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n');
-  return mlParse(text);
+  if (j.stop_reason === 'refusal') throw Object.assign(new Error('The AI declined that request. Try different wording.'), { code: 'nofood' });
+  return (j.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n');
+}
+async function mlAsk(dataUrl, note) {
+  const b64 = dataUrl ? dataUrl.split(',')[1] : '';
+  const mk = (withEffort) => ({
+    model: mlModel(), max_tokens: 2500, system: mlSys + mlCtx(),
+    ...(withEffort ? { output_config: { effort: 'low' } } : {}),
+    messages: [{ role: 'user', content: dataUrl ? [
+      { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
+      { type: 'text', text: note ? `The user adds: "${note}". Please re-estimate with that in mind.` : 'Identify and estimate this meal.' },
+    ] : [{ type: 'text', text: `There is no photo. The user describes what they ate: "${note}". Estimate it, assuming typical portions where they did not say.` }] }],
+  });
+  return mlParse(await mlPost(mk));
 }
 function mlImg(file, max, q) {
   return new Promise((resolve, reject) => {
@@ -5547,6 +5550,12 @@ document.head.insertAdjacentHTML('beforeend', `<style id="mlStyle">
 .ml-qty{display:flex;align-items:center;gap:6px;font-size:13px}.ml-qty button{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--card);font-size:18px;line-height:1}
 .ml-tot{display:flex;justify-content:space-between;align-items:baseline;padding:10px 12px;border-radius:12px;background:var(--kb-f3f4f6);font-weight:600}
 .ml-tot span{font-size:12px;color:var(--kf-4b5563);font-weight:400}
+.ml-tabs{display:flex;gap:4px;background:var(--soft2);border-radius:10px;padding:3px}.ml-tabs button{flex:1;height:34px;border-radius:8px;font-size:13px;font-weight:500;color:var(--mute)}.ml-tabs button[aria-selected=true]{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.ml-pane{display:flex;flex-direction:column;gap:10px}.ml-pane[hidden]{display:none}
+.ml-h{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin-top:4px}
+.ml-ans{border:1px solid var(--line);border-radius:12px;padding:12px;font-size:14px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--card)}
+.ml-q{font-size:12px;color:var(--mute)}.ml-chips{display:flex;gap:6px;flex-wrap:wrap}.ml-chips .btn{height:auto;min-height:32px;padding:6px 10px;white-space:normal;text-align:left}
+.ml-bars{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:end;height:110px;margin-top:4px}.ml-bars div{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px;height:100%;font-size:10px;color:var(--mute)}.ml-bars i{display:block;width:100%;border-radius:5px 5px 2px 2px;background:var(--faint);min-height:2px}.ml-bars .ok i{background:var(--ok)}.ml-bars .over i{background:#d97706}.ml-bars .t i{outline:2px solid var(--ink)}
 .ml-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:-4px}.ml-src{font-size:11px;padding:2px 8px;border-radius:99px;background:var(--soft2);color:var(--ink2)}.ml-src.good{background:var(--kb-d1fae5);color:var(--ink)}.ml-src.edit{background:var(--soft2);border:1px solid var(--line)}.ml-more summary{cursor:pointer;font-size:12px;color:var(--mute)}.ml-band{font-size:12px;color:var(--mute);font-weight:400}
 .ml-conf{font-size:11px;padding:2px 8px;border-radius:99px;background:var(--kb-f3f4f6);color:var(--kf-4b5563)}.ml-conf.low{background:var(--kb-fef3c7);color:var(--kf-92400e)}.ml-conf.high{background:var(--kb-d1fae5);color:var(--kf-065f46)}
 #mlDlg textarea,#mlSnap textarea,#mlSet input,#mlSnap input,#mlSnap select{font-size:16px}
@@ -5557,12 +5566,18 @@ document.body.insertAdjacentHTML('beforeend', `
 <input type="file" id="mlFileLib" accept="image/*" hidden>
 <dialog id="mlDlg" aria-labelledby="mlTitle"><div class="dlg">
   <div class="dlg-h"><h3 id="mlTitle">Meals</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="ml-tabs" role="tablist" aria-label="Meals sections"><button type="button" role="tab" data-mltab="today" aria-selected="true">Today</button><button type="button" role="tab" data-mltab="foods" aria-selected="false">Foods</button><button type="button" role="tab" data-mltab="coach" aria-selected="false">Coach</button><button type="button" role="tab" data-mltab="trends" aria-selected="false">Trends</button></div>
+  <div id="mlPaneToday" class="ml-pane">
   <div class="row" style="display:flex;align-items:center;justify-content:space-between;gap:8px"><button type="button" class="btn sm" id="mlPrev" aria-label="Previous day">‹</button><b id="mlDay" style="font-size:14px"></b><button type="button" class="btn sm" id="mlNext" aria-label="Next day">›</button></div>
   <div class="ml-top" id="mlSum"></div>
   <div class="ml-act"><button type="button" class="btn ml-snap" data-mlsnap>Snap a meal</button><button type="button" class="btn" data-mladd>Add food</button><button type="button" class="btn" data-mldesc>Describe it</button><button type="button" class="btn" data-mlscan hidden>Scan barcode</button></div>
   <div id="mlUsual"></div>
   <div id="mlMeals"></div>
   <div class="ml-act" style="margin-top:4px"><button type="button" class="btn sm" id="mlGoalsBtn" hidden>Daily goals</button><button type="button" class="btn sm" id="mlWeekBtn" hidden>Week and month</button><button type="button" class="btn sm" id="mlSetBtn">AI settings</button></div>
+  </div>
+  <div id="mlPaneFoods" class="ml-pane" hidden></div>
+  <div id="mlPaneCoach" class="ml-pane" hidden></div>
+  <div id="mlPaneTrends" class="ml-pane" hidden></div>
   <div class="hint">Calories and macros are estimates. Photo estimates can be off by 20% or more, so check the numbers before you save.</div>
 </div></dialog>
 <dialog id="mlSnap" aria-labelledby="mlSnapTitle"><div class="dlg">
@@ -5584,7 +5599,7 @@ let mlDate = todayKey();
 function mlMealRow(m) {
   return `<button type="button" class="ml-row" data-mlmeal="${esc(m.id)}">${m.thumb ? `<img src="${esc(m.thumb)}" alt="">` : `<span class="ml-ph">${m.src === 'barcode' ? '▮▯▮' : m.src === 'ai' ? '✦' : '🍽'}</span>`}<span class="ml-n">${esc(m.name)}<small>${esc(m.time ? fmtTime(m.time) : '')} · P ${mlR(m.p)} C ${mlR(m.c)} F ${mlR(m.f)}</small></span><b>${mlR(m.kcal)}</b></button>`;
 }
-function mlPaintDlg() {
+function mlPaintToday() {
   const g = mlGoals(), list = mlOn(mlDate), t = mlTot(list), isToday = mlDate === todayKey();
   $('#mlDay').textContent = isToday ? 'Today, ' + longDate(mlDate) : longDate(mlDate);
   $('#mlNext').disabled = mlDate >= todayKey();
@@ -5599,7 +5614,113 @@ function mlPaintDlg() {
   document.querySelectorAll('#mlDlg [data-mlscan]').forEach((b) => { b.hidden = typeof fdScan !== 'function'; });
   $('#mlSetBtn').textContent = mlKey() ? 'AI settings' : 'Set up AI photos';
 }
-function mlOpen(date) { mlDate = date || todayKey(); mlPaintDlg(); if (!mlDlg.open) mlDlg.showModal(); }
+let mlTab = 'today', mlCoachLog = [];
+function mlPaintDlg() {
+  mlPaintToday();
+  document.querySelectorAll('#mlDlg [data-mltab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.mltab === mlTab)));
+  [['today', '#mlPaneToday'], ['foods', '#mlPaneFoods'], ['coach', '#mlPaneCoach'], ['trends', '#mlPaneTrends']].forEach(([t, id]) => { $(id).hidden = t !== mlTab; });
+  if (mlTab === 'foods') mlPaintFoods(); else if (mlTab === 'coach') mlPaintCoach(); else if (mlTab === 'trends') mlPaintTrends();
+}
+function mlOpen(date, tab) { mlDate = date || todayKey(); if (tab) mlTab = tab; mlPaintDlg(); if (!mlDlg.open) mlDlg.showModal(); }
+const mlRem = () => { const g = mlGoals(), t = mlTot(mlOn(todayKey())); return { kcal: g.kcal - t.kcal, p: g.p - t.p, c: g.c - t.c, f: g.f - t.f, goals: g, tot: t }; };
+// A meal made from one saved food or one suggestion, logged now with one tap (Undo available).
+function mlLogItem(it, name) {
+  const d = new Date(), time = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  snapshot();
+  commit(() => { S.meals.push({ id: uid(), created: Date.now(), date: todayKey(), time, slot: mlSlotNow(), name: name || it.name, items: [{ name: it.name, qty: 1, unit: it.serving || it.unit || '', grams: mlR(it.grams), kcal: mlR(it.kcal), p: mlR1(it.p), c: mlR1(it.c), f: mlR1(it.f), fiber: mlR1(it.fiber), sugar: mlR1(it.sugar), na: mlR(it.na), sat: mlR1(it.sat), src: it.src || 'search' }], kcal: mlR(it.kcal), p: mlR1(it.p), c: mlR1(it.c), f: mlR1(it.f), fiber: mlR1(it.fiber), sugar: mlR1(it.sugar), na: mlR(it.na), sat: mlR1(it.sat), src: 'search', note: '', thumb: '' }); });
+  if (typeof fdTouch === 'function') { try { fdTouch({ name: it.name, id: it.id }); } catch (e) { /* optional */ } }
+  render(); mlPaintDlg(); toast(`Logged ${it.name}: ${mlR(it.kcal)} kcal`, true);
+}
+// ---- Foods tab: everything you eat often, in one place ----
+function mlRecentMeals(n) {
+  const since = addDays(todayKey(), -60), by = new Map();
+  S.meals.filter((m) => m.date >= since && m.name).forEach((m) => { const k = m.name.toLowerCase(), e = by.get(k) || { m, n: 0 }; e.n++; if ((m.created || 0) > (e.m.created || 0)) e.m = m; by.set(k, e); });
+  return [...by.values()].sort((a, b) => b.n - a.n || (b.m.created || 0) - (a.m.created || 0)).slice(0, n).map((e) => ({ ...e.m, _n: e.n }));
+}
+function mlPaintFoods() {
+  const favs = (S.myfoods || []).filter((x) => x && x.name && x.fav).slice(0, 8), mine = (S.myfoods || []).filter((x) => x && x.name && !x.fav).sort((a, b) => (b.used || 0) - (a.used || 0)).slice(0, 8), recents = mlRecentMeals(8);
+  const frow = (x) => `<button type="button" class="ml-row" data-mlfood="${esc(x.id)}"><span class="ml-ph">${x.recipe ? '🍲' : x.fav ? '★' : '🍽'}</span><span class="ml-n">${esc(x.name)}<small>${esc(x.serving || x.unit || '')}${x.recipe ? ' · recipe' : ''}</small></span><b>${mlR(x.kcal || (x.perServing && x.perServing.kcal))}</b></button>`;
+  $('#mlPaneFoods').innerHTML = `<div class="ml-act"><button type="button" class="btn" data-mladd>Find a food</button><button type="button" class="btn" data-mlscan${typeof fdScan === 'function' ? '' : ' hidden'}>Scan barcode</button><button type="button" class="btn" id="mlMyFoods"${typeof fkMyFoodsOpen === 'function' ? '' : ' hidden'}>My foods and recipes</button></div>
+    ${recents.length ? `<div class="ml-h">Your usual meals</div><div class="ml-list">${recents.map((m) => `<button type="button" class="ml-row" data-mlq1="${esc(m.id)}">${m.thumb ? `<img src="${esc(m.thumb)}" alt="">` : '<span class="ml-ph">🍽</span>'}<span class="ml-n">${esc(m.name)}<small>${m._n} time${m._n === 1 ? '' : 's'} lately · P ${mlR(m.p)} C ${mlR(m.c)} F ${mlR(m.f)}</small></span><b>${mlR(m.kcal)}</b></button>`).join('')}</div><div class="ml-q">Tap to log it again now.</div>` : ''}
+    ${favs.length ? `<div class="ml-h">Favorites</div><div class="ml-list">${favs.map(frow).join('')}</div>` : ''}
+    ${mine.length ? `<div class="ml-h">Your foods</div><div class="ml-list">${mine.map(frow).join('')}</div>` : ''}
+    ${!recents.length && !favs.length && !mine.length ? '<div class="empty-s" style="padding:14px 0">Foods you log show up here so you can add them again in one tap. Star a food to keep it on top.</div>' : ''}`;
+}
+// ---- Trends tab: seven days at a glance ----
+function mlWeekDays() {
+  const g = mlGoals(), t = todayKey(), out = [];
+  for (let i = 6; i >= 0; i--) { const k = addDays(t, -i), l = mlOn(k), tot = mlTot(l); out.push({ k, n: l.length, ...tot, today: i === 0, ok: l.length && Math.abs(tot.kcal - g.kcal) <= g.kcal * 0.1, over: tot.kcal > g.kcal * 1.1 }); }
+  return out;
+}
+function mlPaintTrends() {
+  const g = mlGoals(), days = mlWeekDays(), done = days.filter((d) => d.n && !d.today), avg = (k) => (done.length ? done.reduce((a, d) => a + d[k], 0) / done.length : 0);
+  const mx = Math.max(g.kcal * 1.3, ...days.map((d) => d.kcal), 1), tt = mlTot(mlOn(todayKey()));
+  const nut = [['Fiber', tt.fiber, 30, 'g', true], ['Sugar', tt.sugar, 50, 'g', false], ['Sodium', tt.na, 2300, 'mg', false], ['Saturated fat', tt.sat, Math.round(g.kcal * 0.1 / 9), 'g', false]].filter((x) => x[1] > 0);
+  const dn = (d) => ['S', 'M', 'T', 'W', 'T', 'F', 'S'][parse(d.k).getDay()];
+  $('#mlPaneTrends').innerHTML = `<div class="ml-h">Last 7 days (goal ${mlR(g.kcal).toLocaleString('en-US')} kcal)</div>
+    <div class="ml-bars" role="img" aria-label="Calories for each of the last 7 days">${days.map((d) => `<div class="${d.ok ? 'ok' : ''} ${d.over ? 'over' : ''} ${d.today ? 't' : ''}" title="${esc(longDate(d.k))}: ${mlR(d.kcal)} kcal"><span>${d.kcal ? mlR(d.kcal) : ''}</span><i style="height:${Math.max(2, Math.round(d.kcal / mx * 78))}px"></i><span>${dn(d)}</span></div>`).join('')}</div>
+    <div class="ml-q">Green is within 10% of your goal, orange is over. Today is outlined.</div>
+    ${done.length >= 2 ? `<div class="ml-tot"><div>${mlR(avg('kcal')).toLocaleString('en-US')} kcal a day<span> · protein ${mlR(avg('p'))} g (goal ${mlR(g.p)}) · ${done.length} days logged</span></div></div>` : '<div class="hint">Log a couple of full days and your averages show up here.</div>'}
+    ${nut.length ? `<div class="ml-h">Today's other nutrients</div>${nut.map(([n, v, goal, u, more]) => mlBar2(n, v, goal, u, more)).join('')}` : ''}
+    <div class="ml-act"><button type="button" class="btn sm" id="mlWeekBtn2"${typeof nwOpen === 'function' ? '' : ' hidden'}>Week and month detail</button><button type="button" class="btn sm" id="mlGoalsBtn2"${typeof ngOpen === 'function' ? '' : ' hidden'}>Daily goals</button></div>`;
+}
+function mlBar2(label, v, goal, unit, wantMore) {
+  const pct = goal > 0 ? Math.min(100, Math.round(v / goal * 100)) : 0, bad = !wantMore && v > goal;
+  return `<div class="ml-mb" style="grid-template-columns:96px 1fr auto"><span>${esc(label)}</span><div class="ml-bar"><i style="width:${pct}%;background:${bad ? '#d97706' : 'var(--ok)'}"></i></div><b>${mlR(v)}<small>/${mlR(goal)} ${unit}</small></b></div>`;
+}
+// ---- Coach tab: ask about your food, with your own numbers behind the answer ----
+const mlCoachSys = `You are the nutrition coach inside the user's personal food log. The user is a busy adult who works shifts, trades futures and wants clear, practical answers.
+Use ONLY the numbers in the context for what they ate and what their goals are; never invent a meal they did not log. If the context is thin, say what is missing.
+Be concrete: name specific foods with a rough portion and its calories and protein, and prefer foods they already eat (their saved foods and recent meals). Keep answers under 150 words, plain words, short lines. Lines may start with "- ". No headings, no tables, no bold markers.
+You may use general nutrition knowledge (protein per kg of body weight, fibre, sodium, hydration, meal timing around shifts and trading, caffeine, alcohol). You are not a doctor: for medical conditions, pregnancy, eating disorders, under-18s or very low-calorie diets, say to ask a professional. Never suggest eating below 1,200 kcal (women) or 1,500 kcal (men) a day.
+If asked about something unrelated to food, nutrition or training, say you only cover food.`;
+function mlCoachCtx() {
+  const g = mlGoals(), r = mlRem(), days = mlWeekDays().filter((d) => d.n && !d.today), cfg = (S.foodcfg || []).find((x) => x.id === 'cfg') || {};
+  const now = new Date(), r1 = (x) => Math.round(x);
+  return JSON.stringify({ local_time: now.toTimeString().slice(0, 5), weekday: DAYS[now.getDay()], goals_per_day: { kcal: r1(g.kcal), protein_g: r1(g.p), carbs_g: r1(g.c), fat_g: r1(g.f) },
+    eaten_today: { kcal: r1(r.tot.kcal), protein_g: r1(r.tot.p), carbs_g: r1(r.tot.c), fat_g: r1(r.tot.f), fiber_g: r1(r.tot.fiber), sodium_mg: r1(r.tot.na), meals: mlOn(todayKey()).map((m) => ({ slot: m.slot, time: m.time, name: m.name, kcal: r1(m.kcal), protein_g: r1(m.p) })) },
+    remaining_today: { kcal: r1(r.kcal), protein_g: r1(r.p), carbs_g: r1(r.c), fat_g: r1(r.f) },
+    last_days: days.map((d) => ({ date: d.k, kcal: r1(d.kcal), protein_g: r1(d.p) })),
+    profile: { sex: cfg.sex || null, age: cfg.age || null, weight_kg: cfg.weight_kg || null, height_cm: cfg.height_cm || null, activity: cfg.activity || null, goal: cfg.goal || null },
+    usual_meals: mlRecentMeals(8).map((m) => ({ name: m.name, kcal: r1(m.kcal), protein_g: r1(m.p) })), saved_foods: (S.myfoods || []).filter((x) => x && x.name).sort((a, b) => (b.used || 0) - (a.used || 0)).slice(0, 12).map((x) => x.name),
+    today_schedule: (typeof eventsOn === 'function' ? eventsOn(todayKey()).filter((o) => !o.ev.bot && !o.cont && !o.ev.allDay && o.ev.start).slice(0, 6).map((o) => ({ title: o.ev.title, start: o.ev.start, end: o.ev.end })) : []) });
+}
+async function mlCoachAsk(q) {
+  const ctx = mlCoachCtx();
+  const mk = (withEffort) => ({ model: mlModel(), max_tokens: 700, system: mlCoachSys, ...(withEffort ? { output_config: { effort: 'low' } } : {}), messages: [{ role: 'user', content: `Context (JSON):\n${ctx}\n\nQuestion: ${q}` }] });
+  return (await mlPost(mk)).trim();
+}
+function mlPicks() {
+  const r = mlRem(); if (!(r.kcal > 60)) return [];
+  if (typeof fkSuggest === 'function') { try { const x = fkSuggest({ kcal: r.kcal, p: Math.max(0, r.p), c: Math.max(0, r.c), f: Math.max(0, r.f) }, 4); if (Array.isArray(x) && x.length) return x; } catch (e) { /* fall back */ } }
+  return mlRecentMeals(30).filter((m) => m.kcal <= Math.min(r.kcal * 0.75, 900) && m.kcal >= 80).map((m) => ({ id: m.id, name: m.name, kcal: m.kcal, p: m.p, c: m.c, f: m.f, why: r.p > 10 ? `+${mlR(Math.min(m.p, r.p))} g protein for ${mlR(m.kcal)} kcal` : `${mlR(m.kcal)} kcal`, _meal: true, _s: Math.min(m.p, Math.max(r.p, 0)) / Math.max(m.kcal, 1) })).sort((a, b) => b._s - a._s).slice(0, 4);
+}
+function mlPaintCoach() {
+  const r = mlRem(), picks = mlPicks(), has = !!mlKey();
+  const chips = ['What should I eat next?', 'Am I getting enough protein?', 'What should I eat before a shift?', 'How did my week go?'];
+  $('#mlPaneCoach').innerHTML = `<div class="ml-tot"><div>${r.kcal >= 0 ? `${mlR(r.kcal).toLocaleString('en-US')} kcal left today` : `${mlR(-r.kcal).toLocaleString('en-US')} kcal over`}<span> · protein ${r.p >= 0 ? mlR(r.p) + ' g to go' : 'goal reached'} · carbs ${r.c >= 0 ? mlR(r.c) + ' g' : 'done'} · fat ${r.f >= 0 ? mlR(r.f) + ' g' : 'done'}</span></div></div>
+    ${picks.length ? `<div class="ml-h">Fits what is left</div><div class="ml-list">${picks.map((x, i) => `<button type="button" class="ml-row" data-mlpick="${i}"><span class="ml-ph">+</span><span class="ml-n">${esc(x.name)}<small>${esc(x.why || x.reason || '')}</small></span><b>${mlR(x.kcal)}</b></button>`).join('')}</div><div class="ml-q">Tap to log it now.</div>` : ''}
+    <div class="ml-h">Ask the coach</div>
+    <div class="ml-chips">${chips.map((c) => `<button type="button" class="btn sm" data-mlask="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+    <div class="frow" style="align-items:flex-end"><div class="fld"><label for="mlCoachQ">Your question</label><input id="mlCoachQ" maxlength="200" autocomplete="off" placeholder="e.g. what can I eat on a 10 minute break?"></div><button type="button" class="btn primary" id="mlCoachGo" style="height:40px;flex:none">Ask</button></div>
+    ${has ? '' : '<div class="hint">The coach uses Claude, so it needs the AI key (AI settings on the Today tab). Everything else here works without it.</div>'}
+    <div id="mlCoachOut">${mlCoachLog.slice(-3).map((e) => `<div class="ml-q" style="margin-top:6px">${esc(e.q)}</div><div class="ml-ans">${esc(e.a)}</div>`).join('')}</div>
+    <div class="hint">General guidance from your own log, not medical advice.</div>`;
+  mlPickList = picks;
+}
+let mlPickList = [];
+async function mlCoachRun(q) {
+  q = (q || '').trim(); if (!q) return;
+  const out = $('#mlCoachOut'); if (!out) return;
+  out.insertAdjacentHTML('beforeend', `<div class="ml-q" style="margin-top:6px">${esc(q)}</div><div class="ml-ans" id="mlCoachWait">Thinking...</div>`);
+  try {
+    const a = await mlCoachAsk(q); mlCoachLog.push({ q, a }); if (mlCoachLog.length > 8) mlCoachLog.shift();
+    const w = $('#mlCoachWait'); if (w) { w.textContent = a; w.removeAttribute('id'); }
+  } catch (e) {
+    const w = $('#mlCoachWait'); if (w) { w.textContent = e.code === 'nokey' ? 'Add your AI key first (AI settings on the Today tab).' : (e.message || 'Something went wrong.'); w.removeAttribute('id'); }
+  }
+}
+
 function mealsTodayCard() {
   const t = todayKey(), g = mlGoals(), list = mlOn(t), tot = mlTot(list);
   return `<section class="td-card" id="mlCard"><h3>Meals<button data-mlopen>Open</button></h3>
@@ -5859,7 +5980,16 @@ mlDlg.addEventListener('click', (e) => {
   if (t.closest('#mlPrev')) { mlDate = addDays(mlDate, -1); mlPaintDlg(); return; }
   if (t.closest('#mlNext')) { if (mlDate < todayKey()) { mlDate = addDays(mlDate, 1); mlPaintDlg(); } return; }
   if (t.closest('#mlSetBtn')) { mlOpenSettings(); return; }
-  if (t.closest('#mlGoalsBtn')) { if (typeof ngOpen === 'function') ngOpen(); return; }
+  const tb = t.closest('[data-mltab]'); if (tb) { mlTab = tb.dataset.mltab; mlPaintDlg(); return; }
+  if (t.closest('#mlGoalsBtn') || t.closest('#mlGoalsBtn2')) { if (typeof ngOpen === 'function') ngOpen(); return; }
+  if (t.closest('#mlWeekBtn2')) { if (typeof nwOpen === 'function') nwOpen(); return; }
+  if (t.closest('#mlMyFoods')) { if (typeof fkMyFoodsOpen === 'function') fkMyFoodsOpen(); return; }
+  const fo = t.closest('[data-mlfood]');
+  if (fo) { const x = (S.myfoods || []).find((y) => y.id === fo.dataset.mlfood); if (x) { const ps = x.perServing || x; mlLogItem({ id: x.id, name: x.name, serving: x.serving, kcal: ps.kcal, p: ps.p, c: ps.c, f: ps.f, fiber: ps.fiber, sugar: ps.sugar, na: ps.na, sat: ps.sat, src: x.user ? 'mine' : 'search' }); } return; }
+  const pk = t.closest('[data-mlpick]');
+  if (pk) { const x = mlPickList[+pk.dataset.mlpick]; if (x) { if (x._meal) mlQuickLog(x.id); else mlLogItem({ id: x.id, name: x.name, kcal: x.kcal, p: x.p, c: x.c, f: x.f, fiber: x.fiber, sugar: x.sugar, na: x.na, sat: x.sat, src: x.src || 'search', serving: x.serving }); } return; }
+  const ak = t.closest('[data-mlask]'); if (ak) { mlCoachRun(ak.dataset.mlask); return; }
+  if (t.closest('#mlCoachGo')) { const i = $('#mlCoachQ'); const q = i.value; i.value = ''; mlCoachRun(q); return; }
   if (t.closest('#mlWeekBtn')) { if (typeof nwOpen === 'function') nwOpen(); return; }
 });
 document.addEventListener('click', (e) => {
@@ -5878,6 +6008,7 @@ document.addEventListener('click', (e) => {
   }
 });
 document.addEventListener('keydown', (e) => { if (e.target && e.target.id === 'mlKeyQuick' && e.key === 'Enter') { e.preventDefault(); const b = $('#mlKeyGo'); if (b) b.click(); } });
+document.addEventListener('keydown', (e) => { if (e.target && e.target.id === 'mlCoachQ' && e.key === 'Enter') { e.preventDefault(); const b = $('#mlCoachGo'); if (b) b.click(); } });
 // header shortcut: one tap to Meals from anywhere
 (function mlHeaderBtn() {
   const sb = $('#shiftBtn'); if (!sb || $('#mlBtn')) return;

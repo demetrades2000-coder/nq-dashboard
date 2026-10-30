@@ -2823,6 +2823,9 @@ function route() {
   else if (h === 'plan-week') { goToday(); openPlanWeek(); }
   else if (h === 'new-event') { goToday(); newEvent(todayKey()); }
   else if (h === 'shifts') { goToday(); openShifts(); }
+  else if (h === 'find-food') { goToday(); fdPicker({ browse: true, cta: 'Done' }).then((x) => { if (x) toast(`${x.food.name}: ${x.kcal} kcal, P ${x.p} g, C ${x.c} g, F ${x.f} g`); }); }
+  else if (h === 'food-goals') { goToday(); ngOpen(); }
+  else if (h === 'food-week') { goToday(); nwOpen(); }
   else if (h === 'week-balance') { goToday(); openWeekBal(); }
   else if (h === 'earnings') { goToday(); openEarn(); }
   else if (h === 'bills') { goToday(); openBills(); }
@@ -5716,6 +5719,866 @@ document.addEventListener('click', (e) => {
 });
 document.addEventListener('keydown', (e) => { if (e.target && e.target.id === 'mlKeyQuick' && e.key === 'Enter') { e.preventDefault(); const b = $('#mlKeyGo'); if (b) b.click(); } });
 // ===== MEALS END =====
+// ===== FOODDB BEGIN: food lookup (Open Food Facts + offline starter list), barcode scanner and the "Find a food" picker (reads/writes synced `myfoods`) =====
+// All numbers in the built-in list are rough estimates for typical foods, not lab values. Online data is whatever Open Food Facts has.
+const FD_OFF = 'https://world.openfoodfacts.org';
+const FD_FIELDS = 'code,product_name,brands,nutriments,serving_size,serving_quantity';
+const FD_CACHE_KEY = 'planner.fdcache', FD_CACHE_MAX = 200;
+const FD_ZXING = { src: 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js', sri: 'sha384-BzBxP10ZE72aitqj5UMmUsbKFliP/DZqA8Wq+BNNhlIJDGoEd1tpkMYXOg9+n6sB' };
+// name | kcal | protein | carbs | fat per 100 g | serving label | serving grams
+const FD_RAW = `Egg, whole, cooked|155|13|1.1|11|1 large egg (50 g)|50
+Egg white, cooked|52|11|0.7|0.2|1 large white (33 g)|33
+Scrambled eggs|148|10|1.6|11|2 eggs (120 g)|120
+Chicken breast, cooked|165|31|0|3.6|1 breast (120 g)|120
+Chicken thigh, cooked|209|26|0|11|1 thigh (90 g)|90
+Chicken wings, fried|290|27|0|19|4 wings (100 g)|100
+Chicken nuggets|296|15|17|18|6 pieces (100 g)|100
+Fried chicken, thigh|270|18|10|17|1 piece (130 g)|130
+Chicken sandwich|250|13|28|9|1 sandwich (200 g)|200
+Ground beef 85%, cooked|250|26|0|15|4 oz (113 g)|113
+Steak, sirloin, cooked|206|29|0|9|6 oz (170 g)|170
+Steak, ribeye, cooked|291|24|0|22|8 oz (225 g)|225
+Pork chop, cooked|231|26|0|14|1 chop (130 g)|130
+Bacon, cooked|541|37|1.4|42|2 slices (16 g)|16
+Sausage link, cooked|301|12|2|27|1 link (50 g)|50
+Ham, deli|107|17|1.5|3.5|2 slices (56 g)|56
+Turkey breast, deli|104|17|4|2|4 slices (56 g)|56
+Hot dog with bun|290|10|24|17|1 hot dog (100 g)|100
+Salmon, cooked|206|22|0|12|1 fillet (150 g)|150
+Tuna, canned in water|116|26|0|1|1 can drained (110 g)|110
+Shrimp, cooked|99|24|0.2|0.3|6 large (85 g)|85
+Cod, cooked|105|23|0|0.9|1 fillet (140 g)|140
+Tilapia, cooked|128|26|0|2.7|1 fillet (115 g)|115
+Milk, whole|61|3.2|4.8|3.3|1 cup (244 g)|244
+Milk, 2%|50|3.3|4.8|2|1 cup (244 g)|244
+Milk, skim|34|3.4|5|0.1|1 cup (245 g)|245
+Almond milk, unsweetened|15|0.6|0.3|1.2|1 cup (240 g)|240
+Oat milk|48|1|6.7|1.5|1 cup (240 g)|240
+Greek yogurt, plain nonfat|59|10|3.6|0.4|1 container (170 g)|170
+Yogurt, fruit|99|3.7|17|1.4|1 cup (170 g)|170
+Cheddar cheese|403|25|1.3|33|1 slice (28 g)|28
+Mozzarella cheese|280|28|3|17|1 oz (28 g)|28
+Cottage cheese|98|11|3.4|4.3|1/2 cup (113 g)|113
+Cream cheese|342|6|4|34|2 tbsp (30 g)|30
+Butter|717|0.9|0.1|81|1 tbsp (14 g)|14
+Whey protein powder|400|80|8|6|1 scoop (30 g)|30
+Ice cream, vanilla|207|3.5|24|11|1/2 cup (66 g)|66
+White rice, cooked|130|2.7|28|0.3|1 cup (158 g)|158
+Brown rice, cooked|123|2.7|26|1|1 cup (195 g)|195
+Oats, dry|379|13|67|6.5|1/2 cup (40 g)|40
+Oatmeal, cooked|71|2.5|12|1.5|1 cup (234 g)|234
+Pasta, cooked|158|5.8|31|0.9|1 cup (140 g)|140
+Quinoa, cooked|120|4.4|21|1.9|1 cup (185 g)|185
+Bread, white|265|9|49|3.2|1 slice (30 g)|30
+Bread, whole wheat|247|13|41|3.4|1 slice (32 g)|32
+Bagel|257|10|50|1.6|1 bagel (100 g)|100
+Flour tortilla|310|8|52|8|1 medium (45 g)|45
+Corn tortilla|218|5.7|45|2.9|1 tortilla (26 g)|26
+Breakfast cereal, corn or oat|380|8|80|3|1 cup (30 g)|30
+Granola|471|10|64|20|1/2 cup (60 g)|60
+Pancakes|227|6|28|10|2 pancakes (150 g)|150
+Waffle|291|8|33|14|1 waffle (75 g)|75
+Croissant|406|8|46|21|1 croissant (57 g)|57
+Muffin, blueberry|377|5|54|16|1 muffin (113 g)|113
+Potato, baked|93|2.5|21|0.1|1 medium (173 g)|173
+Sweet potato, baked|90|2|21|0.2|1 medium (130 g)|130
+French fries|312|3.4|41|15|1 medium order (117 g)|117
+Mashed potatoes|105|2|16|4|1 cup (210 g)|210
+Hash browns|265|2.7|28|16|1 patty (60 g)|60
+Potato chips|536|7|53|35|1 oz (28 g)|28
+Pretzels|380|10|80|3|1 oz (28 g)|28
+Popcorn, air-popped|387|13|78|4.5|3 cups (24 g)|24
+Crackers, saltine|421|9|74|9|5 crackers (15 g)|15
+Rice cake|387|8|82|3|1 cake (9 g)|9
+Banana|89|1.1|23|0.3|1 medium (118 g)|118
+Apple|52|0.3|14|0.2|1 medium (182 g)|182
+Orange|47|0.9|12|0.1|1 medium (131 g)|131
+Strawberries|32|0.7|7.7|0.3|1 cup (152 g)|152
+Blueberries|57|0.7|14|0.3|1 cup (148 g)|148
+Grapes|69|0.7|18|0.2|1 cup (151 g)|151
+Watermelon|30|0.6|7.6|0.2|1 cup (152 g)|152
+Pineapple|50|0.5|13|0.1|1 cup (165 g)|165
+Mango|60|0.8|15|0.4|1 cup (165 g)|165
+Peach|39|0.9|10|0.3|1 medium (150 g)|150
+Pear|57|0.4|15|0.1|1 medium (178 g)|178
+Avocado|160|2|9|15|1/2 avocado (100 g)|100
+Raisins|299|3.1|79|0.5|1 small box (43 g)|43
+Orange juice|45|0.7|10|0.2|1 cup (248 g)|248
+Apple juice|46|0.1|11|0.1|1 cup (248 g)|248
+Broccoli, cooked|35|2.4|7|0.4|1 cup (156 g)|156
+Spinach, raw|23|2.9|3.6|0.4|2 cups (60 g)|60
+Carrots|41|0.9|10|0.2|1 medium (61 g)|61
+Tomato|18|0.9|3.9|0.2|1 medium (123 g)|123
+Lettuce, romaine|17|1.2|3.3|0.3|2 cups (94 g)|94
+Cucumber|15|0.7|3.6|0.1|1/2 cucumber (150 g)|150
+Onion|40|1.1|9.3|0.1|1/2 medium (55 g)|55
+Bell pepper|31|1|6|0.3|1 medium (120 g)|120
+Green beans, cooked|35|1.9|7.9|0.3|1 cup (125 g)|125
+Corn, cooked|96|3.4|21|1.5|1 cup (154 g)|154
+Mushrooms|22|3.1|3.3|0.3|1 cup (70 g)|70
+Peas, cooked|81|5.4|14|0.4|1/2 cup (80 g)|80
+Black beans, cooked|132|8.9|24|0.5|1/2 cup (86 g)|86
+Chickpeas, cooked|164|8.9|27|2.6|1/2 cup (82 g)|82
+Lentils, cooked|116|9|20|0.4|1/2 cup (99 g)|99
+Peanut butter|588|25|20|50|2 tbsp (32 g)|32
+Almonds|579|21|22|50|1 oz (28 g)|28
+Walnuts|654|15|14|65|1 oz (28 g)|28
+Cashews|553|18|30|44|1 oz (28 g)|28
+Peanuts|567|26|16|49|1 oz (28 g)|28
+Hummus|166|8|14|10|2 tbsp (30 g)|30
+Tofu, firm|144|17|3|9|3 oz (85 g)|85
+Chia seeds|486|17|42|31|1 tbsp (12 g)|12
+Olive oil|884|0|0|100|1 tbsp (14 g)|14
+Mayonnaise|680|1|0.6|75|1 tbsp (14 g)|14
+Ketchup|101|1|27|0.1|1 tbsp (17 g)|17
+Ranch dressing|430|1|6|45|2 tbsp (30 g)|30
+Honey|304|0.3|82|0|1 tbsp (21 g)|21
+Sugar|387|0|100|0|1 tsp (4 g)|4
+Jam|250|0.4|65|0.1|1 tbsp (20 g)|20
+Maple syrup|260|0|67|0.1|2 tbsp (40 g)|40
+Chocolate hazelnut spread|539|6|58|31|2 tbsp (37 g)|37
+Pizza slice, cheese|266|11|33|10|1 slice (107 g)|107
+Pizza slice, pepperoni|298|12|34|13|1 slice (113 g)|113
+Hamburger|250|13|31|9|1 burger (110 g)|110
+Cheeseburger|268|14|23|13|1 burger (150 g)|150
+Double cheeseburger|280|16|19|16|1 burger (220 g)|220
+Burrito, chicken rice beans|190|8|24|6|1 burrito (300 g)|300
+Burrito bowl (chicken, rice, beans, salsa)|150|10|16|5|1 bowl (450 g)|450
+Taco, beef, hard shell|226|11|16|13|1 taco (80 g)|80
+Quesadilla, cheese|290|13|26|15|1 quesadilla (180 g)|180
+Sub sandwich, turkey 6 inch|160|10|22|4|1 sub (230 g)|230
+Grilled cheese sandwich|330|12|28|19|1 sandwich (130 g)|130
+Caesar salad with chicken|130|10|6|8|1 bowl (300 g)|300
+Macaroni and cheese|164|7|19|7|1 cup (200 g)|200
+Spaghetti with meat sauce|140|7|17|5|1 plate (350 g)|350
+Lasagna|135|8|13|6|1 piece (250 g)|250
+Fried rice|163|4.5|25|5|1 cup (200 g)|200
+Sushi roll, California|140|3|26|2|6 pieces (170 g)|170
+Ramen noodles, prepared|100|3|14|3.5|1 bowl (500 g)|500
+Pad thai|170|8|22|6|1 plate (300 g)|300
+Chicken noodle soup|36|2.5|4.5|1|1 cup (248 g)|248
+Tomato soup|50|1|10|1|1 cup (248 g)|248
+Chili with beans|100|8|10|3.5|1 cup (250 g)|250
+Donut, glazed|421|5|49|23|1 donut (60 g)|60
+Chocolate chip cookie|488|5|64|24|1 cookie (30 g)|30
+Brownie|466|5|60|24|1 brownie (56 g)|56
+Chocolate bar, milk|535|7.7|59|30|1 bar (43 g)|43
+Chocolate, dark|546|5|60|31|1 oz (28 g)|28
+Chocolate cake|371|4|53|16|1 slice (95 g)|95
+Cheesecake|321|5.5|26|23|1 slice (125 g)|125
+Granola bar|471|7|64|20|1 bar (28 g)|28
+Protein bar|350|33|35|10|1 bar (60 g)|60
+Coffee, black|1|0.1|0|0|1 cup (240 g)|240
+Latte, whole milk|54|3|5|2.5|16 oz (480 g)|480
+Cola|42|0|10.6|0|1 can 12 oz (355 g)|355
+Diet soda|0|0|0|0|1 can 12 oz (355 g)|355
+Beer|43|0.5|3.6|0|1 bottle 12 oz (356 g)|356
+Wine, red|85|0.1|2.6|0|1 glass 5 oz (148 g)|148
+Whiskey|250|0|0|0|1 shot 1.5 oz (42 g)|42
+Sports drink|26|0|6.4|0|20 oz (591 g)|591
+Energy drink|45|0|11|0|1 can 16 oz (473 g)|473
+Fruit smoothie|65|1|15|0.5|16 oz (480 g)|480
+Protein shake, ready to drink|55|9|3|1.5|1 bottle (330 g)|330`;
+const FD_BASE = FD_RAW.split('\n').map((l) => {
+  const a = l.split('|'); return { name: a[0], kcal: +a[1], p: +a[2], c: +a[3], f: +a[4], label: a[5], grams: +a[6] };
+});
+let fdMem = new Map(); // barcode -> FOOD (this session)
+const fdNum = (v) => { const n = typeof v === 'number' ? v : parseFloat(v); return Number.isFinite(n) ? n : null; };
+const fdR1 = (n) => Math.round((+n || 0) * 10) / 10;
+const fdR2 = (n) => Math.round((+n || 0) * 100) / 100;
+const fdFmt = (n) => (Math.round((+n || 0) * 10) / 10).toLocaleString('en-US', { maximumFractionDigits: 1 });
+// Build a FOOD from per-100 g values and a serving. grams 0 means "serving size unknown" (the grams toggle is off then).
+function fdMake(name, brand, barcode, per100, label, grams, perServing) {
+  const g = grams > 0 ? grams : 0;
+  const ps = perServing || (g ? { kcal: per100.kcal * g / 100, p: per100.p * g / 100, c: per100.c * g / 100, f: per100.f * g / 100 } : { ...per100 });
+  const f = {
+    name: String(name || '').trim(), brand: String(brand || '').trim(), serving: { label: label || (g ? `${fdFmt(g)} g` : '1 serving'), grams: g },
+    per100: { kcal: Math.round(per100.kcal), p: fdR1(per100.p), c: fdR1(per100.c), f: fdR1(per100.f) },
+    perServing: { kcal: Math.round(ps.kcal), p: fdR1(ps.p), c: fdR1(ps.c), f: fdR1(ps.f) },
+  };
+  if (per100.fiber != null) f.per100.fiber = fdR1(per100.fiber);
+  if (barcode) f.barcode = String(barcode);
+  return f;
+}
+// Open Food Facts product -> FOOD (or null when it has no name or no usable calories). kcal: energy-kcal_100g, else energy_100g (kJ) / 4.184,
+// else (only when allowEstimate) 4 p + 4 c + 9 f.
+function fdFromOff(pr, allowEstimate) {
+  if (!pr || typeof pr !== 'object') return null;
+  const n = pr.nutriments || {}, name = String(pr.product_name || pr.product_name_en || '').trim(); if (!name) return null;
+  const p = fdNum(n.proteins_100g), c = fdNum(n.carbohydrates_100g), f = fdNum(n.fat_100g);
+  let kcal = fdNum(n['energy-kcal_100g']);
+  if (kcal == null) { const kj = fdNum(n.energy_100g); if (kj != null) kcal = kj / 4.184; }
+  if (kcal == null && allowEstimate && p != null && c != null && f != null) kcal = 4 * p + 4 * c + 9 * f;
+  if (kcal == null || !(kcal >= 0) || (kcal === 0 && p == null && c == null && f == null)) return null;
+  const per100 = { kcal, p: p || 0, c: c || 0, f: f || 0 }, fb = fdNum(n.fiber_100g); if (fb != null) per100.fiber = fb;
+  const size = String(pr.serving_size || '').trim(); let g = fdNum(pr.serving_quantity);
+  if (!(g > 0)) { const m = /(\d+(?:[.,]\d+)?)\s*g\b/i.exec(size); g = m ? parseFloat(m[1].replace(',', '.')) : 0; }
+  if (!(g > 0) || g > 2000) { g = 100; return fdMake(name, String(pr.brands || '').split(',')[0], pr.code, per100, '100 g', 100); }
+  return fdMake(name, String(pr.brands || '').split(',')[0], pr.code, per100, size || `${fdFmt(g)} g`, g);
+}
+function fdCacheRead() { try { const o = JSON.parse(localStorage.getItem(FD_CACHE_KEY) || '{}'); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } }
+function fdCacheWrite(code, food) {
+  fdMem.set(code, food);
+  try {
+    const o = fdCacheRead(); o[code] = { t: Date.now(), food };
+    const ks = Object.keys(o); if (ks.length > FD_CACHE_MAX) ks.sort((a, b) => (o[a].t || 0) - (o[b].t || 0)).slice(0, ks.length - FD_CACHE_MAX).forEach((k) => { delete o[k]; });
+    localStorage.setItem(FD_CACHE_KEY, JSON.stringify(o));
+  } catch (e) { /* storage may be blocked or full */ }
+}
+async function fdGet(url) { // JSON with an 8 second timeout; throws on any failure
+  const ac = new AbortController(), t = setTimeout(() => ac.abort(), 8000);
+  try { const r = await fetch(url, { signal: ac.signal, headers: { Accept: 'application/json' } }); if (!r.ok) throw new Error('http ' + r.status); return await r.json(); } finally { clearTimeout(t); }
+}
+const fdGtinOk = (s) => { // GTIN check digit (EAN-13, UPC-A, EAN-8, ITF-14)
+  if (!/^\d{8}$|^\d{12,14}$/.test(s)) return false;
+  let sum = 0; for (let i = s.length - 2, w = 3; i >= 0; i--, w = 4 - w) sum += (+s[i]) * w;
+  return (10 - (sum % 10)) % 10 === +s[s.length - 1];
+};
+// Look up one barcode. Saved foods with that barcode answer first (works offline), then the cache, then Open Food Facts. Never throws.
+async function fdLookup(barcode) {
+  const code = String(barcode || '').replace(/\D/g, ''); if (code.length < 6 || code.length > 14) return null;
+  const mine = S.myfoods.find((m) => m && m.barcode === code); if (mine) return fdFromMy(mine);
+  if (fdMem.has(code)) return fdMem.get(code);
+  const c = fdCacheRead()[code]; if (c && c.food && c.food.name) { fdMem.set(code, c.food); return c.food; }
+  try {
+    const j = await fdGet(`${FD_OFF}/api/v2/product/${encodeURIComponent(code)}.json?fields=${FD_FIELDS}`);
+    if (!j || j.status !== 1 || !j.product) return null;
+    const food = fdFromOff({ code, ...j.product }, true); if (!food) return null;
+    food.barcode = code; fdCacheWrite(code, food); return food;
+  } catch (e) { return null; }
+}
+// Search Open Food Facts by words. Resolves [] on any failure. Products without calories are dropped.
+async function fdSearch(q) {
+  q = String(q || '').trim(); if (q.length < 2) return [];
+  try {
+    const j = await fdGet(`${FD_OFF}/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=${FD_FIELDS}`);
+    const seen = new Set(), out = [];
+    for (const pr of (j && Array.isArray(j.products) ? j.products : [])) {
+      const f = fdFromOff(pr, false); if (!f) continue;
+      const k = (f.name + '|' + f.brand).toLowerCase(); if (seen.has(k)) continue; seen.add(k); out.push(f);
+    }
+    return out;
+  } catch (e) { return []; }
+}
+// A saved food (S.myfoods item: values per serving) as a FOOD. Grams come from per100 or from "(30 g)" in the label; 0 when unknown.
+function fdFromMy(m) {
+  const kcal = +m.kcal || 0, p = +m.p || 0, c = +m.c || 0, f = +m.f || 0, label = m.serving || '1 serving';
+  let grams = 0;
+  if (m.per100 && +m.per100.kcal > 0 && kcal > 0) grams = Math.round(kcal / m.per100.kcal * 1000) / 10;
+  else { const g = /(\d+(?:[.,]\d+)?)\s*g\b/i.exec(label); if (g) grams = parseFloat(g[1].replace(',', '.')); }
+  const per100 = m.per100 && +m.per100.kcal >= 0 && m.per100.kcal != null ? { kcal: +m.per100.kcal, p: +m.per100.p || 0, c: +m.per100.c || 0, f: +m.per100.f || 0 } : grams ? { kcal: kcal * 100 / grams, p: p * 100 / grams, c: c * 100 / grams, f: f * 100 / grams } : { kcal, p, c, f };
+  const food = fdMake(m.name, m.brand, m.barcode, per100, label, grams, { kcal, p, c, f });
+  food.my = m.id; if (m.fav) food.fav = true;
+  return food;
+}
+const fdBase = () => FD_BASE.map((b) => fdMake(b.name, '', '', { kcal: b.kcal, p: b.p, c: b.c, f: b.f }, b.label, b.grams));
+let fdBaseList = null;
+function fdLev1(a, b) { // true when a and b differ by at most one edit
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0, j = 0, e = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i++; j++; continue; }
+    if (++e > 1) return false;
+    if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
+  }
+  return e + (a.length - i) + (b.length - j) <= 1;
+}
+function fdScore(name, brand, toks) {
+  const hay = (name + ' ' + (brand || '')).toLowerCase(), words = hay.split(/[^a-z0-9]+/).filter(Boolean); let s = 0;
+  for (const t of toks) {
+    let best = 0;
+    for (const w of words) {
+      if (w === t) best = Math.max(best, 4); else if (w.startsWith(t)) best = Math.max(best, 3);
+      else if (t.length >= 4 && (fdLev1(w, t) || fdLev1(w.slice(0, t.length), t))) best = Math.max(best, 1);
+    }
+    if (!best && hay.includes(t)) best = 2;
+    if (!best) return -1;
+    s += best;
+  }
+  if (words[0] && toks.length && words[0].startsWith(toks[0])) s += 1;
+  return s - name.length / 200;
+}
+// Offline search over saved foods and the built-in list. Favorites and most-used saved foods come first; saved foods hide a built-in of the same name.
+function fdLocal(q, limit = 20) {
+  const toks = String(q || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).map((t) => (t.length > 3 && t.endsWith('s') && !t.endsWith('ss') ? t.slice(0, -1) : t));
+  if (!toks.length) return [];
+  if (!fdBaseList) fdBaseList = fdBase();
+  const out = [], names = new Set();
+  for (const m of S.myfoods) {
+    if (!m || !m.name) continue;
+    const sc = fdScore(m.name, m.brand, toks); if (sc < 0) continue;
+    names.add((m.name + '|' + (m.brand || '')).toLowerCase());
+    out.push({ sc: sc + 2 + (m.fav ? 6 : 0) + Math.min(+m.used || 0, 10) * 0.4, food: fdFromMy(m) });
+  }
+  for (const f of fdBaseList) {
+    if (names.has((f.name + '|').toLowerCase())) continue;
+    const sc = fdScore(f.name, '', toks); if (sc >= 0) out.push({ sc, food: f });
+  }
+  return out.sort((a, b) => b.sc - a.sc).slice(0, limit).map((x) => x.food);
+}
+const fdRecent = (n = 12) => S.myfoods.filter((m) => m && m.name && (+m.used || 0) > 0).sort((a, b) => (b.last || 0) - (a.last || 0)).slice(0, n).map(fdFromMy);
+const fdFavs = () => S.myfoods.filter((m) => m && m.name && m.fav).sort((a, b) => (+b.used || 0) - (+a.used || 0) || a.name.localeCompare(b.name)).map(fdFromMy);
+function fdFind(food) { // the S.myfoods item that matches this FOOD, if any
+  if (food.my) { const m = S.myfoods.find((x) => x.id === food.my); if (m) return m; }
+  if (food.barcode) { const m = S.myfoods.find((x) => x.barcode === food.barcode); if (m) return m; }
+  const k = (food.name + '|' + (food.brand || '')).toLowerCase();
+  return S.myfoods.find((x) => x && (x.name + '|' + (x.brand || '')).toLowerCase() === k) || null;
+}
+function fdSaveItem(food, patch) { // find or create the saved food, then merge patch (a function for counters)
+  commit(() => {
+    let m = fdFind(food);
+    if (!m) {
+      m = { id: 'f' + uid(), name: food.name, brand: food.brand || '', kcal: food.perServing.kcal, p: food.perServing.p, c: food.perServing.c, f: food.perServing.f, serving: food.serving.label, per100: { ...food.per100 }, used: 0, last: 0, fav: false };
+      if (food.barcode) m.barcode = food.barcode;
+      S.myfoods.push(m);
+    }
+    food.my = m.id; Object.assign(m, typeof patch === 'function' ? patch(m) : patch);
+  });
+}
+// Count a use: used + 1, last = now. Creates the saved food the first time. Call this when a food ends up in the log.
+function fdTouch(food) { if (food && food.name && food.perServing) fdSaveItem(food, (m) => ({ used: (+m.used || 0) + 1, last: Date.now() })); }
+function fdToggleFav(food) { let on = false; fdSaveItem(food, (m) => { on = !m.fav; return { fav: on }; }); food.fav = on; return on; }
+// Scale a FOOD: fdScale(food, {qty: 1.5}) or fdScale(food, {grams: 200}). Macros: kcal whole number, grams one decimal.
+function fdScale(food, o = {}) {
+  const g100 = food.serving.grams;
+  let qty, grams;
+  if (o.grams != null && g100 > 0) { grams = Math.max(0, +o.grams || 0); qty = grams / g100; } else { qty = Math.max(0, o.qty != null ? +o.qty : 1); grams = g100 > 0 ? qty * g100 : 0; }
+  const k = g100 > 0 ? grams / 100 : 0, src = g100 > 0 ? food.per100 : null, ps = food.perServing;
+  const v = (key) => (src ? src[key] * k : ps[key] * qty);
+  return { food, qty: fdR2(qty), grams: Math.round(grams * 10) / 10, kcal: Math.round(v('kcal')), p: fdR1(v('p')), c: fdR1(v('c')), f: fdR1(v('f')) };
+}
+
+// ---- barcode scanner ----
+document.head.insertAdjacentHTML('beforeend', `<style>
+#fdScanDlg{width:100vw;max-width:none;height:100dvh;max-height:none;border-radius:0;background:#000;color:#fff;margin:0;overflow:hidden;box-shadow:none}
+#fdScanDlg[open]{display:flex;flex-direction:column}
+#fdScanDlg video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+.fd-sc-top{position:relative;z-index:2;display:flex;align-items:center;gap:10px;padding:max(14px,env(safe-area-inset-top)) 16px 10px}
+.fd-sc-top h3{flex:1;font-size:17px;font-weight:600}
+.fd-sc-top .ib{color:#fff;background:rgba(255,255,255,.16);border-radius:50%}
+.fd-sc-mid{position:relative;z-index:1;flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
+.fd-frame{position:relative;width:min(78vw,340px);height:min(40vw,170px);min-height:120px;border-radius:14px;box-shadow:0 0 0 100vmax rgba(0,0,0,.45)}
+.fd-frame i{position:absolute;width:26px;height:26px;border:3px solid #fff}
+.fd-frame i:nth-child(1){top:-2px;left:-2px;border-right:0;border-bottom:0;border-top-left-radius:14px}.fd-frame i:nth-child(2){top:-2px;right:-2px;border-left:0;border-bottom:0;border-top-right-radius:14px}
+.fd-frame i:nth-child(3){bottom:-2px;left:-2px;border-right:0;border-top:0;border-bottom-left-radius:14px}.fd-frame i:nth-child(4){bottom:-2px;right:-2px;border-left:0;border-top:0;border-bottom-right-radius:14px}
+.fd-frame b{position:absolute;left:8px;right:8px;top:8%;height:2px;background:#ef4444;box-shadow:0 0 10px #ef4444;border-radius:2px;animation:fdscan 1.8s ease-in-out infinite alternate}
+@keyframes fdscan{to{top:90%}}
+@media (prefers-reduced-motion:reduce){.fd-frame b{animation:none;top:50%}}
+.fd-sc-bot{position:relative;z-index:2;padding:12px 16px max(16px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;background:linear-gradient(transparent,rgba(0,0,0,.75) 30%)}
+#fdScanMsg{font-size:14px;line-height:1.4;text-align:center;min-height:20px;color:#fff;overflow-wrap:anywhere}
+#fdScanMsg.bad{color:#fecaca}
+.fd-sc-man{display:flex;gap:8px}.fd-sc-man input{flex:1;min-width:0;height:44px;border-radius:10px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.12);color:#fff;padding:0 12px;font-size:16px;outline:none}
+.fd-sc-man input::placeholder{color:rgba(255,255,255,.65)}.fd-sc-man button{height:44px;padding:0 16px;border-radius:10px;background:#fff;color:#111827;font-weight:600}
+/* picker */
+#fdDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}#fdDlg input,#fdDlg select{font-size:16px}
+.fd-bar{display:flex;gap:8px}.fd-bar input{flex:1;min-width:0;height:44px;border:1px solid var(--line);border-radius:10px;padding:0 12px;background:#fff;outline:none}.fd-bar input:focus{border-color:var(--ink)}
+.fd-bar button{height:44px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.fd-h{font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.04em;margin:6px 0 2px}
+.fd-row{display:flex;align-items:stretch;border-top:1px solid var(--line2)}
+.fd-row .fd-pick{flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;text-align:left;padding:9px 4px;align-items:baseline}
+.fd-row b{font-weight:500;overflow-wrap:anywhere}.fd-row small{color:var(--mute);font-size:12px;overflow-wrap:anywhere}.fd-row .n{grid-row:1/3;grid-column:2;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.fd-star{width:40px;flex:none;color:var(--faint);display:inline-flex;align-items:center;justify-content:center}.fd-star[aria-pressed=true]{color:#d97706}
+.fd-note{font-size:13px;color:var(--mute);line-height:1.4}
+.fd-seg{display:flex;gap:6px}.fd-seg button{flex:1;height:36px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:14px;font-weight:500}.fd-seg button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+.fd-step{display:flex;gap:8px;align-items:center}.fd-step button{width:44px;height:44px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:20px}
+.fd-step input{flex:1;min-width:0;height:44px;border:1px solid var(--line);border-radius:10px;text-align:center;font-weight:600;outline:none}
+.fd-out{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.fd-out div{border:1px solid var(--line);border-radius:10px;padding:8px 4px;text-align:center}
+.fd-out b{display:block;font-size:17px;font-variant-numeric:tabular-nums}.fd-out span{font-size:11px;color:var(--mute)}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="fdScanDlg" aria-label="Scan a barcode">
+  <video id="fdVideo" playsinline muted autoplay></video>
+  <div class="fd-sc-top"><h3>Scan a barcode</h3><button type="button" class="ib" id="fdScanX" aria-label="Close scanner"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="fd-sc-mid"><div class="fd-frame" aria-hidden="true"><i></i><i></i><i></i><i></i><b></b></div></div>
+  <div class="fd-sc-bot"><div id="fdScanMsg" role="status" aria-live="polite">Starting the camera</div>
+    <form class="fd-sc-man" id="fdScanForm"><input id="fdScanNum" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="Or type the number" aria-label="Barcode number"><button type="submit">Look up</button></form></div>
+</dialog>
+<dialog id="fdDlg" aria-labelledby="fdTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="fdTitle">Find a food</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="fdBody" style="display:flex;flex-direction:column;gap:12px"></div>
+</div></dialog>`);
+const fdScanDlg = $('#fdScanDlg'), fdDlg = $('#fdDlg');
+let fdScanRes = null, fdScanOut = null, fdStream = null, fdScanT = 0, fdScanRun = 0, fdDet = null, fdZx = null;
+const fdScanMsg = (t, bad) => { const m = $('#fdScanMsg'); m.textContent = t; m.classList.toggle('bad', !!bad); };
+function fdScanStop() {
+  fdScanRun++; clearTimeout(fdScanT);
+  if (fdStream) { fdStream.getTracks().forEach((t) => { try { t.stop(); } catch (e) { /* gone */ } }); fdStream = null; }
+  const v = $('#fdVideo'); try { v.pause(); v.srcObject = null; } catch (e) { /* none */ }
+}
+function fdLoadZx() {
+  if (window.ZXing && window.ZXing.MultiFormatReader) return Promise.resolve(window.ZXing);
+  return new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = FD_ZXING.src; s.integrity = FD_ZXING.sri; s.crossOrigin = 'anonymous';
+    s.onload = () => (window.ZXing ? res(window.ZXing) : rej(new Error('zxing'))); s.onerror = () => rej(new Error('zxing')); document.head.appendChild(s);
+  });
+}
+function fdScanHit(code) { // a camera read or typed number: close the scanner and hand the code back
+  if (!fdScanDlg.open) return;
+  try { navigator.vibrate && navigator.vibrate(30); } catch (e) { /* none */ }
+  fdScanOut = code; fdScanDlg.close();
+}
+async function fdScanStart() {
+  const run = ++fdScanRun;
+  if (!window.isSecureContext) return fdScanMsg('The camera only works on a secure (https) page. Type the number below instead.', true);
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return fdScanMsg('This browser cannot open the camera. Type the number below instead.', true);
+  try {
+    fdStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+  } catch (e) {
+    if (run !== fdScanRun) return;
+    const n = e && e.name;
+    return fdScanMsg(n === 'NotAllowedError' || n === 'SecurityError' ? 'Camera permission is off. Allow the camera for this page in Settings, or type the number below.' : n === 'NotFoundError' || n === 'OverconstrainedError' ? 'No camera found. Type the number below instead.' : 'The camera would not start. Type the number below instead.', true);
+  }
+  if (run !== fdScanRun || !fdScanDlg.open) { fdScanStop(); return; }
+  const v = $('#fdVideo'); v.srcObject = fdStream; v.muted = true; v.setAttribute('playsinline', '');
+  try { await v.play(); } catch (e) { /* autoplay will start it */ }
+  fdScanMsg('Point the camera at the barcode');
+  fdDet = null;
+  if ('BarcodeDetector' in window) { try { fdDet = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e'] }); } catch (e) { fdDet = null; } }
+  let zx = null, reader = null; const cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
+  if (!fdDet) {
+    try {
+      zx = await fdLoadZx(); if (run !== fdScanRun) return;
+      const hints = new Map(); hints.set(zx.DecodeHintType.POSSIBLE_FORMATS, [zx.BarcodeFormat.EAN_13, zx.BarcodeFormat.EAN_8, zx.BarcodeFormat.UPC_A, zx.BarcodeFormat.UPC_E]); hints.set(zx.DecodeHintType.TRY_HARDER, true);
+      reader = new zx.MultiFormatReader(); reader.setHints(hints);
+    } catch (e) { if (run === fdScanRun) fdScanMsg('The scanner could not load (are you offline?). Type the number below instead.', true); return; }
+  }
+  const ok = (code, fmt) => /^\d{8,14}$/.test(code) && (fmt === 'upc_e' || fdGtinOk(code));
+  const tick = async () => {
+    if (run !== fdScanRun || !fdScanDlg.open) return;
+    try {
+      if (v.readyState >= 2 && v.videoWidth) {
+        if (fdDet) {
+          const r = await fdDet.detect(v);
+          const hit = r.find((x) => ok(String(x.rawValue || ''), x.format)); if (hit) return fdScanHit(String(hit.rawValue));
+        } else {
+          const w = Math.min(720, v.videoWidth), h = Math.round(v.videoHeight * w / v.videoWidth); cv.width = w; cv.height = h; cx.drawImage(v, 0, 0, w, h);
+          try {
+            const res = reader.decodeWithState(new zx.BinaryBitmap(new zx.HybridBinarizer(new zx.HTMLCanvasElementLuminanceSource(cv))));
+            const code = String(res.getText()); if (ok(code, '')) return fdScanHit(code);
+          } catch (e) { /* nothing readable in this frame */ }
+        }
+      }
+    } catch (e) { /* detector hiccup: try the next frame */ }
+    fdScanT = setTimeout(tick, fdDet ? 120 : 180);
+  };
+  tick();
+}
+// Opens the scanner. Resolves the digits of a barcode (camera or typed), or null when it is closed.
+function fdScan() {
+  return new Promise((resolve) => {
+    if (fdScanRes) { fdScanRes(null); fdScanRes = null; }
+    fdScanRes = resolve; fdScanOut = null; $('#fdScanNum').value = ''; fdScanMsg('Starting the camera');
+    fdScanDlg.showModal(); fdScanStart();
+  });
+}
+fdScanDlg.addEventListener('close', () => { fdScanStop(); const r = fdScanRes, o = fdScanOut; fdScanRes = null; fdScanOut = null; if (r) r(o); });
+$('#fdScanX').onclick = () => fdScanDlg.close();
+$('#fdScanForm').onsubmit = (e) => {
+  e.preventDefault();
+  const c = $('#fdScanNum').value.replace(/\D/g, '');
+  if (c.length < 8 || c.length > 14) return fdScanMsg('Barcodes have 8 to 14 digits. Check the number under the bars.', true);
+  if (!fdGtinOk(c) && !(c.length === 8)) return fdScanMsg('That number does not pass the barcode check. Check the digits.', true);
+  fdScanHit(c);
+};
+
+// ---- the "Find a food" sheet ----
+let fdRes = null, fdOut = null, fdOpts = {}, fdSel = null, fdMode = 'srv', fdQty = 1, fdGrams = 100, fdQ = '', fdSeq = 0, fdOnT = 0, fdOn = { state: '', list: [] }, fdRows = [], fdScanBusy = false;
+const FD_STAR = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>';
+const FD_STAR0 = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>';
+function fdRow(food) {
+  const i = fdRows.push(food) - 1, sub = [food.brand, food.serving.label].filter(Boolean).join(' · ');
+  return `<div class="fd-row"><button type="button" class="fd-pick" data-fdi="${i}"><b>${esc(food.name)}</b><small>${esc(sub)}</small><span class="n">${food.perServing.kcal} kcal</span></button><button type="button" class="fd-star" data-fdfav="${i}" aria-pressed="${!!food.fav}" aria-label="${food.fav ? 'Remove from favorites' : 'Add to favorites'}">${food.fav ? FD_STAR : FD_STAR0}</button></div>`;
+}
+function fdPaintList() {
+  fdRows = []; const q = fdQ.trim(), box = $('#fdList'); if (!box) return;
+  let h = '';
+  if (!q) {
+    const fav = fdFavs(), rec = fdRecent().filter((r) => !fav.some((x) => x.my === r.my));
+    if (fav.length) h += `<div class="fd-h">Favorites</div>${fav.map(fdRow).join('')}`;
+    if (rec.length) h += `<div class="fd-h">Recent</div>${rec.map(fdRow).join('')}`;
+    if (!fav.length && !rec.length) h += `<div class="fd-note">Type a food, scan a barcode, or pick a common food. Foods you use show up here, and the star keeps your favorites on top.</div><div class="fd-h">Common foods</div>${['Egg, whole, cooked', 'Chicken breast, cooked', 'White rice, cooked', 'Banana', 'Oatmeal, cooked', 'Greek yogurt, plain nonfat', 'Pizza slice, cheese', 'Coffee, black'].map((n) => fdLocal(n, 1)[0]).filter(Boolean).map(fdRow).join('')}`;
+  } else {
+    const digits = q.replace(/\s/g, '');
+    if (/^\d{8,14}$/.test(digits)) h += `<div class="fd-row"><button type="button" class="fd-pick" data-fdcode="${digits}"><b>Look up barcode ${digits}</b><small>Open Food Facts</small></button></div>`;
+    const loc = fdLocal(q);
+    h += loc.length ? `<div class="fd-h">Your foods and common foods</div>${loc.map(fdRow).join('')}` : '';
+    if (q.length >= 2) {
+      if (fdOn.state === 'wait') h += '<div class="fd-note">Searching online</div>';
+      else if (fdOn.state === 'off') h += '<div class="fd-note">You appear to be offline, so only built-in and saved foods are shown.</div>';
+      else if (fdOn.state === 'done') {
+        const names = new Set(loc.map((x) => (x.name + '|' + x.brand).toLowerCase())), more = fdOn.list.filter((x) => !names.has((x.name + '|' + x.brand).toLowerCase()));
+        h += more.length ? `<div class="fd-h">Online (Open Food Facts)</div>${more.map(fdRow).join('')}` : loc.length ? '<div class="fd-note">No online matches.</div>' : '<div class="fd-note">Nothing found. Try fewer words, or add it by hand in the meal.</div>';
+      }
+    } else if (!loc.length) h += '<div class="fd-note">Keep typing.</div>';
+  }
+  box.innerHTML = h;
+}
+function fdPaintFind() {
+  $('#fdTitle').textContent = fdOpts.title || 'Find a food';
+  $('#fdBody').innerHTML = `<div class="fd-bar"><input id="fdQ" type="search" enterkeyhint="search" autocomplete="off" autocapitalize="none" placeholder="Search foods, e.g. chicken breast" aria-label="Search foods" value="${esc(fdQ)}"><button type="button" id="fdScanBtn" aria-label="Scan barcode"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7V5a1 1 0 011-1h2M17 4h2a1 1 0 011 1v2M20 17v2a1 1 0 01-1 1h-2M7 20H5a1 1 0 01-1-1v-2M8 8v8M12 8v8M16 8v8"/></svg>Scan barcode</button></div><div id="fdList"></div>`;
+  fdPaintList();
+}
+function fdPaintDetail() {
+  const f = fdSel, g = f.serving.grams > 0;
+  if (!g) fdMode = 'srv';
+  $('#fdTitle').textContent = 'Amount';
+  $('#fdBody').innerHTML = `<div style="display:flex;gap:8px;align-items:flex-start"><div style="flex:1;min-width:0"><b style="font-weight:600;overflow-wrap:anywhere">${esc(f.name)}</b><div class="fd-note">${esc([f.brand, '1 serving = ' + f.serving.label].filter(Boolean).join(' · '))}</div></div><button type="button" class="fd-star" id="fdDetFav" aria-pressed="${!!f.fav}" aria-label="${f.fav ? 'Remove from favorites' : 'Add to favorites'}">${f.fav ? FD_STAR : FD_STAR0}</button></div>
+  <div class="fd-seg" role="group" aria-label="Measure by"><button type="button" data-fdm="srv" aria-pressed="${fdMode === 'srv'}">Servings</button><button type="button" data-fdm="g" aria-pressed="${fdMode === 'g'}"${g ? '' : ' disabled title="Serving weight unknown"'}>Grams</button></div>
+  <div class="fd-step"><button type="button" data-fdstep="-1" aria-label="Less">&minus;</button><input id="fdAmt" type="number" inputmode="decimal" aria-label="${fdMode === 'srv' ? 'Servings' : 'Grams'}"><button type="button" data-fdstep="1" aria-label="More">+</button></div>
+  <div class="fd-out" id="fdOutBox"></div><div class="fd-note" id="fdOutSub"></div>
+  <div class="dlg-f"><button type="button" class="btn" id="fdBack">Back</button><span style="flex:1"></span><button type="button" class="btn primary" id="fdAdd">${esc(fdOpts.cta || 'Add')}</button></div>`;
+  const a = $('#fdAmt'); if (fdMode === 'srv') { a.min = '0.25'; a.max = '10'; a.step = '0.25'; a.value = fdQty; } else { a.min = '1'; a.max = '2000'; a.step = '1'; a.value = fdGrams; }
+  fdDetailUpdate();
+}
+const fdCur = () => (fdMode === 'srv' ? fdScale(fdSel, { qty: fdQty }) : fdScale(fdSel, { grams: fdGrams }));
+function fdDetailUpdate() {
+  const r = fdCur(); $('#fdOutBox').innerHTML = [[r.kcal, 'kcal'], [fdFmt(r.p), 'protein g'], [fdFmt(r.c), 'carbs g'], [fdFmt(r.f), 'fat g']].map((x) => `<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join('');
+  $('#fdOutSub').textContent = fdSel.serving.grams > 0 ? `${fdFmt(r.qty)} serving${r.qty === 1 ? '' : 's'} = ${fdFmt(r.grams)} g. Values are estimates.` : `${fdFmt(r.qty)} serving${r.qty === 1 ? '' : 's'}. Values are estimates.`;
+}
+function fdSetAmt(v) { // clamp and store the typed or stepped amount
+  if (fdMode === 'srv') fdQty = Math.min(10, Math.max(0.25, Math.round(v * 4) / 4 || 1)); else fdGrams = Math.min(2000, Math.max(1, Math.round(v) || 100));
+}
+function fdChoose(food, qty) { fdSel = food; fdMode = 'srv'; fdQty = qty || 1; fdGrams = food.serving.grams > 0 ? Math.round(food.serving.grams * fdQty) : 100; fdPaintDetail(); }
+function fdRunOnline() {
+  clearTimeout(fdOnT); const q = fdQ.trim(), seq = ++fdSeq;
+  if (q.length < 2 || /^\d{8,14}$/.test(q.replace(/\s/g, ''))) { fdOn = { state: '', list: [] }; return; }
+  if (navigator.onLine === false) { fdOn = { state: 'off', list: [] }; return; }
+  fdOn = { state: 'wait', list: [] };
+  fdOnT = setTimeout(async () => {
+    const list = await fdSearch(q);
+    if (seq !== fdSeq || !fdDlg.open || fdSel) return;
+    fdOn = { state: navigator.onLine === false && !list.length ? 'off' : 'done', list }; fdPaintList();
+  }, 350);
+}
+async function fdDoScan() {
+  if (fdScanBusy) return; fdScanBusy = true;
+  try {
+    const code = await fdScan(); if (!code || !fdDlg.open) return;
+    const food = await fdLookup(code); if (!fdDlg.open) return;
+    if (food) fdChoose(food, 1); else toast('Barcode ' + code + ' is not in the food database (or you are offline). Search by name instead.');
+  } finally { fdScanBusy = false; }
+}
+$('#fdBody').addEventListener('click', (e) => {
+  const t = e.target;
+  const fav = t.closest('[data-fdfav]');
+  if (fav) { const f = fdRows[+fav.dataset.fdfav]; if (f) { fdToggleFav(f); fdPaintList(); } return; }
+  const pick = t.closest('[data-fdi]'); if (pick) { const f = fdRows[+pick.dataset.fdi]; if (f) fdChoose(f, 1); return; }
+  const code = t.closest('[data-fdcode]'); if (code) { fdLookup(code.dataset.fdcode).then((f) => { if (!fdDlg.open) return; if (f) fdChoose(f, 1); else toast('Not found in the food database.'); }); return; }
+  if (t.closest('#fdScanBtn')) { fdDoScan(); return; }
+  if (t.closest('#fdDetFav')) { fdToggleFav(fdSel); fdPaintDetail(); return; }
+  const m = t.closest('[data-fdm]'); if (m && fdSel && !m.disabled) { fdMode = m.dataset.fdm; if (fdMode === 'g') fdGrams = Math.max(1, Math.round(fdSel.serving.grams * fdQty)); else fdQty = Math.min(10, Math.max(0.25, Math.round(fdGrams / fdSel.serving.grams * 4) / 4 || 1)); fdPaintDetail(); return; }
+  const st = t.closest('[data-fdstep]');
+  if (st && fdSel) { const a = $('#fdAmt'), d = +st.dataset.fdstep; fdSetAmt((+a.value || 0) + d * (fdMode === 'srv' ? 0.25 : fdGrams >= 100 ? 10 : 5)); a.value = fdMode === 'srv' ? fdQty : fdGrams; fdDetailUpdate(); return; }
+  if (t.closest('#fdBack')) { fdSel = null; fdPaintFind(); return; }
+  if (t.closest('#fdAdd')) { fdOut = fdCur(); fdDlg.close(); }
+});
+$('#fdBody').addEventListener('input', (e) => {
+  if (e.target.id === 'fdQ') { fdQ = e.target.value; fdRunOnline(); fdPaintList(); return; }
+  if (e.target.id === 'fdAmt' && fdSel) { const v = parseFloat(e.target.value); if (Number.isFinite(v) && v > 0) { fdSetAmt(v); fdDetailUpdate(); } }
+});
+$('#fdBody').addEventListener('change', (e) => { if (e.target.id === 'fdAmt' && fdSel) { fdSetAmt(parseFloat(e.target.value)); e.target.value = fdMode === 'srv' ? fdQty : fdGrams; fdDetailUpdate(); } });
+$('#fdBody').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.id === 'fdAmt') { e.preventDefault(); $('#fdAdd').click(); } });
+fdDlg.addEventListener('close', () => { clearTimeout(fdOnT); fdSeq++; const r = fdRes, o = fdOut; fdRes = null; fdOut = null; fdSel = null; if (r) r(o); });
+// Opens the sheet. Resolves {food, qty, grams, kcal, p, c, f} (scaled to the amount chosen) or null if closed without choosing.
+// opts: {title, cta (button text, default 'Add'), query (start with this search), browse (just look; same result)}.
+// It does not count the use: call fdTouch(result.food) when the food really goes into the log.
+function fdPicker(opts = {}) {
+  return new Promise((resolve) => {
+    if (fdRes) { fdRes(null); fdRes = null; }
+    fdRes = resolve; fdOut = null; fdOpts = opts || {}; fdSel = null; fdQ = String(fdOpts.query || ''); fdOn = { state: '', list: [] };
+    fdPaintFind(); if (fdQ) fdRunOnline();
+    if (!fdDlg.open) fdDlg.showModal();
+    if (fdOpts.autofocus !== false && matchMedia('(hover:hover)').matches) setTimeout(() => { const q = $('#fdQ'); if (q) q.focus(); }, 40);
+  });
+}
+// ===== FOODDB END =====
+
+// ===== NUTGOALS BEGIN: daily calorie and macro goals, typed in or worked out with Mifflin-St Jeor (synced collection `foodcfg`, item id 'cfg') =====
+// An estimate for everyday planning, not medical advice. The calculator never suggests less than 1,200 kcal (women) or 1,500 kcal (men).
+const NG_DEF = { kcal: 2200, p: 150, c: 250, f: 70 };
+const NG_ACT = [['sedentary', 'Desk day, little exercise', 1.2], ['light', 'Light: workouts 1 to 3 days a week', 1.375], ['moderate', 'Moderate: workouts 3 to 5 days a week', 1.55], ['very', 'Very active: hard training 6 to 7 days', 1.725], ['extra', 'Extra: physical job plus training', 1.9]];
+const NG_FLOOR = { f: 1200, m: 1500 };
+const NG_RATES = { lose: [[0.25, 'Slow: 0.25 kg (0.5 lb) a week'], [0.5, 'Steady: 0.5 kg (1 lb) a week'], [0.75, 'Faster: 0.75 kg (1.5 lb) a week']], gain: [[0.25, 'Slow: 0.25 kg (0.5 lb) a week'], [0.5, 'Steady: 0.5 kg (1 lb) a week']] };
+document.head.insertAdjacentHTML('beforeend', `<style>
+#ngDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}#ngDlg input,#ngDlg select{font-size:16px}
+.ng-tabs{display:flex;gap:6px}.ng-tabs button,.ng-seg button{flex:1;height:36px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:14px;font-weight:500}
+.ng-tabs button[aria-pressed=true],.ng-seg button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+.ng-seg{display:flex;gap:6px}
+.ng-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.ng-form .wide{grid-column:1/-1}
+.ng-form label{display:block;font-size:12px;color:var(--mute);margin-bottom:3px}
+.ng-form input,.ng-form select{height:40px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:#fff;min-width:0;width:100%;outline:none}
+.ng-form input:focus,.ng-form select:focus{border-color:var(--ink)}
+.ng-note{font-size:12px;color:#92400e;background:#fffaf0;border:1px solid #f3d9a4;border-radius:10px;padding:8px 10px;line-height:1.4}
+.ng-res{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.ng-big{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}.ng-big small{font-size:14px;font-weight:500;color:var(--mute)}
+.ng-mac{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.ng-mac div{background:var(--soft);border-radius:8px;padding:6px;text-align:center}.ng-mac b{display:block;font-variant-numeric:tabular-nums}.ng-mac span{font-size:11px;color:var(--mute)}
+.ng-sub{font-size:13px;color:var(--mute);line-height:1.4;overflow-wrap:anywhere}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="ngDlg" aria-labelledby="ngTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="ngTitle">Daily food goals</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="ngBody" style="display:flex;flex-direction:column;gap:12px"></div>
+</div></dialog>`);
+const ngDlg = $('#ngDlg');
+let ngTab = 'direct', ngDraft = null;
+const ngCfg = () => S.foodcfg.find((x) => x.id === 'cfg') || null;
+const ngNum = (v) => { const n = typeof v === 'number' ? v : parseFloat(v); return Number.isFinite(n) ? n : null; };
+// The goals in use: {kcal, p, c, f}; defaults 2200 / 150 / 250 / 70 until the person sets their own.
+function ngGoals() {
+  const c = ngCfg() || {}, ok = (v) => { const n = ngNum(v); return n != null && n > 0 ? Math.round(n) : null; };
+  const kcal = ok(c.kcal); if (kcal == null) return { ...NG_DEF };
+  return { kcal, p: ok(c.p) ?? NG_DEF.p, c: ok(c.c) ?? NG_DEF.c, f: ok(c.f) ?? NG_DEF.f };
+}
+const ngHasGoals = () => { const c = ngCfg(); return !!c && ngNum(c.kcal) > 0; };
+// Mifflin-St Jeor. in: {sex 'm'|'f', age, height_cm, weight_kg, activity, goal 'lose'|'maintain'|'gain', rate (kg a week), pk (g protein per kg, default 1.8)}
+// out: {bmr, tdee, delta, raw, kcal, floor, floored, p, c, f}. kcal is rounded to the nearest 10; fat is 27 percent of kcal; carbs fill the rest.
+function ngCalc(o) {
+  const w = +o.weight_kg, h = +o.height_cm, a = +o.age, male = o.sex === 'm';
+  if (!(w > 0 && h > 0 && a > 0)) return null;
+  const bmr = 10 * w + 6.25 * h - 5 * a + (male ? 5 : -161);
+  const mult = (NG_ACT.find((x) => x[0] === o.activity) || NG_ACT[2])[2], tdee = bmr * mult;
+  const rate = o.goal === 'maintain' ? 0 : Math.max(0, +o.rate || 0.5), delta = o.goal === 'lose' ? -rate * 1100 : o.goal === 'gain' ? rate * 1100 : 0; // 7,700 kcal per kg of body weight / 7 days
+  const raw = tdee + delta, floor = NG_FLOOR[male ? 'm' : 'f'];
+  const kcal = Math.round(Math.max(raw, floor) / 10) * 10, floored = raw < floor;
+  const p = Math.round((+o.pk > 0 ? +o.pk : 1.8) * w);
+  let f = Math.round(kcal * 0.27 / 9); if (p * 4 + f * 9 > kcal) f = Math.max(0, Math.floor((kcal - p * 4) / 9));
+  const c = Math.max(0, Math.round((kcal - p * 4 - f * 9) / 4));
+  return { bmr: Math.round(bmr), tdee: Math.round(tdee), delta: Math.round(delta), raw: Math.round(raw), kcal, floor, floored, p, c, f };
+}
+const ngKg = (v, u) => (u === 'us' ? v / 2.20462 : v), ngCm = (v, u) => (u === 'us' ? v * 2.54 : v);
+function ngLoad() {
+  const c = ngCfg() || {}, g = ngGoals(), us = c.units === 'us';
+  ngDraft = {
+    kcal: g.kcal, p: g.p, c: g.c, f: g.f, units: us ? 'us' : 'metric', sex: c.sex === 'm' || c.sex === 'f' ? c.sex : 'm', age: c.age || '',
+    h: c.height_cm ? (us ? Math.round(c.height_cm / 2.54 * 10) / 10 : c.height_cm) : '', w: c.weight_kg ? (us ? Math.round(c.weight_kg * 2.20462 * 10) / 10 : c.weight_kg) : '',
+    activity: NG_ACT.some((x) => x[0] === c.activity) ? c.activity : 'moderate', goal: ['lose', 'maintain', 'gain'].includes(c.goal) ? c.goal : 'maintain', rate: c.rate || 0.5, pk: c.pk || 1.8,
+  };
+}
+function ngInputs() { // the calculator form as ngCalc input, or null when something is missing
+  const d = ngDraft, w = ngNum(d.w), h = ngNum(d.h), a = ngNum(d.age); if (!(w > 0 && h > 0 && a > 0)) return null;
+  const goal = d.goal, rates = NG_RATES[goal], rate = rates ? (rates.some((r) => r[0] === +d.rate) ? +d.rate : rates[Math.min(1, rates.length - 1)][0]) : 0;
+  return { sex: d.sex, age: a, height_cm: ngCm(h, d.units), weight_kg: ngKg(w, d.units), activity: d.activity, goal, rate, pk: ngNum(d.pk) > 0 ? ngNum(d.pk) : 1.8 };
+}
+const ngK = (n) => Math.round(n).toLocaleString('en-US');
+function ngPaint() {
+  const d = ngDraft, us = d.units === 'us';
+  const tab = `<div class="ng-tabs" role="tablist"><button type="button" data-ngt="direct" aria-pressed="${ngTab === 'direct'}">Enter my goals</button><button type="button" data-ngt="calc" aria-pressed="${ngTab === 'calc'}">Work them out</button></div>`;
+  let h = tab;
+  if (ngTab === 'direct') {
+    const k = (+d.p || 0) * 4 + (+d.c || 0) * 4 + (+d.f || 0) * 9;
+    h += `<div class="ng-form"><div class="wide"><label for="ngK">Calories per day</label><input id="ngK" type="number" inputmode="numeric" min="800" max="8000" step="10" value="${esc(d.kcal)}"></div>
+      <div><label for="ngP">Protein (g)</label><input id="ngP" type="number" inputmode="numeric" min="0" max="500" value="${esc(d.p)}"></div>
+      <div><label for="ngC">Carbs (g)</label><input id="ngC" type="number" inputmode="numeric" min="0" max="1000" value="${esc(d.c)}"></div>
+      <div><label for="ngF">Fat (g)</label><input id="ngF" type="number" inputmode="numeric" min="0" max="400" value="${esc(d.f)}"></div></div>
+      <div class="ng-sub" id="ngSum"></div>
+      <div class="ng-note">These numbers are your own targets. Nothing here is medical advice.</div>
+      <div class="dlg-f"><button type="button" class="btn" id="ngReset">Use defaults</button><span style="flex:1"></span><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn primary" id="ngSave">Save goals</button></div>`;
+  } else {
+    const rates = NG_RATES[d.goal];
+    h += `<div class="ng-form">
+      <div class="wide"><label>Units</label><div class="ng-seg"><button type="button" data-ngu="metric" aria-pressed="${!us}">kg and cm</button><button type="button" data-ngu="us" aria-pressed="${us}">lb and inches</button></div></div>
+      <div class="wide"><label>Sex (used in the formula)</label><div class="ng-seg"><button type="button" data-ngs="m" aria-pressed="${d.sex === 'm'}">Male</button><button type="button" data-ngs="f" aria-pressed="${d.sex === 'f'}">Female</button></div></div>
+      <div><label for="ngAge">Age</label><input id="ngAge" type="number" inputmode="numeric" min="14" max="100" value="${esc(d.age)}"></div>
+      <div><label for="ngH">Height (${us ? 'in' : 'cm'})</label><input id="ngH" type="number" inputmode="decimal" min="1" step="0.1" value="${esc(d.h)}"></div>
+      <div><label for="ngW">Weight (${us ? 'lb' : 'kg'})</label><input id="ngW" type="number" inputmode="decimal" min="1" step="0.1" value="${esc(d.w)}"></div>
+      <div><label for="ngPK">Protein (g per kg)</label><input id="ngPK" type="number" inputmode="decimal" min="0.8" max="3" step="0.1" value="${esc(d.pk)}"></div>
+      <div class="wide"><label for="ngAct">Activity</label><select id="ngAct">${NG_ACT.map((a) => `<option value="${a[0]}"${a[0] === d.activity ? ' selected' : ''}>${esc(a[1])}</option>`).join('')}</select></div>
+      <div class="wide"><label>Goal</label><div class="ng-seg"><button type="button" data-ngg="lose" aria-pressed="${d.goal === 'lose'}">Lose fat</button><button type="button" data-ngg="maintain" aria-pressed="${d.goal === 'maintain'}">Maintain</button><button type="button" data-ngg="gain" aria-pressed="${d.goal === 'gain'}">Gain</button></div></div>
+      ${rates ? `<div class="wide"><label for="ngRate">Pace</label><select id="ngRate">${rates.map((r) => `<option value="${r[0]}"${+d.rate === r[0] ? ' selected' : ''}>${esc(r[1])}</option>`).join('')}</select></div>` : ''}
+    </div><div id="ngRes"></div>
+    <div class="ng-note">An estimate from a standard formula (Mifflin-St Jeor), not medical advice. Real needs vary. It never suggests less than 1,200 kcal a day for women or 1,500 for men. If you have a medical condition, are pregnant, or are under 18, ask a professional.</div>
+    <div class="dlg-f"><span style="flex:1"></span><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn primary" id="ngUse">Use these goals</button></div>`;
+  }
+  $('#ngBody').innerHTML = h;
+  if (ngTab === 'direct') ngSum(); else ngRes();
+}
+function ngSum() {
+  const d = ngDraft, k = (+d.p || 0) * 4 + (+d.c || 0) * 4 + (+d.f || 0) * 9, g = +d.kcal || 0, el = $('#ngSum'); if (!el) return;
+  const diff = Math.round(k - g);
+  el.textContent = `Protein, carbs and fat add up to ${ngK(k)} kcal. ` + (!g ? '' : Math.abs(diff) <= Math.max(30, g * 0.03) ? 'That matches your calorie goal.' : `That is ${ngK(Math.abs(diff))} kcal ${diff > 0 ? 'above' : 'below'} your goal, which is fine if you track calories first.`);
+}
+function ngRes() {
+  const inp = ngInputs(), el = $('#ngRes'); if (!el) return;
+  if (!inp) { el.innerHTML = '<div class="ng-sub">Enter your age, height and weight to see an estimate.</div>'; return; }
+  const r = ngCalc(inp);
+  el.innerHTML = `<div class="ng-res"><div class="ng-big" id="ngBig">${ngK(r.kcal)} <small>kcal a day</small></div>
+    <div class="ng-mac"><div><b>${r.p} g</b><span>protein</span></div><div><b>${r.c} g</b><span>carbs</span></div><div><b>${r.f} g</b><span>fat</span></div></div>
+    <div class="ng-sub">Resting burn about ${ngK(r.bmr)} kcal; with your activity about ${ngK(r.tdee)} kcal${inp.goal === 'maintain' ? '' : `; ${inp.goal === 'lose' ? 'minus' : 'plus'} ${ngK(Math.abs(r.delta))} for your pace`}.</div>
+    ${r.floored ? `<div class="ng-sub" id="ngFloorMsg"><b>Raised to the minimum.</b> That pace works out to ${ngK(r.raw)} kcal, below the ${ngK(r.floor)} kcal floor for ${inp.sex === 'f' ? 'women' : 'men'}, so the goal is set at ${ngK(r.kcal)}. Pick a slower pace or more activity instead of eating less.</div>` : ''}</div>`;
+}
+function ngSave(g, extra) {
+  const rd = (v, lo, hi) => Math.min(hi, Math.max(lo, Math.round(+v || 0)));
+  commit(() => { upsert(S.foodcfg, 'cfg', () => ({ id: 'cfg' }), { kcal: rd(g.kcal, 800, 8000), p: rd(g.p, 0, 500), c: rd(g.c, 0, 1000), f: rd(g.f, 0, 400), ...(extra || {}) }); });
+}
+function ngOpen() {
+  ngLoad(); ngTab = ngHasGoals() ? 'direct' : 'calc'; ngPaint();
+  if (!ngDlg.open) ngDlg.showModal();
+}
+$('#ngBody').addEventListener('click', (e) => {
+  const t = e.target.closest('button'); if (!t) return; const d = ngDraft;
+  if (t.dataset.ngt) { ngTab = t.dataset.ngt; ngPaint(); return; }
+  if (t.dataset.ngu) { // convert what is typed so the same person stays the same size
+    const was = d.units; if (was === t.dataset.ngu) return;
+    const h = ngNum(d.h), w = ngNum(d.w); d.units = t.dataset.ngu;
+    if (h) d.h = Math.round((was === 'us' ? h * 2.54 : h / 2.54) * 10) / 10; if (w) d.w = Math.round((was === 'us' ? w / 2.20462 : w * 2.20462) * 10) / 10;
+    ngPaint(); return;
+  }
+  if (t.dataset.ngs) { d.sex = t.dataset.ngs; ngPaint(); return; }
+  if (t.dataset.ngg) { d.goal = t.dataset.ngg; if (NG_RATES[d.goal] && !NG_RATES[d.goal].some((r) => r[0] === +d.rate)) d.rate = 0.5; ngPaint(); return; }
+  if (t.id === 'ngReset') { Object.assign(d, NG_DEF); ngPaint(); return; }
+  if (t.id === 'ngSave') {
+    const k = ngNum(d.kcal);
+    if (!(k >= 800 && k <= 8000)) { toast('Calories should be between 800 and 8,000.'); return; }
+    ngSave(d); ngDlg.close(); toast('Goals saved'); try { render(); } catch (err) { /* view not ready */ } return;
+  }
+  if (t.id === 'ngUse') {
+    const inp = ngInputs(); if (!inp) { toast('Fill in age, height and weight first.'); return; }
+    const r = ngCalc(inp);
+    ngSave(r, { units: d.units, sex: d.sex, age: inp.age, height_cm: Math.round(inp.height_cm * 10) / 10, weight_kg: Math.round(inp.weight_kg * 10) / 10, activity: d.activity, goal: d.goal, rate: inp.rate, pk: inp.pk });
+    ngDlg.close(); toast(`Goals saved: ${ngK(r.kcal)} kcal`); try { render(); } catch (err) { /* view not ready */ }
+  }
+});
+$('#ngBody').addEventListener('input', (e) => {
+  const id = e.target.id, d = ngDraft, v = e.target.value;
+  if (id === 'ngK') d.kcal = v; else if (id === 'ngP') d.p = v; else if (id === 'ngC') d.c = v; else if (id === 'ngF') d.f = v;
+  else if (id === 'ngAge') d.age = v; else if (id === 'ngH') d.h = v; else if (id === 'ngW') d.w = v; else if (id === 'ngPK') d.pk = v;
+  else if (id === 'ngAct') d.activity = v; else if (id === 'ngRate') d.rate = +v; else return;
+  if (ngTab === 'direct') ngSum(); else ngRes();
+});
+// ===== NUTGOALS END =====
+
+// ===== NUTWEEK BEGIN: eating over the last 7 or 30 days from the meal log (reads synced `meals`; goals from NUTGOALS) =====
+// A day counts as logged when it has at least one meal. Today is left out of averages while it is clearly unfinished (under 60 percent of the
+// calorie goal), so a morning check does not look like a bad day. Conclusions need at least 3 finished logged days.
+const NW_MIN = 3;
+document.head.insertAdjacentHTML('beforeend', `<style>
+#nwDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}
+.nw-tabs{display:flex;gap:6px}.nw-tabs button{flex:1;height:36px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:14px;font-weight:500}.nw-tabs button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+.nw-chart{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:10px;background:#fff}
+.nw-chart text{font-size:10px;fill:var(--mute);font-family:inherit}.nw-chart text.today{fill:var(--ink);font-weight:700}
+.nw-chart .grid{stroke:var(--line2);stroke-width:1}.nw-chart .goal{stroke:#111827;stroke-width:1.2;stroke-dasharray:4 3}
+.nw-chart rect.b{fill:#cbd5e1}.nw-chart rect.b.ok{fill:#34d399}.nw-chart rect.b.over{fill:#fbbf24}.nw-chart rect.b.t{stroke:#111827;stroke-width:1.5}.nw-chart rect.b.sel{fill:#111827}
+.nw-chart .hit{fill:transparent;cursor:pointer}
+.nw-leg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--mute)}.nw-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.nw-sel{font-size:13px;min-height:18px;color:var(--ink);overflow-wrap:anywhere}
+.nw-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.nw-grid div{border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.nw-grid b{display:block;font-size:20px;font-variant-numeric:tabular-nums}.nw-grid span{font-size:12px;color:var(--mute)}
+.nw-split{display:flex;height:14px;border-radius:7px;overflow:hidden}.nw-split i{display:block;height:100%}
+.nw-ins{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px;line-height:1.45;overflow-wrap:anywhere;background:#fff}
+.nw-sub{font-size:13px;color:var(--mute);line-height:1.4;overflow-wrap:anywhere}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="nwDlg" aria-labelledby="nwTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="nwTitle">Eating this week and month</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="nwBody" style="display:flex;flex-direction:column;gap:12px"></div>
+</div></dialog>`);
+const nwDlg = $('#nwDlg');
+let nwDays = 7, nwPick = '';
+const nwK = (n) => Math.round(+n || 0).toLocaleString('en-US');
+const nwShort = (k) => { const d = parse(k); return `${DAYS[d.getDay()].slice(0, 3)} ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}`; };
+// Summary of the last `days` days ending today (7 or 30). Pure: reads S.meals and ngGoals().
+function nwSummary(days = 7) {
+  const today = todayKey(), goal = ngGoals(), by = new Map();
+  for (const m of S.meals) {
+    if (!m || !YMD.test(m.date || '')) continue;
+    const d = by.get(m.date) || { n: 0, kcal: 0, p: 0, c: 0, f: 0 }; d.n++; d.kcal += +m.kcal || 0; d.p += +m.p || 0; d.c += +m.c || 0; d.f += +m.f || 0; by.set(m.date, d);
+  }
+  const list = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const k = addDays(today, -i), d = by.get(k) || { n: 0, kcal: 0, p: 0, c: 0, f: 0 };
+    list.push({ date: k, n: d.n, logged: d.n > 0, kcal: Math.round(d.kcal), p: Math.round(d.p * 10) / 10, c: Math.round(d.c * 10) / 10, f: Math.round(d.f * 10) / 10, today: k === today });
+  }
+  const logged = list.filter((d) => d.logged);
+  const used = logged.filter((d) => !(d.today && d.kcal < goal.kcal * 0.6)); // finished days
+  const avg = (key) => (used.length ? used.reduce((a, d) => a + d[key], 0) / used.length : 0);
+  const within = used.filter((d) => Math.abs(d.kcal - goal.kcal) <= goal.kcal * 0.1).length;
+  const pHit = used.filter((d) => d.p >= goal.p * 0.9).length;
+  const kc = { p: used.reduce((a, d) => a + d.p * 4, 0), c: used.reduce((a, d) => a + d.c * 4, 0), f: used.reduce((a, d) => a + d.f * 9, 0) }, kt = kc.p + kc.c + kc.f;
+  let split = null;
+  if (kt > 0) {
+    split = { p: Math.round(kc.p / kt * 100), c: Math.round(kc.c / kt * 100), f: Math.round(kc.f / kt * 100) };
+    const diff = 100 - split.p - split.c - split.f; if (diff) { const big = ['p', 'c', 'f'].sort((a, b) => split[b] - split[a])[0]; split[big] += diff; }
+  }
+  const off = (d) => Math.abs(d.kcal - goal.kcal);
+  const ranked = used.slice().sort((a, b) => off(a) - off(b) || a.date.localeCompare(b.date));
+  const ready = used.length >= NW_MIN;
+  return {
+    days, goal, list, today, logged: logged.length, used: used.length, ready,
+    avgKcal: Math.round(avg('kcal')), avgP: Math.round(avg('p') * 10) / 10, avgC: Math.round(avg('c') * 10) / 10, avgF: Math.round(avg('f') * 10) / 10,
+    within, proteinHit: pHit, withinPct: used.length ? Math.round(within / used.length * 100) : 0, proteinPct: used.length ? Math.round(pHit / used.length * 100) : 0,
+    split, best: ready ? ranked[0] : null, worst: ready ? ranked[ranked.length - 1] : null, insights: ready ? nwInsights(used, goal, avg('kcal'), avg('p'), within, days) : [],
+  };
+}
+function nwInsights(used, goal, avgK, avgP, within, days) {
+  const out = [], n = used.length;
+  const gapP = goal.p - avgP;
+  if (avgP < goal.p * 0.9) out.push({ k: 'protein', text: `Protein averaged ${Math.round(avgP)} g, ${Math.round(gapP)} g under your goal of ${goal.p} g${gapP >= 25 ? '; chicken or Greek yogurt at lunch would close it' : '; one extra protein serving a day would close it'}.` });
+  const gapK = avgK - goal.kcal;
+  if (avgK > goal.kcal * 1.1) out.push({ k: 'over', text: `Calories averaged ${nwK(avgK)}, ${nwK(gapK)} over your goal of ${nwK(goal.kcal)} (${Math.round(gapK / goal.kcal * 100)}% over). ${used.filter((d) => d.kcal > goal.kcal * 1.1).length} of ${n} days ran over by more than 10%.` });
+  else if (avgK < goal.kcal * 0.85) out.push({ k: 'under', text: `Calories averaged ${nwK(avgK)}, ${nwK(-gapK)} under your goal of ${nwK(goal.kcal)}. If that is on purpose, fine; if you meant to eat more, check for days you forgot to log.` });
+  const wk = used.filter((d) => { const w = dow(d.date); return w === 0 || w === 6; }), wd = used.filter((d) => { const w = dow(d.date); return w > 0 && w < 6; });
+  if (wk.length >= 2 && wd.length >= 3) {
+    const a = wk.reduce((s, d) => s + d.kcal, 0) / wk.length, b = wd.reduce((s, d) => s + d.kcal, 0) / wd.length;
+    if (Math.abs(a - b) > Math.max(250, b * 0.15)) out.push({ k: 'weekend', text: `Weekends averaged ${nwK(a)} kcal, ${nwK(Math.abs(a - b))} ${a > b ? 'more' : 'less'} than weekdays (${nwK(b)}).` });
+  }
+  if (within / n >= 0.6) out.push({ k: 'steady', text: `${within} of ${n} logged days landed within 10% of your calorie goal. That is steady.` });
+  if (avgP >= goal.p * 0.9 && out.length < 2) out.push({ k: 'proteinok', text: `Protein averaged ${Math.round(avgP)} g against a goal of ${goal.p} g. Good.` });
+  if (!out.length) out.push({ k: 'none', text: `Over ${n} logged days, calories averaged ${nwK(avgK)} against a goal of ${nwK(goal.kcal)}. Nothing stands out.` });
+  return out.slice(0, 2);
+}
+const nwNiceMax = (v) => { const steps = [500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 5000, 6000, 8000, 10000]; return steps.find((s) => s >= v) || Math.ceil(v / 1000) * 1000; };
+// Chart geometry is returned as data so it can be tested: {W, H, ymax, goalY, bars: [{date, x, y, w, h, cls}]}.
+function nwGeom(s) {
+  const W = 340, H = 170, pl = 34, pr = 8, pt = 14, pb = 24, n = s.list.length, slot = (W - pl - pr) / n, bw = Math.max(3, slot * (n <= 7 ? 0.62 : 0.68));
+  const top = Math.max(...s.list.map((d) => d.kcal), s.goal.kcal * 1.15), ymax = nwNiceMax(top);
+  const Y = (v) => pt + (1 - v / ymax) * (H - pt - pb);
+  const bars = s.list.map((d, i) => {
+    const h = d.kcal > 0 ? Math.max(1.5, (H - pt - pb) * d.kcal / ymax) : 0, x = pl + i * slot + (slot - bw) / 2;
+    const near = Math.abs(d.kcal - s.goal.kcal) <= s.goal.kcal * 0.1;
+    return { date: d.date, kcal: d.kcal, x: +x.toFixed(2), w: +bw.toFixed(2), h: +h.toFixed(2), y: +(H - pb - h).toFixed(2), cls: d.kcal ? (near ? 'ok' : d.kcal > s.goal.kcal ? 'over' : '') : '', today: d.today };
+  });
+  return { W, H, pl, pr, pt, pb, ymax, goalY: +Y(s.goal.kcal).toFixed(2), baseY: H - pb, slot, bars, Y };
+}
+function nwChart(s) {
+  const g = nwGeom(s), dl = (d) => (s.days <= 7 ? DAYS[parse(d).getDay()].slice(0, 1) : String(parse(d).getDate()));
+  let h = `<svg class="nw-chart" id="nwChart" viewBox="0 0 ${g.W} ${g.H}" role="img" aria-label="Calories per day for the last ${s.days} days, goal ${s.goal.kcal}">`;
+  [0, 0.5, 1].forEach((f) => { const v = g.ymax * f, y = g.Y(v).toFixed(1); h += `<line class="grid" x1="${g.pl}" x2="${g.W - g.pr}" y1="${y}" y2="${y}"/><text x="${g.pl - 4}" y="${(+y + 3).toFixed(1)}" text-anchor="end">${nwK(v)}</text>`; });
+  g.bars.forEach((b, i) => {
+    const sel = b.date === nwPick;
+    h += `<rect class="b ${b.cls}${b.today ? ' t' : ''}${sel ? ' sel' : ''}" data-d="${b.date}" data-k="${b.kcal}" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="2"/>`;
+    if (s.days <= 7 || i % 5 === s.days % 5 || b.today) h += `<text class="${b.today ? 'today' : ''}" x="${(b.x + b.w / 2).toFixed(1)}" y="${g.H - 8}" text-anchor="middle">${dl(b.date)}</text>`;
+    h += `<rect class="hit" data-nwd="${b.date}" x="${(g.pl + i * g.slot).toFixed(1)}" y="${g.pt}" width="${g.slot.toFixed(1)}" height="${g.H - g.pt - g.pb}"/>`;
+  });
+  h += `<line class="goal" id="nwGoalLine" x1="${g.pl}" x2="${g.W - g.pr}" y1="${g.goalY}" y2="${g.goalY}"/><text x="${g.W - g.pr}" y="${(g.goalY - 3).toFixed(1)}" text-anchor="end">Goal ${nwK(s.goal.kcal)}</text></svg>`;
+  return h;
+}
+function nwSelText(s) {
+  const d = s.list.find((x) => x.date === nwPick); if (!d) return 'Tap a bar to see that day.';
+  return d.logged ? `${nwShort(d.date)}: ${nwK(d.kcal)} kcal, protein ${Math.round(d.p)} g, carbs ${Math.round(d.c)} g, fat ${Math.round(d.f)} g (${d.n} meal${d.n === 1 ? '' : 's'}).` : `${nwShort(d.date)}: nothing logged.`;
+}
+function nwPaint() {
+  const s = nwSummary(nwDays), sp = s.split;
+  let h = `<div class="nw-tabs"><button type="button" data-nwr="7" aria-pressed="${nwDays === 7}">7 days</button><button type="button" data-nwr="30" aria-pressed="${nwDays === 30}">30 days</button></div>`;
+  if (!s.logged) {
+    h += `<div class="nw-sub" id="nwEmpty">No meals logged in the last ${s.days} days. Log a few meals and this page fills in: daily calories against your goal, protein, and what to change.</div>`;
+    $('#nwBody').innerHTML = h; return;
+  }
+  h += nwChart(s);
+  h += `<div class="nw-leg"><span><i style="background:#34d399"></i>Within 10% of goal</span><span><i style="background:#fbbf24"></i>Over</span><span><i style="background:#cbd5e1"></i>Under</span></div><div class="nw-sel" id="nwSel">${esc(nwSelText(s))}</div>`;
+  h += `<div class="nw-grid" id="nwStats"><div><b>${s.used ? nwK(s.avgKcal) : '-'}</b><span>avg kcal a day (goal ${nwK(s.goal.kcal)})</span></div><div><b>${s.used ? Math.round(s.avgP) + ' g' : '-'}</b><span>avg protein (goal ${s.goal.p} g)</span></div>
+    <div><b>${s.logged} of ${s.days}</b><span>days logged</span></div><div><b>${s.used ? s.within + ' of ' + s.used : '-'}</b><span>days within 10% of goal</span></div>
+    <div><b>${s.used ? s.proteinHit + ' of ' + s.used : '-'}</b><span>days protein at 90%+ of goal</span></div><div><b>${s.best ? nwK(s.best.kcal) : '-'}</b><span>${s.best ? 'closest to goal: ' + nwShort(s.best.date) : 'closest day (needs ' + NW_MIN + ' days)'}</span></div></div>`;
+  if (s.worst) h += `<div class="nw-sub" id="nwWorst">Furthest from goal: ${nwShort(s.worst.date)}, ${nwK(s.worst.kcal)} kcal (${s.worst.kcal > s.goal.kcal ? nwK(s.worst.kcal - s.goal.kcal) + ' over' : nwK(s.goal.kcal - s.worst.kcal) + ' under'}).</div>`;
+  if (sp) h += `<div><div class="nw-split" id="nwSplit" role="img" aria-label="Calories from protein ${sp.p}%, carbs ${sp.c}%, fat ${sp.f}%"><i style="width:${sp.p}%;background:#2563eb"></i><i style="width:${sp.c}%;background:#f59e0b"></i><i style="width:${sp.f}%;background:#a855f7"></i></div><div class="nw-leg" style="margin-top:6px"><span><i style="background:#2563eb"></i>Protein ${sp.p}%</span><span><i style="background:#f59e0b"></i>Carbs ${sp.c}%</span><span><i style="background:#a855f7"></i>Fat ${sp.f}%</span></div></div>`;
+  if (s.ready) h += s.insights.map((x) => `<div class="nw-ins" data-nwi="${x.k}">${esc(x.text)}</div>`).join('');
+  else h += `<div class="nw-sub" id="nwMin">Log at least ${NW_MIN} days (finished days count) and this page will point out patterns. You have ${s.used}.</div>`;
+  h += '<div class="nw-sub">Totals come from your meal log and are estimates. Today is left out of the averages until you have eaten most of your goal.</div>';
+  $('#nwBody').innerHTML = h;
+}
+function nwOpen() { nwPick = ''; nwPaint(); if (!nwDlg.open) nwDlg.showModal(); }
+$('#nwBody').addEventListener('click', (e) => {
+  const r = e.target.closest('[data-nwr]'); if (r) { nwDays = +r.dataset.nwr; nwPick = ''; nwPaint(); return; }
+  const b = e.target.closest('[data-nwd]'); if (b) { nwPick = nwPick === b.dataset.nwd ? '' : b.dataset.nwd; nwPaint(); }
+});
+if (window.PLANNER_TEST) window.__food = { fdLookup, fdSearch, fdLocal, fdScale, fdScan, fdPicker, fdTouch, fdToggleFav, fdFromOff, fdGtinOk, ngCalc, ngGoals, ngHasGoals, ngOpen, nwSummary, nwGeom, nwOpen, count: () => FD_BASE.length };
+// ===== NUTWEEK END =====
 
 // ===== SHIFTS BEGIN: recurring work shifts (Outback, electric) =====
 const shDlg = $('#shDlg');

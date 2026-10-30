@@ -1180,7 +1180,7 @@ const shade = (hex, f) => { const [r, g, b] = rgb(hex); return `rgb(${Math.round
 const cvars = (hex) => `--c:${hex};--bg-c:${tint(hex, .13)};--fg:${shade(hex, .42)}`;
 
 // ---------- state ----------
-const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan', 'timelog', 'deals', 'waiting', 'score', 'worth', 'alcfg', 'miles', 'milecfg', 'paycfg', 'paychk', 'hrcfg', 'avail', 'avreq', 'propacct']; // collections added by the Rules and Trades features
+const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan', 'timelog', 'deals', 'waiting', 'score', 'worth', 'alcfg', 'miles', 'milecfg', 'paycfg', 'paychk', 'hrcfg', 'avail', 'avreq', 'propacct', 'taxcfg', 'taxpay']; // collections added by the Rules and Trades features
 let S = load();
 let cursor = todayKey(), selected = cursor, miniMonth = cursor.slice(0, 7);
 let query = '', agendaDays = 30, undoSnap = null, editing = null, lastScrollView = null;
@@ -1672,6 +1672,7 @@ function buildBotEvents() {
   out.push(...billEvents(gone)); // BILLS block: recurring bills overlay
   out.push(...dealFollowEvents()); // PIPELINE: follow-up dates of open deals
   out.push(...payEvents(gone)); // PAYDAY: expected paydays overlay
+  out.push(...taxEvents(gone)); // TAXQ: estimated-tax due dates overlay
   extraEvents = out;
 }
 const projOf = (id) => (id ? S.projects.find((x) => x.id === id) : null);
@@ -2719,6 +2720,7 @@ function renderToday() {
     ${safeCard(pdTodayCard)}
     ${safeCard(hrTodayCard)}
     ${safeCard(avTodayCard)}
+    ${safeCard(taxTodayCard)}
     ${safeCard(milesTodayCard)}
     ${safeCard(alertsTodayCard)}
     ${safeCard(plTodayCard)}
@@ -2794,6 +2796,7 @@ function route() {
   else if (h === 'hours') { goToday(); openHours(); }
   else if (h === 'availability') { goToday(); openAvail(); }
   else if (h === 'brief') { goToday(); openBrief(); }
+  else if (h === 'taxes') { goToday(); openTax(); }
   else if (h === 'business') { goToday(); openBiz(); }
   else if (h === 'prop') { goToday(); openProp(); }
   else if (h === 'tilt') { goToday(); openTiltSettings(); }
@@ -4634,6 +4637,166 @@ $('#main').addEventListener('click', (e) => {
   else if (e.target.closest('[data-bztag]')) { openBiz(); bzMode = 'tag'; bzPaint(); }
 });
 // ===== BIZ END =====
+
+// ===== TAXQ BEGIN: quarterly estimated-tax planner (synced collections `taxcfg` (id 'cfg': rate, trade, untag, cal) and `taxpay` (payments made)) =====
+// Everything here is an ESTIMATE from the money log (+ optionally live/paper trading P&L and the miles log), at a rate the person types.
+// Not tax advice. Due dates (Apr 15, Jun 15, Sep 15, Jan 15) are NOT stored: taxEvents() builds red all-day "Tax due" calendar items at render
+// time (hooked into buildBotEvents like billEvents), so S.events never gets copies. A due date on a weekend moves to the next Monday.
+const tqRate0 = 25; // default effective rate in %, an assumption the person can change
+const tqPeriods = [{ n: 1, a: '01-01', b: '03-31', due: '04-15', label: 'Q1 (Jan-Mar)' }, { n: 2, a: '04-01', b: '05-31', due: '06-15', label: 'Q2 (Apr-May)' }, { n: 3, a: '06-01', b: '08-31', due: '09-15', label: 'Q3 (Jun-Aug)' }, { n: 4, a: '09-01', b: '12-31', due: '01-15', label: 'Q4 (Sep-Dec)' }];
+document.head.insertAdjacentHTML('beforeend', `<style>
+#tqDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}#tqDlg input,#tqDlg select{font-size:16px}
+.tq-est{font-size:11px;font-weight:600;color:#92400e;background:#fffaf0;border:1px solid #f3d9a4;border-radius:10px;padding:1px 8px;margin-left:8px;vertical-align:middle}
+.tq-note{font-size:12px;color:#92400e;background:#fffaf0;border:1px solid #f3d9a4;border-radius:10px;padding:8px 10px;line-height:1.4}
+.tq-box{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13.5px;line-height:1.45;display:flex;flex-direction:column;gap:4px}
+.tq-big{font-size:26px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.tq-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.tq-form .wide{grid-column:1/-1}
+.tq-form input,.tq-form select{height:40px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:#fff;min-width:0;width:100%;outline:none}
+.tq-form input:focus,.tq-form select:focus{border-color:var(--ink)}
+.tq-chk{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.35}.tq-chk input{margin-top:1px;width:20px;height:20px;flex:none}
+.tq-t{font-size:12.5px;font-variant-numeric:tabular-nums}
+.tq-g{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,.8fr) minmax(0,.9fr) minmax(0,.9fr);gap:0 6px;padding:7px 0;border-top:1px solid var(--line2);align-items:baseline}
+.tq-g.h{font-size:11px;font-weight:600;color:var(--mute);border-top:0}.tq-g .n{text-align:right;white-space:nowrap}.tq-g small{display:block;color:var(--mute);font-size:11.5px}
+.tq-g .late{color:#b91c1c;font-weight:600}.tq-g .okk{color:#047857;font-weight:600}
+.tq-lines{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 12px;font-size:13px;font-variant-numeric:tabular-nums}.tq-lines span:nth-child(even){text-align:right}.tq-lines .t{font-weight:600;border-top:1px solid var(--line2);padding-top:4px}
+.tq-pay{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line2);font-size:13px}.tq-pay span{min-width:0;overflow-wrap:anywhere}
+.tq-bn{border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.4}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="tqDlg" aria-labelledby="tqTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="tqTitle">Quarterly tax planner<span class="tq-est">Estimate</span></h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="tqBody" style="display:flex;flex-direction:column;gap:12px"></div>
+</div></dialog>`);
+const tqDlg = $('#tqDlg');
+let tqYear = null, tqQTouched = false;
+const tqR2 = (n) => Math.round((+n || 0) * 100) / 100;
+const tqUsd = (n) => { const r = tqR2(n); return (r < 0 ? '-' : '') + '$' + Math.abs(r).toLocaleString('en-US', { minimumFractionDigits: r % 1 ? 2 : 0, maximumFractionDigits: 2 }); };
+const tqShort = (k) => { const d = parse(k); return `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}`; };
+const tqNeg = (n) => (n > 0 ? '-' : '') + tqUsd(n);
+function tqCfg() {
+  const c = S.taxcfg.find((x) => x.id === 'cfg') || {}, r = c.rate != null && c.rate !== '' && Number.isFinite(+c.rate) ? Math.min(60, Math.max(0, +c.rate)) : tqRate0;
+  return { rate: r, trade: c.trade === true, untag: c.untag === true, cal: c.cal !== false };
+}
+function tqDueOf(y, n) { // due date of quarter n of tax year y; weekends move to Monday
+  const p = tqPeriods[n - 1], k = `${n === 4 ? y + 1 : y}-${p.due}`, w = dow(k);
+  return w === 6 ? addDays(k, 2) : w === 0 ? addDays(k, 1) : k;
+}
+const tqQs = (y) => tqPeriods.map((p) => ({ key: `${y}-Q${p.n}`, y, n: p.n, label: p.label, from: `${y}-${p.a}`, to: `${y}-${p.b}`, due: tqDueOf(y, p.n) }));
+const tqQName = (q) => `Q${q.n} ${q.y}`;
+function tqTrading(a, b) { // live/paper closed trades (never the backtest) by trading day; 0 when the dashboard data is not loaded yet
+  try { return tqR2(nqTrades.filter((t) => t && typeof t.usd === 'number' && YMD.test(t.day || '') && t.day >= a && t.day <= b).reduce((n, t) => n + t.usd, 0)); } catch (e) { return 0; }
+}
+function tqDed(a, b) { // mileage deduction plus expenses from the miles log; expenses also in the money log (`mid`) are skipped so nothing counts twice
+  if (typeof miVal !== 'function' || typeof miCfg !== 'function' || !Array.isArray(S.miles) || !S.miles.length) return 0;
+  const cfg = miCfg(); let d = 0;
+  S.miles.forEach((e) => { if (!e || (e.kind !== 'trip' && e.kind !== 'exp') || !YMD.test(e.date || '') || e.date < a || e.date > b || (e.kind === 'exp' && e.mid)) return; d += miVal(e, cfg); });
+  return tqR2(d);
+}
+function tqCalc(a, b, cfg = tqCfg()) { // business result between two dates and the estimated tax on it
+  let inc = 0, out = 0, skipped = 0;
+  S.money.forEach((m) => {
+    if (!m || !YMD.test(m.date || '') || m.date < a || m.date > b || !(+m.amt > 0)) return;
+    if (!(m.proj && projOf(m.proj)) && !cfg.untag) return;
+    if (m.kind === 'in') { if (cfg.trade && m.src === 'prop') { skipped += +m.amt; return; } inc += +m.amt; } else if (m.kind === 'out') out += +m.amt;
+  });
+  const trading = cfg.trade ? tqTrading(a, b) : 0, ded = tqDed(a, b), net = tqR2(inc + trading - out - ded);
+  return { inc: tqR2(inc), trading, out: tqR2(out), ded, net, skipped: tqR2(skipped), tax: tqR2(Math.max(0, net) * cfg.rate / 100) };
+}
+const tqPaidOf = (key) => tqR2(S.taxpay.filter((x) => x && x.q === key).reduce((n, x) => n + (+x.amt || 0), 0));
+function tqInfo(q, today, cfg) { // one quarter's figures and status
+  const c = tqCalc(q.from, q.to, cfg), paid = tqPaidOf(q.key), left = Math.max(0, tqR2(c.tax - paid)), days = diffDays(today, q.due), inProg = today >= q.from && today <= q.to;
+  const status = c.tax > 0 && left <= 0.5 ? 'Paid' : paid > 0 && c.tax <= 0 ? 'Paid' : left > 0.5 && days < 0 ? 'Late' : days < 0 ? 'Nothing due' : days >= 0 && days <= 21 ? (days === 0 ? 'Due today' : `Due in ${days} day${days === 1 ? '' : 's'}`) : inProg ? 'In progress' : today > q.to ? 'Not due yet' : 'Upcoming';
+  return { q, c, paid, left, days, status, inProg };
+}
+function tqNow(cfg = tqCfg()) { const t = todayKey(), y = +t.slice(0, 4); return { today: t, cur: tqQs(y).find((q) => t >= q.from && t <= q.to), cfg }; }
+function tqDefaultQ(date) { // the next due date on or after the payment date
+  const y = +date.slice(0, 4), all = [...tqQs(y - 1), ...tqQs(y), ...tqQs(y + 1)].sort((a, b) => a.due.localeCompare(b.due));
+  return (all.find((q) => q.due >= date) || all[all.length - 1]).key;
+}
+function taxEvents(gone) { // the calendar overlay: red all-day "Tax due" items, read-only
+  try {
+    const cfg = tqCfg(); if (!cfg.cal) return [];
+    const today = todayKey(), a = addDays(today, -62), z = addDays(today, 430), y = +today.slice(0, 4), out = [];
+    for (const q of [...tqQs(y - 1), ...tqQs(y), ...tqQs(y + 1)]) {
+      if (q.due < a || q.due > z) continue;
+      const id = `taxdue:${q.key}`; if (gone && gone.has('d:' + id)) continue;
+      const i = tqInfo(q, today, cfg);
+      out.push({ id, bot: 'Tax', title: `Tax due: ${tqQName(q)} estimated payment${i.c.tax > 0 ? ' (about ' + tqUsd(i.c.tax) + ')' : ''}`, cat: typeToCat('deadline'), color: '#dc2626', date: q.due, allDay: true, start: '', end: '', endDate: '', repeat: 'none', until: '', ex: [], notes: `US federal estimated tax installment for ${q.label.replace(/ \(.*/, '')} ${q.y}. An estimate from your own numbers, not tax advice. Tap to open the tax planner.`, proj: '' });
+    }
+    return out;
+  } catch (e) { return []; }
+}
+function tqPaint() {
+  const body = $('#tqBody'); if (!body) return;
+  const cfg = tqCfg(), today = todayKey(), thisY = +today.slice(0, 4), y = tqYear || thisY, qs = tqQs(y), infos = qs.map((q) => tqInfo(q, today, cfg));
+  const Y = tqCalc(`${y}-01-01`, `${y}-12-31`, cfg), cur = y === thisY ? qs.find((q) => today >= q.from && today <= q.to) : null, ci = cur ? infos[cur.n - 1] : null;
+  const yTax = tqR2(Math.max(0, Y.net) * cfg.rate / 100), paidY = tqR2(qs.reduce((n, q) => n + tqPaidOf(q.key), 0));
+  const late = infos.filter((i) => i.status === 'Late');
+  const pays = S.taxpay.filter((x) => x && x.id && +x.amt > 0).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const qOpts = [...tqQs(thisY - 1), ...tqQs(thisY), ...tqQs(thisY + 1)].filter((q) => q.due >= addDays(today, -400)).sort((a, b) => a.due.localeCompare(b.due));
+  const defQ = tqDefaultQ(today);
+  body.innerHTML = `
+    <div class="tq-note" id="tqNote">Your own estimate from the numbers you log, not tax advice. The rate below is an assumption you can change. Confirm everything with a tax professional. Futures trading may be taxed differently (US regulated futures are often under Section 1256, taxed 60% long-term and 40% short-term, on Form 6781) and prop-firm payouts can be reported differently, so this flat rate can be too high or too low for you.</div>
+    ${late.length ? `<div class="tq-bn" id="tqLate">${late.map((i) => `${tqQName(i.q)} was due ${tqShort(i.q.due)}: about ${tqUsd(i.left)} still unpaid on these numbers.`).join(' ')} If you missed it, pay as soon as you can and ask your tax professional about penalties.</div>` : ''}
+    <div class="tq-form"><div class="fld wide"><label for="tqRate">Effective tax rate (%) - my assumption</label><input id="tqRate" type="number" inputmode="decimal" min="0" max="60" step="1" value="${cfg.rate}"></div>
+      <label class="tq-chk wide"><input type="checkbox" id="tqTrade"${cfg.trade ? ' checked' : ''}><span>Include live and paper trading P&amp;L from the dashboard (never the backtest). Payouts you logged from the prop ledger are then left out of income so they are not counted twice.</span></label>
+      <label class="tq-chk wide"><input type="checkbox" id="tqUntag"${cfg.untag ? ' checked' : ''}><span>Also count money entries with no project tag</span></label>
+      <label class="tq-chk wide"><input type="checkbox" id="tqCal"${cfg.cal ? ' checked' : ''}><span>Show the four due dates on the calendar</span></label></div>
+    ${ci ? `<div class="tq-box" id="tqSet"><span>Set aside this quarter (${esc(ci.q.label)})</span><span class="tq-big">${tqUsd(ci.c.tax)}</span><span>${ci.c.net > 0 ? `Net business result so far this quarter ${tqUsd(ci.c.net)} at ${cfg.rate}%.` : 'No net business profit so far this quarter, so nothing to set aside yet.'} For the payment due ${tqShort(ci.q.due)}${ci.paid > 0 ? `; you have already paid ${tqUsd(ci.paid)} toward it` : ''}.</span></div>` : ''}
+    <div class="glance" id="tqTiles"><div><b class="${Y.net < 0 ? 'neg' : ''}">${tqUsd(Y.net)}</b><span>net result ${y}</span></div><div><b>${tqUsd(yTax)}</b><span>est. tax at ${cfg.rate}%</span></div><div><b>${tqUsd(paidY)}</b><span>paid for ${y}</span></div></div>
+    <div class="tq-lines" id="tqLines"><span>Business income (money in, tagged)</span><span>${tqUsd(Y.inc)}</span>${cfg.trade ? `<span>Live and paper trading P&amp;L</span><span>${tqUsd(Y.trading)}</span>` : ''}<span>Business expenses (money out)</span><span>${tqNeg(Y.out)}</span><span>Mileage and tools deduction</span><span>${tqNeg(Y.ded)}</span><span class="t">Net business result</span><span class="t">${tqUsd(Y.net)}</span></div>
+    ${cfg.trade && Y.skipped > 0 ? `<div class="hint" id="tqSkip">${tqUsd(Y.skipped)} of prop payouts in the money log is left out of income because trading P&amp;L is included.</div>` : ''}
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="flabel" style="font-size:12px;font-weight:600;color:var(--mute)">Estimated payments for tax year ${y}</div><div><button type="button" class="btn sm" data-tqyr="-1" aria-label="Previous year">&lsaquo;</button> <button type="button" class="btn sm" data-tqyr="1" aria-label="Next year">&rsaquo;</button></div></div>
+    <div class="tq-t" id="tqTable"><div class="tq-g h"><span>Quarter</span><span class="n">Due</span><span class="n">Suggested</span><span class="n">Paid</span></div>${infos.map((i) => `<div class="tq-g" data-tqq="${i.q.key}"><span>${esc(i.q.label)}<small class="${i.status === 'Late' ? 'late' : i.status === 'Paid' ? 'okk' : ''}">${esc(i.status)}</small></span><span class="n">${tqShort(i.q.due)}</span><span class="n">${tqUsd(i.c.tax)}</span><span class="n">${tqUsd(i.paid)}</span></div>`).join('')}</div>
+    <div class="hint">Each quarter is figured on its own months, so a loss in one quarter does not lower another. Dates on a weekend move to the next Monday; holidays are not checked.</div>
+    <div class="tq-form" id="tqPayForm"><div class="fld"><label for="tqPa">Payment made ($)</label><input id="tqPa" type="number" inputmode="decimal" min="0" step="0.01" placeholder="e.g. 500"></div>
+      <div class="fld"><label for="tqPd">Date paid</label><input id="tqPd" type="date" value="${today}"></div>
+      <div class="fld"><label for="tqPq">For quarter</label><select id="tqPq">${qOpts.map((q) => `<option value="${q.key}"${q.key === defQ ? ' selected' : ''}>${tqQName(q)} (due ${tqShort(q.due)})</option>`).join('')}</select></div>
+      <div class="fld"><label for="tqPn">Note (optional)</label><input id="tqPn" maxlength="80" placeholder="IRS Direct Pay"></div>
+      <button type="button" class="btn primary wide" id="tqPaySave">Log payment</button></div>
+    <div id="tqPays">${pays.length ? pays.map((x) => `<div class="tq-pay"><span>${YMD.test(x.date || '') ? tqShort(x.date) : ''} for ${esc(x.q || '')}${x.note ? ' · ' + esc(x.note) : ''}</span><span><b>${tqUsd(x.amt)}</b> <button type="button" class="btn sm" data-tqdel="${esc(x.id)}" aria-label="Remove payment">Remove</button></span></div>`).join('') : '<div class="empty-s">No payments logged yet.</div>'}</div>`;
+}
+function openTax() { tqYear = null; tqQTouched = false; tqPaint(); if (!tqDlg.open) tqDlg.showModal(); }
+tqDlg.addEventListener('change', (e) => {
+  const t = e.target;
+  if (t.id === 'tqRate') {
+    const r = parseFloat(t.value); commit(() => { upsert(S.taxcfg, 'cfg', () => ({ id: 'cfg' }), { rate: r >= 0 ? Math.min(60, r) : tqRate0 }); }); tqPaint(); render();
+  } else if (t.id === 'tqTrade' || t.id === 'tqUntag' || t.id === 'tqCal') {
+    const f = { tqTrade: 'trade', tqUntag: 'untag', tqCal: 'cal' }[t.id]; commit(() => { upsert(S.taxcfg, 'cfg', () => ({ id: 'cfg' }), { [f]: t.checked }); }); tqPaint(); render();
+  } else if (t.id === 'tqPq') tqQTouched = true;
+  else if (t.id === 'tqPd' && !tqQTouched && YMD.test(t.value)) { const q = $('#tqPq'); if (q) q.value = tqDefaultQ(t.value); }
+});
+tqDlg.addEventListener('click', (e) => {
+  const t = e.target, yr = t.closest('[data-tqyr]');
+  if (yr) { tqYear = (tqYear || +todayKey().slice(0, 4)) + +yr.dataset.tqyr; tqPaint(); return; }
+  if (t.closest('#tqPaySave')) {
+    const amt = tqR2(parseFloat($('#tqPa').value) || 0), date = $('#tqPd').value, q = $('#tqPq').value, note = $('#tqPn').value.trim();
+    if (!(amt > 0)) return toast('Enter the amount you paid');
+    if (!YMD.test(date)) return toast('Pick the date you paid');
+    snapshot(); commit(() => { S.taxpay.push({ id: uid(), created: Date.now(), amt, date, q, note }); });
+    tqPaint(); render(); toast(`Payment logged: ${tqUsd(amt)}`, true); return;
+  }
+  const d = t.closest('[data-tqdel]');
+  if (d) { snapshot(); commit(() => { S.taxpay = S.taxpay.filter((x) => x.id !== d.dataset.tqdel); }); tqPaint(); render(); toast('Payment removed', true); }
+});
+tqDlg.addEventListener('close', () => render());
+document.addEventListener('click', (e) => { // a Tax due item on the calendar opens the planner instead of the read-only bot sheet
+  const b = e.target.closest && e.target.closest('[data-ev]');
+  if (b && /^taxdue:/.test(b.dataset.ev || '')) { e.stopPropagation(); e.preventDefault(); openTax(); }
+}, true);
+function taxTodayCard() { // in the 3 weeks before each due date (and for 2 weeks after one that is still unpaid)
+  const cfg = tqCfg(), today = todayKey(), y = +today.slice(0, 4);
+  const hit = [...tqQs(y - 1), ...tqQs(y), ...tqQs(y + 1)].map((q) => tqInfo(q, today, cfg)).filter((i) => (i.days >= 0 && i.days <= 21) || (i.days < 0 && i.days >= -14 && i.left > 0.5)).sort((a, b) => a.q.due.localeCompare(b.q.due))[0];
+  if (!hit) return '';
+  const { q, c, paid, left, days } = hit, now = tqNow(cfg), setAside = now.cur ? tqInfo(now.cur, today, cfg) : null;
+  const when = days < 0 ? `was due ${tqShort(q.due)}, ${-days} day${days === -1 ? '' : 's'} ago` : days === 0 ? 'is due today' : `is due ${tqShort(q.due)} (in ${days} day${days === 1 ? '' : 's'})`;
+  return `<section class="td-card" id="tqCard"><h3>Tax due<button data-tqopen>Details</button></h3><div class="${days < 0 && left > 0.5 ? 'tq-bn' : 'tq-note'}" role="status">Your ${esc(tqQName(q))} estimated tax payment ${when}.${c.tax <= 0 && paid <= 0 ? ' On your numbers no payment looks needed, but check with a tax professional.' : left <= 0.5 ? ' You have paid what the estimate suggests.' : ''}</div><div class="glance"><div><b>${tqUsd(c.tax)}</b><span>suggested</span></div><div><b>${tqUsd(paid)}</b><span>paid</span></div><div><b class="${left > 0.5 ? 'neg' : ''}">${tqUsd(left)}</b><span>still to pay</span></div></div>${setAside && setAside.q.key !== q.key ? `<div class="hint">Set aside this quarter (${esc(setAside.q.label)}): ${tqUsd(setAside.c.tax)}.</div>` : ''}<div style="display:flex;gap:8px"><button type="button" class="btn sm" data-tqlog>Log a payment</button></div><div class="hint">Estimate at ${cfg.rate}%, not tax advice. Confirm with a tax professional.</div></section>`;
+}
+$('#main').addEventListener('click', (e) => {
+  if (S.view !== 'today') return;
+  if (e.target.closest('[data-tqopen]')) openTax();
+  else if (e.target.closest('[data-tqlog]')) { openTax(); setTimeout(() => { const a = $('#tqPa'); if (a) { a.scrollIntoView({ block: 'center' }); a.focus(); } }, 60); }
+});
+// ===== TAXQ END =====
 
 // ===== SHIFTS BEGIN: recurring work shifts (Outback, electric) =====
 const shDlg = $('#shDlg');

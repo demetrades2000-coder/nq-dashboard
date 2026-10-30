@@ -378,14 +378,16 @@ const per = async (p, v) => { await p.click(`[data-dvper="${v}"]`); await wait(1
     ok(/Nothing needs you right now|Setup|Getting started/.test(await p.innerText('#dvAtt')) || true, 'attention renders in an empty app');
     errs.push(...pe);
   }
-  // ---- 11. a missing tool hides only its tile ----
+  // ---- 11. broken data in one tool never takes the Dashboard down ----
   {
-    const { p, errs: pe } = await open(b);
+    const s = state(); s.worth = [{ id: 'a:1', name: 'X', kind: 'cash', bal: 'oops' }]; s.bills = [{ id: 'bx', name: 'Odd', amt: 'x', freq: 'weird' }]; s.propacct = [{ id: 'pz', status: 'zzz', fees: 'no', pays: 7 }];
+    const { p, errs: pe } = await open(b, { st: s });
     await chip(p, 'money');
-    const n0 = await p.locator('#dvGrid [data-dvtid]').count();
-    // break the net worth tile on purpose: its data accessor throws
-    await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('planner.v1')); s.worth = [{ id: 'a:1', name: 'X', kind: 'cash', bal: 'oops' }]; localStorage.setItem('planner.v1', JSON.stringify(s)); });
-    errs.push(...pe);
+    ok(await p.locator('#dvGrid [data-dvtid]').count() >= 4, 'other money tiles still render: ' + await p.locator('#dvGrid [data-dvtid]').count());
+    ok(await tile(p, 'biz').count() === 1 && await tile(p, 'tax').count() === 1, 'unrelated tiles intact');
+    await chip(p, 'overview');
+    ok(await p.locator('#dvGrid [data-dvtid]').count() >= 5, 'overview renders with broken data');
+    errs.push(...pe.filter((e) => !/Dashboard tile failed/.test(e)));
   }
   // ---- 12. layout: phone 2 columns, laptop 3-4, no sideways scroll, both themes, 16px inputs ----
   for (const theme of ['light', 'dark']) {
@@ -429,6 +431,47 @@ const per = async (p, v) => { await p.click(`[data-dvper="${v}"]`); await wait(1
     const warm = await p.evaluate(() => { const t0 = performance.now(); document.querySelector('[data-dvsec-go="overview"]').click(); document.querySelector('[data-dvsec-go="overview"]').click(); return (performance.now() - t0) / 2; });
     ok(warm < 25, 'warm render ' + warm.toFixed(1) + ' ms');
     console.log('PERF cold ms by section:', JSON.stringify(res), 'warm overview ms:', warm.toFixed(1));
+    errs.push(...pe);
+  }
+  // ---- 13b. performance with a year of data (cold = nothing memoised) ----
+  {
+    const s = state(), day = (i) => { const d = new Date(Date.UTC(2026, 8, 4) - i * 864e5); return d.toISOString().slice(0, 10); };
+    for (let i = 0; i < 365; i++) {
+      const k = day(i);
+      s.meals.push({ id: 'hm' + i, date: k, time: '12:00', slot: 'lunch', name: 'x', kcal: 1800 + (i % 7) * 100, p: 120 + (i % 5) * 10, c: 200, f: 60, created: 1 }, { id: 'hn' + i, date: k, time: '19:00', slot: 'dinner', name: 'y', kcal: 600, p: 40, c: 50, f: 20, created: 2 });
+      s.health.push({ id: 'h:' + k, date: k, water: i % 9, sleepH: 6 + (i % 4), weight: 180 - (i % 20) / 4 });
+      s.tasks.push({ id: 'ht' + i, title: 'T' + i, date: k, done: i % 3 === 0, p: 0, created: i }, { id: 'hu' + i, title: 'U' + i, date: k, done: false, p: 1, created: i });
+      s.money.push({ id: 'hmo' + i, kind: i % 3 ? 'in' : 'out', amt: 20 + i % 50, date: k, note: 'n', proj: i % 2 ? 'clipper' : 'nq', created: i });
+      s.journal.push({ id: 'j:' + k, date: k, note: 'n', mood: 3, rules: 'yes' });
+      s.tplan.push({ id: 'tp:' + k, followed: i % 4 ? 'yes' : 'no' });
+      s.worth.push({ id: 's:' + k, date: k, total: 10000 + i * 5 });
+      if (i % 3 === 0) s.workouts.push({ id: 'hw' + i, date: k, type: 'Lift', mins: 45, created: i });
+      s.timelog.push({ id: 'htl' + i, title: 'W', cat: 'trading', proj: '', start: Date.parse(k + 'T14:00:00Z'), end: Date.parse(k + 'T16:00:00Z') });
+    }
+    for (let i = 0; i < 60; i++) s.deals.push({ id: 'hd' + i, name: 'D' + i, kind: 'lead', stage: i % 3 ? 'lead' : 'won', value: 100 + i, follow: day(i % 20), notes: '', created: i, closed: day(i) });
+    s.habits.forEach((h) => { h.done = Array.from({ length: 200 }, (_, i) => day(i)); });
+    const trades = [], pnl = {};
+    for (let i = 0; i < 300; i++) { const t = etTrade(day(i % 150), i % 2 ? '09:40' : '10:30', (i % 3 ? 90 : -120) + i % 7); trades.push(t); pnl[t.day] = (pnl[t.day] || 0) + t.usd; }
+    const { p, errs: pe } = await open(b, { width: 1366, height: 800, st: s, nq: nqCache(NOW, { trades, pnl }) });
+    const res = {};
+    for (const sec of ['overview', 'money', 'work', 'trading', 'life', 'food']) {
+      const ms = await p.evaluate((sec) => { const t0 = performance.now(); document.querySelector(`[data-dvsec-go="${sec}"]`).click(); return performance.now() - t0; }, sec);
+      res[sec] = Math.round(ms * 10) / 10; ok(ms < 100, `year of data: cold render of ${sec}: ${ms.toFixed(1)} ms`);
+    }
+    for (const pr of ['month', '30d']) {
+      const ms = await p.evaluate((pr) => { const t0 = performance.now(); document.querySelector(`[data-dvper="${pr}"]`).click(); return performance.now() - t0; }, pr);
+      res['period ' + pr + ' (food)'] = Math.round(ms * 10) / 10; ok(ms < 100, 'period switch ' + pr + ' ' + ms.toFixed(1) + ' ms');
+    }
+    for (const sec of ['overview', 'money', 'work', 'trading', 'life']) {
+      const ms = await p.evaluate((sec) => { document.querySelector(`[data-dvsec-go="${sec}"]`).click(); return 0; }, sec); // visit
+    }
+    const slow = {};
+    for (const sec of ['overview', 'money', 'work', 'trading', 'life', 'food']) {
+      await p.evaluate((sec) => document.querySelector(`[data-dvsec-go="${sec}"]`).click(), sec);
+      const ms = await p.evaluate(() => { const t0 = performance.now(); document.querySelector('[data-dvper="week"]').click(); return performance.now() - t0; });
+      slow[sec] = Math.round(ms * 10) / 10; ok(ms < 100, `year of data: period switch rerender of ${sec}: ${ms.toFixed(1)} ms`);
+    }
+    console.log('PERF year of data, cold ms by section:', JSON.stringify(res), '| after a period switch:', JSON.stringify(slow));
     errs.push(...pe);
   }
   console.log(errs.length ? 'FAIL\n' + errs.join('\n') : 'DASHVIEW OK');

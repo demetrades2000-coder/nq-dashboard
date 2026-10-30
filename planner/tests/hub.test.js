@@ -92,7 +92,7 @@ const EXPECT = {
   ok(hdr <= 1, 'header fits: ' + hdr);
   // palette knows the tools
   await p.keyboard.press('Control+k'); await wait(150);
-  for (const [q, want] of [['tilt', 'Tilt guard'], ['journal', 'Journal'], ['net worth', 'Net worth'], ['backup', 'Backup'], ['all tools', 'All tools'], ['miles', 'Miles'], ['prop', 'Prop firms'], ['taxes', 'Taxes'], ['business', 'Business'], ['payday', 'Payday'], ['edge', 'Edge finder'], ['hours', 'Hours'], ['availability', 'Availability'], ['daily score', 'Daily score'], ['daily brief', 'Daily brief'], ['phone alerts', 'Phone alerts'], ['cash flow', 'Cash flow'], ['bills', 'Bills'], ['setup', 'Setup'], ['time log', 'Time log']]) {
+  for (const [q, want] of [['tilt', 'Tilt guard'], ['journal', 'Journal'], ['net worth', 'Net worth'], ['backup', 'Backup'], ['all tools', 'All tools'], ['miles', 'Miles'], ['prop', 'Prop firms'], ['taxes', 'Taxes'], ['business', 'Business'], ['payday', 'Payday'], ['edge', 'Edge finder'], ['hours', 'Hours'], ['availability', 'Availability'], ['daily score', 'Daily score'], ['daily brief', 'Daily brief'], ['phone alerts', 'Notifications and widgets'], ['cash flow', 'Cash flow'], ['bills', 'Bills'], ['setup', 'Setup'], ['time log', 'Time log']]) {
     await p.fill('#pkIn', q); await wait(80);
     const t = await p.$$eval('#pkList .pk-r b', (n) => n.map((x) => x.textContent));
     ok(t.includes(want), `palette "${q}" finds ${want}: ${t}`);

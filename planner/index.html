@@ -4877,7 +4877,7 @@ const HB_TOOLS = [
   { id: 'brief', g: 'Me', n: 'Daily brief', d: 'A plain-text summary of today to copy or send', k: 'summary morning share', open: () => openBrief(), st: () => '' },
   { id: 'checkweek', g: 'Calendar', n: 'Check my week', d: 'Clashes, trading windows and bedtime', k: 'conflicts guard sleep', pk: 1, open: () => openGuard(), st: () => '' },
   { id: 'alerts', g: 'Calendar', n: 'Phone alerts', d: 'A calendar file that makes your phone remind you', k: 'reminders ics notifications import', open: () => openAlerts(), st: () => { const l = alCfg().last; return l ? `file made ${hbAgo(l)}` : 'file not made yet'; } },
-  { id: 'backup', g: 'Calendar', n: 'Backup', d: 'Save a copy of everything to your phone or computer', k: 'export save restore safe', open: () => $('#exportBtn').click(), st: () => (S.lastBackup ? `last backup ${hbAgo(S.lastBackup)}` : 'never backed up') },
+  { id: 'backup', g: 'Calendar', n: 'Backup', d: 'Save a copy of everything to your phone or computer', k: 'export save restore safe', open: () => { $('#exportBtn').click(); setTimeout(() => { if (S.view === 'today') render(); }, 1200); }, st: () => (S.lastBackup ? `last backup ${hbAgo(S.lastBackup)}` : 'never backed up') },
 ];
 const hbTool = (id) => HB_TOOLS.find((t) => t.id === id) || null;
 function hbStatus(t) { try { return String(t.st() || ''); } catch (e) { return ''; } }
@@ -5011,7 +5011,7 @@ const SU_STEPS = [
   { id: 'alerts', t: 'Set your phone alerts and import the file', why: 'Your phone reminds you before shifts, bills and sessions.', btn: 'Open Phone alerts',
     done: () => alCfg().last > 0, note: () => 'The alerts file has not been made yet', go: () => openAlerts() },
   { id: 'backup', t: 'Make a backup', why: 'Saves a copy of everything in case this phone is lost.', btn: 'Back up now',
-    done: () => S.lastBackup > 0, note: () => 'Never backed up', go: () => $('#exportBtn').click() },
+    done: () => S.lastBackup > 0, note: () => 'Never backed up', go: () => { $('#exportBtn').click(); setTimeout(() => { if (S.view === 'today') render(); }, 1200); } },
 ];
 function suState() {
   const steps = SU_STEPS.map((s) => { let done = false, note = ''; try { done = !!s.done(); note = s.note(); } catch (e) { console.error('Setup step failed', s.id, e); } return { ...s, isDone: done, nt: note }; });

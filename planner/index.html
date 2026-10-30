@@ -1105,7 +1105,7 @@ body.focusing .toast{bottom:76px}
     <h4>Markets</h4>
     <ul><li>Market layers on the calendar: high, medium and low USD releases, Fed speakers, mega-cap earnings and session shading. Turn them on or off in <b>Market on the calendar</b>.</li><li><b>News</b> lists releases with forecast and previous, and headlines tagged risk-on or risk-off. Tap Refresh for the newest data your dashboard has published.</li><li>All market times are converted from New York time to your phone's time zone.</li><li>If a banner says the data is old, your bot PC has not published recently. Check the bots and ForexFactory directly.</li></ul>
     <h4>Discipline and money</h4>
-    <ul><li><b>Rules</b>: your pre-trade checklist, run once per trading day. <b>Trades</b>: notes and tags on each live or paper trade, plus a payout planner.</li><li><b>Review</b>: your week at a glance. <b>Journal</b>: note, mood and whether you followed your rules.</li><li><b>Projects</b> holds Goals and the Money log. <b>Health</b> holds sleep, workouts and trends.</li><li><b>Week balance</b> (card on Today): hours planned per event type against weekly targets you set, with free hours left after 8 h of sleep a day. <b>Earnings</b> (card on Today): estimated pay this week and month from shifts (hours x hourly rate), live and paper trading, and the money log, with a monthly income goal and what you need per week. Both are before tax.</li><li><b>Check my week</b> (shield button, or the banner on Today) lists clashes for today and the next 7 days: events that overlap (red) and work shifts that run into a New York killzone or a high-impact news pause (amber). Tap one to open the event.</li><li><b>When can I trade today?</b> on Today shows the free parts of each killzone after shifts, events and news pauses, plus the best free block of the week for deep work.</li><li><b>Bedtime</b> (evening on Today, and a line in Plan day) takes tomorrow's first event, shift or marked trading session, subtracts your get-ready minutes and sleep hours, and says when to be asleep. Change the numbers with the Change button.</li><li><b>Bills</b> (Today, or <code>#bills</code>): your recurring bills show on the calendar in red and feed a 30-day cash forecast that warns you before you run short. An estimate, before tax.</li><li><b>Tilt guard</b>: after 2 losing trades in a row or your daily loss limit, a red Stop trading banner and a cooldown timer appear. <b>Trade plan</b> (before the NY open) turns into a debrief at 12 pm ET.</li><li><b>Close out the day</b> (Today, from 5 pm): move open tasks to tomorrow, see your first commitment tomorrow, save one win.</li><li><b>Find</b> (Ctrl/Cmd+K, or the Find button): searches everything and runs commands like <i>new task call Sam fri</i>, <i>start clipper edit</i> or <i>next friday</i>.</li><li><b>Time log</b>: start a timer for what you are working on, or log time you forgot. <b>Time audit</b> compares what you planned with what you logged.</li><li><b>Deals</b>: a board for leads, clients and sponsors with follow-up dates on the calendar, a Waiting on list, and a one-tap way to log the money from a won deal.</li></ul>
+    <ul><li><b>Rules</b>: your pre-trade checklist, run once per trading day. <b>Trades</b>: notes and tags on each live or paper trade, plus a payout planner.</li><li><b>Review</b>: your week at a glance. <b>Journal</b>: note, mood and whether you followed your rules.</li><li><b>Projects</b> holds Goals and the Money log. <b>Health</b> holds sleep, workouts and trends.</li><li><b>Week balance</b> (card on Today): hours planned per event type against weekly targets you set, with free hours left after 8 h of sleep a day. <b>Earnings</b> (card on Today): estimated pay this week and month from shifts (hours x hourly rate), live and paper trading, and the money log, with a monthly income goal and what you need per week. Both are before tax.</li><li><b>Check my week</b> (shield button, or the banner on Today) lists clashes for today and the next 7 days: events that overlap (red) and work shifts that run into a New York killzone or a high-impact news pause (amber). Tap one to open the event.</li><li><b>When can I trade today?</b> on Today shows the free parts of each killzone after shifts, events and news pauses, plus the best free block of the week for deep work.</li><li><b>Bedtime</b> (evening on Today, and a line in Plan day) takes tomorrow's first event, shift or marked trading session, subtracts your get-ready minutes and sleep hours, and says when to be asleep. Change the numbers with the Change button.</li><li><b>Bills</b> (Today, or <code>#bills</code>): your recurring bills show on the calendar in red and feed a 30-day cash forecast that warns you before you run short. An estimate, before tax.</li><li><b>Tilt guard</b>: after 2 losing trades in a row or your daily loss limit, a red Stop trading banner and a cooldown timer appear. <b>Trade plan</b> (before the NY open) turns into a debrief at 12 pm ET.</li><li><b>Close out the day</b> (Today, from 5 pm): move open tasks to tomorrow, see your first commitment tomorrow, save one win.</li><li><b>Find</b> (Ctrl/Cmd+K, or the Find button): searches everything and runs commands like <i>new task call Sam fri</i>, <i>start clipper edit</i> or <i>next friday</i>.</li><li><b>Time log</b>: start a timer for what you are working on, or log time you forgot. <b>Time audit</b> compares what you planned with what you logged.</li><li><b>Deals</b>: a board for leads, clients and sponsors with follow-up dates on the calendar, a Waiting on list, and a one-tap way to log the money from a won deal.</li><li><b>Edge finder</b> (<code>#edge</code>): where you make and lose money by weekday, hour and tag, with plain findings. Small samples are greyed out. <b>Daily score</b> (<code>#score</code>): a 0-100 score from what you did, with streaks. <b>Net worth</b> (<code>#worth</code>): your accounts, savings goal and emergency fund, typed by hand.</li></ul>
     <h4>Shortcuts and Back Tap</h4>
     <p>In the iPhone Shortcuts app, add an <b>Open URL</b> action with this app's address plus one of these endings, then set Back Tap (Settings, Accessibility, Touch) to run it:</p>
     <ul><li><code>#today</code> <code>#plan</code> <code>#plan-week</code> <code>#new-event</code> <code>#new-task</code> <code>#shifts</code> <code>#week-balance</code> <code>#earnings</code></li><li><code>#log-workout</code> <code>#health</code> <code>#projects</code> <code>#week</code> <code>#agenda</code></li></ul>
@@ -1180,7 +1180,7 @@ const shade = (hex, f) => { const [r, g, b] = rgb(hex); return `rgb(${Math.round
 const cvars = (hex) => `--c:${hex};--bg-c:${tint(hex, .13)};--fg:${shade(hex, .42)}`;
 
 // ---------- state ----------
-const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan', 'timelog', 'deals', 'waiting']; // collections added by the Rules and Trades features
+const XSYNC = ['rules', 'checks', 'tradenotes', 'jobs', 'budgets', 'incomegoal', 'guard', 'bills', 'cashcfg', 'tilt', 'tplan', 'timelog', 'deals', 'waiting', 'score', 'worth']; // collections added by the Rules and Trades features
 let S = load();
 let cursor = todayKey(), selected = cursor, miniMonth = cursor.slice(0, 7);
 let query = '', agendaDays = 30, undoSnap = null, editing = null, lastScrollView = null;
@@ -2703,6 +2703,7 @@ function renderToday() {
     ${tiltTodayCard()}${tradePlanTodayCard()}
     ${guardTodayCard()}
     ${shutdownCard()}
+    ${scoreTodayCard()}
     <section class="td-card"><h3>Schedule<button data-tgo="day">Day view</button></h3>${own.length ? own.map(evRow).join('') : '<div class="empty-s">Nothing scheduled. Tap Plan day to block time for your tasks.</div>'}${pauses.length ? `<div class="hint" style="margin-top:4px">Bot pauses: ${pauses.filter((o) => /bot paused/.test(o.ev.title)).map((o) => `${fmtTime(o.ev.start)} to ${fmtTime(o.ev.end)}`).join(', ') || 'none today'}</div>` : ''}</section>
     ${ups.length ? `<section class="td-card"><h3>Market news next<button data-tgo="news">All news</button></h3>${ups.map((e) => { const m = Math.round((e.ms - Date.now()) / 60000); return `<div class="nw-row ${e.impact === 'high' ? 'high' : 'med'}" style="grid-template-columns:62px 10px minmax(0,1fr) auto"><span class="nw-t">${fmtTime(e.lt)}</span><span class="nw-i"></span><div class="nw-b"><b>${esc(e.title)}</b>${e.fc || e.prev ? `<small>${e.fc ? 'Forecast ' + esc(e.fc) : ''}${e.fc && e.prev ? ' · ' : ''}${e.prev ? 'Previous ' + esc(e.prev) : ''}</small>` : ''}</div><span class="nw-c">${m < 90 ? `in ${Math.max(m, 1)} min` : `in ${fmtDur(m)}`}</span></div>`; }).join('')}</section>` : ''}
     <section class="td-card"><h3>Tasks<button data-tgo="projects">All tasks</button></h3>${tks.length ? `<ul class="tasks">${tks.slice(0, 10).map((t) => taskLi(t, { overdue: t.date < today })).join('')}</ul>${tks.length > 10 ? `<div class="sub">+${tks.length - 10} more</div>` : ''}` : '<div class="empty-s">Nothing due. Add one below.</div>'}
@@ -2712,6 +2713,8 @@ function renderToday() {
     ${wbTodayCard()}${earnTodayCard()}
     ${billsTodayCard()}
     ${plTodayCard()}
+    ${edgeTodayCard()}
+    ${worthTodayCard()}
     ${habs.length ? `<section class="td-card"><h3>Habits<button data-tgo="habits">All habits</button></h3>${habs.map((h) => { const st = habitStats(h), on = hDone(h, today); return `<div class="td-hab" style="--c:${esc(h.color || '#2563eb')}" data-thab="${esc(h.id)}"><button aria-pressed="${on}" aria-label="${on ? 'Undo' : 'Check in'} ${esc(h.name)}">${on ? ICON_CHECK : ''}</button><span>${esc(h.name)} <small>${st.cur} day streak</small></span></div>`; }).join('')}</section>` : ''}
     ${tr ? `<section class="td-card"><h3>Trading<span style="display:flex;gap:10px;align-items:baseline"><span class="${staleCls}">${staleTxt}</span><button data-refresh>Refresh</button></span></h3>${(tr.accounts || []).map((a) => `<div class="td-acct"><span><b>${esc(a.strategy === 'LIT' ? 'Zlarior' : a.strategy || a.name)}</b> ${esc(String(a.name || '').replace('MFFU ', ''))}</span><span>${usd(a.profit)} of ${usd(a.target)} · ${a.sessions_left != null ? a.sessions_left + ' sessions left' : ''}</span></div>`).join('')}${tr.month ? `<div class="td-acct" style="color:var(--mute)"><span>${MONTHS[+tr.month.month.slice(5) - 1]} so far</span><span><b style="color:var(--ink)">${usd(tr.month.usd)}</b> · ${tr.month.trades} trade${tr.month.trades === 1 ? '' : 's'}</span></div>` : ''}</section>` : ''}
     ${goals.length ? `<section class="td-card"><h3>Goals<button data-tgo="projects">All goals</button></h3>${goals.map((g) => { const v = goalValue(g), t = +g.target || 0, pct = t > 0 ? Math.max(0, Math.min(100, v / t * 100)) : 0; return `<div><div class="td-acct"><span><b>${esc(g.title)}</b></span><span>${gnum(g, v)} of ${gnum(g, t)}</span></div><div class="bar2" style="margin-top:5px"><i style="width:${pct}%;background:var(--ok)"></i></div></div>`; }).join('')}</section>` : ''}
@@ -2771,6 +2774,9 @@ function route() {
   else if (h === 'week-balance') { goToday(); openWeekBal(); }
   else if (h === 'earnings') { goToday(); openEarn(); }
   else if (h === 'bills') { goToday(); openBills(); }
+  else if (h === 'edge') { goToday(); openEdge(); }
+  else if (h === 'score') { goToday(); openScore(); }
+  else if (h === 'worth') { goToday(); openWorth(); }
   else if (h === 'tilt') { goToday(); openTiltSettings(); }
   else if (h === 'trade-plan') { goToday(); tpMode = 'plan'; renderMain(); }
   else if (h === 'search' || h === 'palette') { goToday(); openPalette(); }
@@ -2813,6 +2819,403 @@ $('#main').addEventListener('submit', (e) => {
   saveJournal(todayKey(), { win: v }); toast('Win saved'); render();
 });
 // ===== SHUTDOWN END =====
+
+// ===== EDGE BEGIN: edge finder, where do I make and lose money (reads closed live/paper trades, notes in `tradenotes`, plan in `tplan`, journal rules; stores nothing) =====
+// Past results only, no predictions. Buckets with fewer than ED_MIN trades are shown dimmed and never used for a finding.
+const ED_MIN = 5, ED_DAYS_MIN = 3;
+const ED_WD = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+document.head.insertAdjacentHTML('beforeend', `<style>
+#edDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}
+.ed-chart{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:10px;background:#fff}
+.ed-chart text{font-size:10px;fill:var(--mute);font-family:inherit}.ed-chart text.dd{fill:#b91c1c;font-weight:600}
+.ed-chart .ln{fill:none;stroke:var(--ink);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}.ed-chart .zero{stroke:var(--line);stroke-width:1;stroke-dasharray:3 3}
+.ed-chart .ddz{fill:#dc2626;opacity:.1}.ed-chart .ddp{fill:#dc2626}
+.ed-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ed-stats div{border:1px solid var(--line);border-radius:10px;padding:8px 10px;text-align:center}
+.ed-stats b{display:block;font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}.ed-stats span{font-size:11.5px;color:var(--mute)}
+.ed-sec{display:flex;flex-direction:column;gap:6px}.ed-sec>h4{font-size:13px;font-weight:600}
+.ed-r{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:2px 10px;align-items:center;font-size:13px}
+.ed-r>span:first-child{overflow-wrap:anywhere;line-height:1.25}
+.ed-r .ed-b{height:10px;background:var(--soft);border-radius:5px;overflow:hidden}.ed-r .ed-b i{display:block;height:100%;border-radius:5px}
+.ed-r .ed-b i.p{background:#10b981}.ed-r .ed-b i.n{background:#ef4444}
+.ed-r .ed-v{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}.ed-r small{grid-column:2 / 4;font-size:11.5px;color:var(--mute);margin-bottom:4px}
+.ed-r.few{opacity:.55}.ed-r.few .ed-b i{background:#9ca3af}
+.ed-find{display:flex;flex-direction:column;gap:8px;list-style:none;padding:0}
+.ed-find li{border:1px solid var(--line);border-left:4px solid var(--ink);border-radius:10px;padding:9px 12px;font-size:13.5px;line-height:1.45;overflow-wrap:anywhere}
+.ed-cmp{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:3px 12px;font-size:13px;font-variant-numeric:tabular-nums}.ed-cmp .h{font-size:11.5px;color:var(--mute)}.ed-cmp .n{text-align:right}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="edDlg" aria-labelledby="edTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="edTitle">Edge finder</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="edBody" style="display:flex;flex-direction:column;gap:14px"></div>
+</div></dialog>`);
+const edDlg = $('#edDlg');
+const edUsd = (v) => { const a = Math.abs(v), r = a < 100 ? a.toFixed(2).replace(/\.00$/, '') : Math.round(a).toLocaleString('en-US'); return (v < 0 && +r.replace(/,/g, '') !== 0 ? '-' : '') + '$' + r; };
+const edPct = (a, b) => (b ? Math.round(a / b * 100) + '%' : '-');
+const edDays = (n) => n + ' day' + (n === 1 ? '' : 's');
+function edTrades() { return nqTrades.filter((t) => t && typeof t.usd === 'number' && YMD.test(t.day || '') && t.t0).slice().sort((a, b) => (a.t1 || a.t0) - (b.t1 || b.t0)); }
+const edEtHour = (t) => new Date(etWall(t.t0 * 1000)).getUTCHours();
+function edHourLabel(h, lh) {
+  const et = fmtTime(`${pad(h)}:00`) + ' ET';
+  return localIsET || lh === h ? et : `${et} (${fmtTime(`${pad(lh)}:00`)} local)`;
+}
+function edBucket(list) { // net, trades, wins and trading days of a list of trades
+  const days = new Set(list.map((t) => t.day)); let net = 0, w = 0;
+  list.forEach((t) => { net += t.usd; if (t.usd > 0) w++; });
+  return { n: list.length, net: Math.round(net * 100) / 100, wins: w, days: days.size };
+}
+function edCalc() {
+  const ts = edTrades(), n = ts.length;
+  const win = ts.filter((t) => t.usd > 0), loss = ts.filter((t) => t.usd < 0);
+  const gw = win.reduce((a, t) => a + t.usd, 0), gl = -loss.reduce((a, t) => a + t.usd, 0), net = gw - gl;
+  const byDay = new Map(); ts.forEach((t) => byDay.set(t.day, (byDay.get(t.day) || 0) + t.usd));
+  const days = [...byDay.entries()].map(([day, pnl]) => ({ day, pnl: Math.round(pnl * 100) / 100 })).sort((a, b) => a.day.localeCompare(b.day));
+  const eq = [0]; ts.forEach((t) => eq.push(eq[eq.length - 1] + t.usd));
+  let peak = 0, pi = 0, dd = { amt: 0, from: 0, to: 0 };
+  eq.forEach((v, i) => { if (v > peak) { peak = v; pi = i; } if (peak - v > dd.amt) dd = { amt: peak - v, from: pi, to: i }; });
+  const wd = [1, 2, 3, 4, 5, 6, 0].map((d) => ({ d, label: ED_WD[d], ...edBucket(ts.filter((t) => dow(t.day) === d)) })).filter((b) => b.n);
+  const hrs = new Map(); ts.forEach((t) => { const h = edEtHour(t); if (!hrs.has(h)) hrs.set(h, []); hrs.get(h).push(t); });
+  const hr = [...hrs.entries()].sort((a, b) => a[0] - b[0]).map(([h, l]) => ({ h, label: edHourLabel(h, new Date(l[l.length - 1].t0 * 1000).getHours()), ...edBucket(l) }));
+  // tags from the trade notes, and plan-followed days from the trade plan and the journal
+  const notes = new Map(S.tradenotes.map((x) => [x.tk, x]));
+  const tagged = (tg) => ts.filter((t) => { const x = notes.get(t.k); return x && (x.tags || []).includes(tg); });
+  const tags = (typeof TR_TAGS !== 'undefined' ? TR_TAGS : []).map((tg) => ({ tag: tg, ...edBucket(tagged(tg)) })).filter((b) => b.n);
+  const fp = tagged('Followed plan'), fpSet = new Set(fp.map((t) => t.k)), nofp = ts.filter((t) => !fpSet.has(t.k));
+  const avg = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
+  const dayCmp = (fn) => { const g = { yes: [], no: [] }; days.forEach((d) => { const v = fn(d.day); if (v === 'yes' || v === 'no') g[v].push(d.pnl); }); return { yes: g.yes.length, no: g.no.length, ay: avg(g.yes), an: avg(g.no) }; };
+  const planDays = dayCmp((k) => { const p = S.tplan.find((x) => x.id === 'tp:' + k); return p ? p.followed : ''; });
+  const rulesDays = dayCmp((k) => { const j = S.journal.find((x) => x.date === k); return j ? j.rules : ''; });
+  return {
+    n, net, wins: win.length, losses: loss.length, winRate: win.length + loss.length ? win.length / (win.length + loss.length) : null,
+    avgWin: win.length ? gw / win.length : null, avgLoss: loss.length ? gl / loss.length : null, exp: n ? net / n : null, pf: gl > 0 ? gw / gl : null, gw, gl,
+    days, best: days.length ? days.reduce((a, b) => (b.pnl > a.pnl ? b : a)) : null, worst: days.length ? days.reduce((a, b) => (b.pnl < a.pnl ? b : a)) : null,
+    eq, dd, ts, wd, hr, tags, fp: edBucket(fp), nofp: edBucket(nofp), planDays, rulesDays, notesN: S.tradenotes.length,
+  };
+}
+function edFindings(c) { // up to 3 plain sentences, only ever from buckets with enough trades
+  const out = [];
+  if (c.n < ED_MIN) return out;
+  if (c.fp.n >= ED_MIN && c.nofp.n >= ED_MIN) out.push(`Trades tagged Followed plan averaged ${edUsd(c.fp.net / c.fp.n)} vs ${edUsd(c.nofp.net / c.nofp.n)} without the tag (${c.fp.n} vs ${c.nofp.n} trades).`);
+  const okD = c.wd.filter((b) => b.n >= ED_MIN && b.days >= 2), worstD = okD.filter((b) => b.net < 0).sort((a, b) => a.net - b.net)[0];
+  if (worstD) out.push(`Your ${worstD.label}s lost ${edUsd(-worstD.net)} over ${edDays(worstD.days)} (${worstD.n} trades): consider sitting out, or trading smaller.`);
+  const okH = c.hr.filter((b) => b.n >= ED_MIN), worstH = okH.filter((b) => b.net < 0).sort((a, b) => a.net - b.net)[0];
+  if (worstH) out.push(`Entries around ${worstH.label} lost ${edUsd(-worstH.net)} over ${worstH.n} trades on ${edDays(worstH.days)}: consider sitting out that hour.`);
+  const enough = (x) => x.yes >= ED_DAYS_MIN && x.no >= ED_DAYS_MIN;
+  const line = (x, what) => `On days your ${what} was Yes you averaged ${edUsd(x.ay)} a day vs ${edUsd(x.an)} on days it was No (${x.yes} vs ${x.no} days).`;
+  if (enough(c.planDays)) out.push(line(c.planDays, 'trade plan'));
+  if (enough(c.rulesDays)) out.push(line(c.rulesDays, 'journal rules answer'));
+  const bestD = okD.filter((b) => b.net > 0).sort((a, b) => b.net - a.net)[0];
+  if (bestD) out.push(`Your best weekday is ${bestD.label}: ${edUsd(bestD.net)} over ${edDays(bestD.days)} (${bestD.n} trades).`);
+  const bestH = okH.filter((b) => b.net > 0).sort((a, b) => b.net - a.net)[0];
+  if (bestH) out.push(`Your best entry hour is ${bestH.label}: ${edUsd(bestH.net)} over ${bestH.n} trades.`);
+  return out.slice(0, 3);
+}
+function edChart(c) {
+  const W = 340, H = 150, L = 8, R = 8, T = 18, B = 20, n = c.eq.length - 1;
+  const lo = Math.min(0, ...c.eq), hi = Math.max(0, ...c.eq), span = hi - lo || 1;
+  const x = (i) => L + (n ? i / n : 0.5) * (W - L - R), y = (v) => T + (hi - v) / span * (H - T - B);
+  const pts = c.eq.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const dd = c.dd, ddOn = dd.amt > 0, first = c.ts[0], last = c.ts[c.ts.length - 1];
+  const lab = (k) => { const d = parse(k); return `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}`; };
+  const ddX = ddOn ? Math.min(Math.max(x(dd.to), 70), W - 70) : 0;
+  return `<svg class="ed-chart" id="edChart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Equity curve of ${c.n} trades, ${edUsd(c.net)} net${ddOn ? ', max drawdown ' + edUsd(-dd.amt) : ''}">
+    <line class="zero" x1="${L}" x2="${W - R}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}"/>
+    ${ddOn ? `<rect class="ddz" x="${x(dd.from).toFixed(1)}" y="${T - 4}" width="${Math.max(2, x(dd.to) - x(dd.from)).toFixed(1)}" height="${H - T - B + 8}"/><circle class="ddp" cx="${x(dd.from).toFixed(1)}" cy="${y(c.eq[dd.from]).toFixed(1)}" r="3"/><circle class="ddp" cx="${x(dd.to).toFixed(1)}" cy="${y(c.eq[dd.to]).toFixed(1)}" r="3"/><text class="dd" id="edDDtxt" x="${ddX.toFixed(1)}" y="11" text-anchor="middle">Max drawdown ${edUsd(-dd.amt)}</text>` : ''}
+    <polyline class="ln" points="${pts}"/>
+    <text x="${L}" y="${H - 5}">${first ? lab(first.day) : ''}</text><text x="${W - R}" y="${H - 5}" text-anchor="end">${last ? lab(last.day) : ''}</text>
+  </svg>`;
+}
+function edBars(rows) {
+  const mx = Math.max(1, ...rows.map((r) => Math.abs(r.net)));
+  return rows.map((r) => { const few = r.n < ED_MIN;
+    return `<div class="ed-r${few ? ' few' : ''}" data-edrow><span>${esc(r.label)}</span><span class="ed-b"><i class="${r.net < 0 ? 'n' : 'p'}" style="width:${Math.max(2, Math.abs(r.net) / mx * 100).toFixed(0)}%"></i></span><span class="ed-v ${few ? '' : moneyCls(r.net)}">${edUsd(r.net)}</span><small>${r.n} trade${r.n === 1 ? '' : 's'}, ${edDays(r.days)}, ${edPct(r.wins, r.n)} wins${few ? ' · not enough trades yet' : ''}</small></div>`; }).join('');
+}
+function edPaint() {
+  const c = edCalc(), body = $('#edBody');
+  if (!c.n) { body.innerHTML = '<div class="empty-s" id="edEmpty">No closed live or paper trades saved yet. The app saves them each time it opens on your dashboard site, so this fills in over time.</div><div class="hint">Never uses the backtest.</div>'; return; }
+  const stat = (v, l, cls = '') => `<div><b class="${cls}">${v}</b><span>${l}</span></div>`;
+  const find = edFindings(c);
+  const dcRow = (x, l) => (x.yes + x.no ? `<div>${l}</div><div class="n">${x.yes >= ED_DAYS_MIN ? edUsd(x.ay) : '-'} <small>(${x.yes} d)</small></div><div class="n">${x.no >= ED_DAYS_MIN ? edUsd(x.an) : '-'} <small>(${x.no} d)</small></div>` : '');
+  const fpRow = c.fp.n ? `<div>Avg per trade, tag Followed plan vs the rest</div><div class="n">${c.fp.n >= ED_MIN ? edUsd(c.fp.net / c.fp.n) : '-'} <small>(${c.fp.n})</small></div><div class="n">${c.nofp.n >= ED_MIN ? edUsd(c.nofp.net / c.nofp.n) : '-'} <small>(${c.nofp.n})</small></div>` : '';
+  const cmpHtml = fpRow + dcRow(c.planDays, 'Avg per day, trade plan') + dcRow(c.rulesDays, 'Avg per day, journal rules');
+  body.innerHTML = `<div class="hint" id="edSrc">${c.n} closed live and paper trade${c.n === 1 ? '' : 's'} saved in this app (up to the last 300), over ${edDays(c.days.length)}. Past results only, never the backtest.</div>
+    <div class="ed-sec"><h4>Equity curve</h4>${edChart(c)}</div>
+    <div class="ed-stats" id="edStats">
+      ${stat(edUsd(c.net), 'net P&amp;L', moneyCls(c.net))}${stat(c.winRate == null ? '-' : Math.round(c.winRate * 100) + '%', `win rate (${c.wins} W / ${c.losses} L)`)}
+      ${stat(c.avgWin == null ? '-' : edUsd(c.avgWin), 'average win')}${stat(c.avgLoss == null ? '-' : edUsd(-c.avgLoss), 'average loss', c.avgLoss ? 'neg' : '')}
+      ${stat(edUsd(c.exp), 'expectancy per trade', moneyCls(c.exp))}${stat(c.pf == null ? (c.gw > 0 ? 'no losses' : '-') : c.pf.toFixed(2), 'profit factor')}
+      ${stat(c.best ? edUsd(c.best.pnl) : '-', c.best ? 'best day (' + bnShort(c.best.day) + ')' : 'best day', c.best && c.best.pnl > 0 ? 'pos' : '')}${stat(c.worst ? edUsd(c.worst.pnl) : '-', c.worst ? 'worst day (' + bnShort(c.worst.day) + ')' : 'worst day', c.worst && c.worst.pnl < 0 ? 'neg' : '')}
+    </div>
+    <div class="hint">Expectancy is the average result of one trade. Profit factor is money won divided by money lost. Max drawdown is the biggest drop from a peak: ${edUsd(-c.dd.amt)}.</div>
+    <div class="ed-sec"><h4>By weekday</h4><div id="edWd">${edBars(c.wd.map((b) => ({ ...b, label: b.label.slice(0, 3) })))}</div></div>
+    <div class="ed-sec"><h4>By entry hour</h4><div id="edHr">${edBars(c.hr)}</div><div class="hint">Hours are New York time${localIsET ? '' : ' with your local time in brackets'}. Grey rows have fewer than ${ED_MIN} trades, too few to read anything into.</div></div>
+    ${c.tags.length ? `<div class="ed-sec"><h4>By trade tag</h4><div id="edTags">${edBars(c.tags.map((b) => ({ ...b, label: b.tag })))}</div></div>` : '<div class="hint" id="edNoTags">Tag your trades in Trades (Followed plan, FOMO, ...) and this shows what each habit costs or earns.</div>'}
+    ${cmpHtml ? `<div class="ed-sec"><h4>Plan followed or not</h4><div class="ed-cmp" id="edCmp"><div class="h"></div><div class="h n">Yes</div><div class="h n">No</div>${cmpHtml}</div>
+      <div class="hint">"-" means fewer than ${ED_MIN} trades (or ${ED_DAYS_MIN} days) on that side.</div></div>` : ''}
+    <div class="ed-sec"><h4>What this suggests</h4>${find.length ? `<ul class="ed-find" id="edFind">${find.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>` : `<div class="empty-s" id="edFind">Not enough trades yet${c.n < ED_MIN ? ` (${c.n} of ${ED_MIN} needed)` : `: no weekday, hour or tag has ${ED_MIN} trades to say anything useful`}.</div>`}
+      <div class="hint">Computed from your own past trades. A pattern in the past is not a prediction.</div></div>`;
+}
+function openEdge() { edPaint(); if (!edDlg.open) edDlg.showModal(); }
+edDlg.addEventListener('close', () => render());
+function edgeTodayCard() {
+  const c = edCalc();
+  return `<section class="td-card" id="edCard"><h3>Edge finder<button data-edopen>Where do I make money?</button></h3>${c.n ? `<div class="glance"><div><b class="${moneyCls(c.net)}">${edUsd(c.net)}</b><span>net, ${c.n} trade${c.n === 1 ? '' : 's'}</span></div><div><b>${c.winRate == null ? '-' : Math.round(c.winRate * 100) + '%'}</b><span>win rate</span></div><div><b class="${moneyCls(c.exp)}">${edUsd(c.exp)}</b><span>per trade</span></div></div><div class="hint">Your weekdays, hours and habits, from live and paper trades only.</div>` : '<div class="hint">Needs closed live or paper trades from the dashboard. Nothing to analyse yet.</div>'}</section>`;
+}
+$('#main').addEventListener('click', (e) => { if (S.view === 'today' && e.target.closest('[data-edopen]')) openEdge(); });
+// ===== EDGE END =====
+
+// ===== SCORE BEGIN: daily score 0-100 and streaks (synced collection `score`: id 'cfg' = which parts are switched off) =====
+// Built only from what the app already knows. A part with no data for that day is left out of the maths (not counted as zero), so a day is
+// never punished for something that did not apply. Future days are not scored. Days with nothing to score are skipped by the streak.
+const SC_PASS = 70, SC_BACK = 120;
+const SC_PARTS = [['shifts', 'Shifts worked', 15], ['tasks', 'Tasks done', 20], ['habits', 'Habits done', 15], ['rules', 'Rules followed (journal)', 15], ['plan', 'Trade plan followed', 15], ['tilt', 'Tilt stops respected', 10], ['work', 'Workout logged', 10]];
+document.head.insertAdjacentHTML('beforeend', `<style>
+#scDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}
+.sc-spark{width:100%;height:auto;display:block}.sc-spark text{font-size:9px;fill:var(--mute);font-family:inherit}
+.sc-spark .ln{fill:none;stroke:var(--ink);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}.sc-spark .th{stroke:var(--line);stroke-width:1;stroke-dasharray:3 3}
+.sc-spark .dot{fill:var(--ink)}.sc-spark .dot.ok{fill:var(--ok)}
+.sc-big{font-size:34px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.sc-row{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:2px 10px;align-items:center;padding:8px 0;border-top:1px solid var(--line2);font-size:13.5px}
+.sc-row input{width:18px;height:18px}.sc-row .sc-n b{font-weight:600;display:block}.sc-row small{display:block;font-size:12px;color:var(--mute)}
+.sc-row .sc-w{font-variant-numeric:tabular-nums;font-weight:600;text-align:right;white-space:nowrap}.sc-row.off{opacity:.55}
+.sc-row .bar2{grid-column:2 / 4}
+.sc-miss{display:flex;flex-direction:column;gap:3px;font-size:13px}.sc-miss b{font-weight:600}
+.sc-days{display:flex;gap:4px;flex-wrap:wrap}.sc-days span{border:1px solid var(--line);border-radius:8px;padding:3px 6px;font-size:11.5px;text-align:center;min-width:42px;font-variant-numeric:tabular-nums}
+.sc-days span b{display:block;font-size:14px}.sc-days span.ok{border-color:#a7f3d0;background:#ecfdf5}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="scDlg" aria-labelledby="scTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="scTitle">Daily score</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="scBody" style="display:flex;flex-direction:column;gap:12px"></div>
+</div></dialog>`);
+const scDlg = $('#scDlg');
+const scOff = () => { const c = S.score.find((x) => x.id === 'cfg'); return c && Array.isArray(c.off) ? c.off : []; };
+const scFrac = { yes: 1, partly: 0.5, no: 0 };
+function scParts(k) { // what the app knows about day k, one entry per part: {id, have, frac, text, hint}
+  const today = todayKey(), n = new Date(), nowMin = n.getHours() * 60 + n.getMinutes(), P = {};
+  const jobIds = new Set(S.jobs.map((j) => j.id));
+  const shifts = eventsOn(k, true).filter((o) => !o.cont && !o.ev.bot && !o.ev.allDay && o.ev.start && jobIds.has(o.ev.cat));
+  const sDone = shifts.filter((o) => k < today || (k === today && toMin(o.ev.end || o.ev.start) > toMin(o.ev.start) && toMin(o.ev.end || o.ev.start) <= nowMin)).length;
+  P.shifts = { have: shifts.length > 0, frac: shifts.length ? sDone / shifts.length : 0, text: `${sDone} of ${shifts.length} shift${shifts.length === 1 ? '' : 's'} worked`, hint: 'finish your shift' };
+  const tk = S.tasks.filter((t) => t.date === k), tDone = tk.filter((t) => t.done).length;
+  P.tasks = { have: tk.length > 0, frac: tk.length ? tDone / tk.length : 0, text: `${tDone} of ${tk.length} task${tk.length === 1 ? '' : 's'} done`, hint: `finish ${tk.length - tDone} more task${tk.length - tDone === 1 ? '' : 's'}` };
+  const hb = S.habits.filter((h) => hDue(h, k) && (!h.created || h.created <= k)), hOpen = hb.filter((h) => !hDone(h, k));
+  P.habits = { have: hb.length > 0, frac: hb.length ? (hb.length - hOpen.length) / hb.length : 0, text: `${hb.length - hOpen.length} of ${hb.length} habit${hb.length === 1 ? '' : 's'} done`, hint: `check in ${hOpen.slice(0, 2).map((h) => h.name).join(' and ')}${hOpen.length > 2 ? ' and more' : ''}` };
+  const j = S.journal.find((x) => x.date === k);
+  P.rules = { have: !!(j && j.rules in scFrac), frac: j && j.rules in scFrac ? scFrac[j.rules] : 0, text: j && j.rules in scFrac ? 'You answered ' + j.rules : 'Not answered', hint: 'answer "Followed my rules?" in your journal', open: true };
+  const tp = S.tplan.find((x) => x.id === 'tp:' + k);
+  P.plan = { have: !!(tp && tp.followed in scFrac), frac: tp && tp.followed in scFrac ? scFrac[tp.followed] : 0, text: tp && tp.followed in scFrac ? 'You answered ' + tp.followed : 'Not answered', hint: 'answer "Did I follow the plan?" in the debrief', open: true };
+  const ev = tzEval(k, tzCfg()), hit = ev.count > 0 && ev.last;
+  P.tilt = { have: !!hit, frac: hit && !ev.viol ? 1 : 0, text: hit ? (ev.viol ? `Traded ${ev.viol} time${ev.viol === 1 ? '' : 's'} after a stop` : 'A stop was hit and respected') : 'No stop was hit', hint: '' };
+  const w = S.workouts.some((x) => x.date === k), tracking = S.workouts.some((x) => x.date < k && x.date >= addDays(k, -14));
+  P.work = { have: w || tracking, frac: w ? 1 : 0, text: w ? 'Workout logged' : tracking ? 'No workout logged' : 'You have not logged workouts lately', hint: 'log your workout', open: true };
+  return SC_PARTS.map(([id, name, wt]) => ({ id, name, wt, ...P[id] }));
+}
+function scMath(parts, off) { // parts that are on and have data -> {score, used}
+  const used = parts.filter((p) => !off.includes(p.id) && p.have), tot = used.reduce((a, p) => a + p.wt, 0);
+  return { score: tot ? Math.round(used.reduce((a, p) => a + p.wt * p.frac, 0) / tot * 100) : null, used };
+}
+function scDay(k) { const parts = scParts(k), m = scMath(parts, scOff()); return { day: k, parts, score: m.score, used: m.used }; }
+function scHistory() { const t = todayKey(); return Array.from({ length: SC_BACK }, (_, i) => scDay(addDays(t, i - SC_BACK + 1))); }
+function scStreaks(h) { // days >= SC_PASS in a row. A day with nothing to score is skipped. Today only extends the streak once it reaches SC_PASS.
+  let cur = 0, best = 0;
+  h.forEach((d, i) => {
+    const last = i === h.length - 1;
+    if (d.score == null) return;
+    if (d.score >= SC_PASS) { cur++; best = Math.max(best, cur); } else if (!last) cur = 0;
+  });
+  return { cur, best };
+}
+function scMissing(d) { // what is missing today, biggest gain first
+  const off = scOff(), base = scMath(d.parts, off).score, out = [];
+  for (const p of d.parts) {
+    if (off.includes(p.id) || !p.hint || (p.have && p.frac >= 1)) continue;
+    if (!p.have && !p.open) continue;
+    const alt = d.parts.map((q) => (q.id === p.id ? { ...q, have: true, frac: 1 } : q)), gain = scMath(alt, off).score - (base == null ? 0 : base);
+    out.push({ id: p.id, hint: p.hint, gain, text: gain > 0 ? `+${gain} if you ${p.hint}` : `Counts once you ${p.hint}` });
+  }
+  return out.sort((a, b) => b.gain - a.gain);
+}
+function scSpark(h14) {
+  const W = 300, H = 56, L = 6, R = 6, T = 6, B = 6, x = (i) => L + i / 13 * (W - L - R), y = (v) => T + (100 - v) / 100 * (H - T - B);
+  let path = '', segs = [], cur = [];
+  h14.forEach((d, i) => { if (d.score == null) { if (cur.length) segs.push(cur); cur = []; } else cur.push(`${x(i).toFixed(1)},${y(d.score).toFixed(1)}`); });
+  if (cur.length) segs.push(cur);
+  path = segs.map((s) => (s.length > 1 ? `<polyline class="ln" points="${s.join(' ')}"/>` : '')).join('');
+  const dots = h14.map((d, i) => (d.score == null ? '' : `<circle class="dot${d.score >= SC_PASS ? ' ok' : ''}" cx="${x(i).toFixed(1)}" cy="${y(d.score).toFixed(1)}" r="3"><title>${esc(bnShort(d.day))}: ${d.score}</title></circle>`)).join('');
+  return `<svg class="sc-spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Daily score for the last 14 days"><line class="th" x1="${L}" x2="${W - R}" y1="${y(SC_PASS).toFixed(1)}" y2="${y(SC_PASS).toFixed(1)}"/>${path}${dots}</svg>`;
+}
+function scPaint() {
+  const h = scHistory(), t = h[h.length - 1], st = scStreaks(h), off = scOff(), miss = scMissing(t), h14 = h.slice(-14);
+  const body = $('#scBody');
+  const row = (p) => { const on = !off.includes(p.id), counted = on && p.have;
+    return `<div class="sc-row${on ? '' : ' off'}" data-scrow="${p.id}"><input type="checkbox" data-scon="${p.id}" ${on ? 'checked' : ''} aria-label="Count ${esc(p.name)}"><span class="sc-n"><b>${esc(p.name)}</b><small>${esc(on ? (p.have ? p.text : p.text + ' · not counted today (no data)') : 'Switched off')}</small></span><span class="sc-w">${p.wt} pts</span>${counted ? `<div class="bar2"><i style="width:${Math.round(p.frac * 100)}%;background:var(--ok)"></i></div>` : ''}</div>`; };
+  body.innerHTML = `<div style="display:flex;align-items:baseline;gap:10px"><span class="sc-big" id="scBig">${t.score == null ? '-' : t.score}</span><span class="hint">${t.score == null ? 'nothing to score yet today' : 'out of 100 so far today'}</span></div>
+    ${miss.length ? `<div class="sc-miss" id="scMiss">${miss.map((m) => `<span>${esc(m.text)}</span>`).join('')}</div>` : (t.score != null ? '<div class="sc-miss" id="scMiss"><b>Nothing missing. Everything that counts today is done.</b></div>' : '')}
+    ${scSpark(h14)}
+    <div class="sc-days" id="scDays">${h14.slice(-7).map((d) => `<span class="${d.score != null && d.score >= SC_PASS ? 'ok' : ''}">${DAYS[parse(d.day).getDay()]}<b>${d.score == null ? '-' : d.score}</b></span>`).join('')}</div>
+    <div class="glance" style="grid-template-columns:repeat(2,1fr)"><div><b id="scCur">${st.cur}</b><span>current streak (days of ${SC_PASS}+)</span></div><div><b id="scBest">${st.best}</b><span>best streak, last ${SC_BACK} days</span></div></div>
+    <div><div style="font-size:13px;font-weight:600;margin-bottom:2px">What counts (tick to include)</div>${t.parts.map(row).join('')}</div>
+    <div class="hint">The score is the weighted share of the parts that have data that day. A part with nothing to measure (no shift, no tasks planned, no stop hit) is left out, not counted as zero. Past scheduled shifts count as worked. A workout counts as zero only if you logged one in the 14 days before; switch it off if you take rest days. Days with nothing to score are skipped by the streak, and today only extends it once it reaches ${SC_PASS}. It is a rough guide from your own entries.</div>`;
+}
+function openScore() { scPaint(); if (!scDlg.open) scDlg.showModal(); }
+scDlg.addEventListener('change', (e) => {
+  const c = e.target.closest('[data-scon]'); if (!c) return;
+  const id = c.dataset.scon, off = scOff().filter((x) => x !== id);
+  if (!c.checked) off.push(id);
+  commit(() => { upsert(S.score, 'cfg', () => ({ id: 'cfg' }), { off }); });
+  scPaint();
+});
+scDlg.addEventListener('close', () => render());
+function scoreTodayCard() {
+  const h = scHistory(), t = h[h.length - 1], st = scStreaks(h), miss = scMissing(t);
+  return `<section class="td-card" id="scCard"><h3>Daily score<button data-scopen>Details</button></h3>
+    <div class="glance"><div><b id="scNow">${t.score == null ? '-' : t.score}</b><span>today of 100</span></div><div><b id="scStreak">${st.cur}</b><span>day streak (${SC_PASS}+)</span></div><div><b id="scBestC">${st.best}</b><span>best streak</span></div></div>
+    ${scSpark(h.slice(-14))}
+    <div class="hint" id="scMissC">${t.score == null ? 'Nothing to score yet today: no shifts, tasks, habits or answers.' : miss.length ? esc(miss[0].text) : 'Nothing missing today.'}</div></section>`;
+}
+$('#main').addEventListener('click', (e) => { if (S.view === 'today' && e.target.closest('[data-scopen]')) openScore(); });
+// ===== SCORE END =====
+
+// ===== WORTH BEGIN: net worth, savings goal and emergency fund (synced collection `worth`: ids 'a:*' = accounts, 's:DATE' = dated snapshots, 'cfg' = goal and expenses) =====
+// Everything here is typed by hand. Nothing is read from a bank or broker. Each balance update stores a snapshot for that day.
+const WT_KINDS = [['cash', 'Cash / checking'], ['savings', 'Savings'], ['brokerage', 'Brokerage / investing'], ['payout', 'Prop payouts owed to me'], ['other', 'Other asset'], ['debt', 'Debt (what I owe)']];
+document.head.insertAdjacentHTML('beforeend', `<style>
+#wtDlg .dlg{max-height:calc(100dvh - 24px);overflow:auto}#wtDlg input,#wtDlg select{font-size:16px}
+.wt-chart{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:10px;background:#fff}
+.wt-chart text{font-size:10px;fill:var(--mute);font-family:inherit}.wt-chart .ln{fill:none;stroke:var(--ink);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.wt-chart .dot{fill:var(--ink)}.wt-chart .tick{stroke:var(--line);stroke-width:1}
+.wt-big{font-size:30px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.wt-acct{display:grid;grid-template-columns:minmax(0,1fr) 120px auto;gap:2px 8px;align-items:center;padding:8px 0;border-top:1px solid var(--line2)}
+.wt-acct .wt-n b{display:block;font-weight:600;font-size:13.5px;overflow-wrap:anywhere}.wt-acct small{font-size:12px;color:var(--mute)}
+.wt-acct input{width:100%;min-width:0;border:1px solid var(--line);border-radius:8px;padding:8px 8px;text-align:right}
+.wt-add{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.wt-add .full{grid-column:1 / 3}
+.wt-box{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13.5px;line-height:1.45;display:flex;flex-direction:column;gap:4px}
+.wt-own{font-size:11px;font-weight:600;color:#92400e;background:#fffaf0;border:1px solid #f3d9a4;border-radius:10px;padding:1px 8px;margin-left:8px;vertical-align:middle}
+</style>`);
+document.body.insertAdjacentHTML('beforeend', `<dialog id="wtDlg" aria-labelledby="wtTitle"><div class="dlg">
+  <div class="dlg-h"><h3 id="wtTitle">Net worth and savings</h3><button type="button" class="ib" data-close aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="hint"><span class="wt-own" style="margin:0">Your own numbers</span> typed by hand, nothing automatic.</div>
+  <div id="wtBody" style="display:flex;flex-direction:column;gap:14px"></div>
+</div></dialog>`);
+const wtDlg = $('#wtDlg');
+const wtUsd = (v) => (v < 0 ? '-' : '') + '$' + Math.round(Math.abs(v)).toLocaleString('en-US');
+const wtKind = (k) => (WT_KINDS.find((x) => x[0] === k) || WT_KINDS[4])[1];
+const wtAccts = () => S.worth.filter((x) => x.id.startsWith('a:')).sort((a, b) => (+a.c || 0) - (+b.c || 0));
+const wtSigned = (a) => (a.kind === 'debt' ? -1 : 1) * Math.abs(+a.bal || 0);
+const wtTotal = (list = wtAccts()) => Math.round(list.reduce((s, a) => s + wtSigned(a), 0) * 100) / 100;
+const wtSum = (kinds) => wtAccts().filter((a) => kinds.includes(a.kind)).reduce((s, a) => s + wtSigned(a), 0);
+const wtSnaps = () => S.worth.filter((x) => x.id.startsWith('s:') && YMD.test(x.date || '')).sort((a, b) => a.date.localeCompare(b.date));
+function wtCfg() { const c = S.worth.find((x) => x.id === 'cfg') || {}; return { goal: +c.goal > 0 ? +c.goal : 0, goalDate: YMD.test(c.goalDate || '') ? c.goalDate : '', exp: +c.exp > 0 ? +c.exp : 0 }; }
+function wtChange(fn) { // every change to accounts also stores today's snapshot (one per day, the last update of the day wins)
+  commit(() => {
+    fn();
+    const id = 's:' + todayKey(), list = wtAccts();
+    if (list.length) upsert(S.worth, id, () => ({ id }), { date: todayKey(), total: wtTotal(list) });
+    else S.worth = S.worth.filter((x) => x.id !== id);
+  });
+}
+function wtMonthly() { // average monthly bills from the Bills feature, or null when none
+  if (typeof bnList !== 'function') return null;
+  const l = bnList(); if (!l.length) return null;
+  const f = { monthly: 1, weekly: 52 / 12, biweekly: 26 / 12, quarterly: 1 / 3, yearly: 1 / 12 };
+  return { amt: l.reduce((s, b) => s + b.amt * (f[b.freq] || 1), 0), n: l.length };
+}
+function wtFacts() {
+  const today = todayKey(), total = wtTotal(), cfg = wtCfg(), snaps = wtSnaps(), m0 = today.slice(0, 7) + '-01';
+  let base = null, since = '';
+  const before = snaps.filter((s) => s.date < m0);
+  if (before.length) { base = before[before.length - 1]; since = MONTHS[parse(today).getMonth()] + ' 1'; }
+  else { const inM = snaps.filter((s) => s.date >= m0); if (inM.length > 1 || (inM.length === 1 && inM[0].date < today)) { base = inM[0]; since = bnShort(base.date); } }
+  const change = base ? Math.round((total - base.total) * 100) / 100 : null;
+  const savings = wtSum(['savings']), liquid = wtSum(['cash', 'savings']), bills = wtMonthly(), exp = bills ? bills.amt : cfg.exp;
+  let goal = null;
+  if (cfg.goal > 0) {
+    const need = Math.max(0, cfg.goal - savings), left = cfg.goalDate ? diffDays(today, cfg.goalDate) : null;
+    goal = { need, target: cfg.goal, date: cfg.goalDate, left, reached: need <= 0, past: left != null && left <= 0, monthly: left != null && left > 0 ? need / Math.max(1, left / 30.4375) : null, months: left != null && left > 0 ? Math.max(1, Math.round(left / 30.4375)) : null };
+  }
+  return { today, total, change, since, savings, liquid, exp, bills, cfg, goal, efMonths: exp > 0 ? liquid / exp : null, snaps };
+}
+function wtChart(f) {
+  const W = 340, H = 150, L = 8, R = 8, T = 24, B = 20, d0 = parse(f.today), start = key(new Date(d0.getFullYear(), d0.getMonth() - 5, 1)), span = Math.max(1, diffDays(start, f.today));
+  const inWin = f.snaps.filter((s) => s.date >= start), prior = f.snaps.filter((s) => s.date < start).pop();
+  const pts = [];
+  if (prior) pts.push({ date: start, total: prior.total });
+  inWin.forEach((s) => pts.push({ date: s.date, total: s.total }));
+  if (!pts.length) return '<div class="empty-s" id="wtEmpty">The chart starts when you add or update an account. Each update saves that day\'s total.</div>';
+  const last = pts[pts.length - 1]; if (last.date < f.today) pts.push({ date: f.today, total: last.total });
+  const vals = pts.map((p) => p.total), lo = Math.min(...vals), hi = Math.max(...vals);
+  const x = (k) => L + diffDays(start, k) / span * (W - L - R), y = (v) => (hi === lo ? (T + H - B) / 2 : T + (hi - v) / (hi - lo) * (H - T - B));
+  const ticks = []; for (let i = 0; i < 6; i++) { const m = new Date(d0.getFullYear(), d0.getMonth() - 5 + i, 1); ticks.push({ k: key(m), l: MONTHS[m.getMonth()].slice(0, 3) }); }
+  const line = pts.map((p) => `${x(p.date).toFixed(1)},${y(p.total).toFixed(1)}`).join(' ');
+  return `<svg class="wt-chart" id="wtChart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Net worth over the last 6 months, from ${wtUsd(pts[0].total)} to ${wtUsd(last.total)}">
+    ${ticks.map((t, i) => `<line class="tick" x1="${x(t.k).toFixed(1)}" x2="${x(t.k).toFixed(1)}" y1="${T}" y2="${H - B}"/><text x="${((x(t.k) + x(i < 5 ? ticks[i + 1].k : f.today)) / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle">${t.l}</text>`).join('')}
+    <text x="${W - R}" y="10" text-anchor="end">high ${wtUsd(hi)} · low ${wtUsd(lo)}</text>
+    ${pts.length > 1 ? `<polyline class="ln" points="${line}"/>` : ''}${inWin.map((s) => `<circle class="dot" cx="${x(s.date).toFixed(1)}" cy="${y(s.total).toFixed(1)}" r="3"><title>${esc(bnShort(s.date))}: ${wtUsd(s.total)}</title></circle>`).join('')}
+  </svg>`;
+}
+function wtPaint() {
+  const f = wtFacts(), list = wtAccts(), body = $('#wtBody');
+  const assets = list.filter((a) => a.kind !== 'debt').reduce((s, a) => s + Math.abs(+a.bal || 0), 0), debts = list.filter((a) => a.kind === 'debt').reduce((s, a) => s + Math.abs(+a.bal || 0), 0);
+  const g = f.goal, cfg = f.cfg;
+  const goalHtml = !g ? '' : g.reached ? `<div class="wt-box ok" id="wtGoalOut"><b>Savings goal reached.</b> You have ${wtUsd(f.savings)} saved against ${wtUsd(g.target)}.</div>`
+    : g.date && g.past ? `<div class="wt-box" id="wtGoalOut"><b>The target date has passed.</b> ${wtUsd(g.need)} still to go of ${wtUsd(g.target)}. Pick a new date to see a monthly amount.</div>`
+    : g.date ? `<div class="wt-box" id="wtGoalOut"><b>Save ${wtUsd(g.monthly)} a month</b><span>${wtUsd(g.need)} still to go of ${wtUsd(g.target)}, over about ${g.months} month${g.months === 1 ? '' : 's'} (until ${esc(bnShort(g.date))}). Based on the savings accounts below (${wtUsd(f.savings)} now).</span></div>`
+    : `<div class="wt-box" id="wtGoalOut"><b>${wtUsd(g.need)} still to go</b><span>of ${wtUsd(g.target)}. Add a target date to get a monthly amount.</span></div>`;
+  const efHtml = f.efMonths != null ? `<div class="wt-box" id="wtEf"><b>${f.efMonths.toFixed(1)} month${f.efMonths.toFixed(1) === '1.0' ? '' : 's'} of expenses covered</b><span>${wtUsd(f.liquid)} in cash and savings, against about ${wtUsd(f.exp)} a month${f.bills ? ` (average of your ${f.bills.n} bill${f.bills.n === 1 ? '' : 's'} in Bills)` : ' (the number you typed)'}. A common rule of thumb is 3 to 6 months.</span></div>`
+    : `<div class="hint" id="wtEf">Add your bills in Bills, or type your monthly expenses below, to see how many months your cash and savings would cover.</div>`;
+  body.innerHTML = `<div><span class="wt-big ${f.total < 0 ? 'neg' : ''}" id="wtTotal">${wtUsd(f.total)}</span> <span class="hint">net worth</span></div>
+    <div class="hint" id="wtChg">${f.change == null ? 'Change this month: not enough updates yet (update a balance again later).' : `Change this month: <b class="${moneyCls(f.change)}">${f.change > 0 ? '+' : ''}${wtUsd(f.change)}</b> since ${esc(f.since)}.`} Assets ${wtUsd(assets)}, debts ${wtUsd(-debts)}.</div>
+    ${wtChart(f)}
+    <div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><b style="font-size:13px">Accounts</b></div>
+      <div id="wtList">${list.length ? list.map((a) => `<div class="wt-acct" data-wtid="${esc(a.id)}"><span class="wt-n"><b>${esc(a.name)}</b><small>${esc(wtKind(a.kind))}${a.kind === 'payout' ? ' · not in hand yet' : ''}${a.d ? ' · updated ' + esc(bnShort(a.d)) : ''}</small></span><input type="number" inputmode="decimal" step="any" min="0" data-wtbal value="${Math.abs(+a.bal || 0)}" aria-label="Balance of ${esc(a.name)}"><button type="button" class="btn sm" data-wtdel aria-label="Remove ${esc(a.name)}">Remove</button></div>`).join('') : '<div class="empty-s">No accounts yet. Add cash, savings, brokerage, payouts owed to you and debts below.</div>'}</div>
+      <div class="hint">Type a new balance and leave the box to save it. Debts: type the amount you owe as a positive number.</div></div>
+    <div class="wt-add" id="wtAddBox"><div class="fld"><label for="wtName">Account name</label><input id="wtName" maxlength="40" autocomplete="off" placeholder="e.g. Chase savings"></div>
+      <div class="fld"><label for="wtKind">Type</label><select id="wtKind">${WT_KINDS.map((k) => `<option value="${k[0]}">${esc(k[1])}</option>`).join('')}</select></div>
+      <div class="fld"><label for="wtNew">Balance ($)</label><input id="wtNew" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></div>
+      <div class="fld" style="justify-content:flex-end"><button type="button" class="btn primary" id="wtAdd">Add account</button></div></div>
+    <div style="display:flex;flex-direction:column;gap:8px"><b style="font-size:13px">Savings goal</b>
+      <div class="wt-add"><div class="fld"><label for="wtGoal">Target ($)</label><input id="wtGoal" type="number" inputmode="decimal" min="0" step="any" value="${cfg.goal || ''}" placeholder="e.g. 10000"></div>
+      <div class="fld"><label for="wtGoalDate">By</label><input id="wtGoalDate" type="date" value="${esc(cfg.goalDate)}"></div></div>${goalHtml}</div>
+    <div style="display:flex;flex-direction:column;gap:8px"><b style="font-size:13px">Emergency fund</b>
+      ${f.bills ? '' : `<div class="fld"><label for="wtExp">Monthly expenses ($)</label><input id="wtExp" type="number" inputmode="decimal" min="0" step="any" value="${cfg.exp || ''}" placeholder="rent, food, car, phone..."></div>`}${efHtml}</div>
+    <div class="hint">These are your own numbers, typed by hand. Nothing is pulled from a bank or broker, so they are only as current as your last update. Each update saves a dated snapshot for the chart. If you remove an account, earlier snapshots keep the totals they had.</div>`;
+}
+function openWorth() { wtPaint(); if (!wtDlg.open) wtDlg.showModal(); }
+function wtSetCfg(patch) { commit(() => { upsert(S.worth, 'cfg', () => ({ id: 'cfg' }), patch); }); }
+wtDlg.addEventListener('change', (e) => {
+  const t = e.target, row = t.closest('[data-wtid]');
+  if (row && t.matches('[data-wtbal]')) {
+    const v = t.value.trim() === '' ? null : Math.round(Math.abs(+t.value || 0) * 100) / 100; if (v == null) { wtPaint(); return; }
+    wtChange(() => { const a = S.worth.find((x) => x.id === row.dataset.wtid); if (a) { a.bal = v; a.d = todayKey(); } });
+    wtPaint(); return;
+  }
+  if (t.id === 'wtGoal') wtSetCfg({ goal: Math.max(0, Math.round((+t.value || 0) * 100) / 100) });
+  else if (t.id === 'wtGoalDate') wtSetCfg({ goalDate: YMD.test(t.value) ? t.value : '' });
+  else if (t.id === 'wtExp') wtSetCfg({ exp: Math.max(0, Math.round((+t.value || 0) * 100) / 100) });
+  else return;
+  wtPaint();
+});
+wtDlg.addEventListener('click', async (e) => {
+  const del = e.target.closest('[data-wtdel]');
+  if (del) {
+    const row = del.closest('[data-wtid]'), a = S.worth.find((x) => x.id === row.dataset.wtid); if (!a) return;
+    if (!(await ask('Remove this account?', `${a.name} is removed from your net worth. Earlier snapshots keep their totals.`, 'Remove', { danger: true }))) return;
+    wtChange(() => { S.worth = S.worth.filter((x) => x.id !== a.id); }); wtPaint(); return;
+  }
+  if (!e.target.closest('#wtAdd')) return;
+  const name = $('#wtName').value.trim(), raw = $('#wtNew').value.trim(), kind = $('#wtKind').value;
+  if (!name) { toast('Give the account a name'); $('#wtName').focus(); return; }
+  if (raw === '' || !isFinite(+raw)) { toast('Type its balance'); $('#wtNew').focus(); return; }
+  wtChange(() => { const id = 'a:' + uid(); S.worth.push({ id, name: name.slice(0, 40), kind: WT_KINDS.some((k) => k[0] === kind) ? kind : 'other', bal: Math.round(Math.abs(+raw) * 100) / 100, c: Date.now(), d: todayKey() }); });
+  wtPaint(); toast('Account added');
+});
+wtDlg.addEventListener('close', () => render());
+function worthTodayCard() {
+  const f = wtFacts();
+  if (!wtAccts().length) return `<section class="td-card" id="wtCard"><h3>Net worth and savings<button data-wtopen>Set up</button></h3><div class="hint">List your cash, savings, brokerage, payouts owed to you and debts. You type the balances; you get a 6-month chart, a savings goal and how many months of bills you could cover.</div></section>`;
+  return `<section class="td-card" id="wtCard"><h3>Net worth and savings<button data-wtopen>Details</button></h3><div class="glance"><div><b class="${f.total < 0 ? 'neg' : ''}" id="wtCardTotal">${wtUsd(f.total)}</b><span>net worth</span></div><div><b class="${f.change == null ? '' : moneyCls(f.change)}">${f.change == null ? '-' : (f.change > 0 ? '+' : '') + wtUsd(f.change)}</b><span>this month</span></div><div><b>${f.efMonths == null ? '-' : f.efMonths.toFixed(1)}</b><span>months of bills saved</span></div></div><div class="hint">Your own numbers, updated by hand.</div></section>`;
+}
+$('#main').addEventListener('click', (e) => { if (S.view === 'today' && e.target.closest('[data-wtopen]')) openWorth(); });
+// ===== WORTH END =====
 
 // ===== SHIFTS BEGIN: recurring work shifts (Outback, electric) =====
 const shDlg = $('#shDlg');
@@ -6383,7 +6786,7 @@ setInterval(() => {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync) syncNow(); });
 addEventListener('online', () => { if (sync) syncNow(); });
 $('#helpBtn').onclick = () => $('#helpDlg').showModal();
-const APP_VERSION = '2026-10-30.13';
+const APP_VERSION = '2026-10-30.14';
 if ($('#verNote')) $('#verNote').textContent = 'Planner ' + APP_VERSION;
 if (!HOSTED && 'serviceWorker' in navigator && window.isSecureContext && location.protocol.startsWith('http')) {
   const hadController = !!navigator.serviceWorker.controller;

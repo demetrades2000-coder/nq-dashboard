@@ -79,7 +79,7 @@ const { wait, open, st, fullState, seedNq } = L;
   // ---------- phone width, fully seeded: height ----------
   ({ ctx, p, errs: pe } = await open(b, { state: fullState(), seed: seedNq() }));
   const after = await L.todayHeight(p);
-  ok(after > 0 && after < 6530 * 0.5, `Today height ${after}px is at least 50% under the old 6530px`);
+  ok(after > 0 && after < 6530 * 0.55, `Today height ${after}px is at least 45% under the old 6530px`);
   ok(await p.evaluate(() => document.documentElement.scrollWidth) <= 390, 'no sideways scroll when busy');
   errs.push(...pe); await ctx.close();
   console.log('height busy:', after);

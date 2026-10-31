@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jarvis</title>
+<meta name="description" content="Jarvis: the home screen for all your projects. Switch between Zenith, Planner, Kalshi and the rest; each runs exactly as it does on its own.">
+<meta name="theme-color" content="#0b0b0d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Jarvis">
+<link rel="manifest" href="manifest.webmanifest?v=j1">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=j1">
+<link rel="icon" href="icon-192.png?v=j1">
+<style>
+/* Jarvis hub (owner 2026-10-31): one Home Screen app, the Jarvis screen first, a switcher bar on top, every dashboard kept
+   loaded in its own frame so switching is instant and each one runs exactly as it does on its own. One dark look, the
+   Planner-style minimal icons: charcoal, one grey glyph, one white glow. */
+:root {
+  --bg: #0b0b0d; --bg2: #151518; --panel: #1b1b1f; --panel2: #232328; --line: rgba(255,255,255,.09);
+  --ink: #f4f4f6; --ink2: #b3b4ba; --mut: #7d7e85; --glow: #ffffff;
+  --ok: #46d79a; --warn: #f5b84a; --bad: #ff6b7f;
+  --f: -apple-system, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+  --f-num: -apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+  --bar-h: 52px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 var(--f); }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px; }
+
+/* ---- the switcher bar */
+.bar { position: fixed; inset: 0 0 auto; z-index: 20; padding-top: env(safe-area-inset-top, 0px);
+  padding-left: max(10px, env(safe-area-inset-left, 0px)); padding-right: max(10px, env(safe-area-inset-right, 0px));
+  background: rgba(11,11,13,.92); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); border-bottom: 1px solid var(--line); }
+.bar-in { height: var(--bar-h); display: flex; align-items: center; gap: 6px; }
+.apps { flex: 1; min-width: 0; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.apps::-webkit-scrollbar { display: none; }
+.chip { flex: none; display: flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px 0 5px; border-radius: 12px;
+  border: 1px solid transparent; background: transparent; color: var(--ink2); font-size: 13.5px; font-weight: 600; white-space: nowrap; }
+.chip img, .chip .glyph { width: 26px; height: 26px; border-radius: 7px; display: block; flex: none; }
+.chip[aria-current="page"] { background: var(--panel2); border-color: var(--line); color: var(--ink); }
+.chip.add { padding: 0 10px; color: var(--mut); }
+.out { flex: none; width: 36px; height: 36px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--ink2);
+  display: grid; place-items: center; }
+.out[hidden] { display: none; }
+
+/* ---- views */
+.view { position: fixed; left: 0; right: 0; top: calc(var(--bar-h) + env(safe-area-inset-top, 0px)); bottom: 0; }
+.view[hidden] { display: none; }
+.frame { position: absolute; inset: 0 0 env(safe-area-inset-bottom, 0px) 0; width: 100%; height: calc(100% - env(safe-area-inset-bottom, 0px)); border: 0; background: var(--bg); }
+.frame-note { position: absolute; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 2; max-width: min(92vw, 420px);
+  padding: 10px 14px; border-radius: 14px; background: rgba(27,27,31,.96); border: 1px solid var(--line); color: var(--ink2); font-size: 13px; text-align: center; }
+.frame-note[hidden] { display: none; }
+.frame-note button { margin-left: 6px; background: none; border: 0; color: var(--ink); font-weight: 650; text-decoration: underline; padding: 0; }
+
+/* ---- the Jarvis home */
+#home { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.home-in { max-width: 720px; margin: 0 auto; padding-block: 22px calc(40px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+.hero { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; }
+.orb { width: 64px; height: 64px; border-radius: 50%; position: relative; background: radial-gradient(circle at 50% 50%, #ffffff 0 13%, rgba(255,255,255,.55) 20%, rgba(255,255,255,.08) 46%, transparent 62%);
+  box-shadow: 0 0 0 2px rgba(255,255,255,.12) inset; }
+.orb::after { content: ""; position: absolute; inset: 7px; border-radius: 50%; border: 2px solid rgba(255,255,255,.22); }
+@media (prefers-reduced-motion: no-preference) { .orb { animation: breathe 4.5s ease-in-out infinite; } .orb.think { animation: breathe .9s ease-in-out infinite; } }
+@keyframes breathe { 0%, 100% { filter: brightness(.92); transform: scale(1); } 50% { filter: brightness(1.15); transform: scale(1.04); } }
+.hello { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -.01em; line-height: 1.15; text-wrap: balance; }
+.sub { margin: 4px 0 0; color: var(--ink2); font-size: 14px; }
+.ask { display: flex; gap: 8px; align-items: center; padding: 6px; border-radius: 18px; background: var(--panel); border: 1px solid var(--line); }
+.ask input { flex: 1; min-width: 0; height: 42px; padding: 0 10px; border: 0; background: transparent; outline: none; font-size: 16px; }
+.ask input::placeholder { color: var(--mut); }
+.ask button { width: 42px; height: 42px; border-radius: 13px; border: 0; background: var(--panel2); display: grid; place-items: center; color: var(--ink); flex: none; }
+.ask button.on { background: var(--ink); color: var(--bg); }
+.ask button[hidden] { display: none; }
+.talk { display: grid; gap: 8px; }
+.talk:empty { display: none; }
+.msg { max-width: 92%; padding: 10px 13px; border-radius: 16px; font-size: 14.5px; white-space: pre-line; }
+.msg.me { justify-self: end; background: var(--panel2); color: var(--ink); border-bottom-right-radius: 6px; }
+.msg.j { justify-self: start; background: var(--panel); border: 1px solid var(--line); color: var(--ink); border-bottom-left-radius: 6px; }
+.chips2 { display: flex; flex-wrap: wrap; gap: 8px; }
+.sug { height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg2); color: var(--ink2); font-size: 13px; }
+.sec-t { margin: 6px 0 -6px; color: var(--mut); font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.card { text-align: left; display: grid; gap: 10px; padding: 14px; border-radius: 20px; background: var(--panel); border: 1px solid var(--line); min-width: 0; width: 100%; }
+.card-h { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.card-h img, .card-h .glyph { width: 40px; height: 40px; border-radius: 10px; flex: none; display: block; }
+.card-h b { display: block; font-size: 16px; }
+.card-h small { display: block; color: var(--mut); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-h .go { margin-left: auto; color: var(--mut); flex: none; }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink2); }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--mut); }
+.pill.ok::before { background: var(--ok); box-shadow: 0 0 8px var(--ok); } .pill.warn::before { background: var(--warn); } .pill.bad::before { background: var(--bad); }
+.kv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.kv div { padding: 8px 10px; border-radius: 12px; background: var(--bg2); min-width: 0; }
+.kv span { display: block; color: var(--mut); font-size: 11.5px; }
+.kv strong { display: block; font: 650 15px/1.25 var(--f-num); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.acct { display: grid; gap: 6px; }
+.acct > i { font-style: normal; color: var(--ink2); font-size: 12.5px; }
+.list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.list li { display: flex; gap: 8px; align-items: baseline; font-size: 13.5px; color: var(--ink2); min-width: 0; }
+.list li b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; flex: none; }
+.list li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.muted { color: var(--mut); font-size: 13px; margin: 0; }
+.link-f { display: flex; gap: 8px; }
+.link-f input { flex: 1; min-width: 0; height: 40px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg2); outline: none; font-size: 15px; }
+.link-f button, .btn { height: 40px; padding: 0 14px; border-radius: 12px; border: 0; background: var(--ink); color: var(--bg); font-weight: 650; flex: none; }
+.btn.ghost { background: var(--panel2); color: var(--ink); border: 1px solid var(--line); }
+.foot { color: var(--mut); font-size: 12.5px; text-align: center; margin: 4px 0 0; }
+
+/* ---- add-app sheet */
+.sheet { position: fixed; inset: 0; z-index: 40; display: grid; align-items: end; background: rgba(0,0,0,.5); }
+.sheet[hidden] { display: none; }
+.sheet-in { background: var(--bg2); border-top: 1px solid var(--line); border-radius: 22px 22px 0 0; padding: 18px max(16px, env(safe-area-inset-right, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  display: grid; gap: 12px; max-width: 720px; width: 100%; margin: 0 auto; }
+.sheet-in h2 { margin: 0; font-size: 18px; }
+.sheet-in label { display: grid; gap: 6px; color: var(--ink2); font-size: 13px; }
+.sheet-in input { height: 42px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); outline: none; font-size: 16px; }
+.sheet-row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.mine { display: grid; gap: 6px; }
+.mine div { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 12px; background: var(--panel); font-size: 14px; min-width: 0; }
+.mine div span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink2); }
+.mine div button { background: none; border: 0; color: var(--bad); font-size: 13px; }
+.err { color: var(--bad); font-size: 13px; margin: 0; min-height: 1em; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="bar-in">
+    <nav class="apps" id="apps" aria-label="Your dashboards"></nav>
+    <button class="out" id="out" type="button" title="Open this dashboard on its own" aria-label="Open this dashboard on its own" hidden>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3H3.5A.5.5 0 0 0 3 3.5v9a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5V10M9 3h4v4M13 3 7.5 8.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+  <section class="view" id="home" aria-label="Jarvis">
+    <div class="home-in">
+      <div class="hero">
+        <div class="orb" id="orb" aria-hidden="true"></div>
+        <div>
+          <h1 class="hello" id="hello">Hello</h1>
+          <p class="sub" id="when">&nbsp;</p>
+        </div>
+      </div>
+
+      <form class="ask" id="ask" autocomplete="off">
+        <input id="q" type="text" enterkeyhint="send" placeholder="Ask Jarvis, or say “open planner”" aria-label="Ask Jarvis">
+        <button type="button" id="mic" aria-label="Talk to Jarvis" title="Talk to Jarvis" hidden>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="6.2" y="2" width="5.6" height="9" rx="2.8" stroke="currentColor" stroke-width="1.7"/><path d="M3.8 8.6a5.2 5.2 0 0 0 10.4 0M9 13.8V16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </button>
+        <button type="submit" aria-label="Send" title="Send">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3 9h11M9.5 4.5 14 9l-4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </form>
+      <div class="talk" id="talk" aria-live="polite"></div>
+      <div class="chips2" id="sugs">
+        <button class="sug" type="button" data-say="How are the bots?">How are the bots?</button>
+        <button class="sug" type="button" data-say="What's on today?">What's on today?</button>
+        <button class="sug" type="button" data-say="Is the market open?">Is the market open?</button>
+        <button class="sug" type="button" data-say="Open Zenith">Open Zenith</button>
+      </div>
+
+      <p class="sec-t">Your projects</p>
+      <div class="cards" id="cards"></div>
+      <p class="foot">Every project keeps running on its own. Jarvis only switches what you see.</p>
+    </div>
+  </section>
+  <div id="frames"></div>
+</main>
+
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheetT">
+  <form class="sheet-in" id="addF" autocomplete="off">
+    <h2 id="sheetT">Add a dashboard</h2>
+    <label>Name<input id="addName" type="text" maxlength="24" placeholder="Clipper"></label>
+    <label>Link<input id="addUrl" type="url" inputmode="url" placeholder="https://…"></label>
+    <p class="err" id="addErr"></p>
+    <div class="mine" id="mine"></div>
+    <div class="sheet-row"><button class="btn ghost" type="button" id="addX">Close</button><button class="btn" type="submit">Add</button></div>
+  </form>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  // ------------------------------------------------------------------ the apps (same site: they open inside Jarvis as they are)
+  const KALSHI_URL = '';                       // the Kalshi dashboard's link (owner: send it and it is built in; until then: paste it on the Kalshi card)
+  const BUILT_IN = [
+    { id: 'home', name: 'Jarvis', glyph: 'orb' },
+    { id: 'zenith', name: 'Zenith', sub: 'NQ bots · Zlarior · ATLAS · BLITZ', url: '../', icon: '../icons/icon-192.png?v=p111030' },
+    { id: 'planner', name: 'Planner', sub: 'Calendar, tasks and projects', url: '../planner/', icon: '../planner/icon-192.png' },
+    { id: 'kalshi', name: 'Kalshi', sub: 'Kalshi bot', url: KALSHI_URL, glyph: 'K' },
+  ];
+  const LS = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (_) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) { /* private mode: nothing kept */ } },
+  };
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const okUrl = (u) => { try { const x = new URL(u, location.href); return /^https?:$/.test(x.protocol) ? x.href : null; } catch (_) { return null; } };
+
+  function apps() {
+    const links = LS.get('jarvis.links', {});             // per-phone links for apps not built in yet (e.g. Kalshi)
+    const extra = LS.get('jarvis.extra', []);
+    const out = BUILT_IN.map((a) => ({ ...a, url: a.url || links[a.id] || '' }));
+    for (const x of Array.isArray(extra) ? extra : []) if (x && x.id && x.name && okUrl(x.url)) out.push({ id: x.id, name: x.name, url: x.url, glyph: x.name[0], extra: true });
+    return out;
+  }
+  const byId = (id) => apps().find((a) => a.id === id);
+  const sameSite = (u) => { try { return new URL(u, location.href).origin === location.origin; } catch (_) { return false; } };
+
+  function glyphSvg(kind, size) {
+    if (kind === 'orb') return `<svg class="glyph" viewBox="0 0 40 40" width="${size}" height="${size}" aria-hidden="true"><defs><radialGradient id="g${size}" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff"/><stop offset=".28" stop-color="#fff" stop-opacity=".7"/><stop offset=".62" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs><rect width="40" height="40" rx="10" fill="#1d1d21"/><circle cx="20" cy="20" r="13" fill="url(#g${size})"/><circle cx="20" cy="20" r="11" fill="none" stroke="#9a9ba1" stroke-width="1.6"/><circle cx="20" cy="20" r="3.6" fill="#fff"/></svg>`;
+    const ch = esc(String(kind || '?').slice(0, 1).toUpperCase());
+    return `<svg class="glyph" viewBox="0 0 40 40" width="${size}" height="${size}" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#1d1d21"/><text x="20" y="26.5" text-anchor="middle" font-family="-apple-system, system-ui, sans-serif" font-size="18" font-weight="700" fill="#c4c5ca">${ch}</text><circle cx="30.5" cy="10" r="2.6" fill="#fff"/></svg>`;
+  }
+  const iconOf = (a, size) => a.icon ? `<img src="${esc(a.icon)}" alt="" width="${size}" height="${size}">` : glyphSvg(a.glyph, size);
+
+  // ------------------------------------------------------------------ switching (each dashboard keeps its own frame: no reloads)
+  let active = 'home';
+  const frames = {};
+  function renderBar() {
+    $('#apps').innerHTML = apps().map((a) => `<button class="chip" type="button" data-app="${esc(a.id)}"${a.id === active ? ' aria-current="page"' : ''}>${iconOf(a, 26)}<span>${esc(a.name)}</span></button>`).join('')
+      + '<button class="chip add" type="button" id="addB" aria-label="Add a dashboard" title="Add a dashboard"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>';
+    const a = byId(active);
+    $('#out').hidden = !(a && a.url);
+  }
+  function show(id, push = true) {
+    const a = byId(id) || byId('home');
+    if (a.id !== 'home' && !a.url) { show('home', push); setTimeout(() => { const f = document.getElementById('link-' + a.id); if (f) { f.scrollIntoView({ block: 'center' }); f.focus(); } }, 50); return; }
+    active = a.id;
+    $('#home').hidden = a.id !== 'home';
+    for (const k of Object.keys(frames)) frames[k].hidden = k !== a.id;
+    if (a.id !== 'home') {
+      let v = frames[a.id];
+      if (!v || v.dataset.url !== a.url) {
+        if (v) v.remove();
+        v = document.createElement('section');
+        v.className = 'view'; v.id = 'v-' + a.id; v.dataset.url = a.url; v.setAttribute('aria-label', a.name);
+        const f = document.createElement('iframe');
+        f.className = 'frame'; f.src = a.url; f.title = a.name;
+        f.setAttribute('allow', 'clipboard-read; clipboard-write; microphone; autoplay; fullscreen; screen-wake-lock');
+        v.appendChild(f);
+        if (!sameSite(a.url)) {                         // another site may refuse to be shown inside another app
+          const n = document.createElement('div');
+          n.className = 'frame-note';
+          n.innerHTML = 'If this stays blank, the site does not allow being shown inside Jarvis.<button type="button">Open it on its own</button>';
+          n.querySelector('button').onclick = () => openOut(a);
+          v.appendChild(n);
+          setTimeout(() => { n.hidden = true; }, 7000);
+        }
+        $('#frames').appendChild(v);
+        frames[a.id] = v;
+      }
+      v.hidden = false;
+    } else {
+      refreshHome();
+    }
+    renderBar();
+    if (push && location.hash !== '#' + a.id) history.replaceState(null, '', a.id === 'home' ? location.pathname : '#' + a.id);
+  }
+  function openOut(a) { if (a && a.url) window.open(new URL(a.url, location.href).href, '_blank', 'noopener'); }
+  document.addEventListener('click', (e) => {
+    const c = e.target.closest('[data-app]');
+    if (c) { show(c.dataset.app); return; }
+    if (e.target.closest('#addB')) { openSheet(); return; }
+    if (e.target.closest('#out')) { openOut(byId(active)); return; }
+    const s = e.target.closest('[data-say]');
+    if (s) { ask(s.dataset.say); return; }
+  });
+  window.addEventListener('hashchange', () => show((location.hash || '#home').slice(1), false));
+
+  // ------------------------------------------------------------------ live data: the NQ bots (the PC's live.json, as Zenith reads it)
+  const OWNER = 'demetrades2000-coder', REPO = 'nq-dashboard';
+  const API = `https://api.github.com/repos/${OWNER}/${REPO}/contents/live.json?ref=live`;
+  const RAW = `https://raw.githubusercontent.com/${OWNER}/${REPO}/live/live.json`;
+  const L = { j: null, at: 0, err: null, busy: false, apiUntil: 0 };
+  async function fetchLive() {
+    if (L.busy) return; L.busy = true;
+    try {
+      let j = null;
+      if (Date.now() > L.apiUntil) {
+        try { const r = await fetch(API, { cache: 'no-cache', headers: { Accept: 'application/vnd.github.raw+json' } }); if (r.ok) j = await r.json(); else if (r.status === 403 || r.status === 429) L.apiUntil = Date.now() + 15 * 60e3; } catch (_) { /* fall back to raw */ }
+      }
+      if (!j) { const r = await fetch(RAW + '?t=' + Math.floor(Date.now() / 60000), { cache: 'no-cache' }); if (r.ok) j = await r.json(); }
+      if (j && (!L.j || (+j.t || 0) >= (+L.j.t || 0))) { L.j = j; L.at = Date.now(); L.err = null; LS.set('jarvis.lastLive', { t: j.t, board: slim(j) }); }
+    } catch (e) { L.err = String(e && e.message || e); }
+    L.busy = false;
+    if (active === 'home') renderCards();
+  }
+  function slim(j) {               // what the home card needs, kept for an offline start
+    const b = j && j.board || {};
+    return { lit: b.lit || null, atlas: b.atlas || null, verdict: j && j.pc_verdict || null, running: b.running, t: j && j.t };
+  }
+  function liveView() {
+    if (L.j) return slim(L.j);
+    const c = LS.get('jarvis.lastLive', null);
+    return c && c.board ? { ...c.board, cached: true } : null;
+  }
+  const usd = (v, sign) => (v == null || !Number.isFinite(+v)) ? '—' : (sign && +v > 0 ? '+' : (+v < 0 ? '−' : '')) + '$' + Math.abs(Math.round(+v)).toLocaleString('en-US');
+  const ago = (t) => { if (!t) return ''; const s = Math.max(0, Date.now() / 1000 - +t); return s < 90 ? 'just now' : s < 3600 ? Math.round(s / 60) + ' min ago' : s < 86400 ? Math.round(s / 3600) + ' h ago' : Math.round(s / 86400) + ' d ago'; };
+
+  // ------------------------------------------------------------------ time and the market (CME NQ: Sun 18:00 to Fri 17:00 ET, daily halt 17-18)
+  function etParts(d = new Date()) {
+    const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: 'numeric', hour12: false, month: 'short', day: 'numeric' }).formatToParts(d);
+    const g = (k) => (p.find((x) => x.type === k) || {}).value;
+    return { wd: g('weekday'), h: +g('hour') % 24, m: +g('minute'), mon: g('month'), day: g('day') };
+  }
+  function market(d = new Date()) {
+    const { wd, h, m } = etParts(d), t = h * 60 + m;
+    const open = wd === 'Sat' ? false : wd === 'Sun' ? t >= 1080 : wd === 'Fri' ? t < 1020 : !(t >= 1020 && t < 1080);
+    if (open) {
+      const rth = !['Sat', 'Sun'].includes(wd) && t >= 570 && t < 960;
+      return { open: true, text: rth ? 'NQ market open · regular session' : 'NQ market open · overnight session' };
+    }
+    const when = wd === 'Fri' || wd === 'Sat' || (wd === 'Sun' && t < 1080) ? 'Sunday 6:00 PM ET' : 'today 6:00 PM ET';
+    return { open: false, text: `NQ market closed · opens ${when}` };
+  }
+  function greet() {
+    const { h, wd, mon, day } = etParts();
+    const hi = h < 5 ? 'Late night' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+    $('#hello').textContent = hi;
+    const clock = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }).format(new Date());
+    $('#when').textContent = `${wd} ${mon} ${day} · ${clock} ET · ${market().text}`;
+  }
+
+  // ------------------------------------------------------------------ the Planner's day (same site: readable when the Planner saved here)
+  const ymd = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+  function plannerState() {
+    for (const k of ['planner.v1', 'planner.hosted.v1']) { const s = LS.get(k, null); if (s && (Array.isArray(s.events) || Array.isArray(s.tasks))) return s; }
+    return null;
+  }
+  function occursOn(e, day) {
+    if (!e || !e.date) return false;
+    if (Array.isArray(e.ex) && e.ex.includes(day)) return false;
+    if (e.date === day) return true;
+    if (!e.repeat || e.repeat === 'none' || day < e.date || (e.until && day > e.until)) return false;
+    const a = new Date(e.date + 'T12:00:00Z'), b = new Date(day + 'T12:00:00Z'), dd = Math.round((b - a) / 864e5), wd = b.getUTCDay();
+    switch (e.repeat) {
+      case 'daily': return true;
+      case 'weekdays': return wd >= 1 && wd <= 5;
+      case 'weekly': return dd % 7 === 0;
+      case 'biweekly': return dd % 14 === 0;
+      case 'monthly': return a.getUTCDate() === b.getUTCDate();
+      case 'yearly': return a.getUTCDate() === b.getUTCDate() && a.getUTCMonth() === b.getUTCMonth();
+      default: return false;
+    }
+  }
+  function plannerDay() {
+    const S = plannerState();
+    if (!S) return null;
+    const day = ymd(new Date());
+    const ev = (S.events || []).filter((e) => occursOn(e, day)).sort((x, y) => (x.allDay ? -1 : 0) - (y.allDay ? -1 : 0) || String(x.start || '').localeCompare(String(y.start || '')));
+    const tasks = (S.tasks || []).filter((t) => t && !t.done && t.date && t.date <= day);
+    const projects = (S.projects || []).filter((p) => p && p.name);
+    return { day, ev, tasks, projects };
+  }
+  const hm = (s) => { if (!s) return ''; const [h, m] = String(s).split(':').map(Number); if (!Number.isFinite(h)) return ''; return `${((h + 11) % 12) + 1}:${String(m || 0).padStart(2, '0')}${h < 12 ? ' AM' : ' PM'}`; };
+
+  // ------------------------------------------------------------------ the project cards
+  function zenithCard() {
+    const v = liveView(), a = byId('zenith');
+    const head = `<div class="card-h">${iconOf(a, 40)}<div><b>Zenith</b><small>${esc(a.sub)}</small></div><span class="go" aria-hidden="true">›</span></div>`;
+    if (!v) return `<button class="card" type="button" data-app="zenith">${head}<p class="muted">${L.err ? 'Could not reach the live feed. Open Zenith for everything.' : 'Loading the bots…'}</p></button>`;
+    const vd = v.verdict || {}, lvl = vd.level === 'good' || vd.level === 'ok' ? 'ok' : vd.level === 'bad' ? 'bad' : vd.level ? 'warn' : '';
+    const acct = (x, label) => {
+      if (!x) return '';
+      const set = x.room != null;
+      return `<div class="acct"><i>${esc(label)} · ${esc(x.plan || '')}${x.badge ? ' · ' + esc(x.badge) : ''}</i>${set ? `<div class="kv"><div><span>Today</span><strong>${usd(x.today_pnl, true)}</strong></div><div><span>Room</span><strong>${usd(x.room)}</strong></div><div><span>To target</span><strong>${usd(x.to_target)}</strong></div></div>` : `<p class="muted">${esc(x.status || 'not set up')}</p>`}</div>`;
+    };
+    return `<button class="card" type="button" data-app="zenith">${head}<span class="pill ${lvl}">${esc(vd.label || 'Bot status')}${v.t ? ' · ' + esc(ago(v.t)) : ''}</span>${acct(v.lit, 'Zlarior')}${acct(v.atlas, 'ATLAS')}</button>`;
+  }
+  function plannerCard() {
+    const a = byId('planner'), p = plannerDay();
+    const head = `<div class="card-h">${iconOf(a, 40)}<div><b>Planner</b><small>${esc(a.sub)}</small></div><span class="go" aria-hidden="true">›</span></div>`;
+    if (!p) return `<button class="card" type="button" data-app="planner">${head}<p class="muted">Open the Planner to see your day here.</p></button>`;
+    const evs = p.ev.slice(0, 4).map((e) => `<li><b>${e.allDay ? 'All day' : esc(hm(e.start))}</b><span>${esc(e.title)}</span></li>`).join('');
+    const tk = p.tasks.length ? `<li><b>${p.tasks.length}</b><span>${p.tasks.length === 1 ? 'task' : 'tasks'} open: ${esc(p.tasks.slice(0, 2).map((t) => t.title).join(', '))}${p.tasks.length > 2 ? '…' : ''}</span></li>` : '';
+    const body = evs || tk ? `<ul class="list">${evs}${tk}</ul>` : '<p class="muted">Nothing planned today.</p>';
+    return `<button class="card" type="button" data-app="planner">${head}${body}</button>`;
+  }
+  function linkCard(a) {
+    const head = (go) => `<div class="card-h">${iconOf(a, 40)}<div><b>${esc(a.name)}</b><small>${esc(a.sub || (a.url ? new URL(a.url, location.href).host : ''))}</small></div>${go ? '<span class="go" aria-hidden="true">›</span>' : ''}</div>`;
+    if (a.url) return `<button class="card" type="button" data-app="${esc(a.id)}">${head(true)}<p class="muted">Open ${esc(a.name)} inside Jarvis.</p></button>`;
+    return `<div class="card">${head(false)}<p class="muted">Paste your ${esc(a.name)} dashboard link once and it opens right here.</p><form class="link-f" data-link="${esc(a.id)}"><input id="link-${esc(a.id)}" type="url" inputmode="url" placeholder="https://…" aria-label="${esc(a.name)} dashboard link"><button type="submit">Save</button></form></div>`;
+  }
+  function renderCards() {
+    const list = apps().filter((a) => a.id !== 'home');
+    $('#cards').innerHTML = list.map((a) => a.id === 'zenith' ? zenithCard() : a.id === 'planner' ? plannerCard() : linkCard(a)).join('');
+  }
+  document.addEventListener('submit', (e) => {
+    const f = e.target.closest('[data-link]');
+    if (!f) return;
+    e.preventDefault();
+    const u = okUrl(f.querySelector('input').value.trim());
+    if (!u) { f.querySelector('input').setCustomValidity('Paste a full link that starts with https://'); f.querySelector('input').reportValidity(); return; }
+    const links = LS.get('jarvis.links', {}); links[f.dataset.link] = u; LS.set('jarvis.links', links);
+    renderBar(); renderCards(); show(f.dataset.link);
+  });
+  function refreshHome() { greet(); renderCards(); if (Date.now() - L.at > 50e3) fetchLive(); }
+
+  // ------------------------------------------------------------------ Jarvis: answers from the live data, and switches apps
+  const say = (who, text) => {
+    const t = $('#talk');
+    const m = document.createElement('div'); m.className = 'msg ' + who; m.textContent = text; t.appendChild(m);
+    while (t.children.length > 8) t.removeChild(t.firstChild);
+    return text;
+  };
+  const OPEN_WORDS = /\b(open|go to|goto|show|switch to|take me to|launch|pull up)\b/;
+  const APP_WORDS = [[/\b(zenith|nq|trading|zlarior|atlas|blitz|the bots?)\b/, 'zenith'], [/\b(planner|calendar|plan)\b/, 'planner'], [/\bkalshi\b/, 'kalshi'], [/\b(jarvis|home)\b/, 'home']];
+  function brain(raw) {
+    const q = String(raw || '').toLowerCase().replace(/[’']/g, "'").trim();
+    if (!q) return { text: 'Ask me how the bots are doing, what is on today, or say "open planner".' };
+    for (const x of apps()) if (x.extra && q.includes(x.name.toLowerCase()) && (OPEN_WORDS.test(q) || q.split(' ').length <= 2)) return { text: `Opening ${x.name}.`, open: x.id };
+    if (OPEN_WORDS.test(q) || q.split(' ').length <= 2) {
+      for (const [re, id] of APP_WORDS) if (re.test(q)) {
+        const a = byId(id);
+        if (id !== 'home' && !a.url) return { text: `${a.name} is not linked yet. Paste its dashboard link on the ${a.name} card and I will open it here.` };
+        return { text: id === 'home' ? 'Here.' : `Opening ${a.name}.`, open: id };
+      }
+    }
+    if (/\b(help|what can you|commands?)\b/.test(q)) return { text: 'I can switch dashboards ("open planner", "open Zenith", "Kalshi"), tell you how the bots are doing ("status", "room", "today\'s P&L", "how far to target"), what is on your plan today, and whether the market is open.' };
+    if (/\b(market|open|closed?|session|trading hours)\b/.test(q) && !/\b(bot|bots|zlarior|atlas)\b/.test(q)) return { text: market().text + '.' };
+    const v = liveView();
+    const need = () => (v ? null : { text: L.err ? 'I cannot reach the bots\' live feed right now. Open Zenith for everything.' : 'Still loading the bots. Ask me again in a second.' });
+    if (/\b(room|floor|drawdown|max loss)\b/.test(q)) {
+      if (!v) return need();
+      return { text: [v.lit && v.lit.room != null ? `Zlarior 50K: ${usd(v.lit.room)} of room above the floor (${usd(v.lit.floor)}).` : '', v.atlas && v.atlas.room != null ? `ATLAS 25K: ${usd(v.atlas.room)} of room.` : ''].filter(Boolean).join('\n') || 'No account room to show right now: the bot is not running. Zenith has the details.' };
+    }
+    if (/\b(target|to go|pass|passing)\b/.test(q)) {
+      if (!v) return need();
+      return { text: [v.lit && v.lit.to_target != null ? `Zlarior: ${usd(v.lit.to_target)} to the target.` : '', v.atlas && v.atlas.to_target != null ? `ATLAS: ${usd(v.atlas.to_target)} to the target.` : ''].filter(Boolean).join('\n') || 'No eval target to show right now. Zenith has the details.' };
+    }
+    if (/\b(p&l|pnl|p and l|profit|made|lost|money|today's)\b/.test(q) && !/\b(plan|schedule|calendar|task)\b/.test(q)) {
+      if (!v) return need();
+      const lines = [];
+      if (v.lit && v.lit.today_pnl != null) lines.push(`Zlarior today ${usd(v.lit.today_pnl, true)}${v.lit.week_pnl != null ? `, this week ${usd(v.lit.week_pnl, true)}` : ''}.`);
+      if (v.atlas && v.atlas.today_pnl != null) lines.push(`ATLAS today ${usd(v.atlas.today_pnl, true)}.`);
+      return { text: lines.join('\n') || 'No P&L to show right now. Zenith has the details.' };
+    }
+    if (/\b(bot|bots|status|how are|how's|hows|doing|running|armed|zlarior|atlas|blitz|nq)\b/.test(q) && !/\b(today|schedule|plan|task|event)\b/.test(q)) {
+      if (!v) return need();
+      const vd = v.verdict || {}, lines = [`${vd.label || 'Bot status unknown'}${v.t ? ' (' + ago(v.t) + ')' : ''}.`];
+      if (vd.reason && !String(vd.label || '').toLowerCase().includes(String(vd.reason).toLowerCase())) lines.push(vd.reason[0].toUpperCase() + vd.reason.slice(1) + '.');
+      if (v.lit && v.lit.room != null) lines.push(`Zlarior 50K: today ${usd(v.lit.today_pnl, true)}, room ${usd(v.lit.room)}, ${usd(v.lit.to_target)} to target.`);
+      if (v.atlas && v.atlas.room != null) lines.push(`ATLAS 25K: today ${usd(v.atlas.today_pnl, true)}, room ${usd(v.atlas.room)}, ${usd(v.atlas.to_target)} to target.`);
+      lines.push(market().text + '.');
+      return { text: lines.join('\n') };
+    }
+    if (/\b(today|schedule|agenda|plan|calendar|events?|tasks?|to ?do|on my plate|busy)\b/.test(q)) {
+      const p = plannerDay();
+      if (!p) return { text: 'I cannot see your Planner here yet. Open it once inside Jarvis (connect its sync if it asks) and I will read your day.', open: null };
+      if (!p.ev.length && !p.tasks.length) return { text: 'Nothing on your plan today.' };
+      const lines = p.ev.slice(0, 6).map((e) => `${e.allDay ? 'All day' : hm(e.start)}: ${e.title}`);
+      if (p.tasks.length) lines.push(`${p.tasks.length} open ${p.tasks.length === 1 ? 'task' : 'tasks'}: ${p.tasks.slice(0, 4).map((t) => t.title).join(', ')}${p.tasks.length > 4 ? '…' : ''}`);
+      return { text: lines.join('\n') };
+    }
+    if (/\b(hi|hello|hey|yo|sup)\b/.test(q)) return { text: `${$('#hello').textContent}. ${market().text}. Ask me about the bots or your day.` };
+    if (/\b(time|date|day is it)\b/.test(q)) return { text: $('#when').textContent.split(' · ').slice(0, 2).join(', ') + '.' };
+    return { text: 'I can switch dashboards and tell you how the bots and your day look. Try "how are the bots", "what\'s on today" or "open planner".' };
+  }
+  let spoke = false;
+  function ask(text, voice = false) {
+    const t = String(text || '').trim();
+    if (!t) return;
+    say('me', t);
+    const orb = $('#orb'); orb.classList.add('think');
+    const run = () => {
+      const r = brain(t);
+      orb.classList.remove('think');
+      say('j', r.text);
+      if (voice && 'speechSynthesis' in window) { try { const u = new SpeechSynthesisUtterance(r.text.replace(/\n/g, '. ')); u.rate = 1.03; speechSynthesis.cancel(); speechSynthesis.speak(u); spoke = true; } catch (_) { /* no voice */ } }
+      if (r.open) setTimeout(() => show(r.open), 450);
+    };
+    if (/\b(bot|bots|room|target|p&l|pnl|profit|status|zlarior|atlas)\b/i.test(t) && !L.j && !L.busy) fetchLive().then(run); else setTimeout(run, 220);
+  }
+  $('#ask').addEventListener('submit', (e) => { e.preventDefault(); const q = $('#q'); ask(q.value); q.value = ''; });
+
+  // voice: the phone's own speech recognition when it has one
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SR) {
+    const mic = $('#mic'); mic.hidden = false;
+    let rec = null;
+    mic.addEventListener('click', () => {
+      if (rec) { try { rec.stop(); } catch (_) { /* already stopped */ } return; }
+      try {
+        rec = new SR(); rec.lang = 'en-US'; rec.interimResults = false; rec.maxAlternatives = 1;
+        rec.onresult = (e) => { const t = e.results && e.results[0] && e.results[0][0] ? e.results[0][0].transcript : ''; if (t) ask(t, true); };
+        rec.onend = () => { rec = null; mic.classList.remove('on'); };
+        rec.onerror = () => { rec = null; mic.classList.remove('on'); };
+        mic.classList.add('on'); rec.start();
+      } catch (_) { rec = null; mic.classList.remove('on'); say('j', 'Voice is not available here. Type instead.'); }
+    });
+  }
+
+  // ------------------------------------------------------------------ add / remove extra dashboards (kept on this phone)
+  function renderMine() {
+    const ex = LS.get('jarvis.extra', []), links = LS.get('jarvis.links', {});
+    const rows = [...Object.entries(links).filter(([id, u]) => u && byId(id) && !BUILT_IN.find((b) => b.id === id && b.url)).map(([id, u]) => ({ id, name: byId(id).name, url: u, kind: 'link' })),
+                  ...(Array.isArray(ex) ? ex : []).map((x) => ({ ...x, kind: 'extra' }))];
+    $('#mine').innerHTML = rows.map((r) => `<div><b>${esc(r.name)}</b><span>${esc(r.url)}</span><button type="button" data-rm="${esc(r.kind)}:${esc(r.id)}">Remove</button></div>`).join('');
+  }
+  function openSheet() { $('#addErr').textContent = ''; renderMine(); $('#sheet').hidden = false; setTimeout(() => $('#addName').focus(), 30); }
+  $('#addX').addEventListener('click', () => { $('#sheet').hidden = true; });
+  $('#sheet').addEventListener('click', (e) => {
+    if (e.target.id === 'sheet') $('#sheet').hidden = true;
+    const rm = e.target.closest('[data-rm]');
+    if (!rm) return;
+    const [kind, id] = rm.dataset.rm.split(':');
+    if (kind === 'link') { const l = LS.get('jarvis.links', {}); delete l[id]; LS.set('jarvis.links', l); }
+    else LS.set('jarvis.extra', LS.get('jarvis.extra', []).filter((x) => x.id !== id));
+    if (frames[id]) { frames[id].remove(); delete frames[id]; }
+    if (active === id) show('home');
+    renderMine(); renderBar(); renderCards();
+  });
+  $('#addF').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = $('#addName').value.trim().slice(0, 24), url = okUrl($('#addUrl').value.trim());
+    if (!name) { $('#addErr').textContent = 'Give it a name.'; return; }
+    if (!url) { $('#addErr').textContent = 'Paste a full link that starts with https://'; return; }
+    const id = 'x-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 20);
+    const pre = BUILT_IN.find((b) => b.name.toLowerCase() === name.toLowerCase() && !b.url);
+    if (pre) { const l = LS.get('jarvis.links', {}); l[pre.id] = url; LS.set('jarvis.links', l); }
+    else LS.set('jarvis.extra', [...LS.get('jarvis.extra', []).filter((x) => x.id !== id), { id, name, url }]);
+    $('#addName').value = ''; $('#addUrl').value = '';
+    $('#sheet').hidden = true; renderBar(); renderCards(); show(pre ? pre.id : id);
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#sheet').hidden) $('#sheet').hidden = true; });
+
+  // ------------------------------------------------------------------ start
+  greet();
+  renderBar();
+  renderCards();
+  fetchLive();
+  show((location.hash || '#home').slice(1), false);
+  setInterval(() => { if (document.visibilityState === 'visible' && active === 'home') { greet(); if (Date.now() - L.at > 60e3) fetchLive(); } }, 30e3);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && active === 'home') refreshHome(); });
+  window.addEventListener('storage', (e) => { if (/^planner\./.test(e.key || '') && active === 'home') renderCards(); });
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => { /* works without it */ });
+})();
+</script>
+</body>
+</html>

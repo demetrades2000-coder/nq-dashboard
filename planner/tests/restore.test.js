@@ -1,0 +1,20 @@
+const { chromium } = require('playwright');
+const URL = 'http://127.0.0.1:8777/nq-dashboard/planner/index.html';
+(async () => {
+  const errs = [], ok = (c, m) => { if (!c) errs.push(m); }, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: 1440, height: 900 } });
+  const p = await ctx.newPage(); p.on('pageerror', (e) => errs.push(e.message));
+  await p.goto(URL); await wait(3000);
+  const st = () => p.evaluate(() => JSON.parse(localStorage.getItem('planner.v1')));
+  await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('planner.v1') || '{}'); s.events = [{ id: 'e', title: 'Mine', cat: 'trading', date: '2026-10-30', allDay: true, repeat: 'none', ex: [] }]; s.goals = [{ id: 'g', title: 'G', target: 5, cur: 1, kind: 'manual', unit: '$' }]; s.money = [{ id: 'm', kind: 'in', amt: 5, date: '2026-10-01', note: 'x' }]; s.habits = [{ id: 'h', name: 'H', color: '#000', days: [1], done: [] }]; s.journal = [{ id: 'j:2026-10-01', date: '2026-10-01', note: 'n', mood: 3, rules: 'yes' }]; localStorage.setItem('planner.v1', JSON.stringify(s)); });
+  await p.reload(); await wait(1500);
+  const backup = JSON.stringify(await st());
+  await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('planner.v1')); s.events = []; s.goals = []; s.money = []; s.habits = []; s.journal = []; localStorage.setItem('planner.v1', JSON.stringify(s)); });
+  await p.reload(); await wait(1500);
+  await p.setInputFiles('#importFile', { name: 'b.json', mimeType: 'application/json', buffer: Buffer.from(backup) }); await wait(300); await p.click('#askYes'); await wait(500);
+  const a = await st(); ok(a.events.length === 1 && a.goals.length === 1 && a.money.length === 1 && a.habits.length === 1 && a.journal.length === 1, 'everything restored in one step');
+  await p.click('#toastBtn'); await wait(500);
+  const u = await st(); ok(u.events.length === 0 && u.goals.length === 0 && u.money.length === 0 && u.habits.length === 0, 'undo fully reverts the restore: ' + [u.events.length, u.goals.length, u.money.length, u.habits.length]);
+  console.log(errs.length ? 'FAIL\n' + errs.join('\n') : 'RESTORE OK');
+  await b.close();
+})().catch((e) => { console.error(e.message.split('\n').slice(0, 4).join('\n')); process.exit(1); });

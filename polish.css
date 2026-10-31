@@ -1,0 +1,264 @@
+/* Calm, premium phone app (2026-10-30 night 3; polish.js + statuscore.js). One design system over every older page:
+   8-pt spacing, one type scale, colour roles (Zlarior blue, ATLAS orange, BLITZ purple, good / warn / bad), glass cards
+   with a lit top edge, one motion system (reduced motion = none). Read-only UI. */
+:root {
+  --zl: #4f9bff; --at: #ff9a3d; --bz: #b388ff; --bot: var(--accent);
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+  --t-xs: 11px; --t-s: 12.5px; --t-m: 14px; --t-l: 16px; --t-xl: 20px; --t-2x: 26px;
+  --spring: cubic-bezier(.2, .9, .25, 1.05); --out: cubic-bezier(.16, 1, .3, 1);
+  --glass: linear-gradient(180deg, rgba(20, 24, 35, .80), rgba(11, 13, 21, .74));
+  --rim: rgba(170, 182, 235, .14);
+}
+:root[data-bot="lit"] { --bot: var(--zl); } :root[data-bot="atlas"] { --bot: var(--at); } :root[data-bot="blitz"] { --bot: var(--bz); }
+
+/* ---------- type: one scale, tabular numbers, tighter big numbers ---------- */
+:root[data-polish="on"] body { font-feature-settings: "tnum", "cv11", "ss01"; letter-spacing: -.003em; }
+:root[data-polish="on"] .hero h2 { letter-spacing: -.02em; }
+:root[data-polish="on"] .eyebrow, :root[data-polish="on"] .cl-eye { letter-spacing: .1em; font-size: var(--t-xs); }
+:root[data-polish="on"] .stat b, :root[data-polish="on"] .big, :root[data-polish="on"] .cl-big b { letter-spacing: -.025em; }
+
+/* ---------- glass cards with a lit top edge (one style everywhere) ---------- */
+:root[data-polish="on"] .card { background: var(--glass); border-color: var(--rim);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), inset 0 0 0 1px rgba(255, 255, 255, .01), 0 18px 40px -28px rgba(0, 0, 0, .9); }
+:root[data-polish="on"] .card .card { background: rgba(255, 255, 255, .025); box-shadow: none; }
+:root[data-polish="on"][data-theme="light"] .card { background: linear-gradient(180deg, #fff, #f7f8fb); border-color: rgba(20, 30, 60, .09); box-shadow: 0 1px 0 #fff inset, 0 12px 30px -22px rgba(20, 30, 60, .35); }
+
+/* ---------- the header: one freshness pill (the PC's live chip wins over the cloud one), a search button ---------- */
+:root[data-polish="on"] #status:has(+ #liveChip) { display: none; }
+:root[data-polish="on"] .live-chip { margin-left: 0; }
+:root[data-polish="on"] header.top { gap: 8px; }
+:root[data-polish="on"] .status .dot { box-shadow: 0 0 8px currentColor; }
+:root[data-polish="on"] .live-chip .dot { animation: pl-breathe 2.6s ease-in-out infinite; }
+@keyframes pl-breathe { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .55; transform: scale(.82); } }
+#plFind .ico { width: 18px; height: 18px; }
+.pl-stat { display: grid; place-items: center; width: 36px !important; } .pl-stat .su-dot { width: 11px; height: 11px; }
+@media (max-width: 760px) { :root[data-polish="on"] .ttl { min-width: 0; } :root[data-polish="on"] .ttl h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  :root[data-polish="on"] header.top { gap: 6px; } :root[data-polish="on"] header.top .iconbtn { width: 38px; height: 38px; border-radius: 12px; }
+  :root[data-polish="on"] header.top .status { height: 38px; padding: 0 11px; } }
+@media (max-width: 360px) { header.top .pl-stat { display: none; } }
+@media (max-width: 760px) { :root[data-polish="on"] .ttl h1.pl-long { font-size: 16px; letter-spacing: -.01em; } }   /* "Accounts today", "Mission Control" fit the header */
+
+/* ---------- every page: the refresh line folds into the header pill (offline / stale banners still show) ---------- */
+:root[data-polish="on"] #moStrip .mo-upd { display: none; }
+:root[data-polish="on"] #moStrip:not(:has(.mo-ban)) { display: none; }
+/* the alert to acknowledge: one compact red line, the tap target stays big */
+:root[data-polish="on"] #apBan { margin-bottom: var(--s3); }
+
+/* ---------- Home: status, accounts, what matters now, Sunday open, quick tiles; the rest folded ---------- */
+#page.pl-h { display: flex; flex-direction: column; }
+#page.pl-h > * { order: 30; }
+#page.pl-h > #moInst { order: 4; }   /* the browser-only Add to Home Screen guide: under what matters now, not above the status */
+#page.pl-h > #moStrip { order: -2; } #page.pl-h > #apBan { order: 1; }
+#page.pl-h > .pl-home { order: 0; } #page.pl-h > .pl-fold { order: 5; }
+#page.pl-h:has(> .pl-home .su-ack) > #apBan:not(:has(.mo-ban:not(.ap-ban))) { display: none; }   /* the status bar carries the alert and its Got it link */
+#page.pl-h > .mc-strip { order: 10; } #page.pl-h > .rc-homebox { order: 11; } #page.pl-h > .rc-wrap { order: 12; } #page.pl-h > .bd-homecut { order: 13; }
+#page.pl-h > .cl-launch { order: 14; } #page.pl-h > .bz-home { order: 15; } #page.pl-h > .cl-plan { order: 16; } #page.pl-h > .lv-home { order: 17; }
+#page.pl-h > .hd-home { order: 18; } #page.pl-h > .cl-trade { order: 19; } #page.pl-h > .cl-list { order: 20; } #page.pl-h > .cl-foot { order: 40; }
+#page.pl-h:not(.pl-all) > :not(.pl-home):not(.pl-fold):not(#moInst):not(#moStrip):not(#apBan):not(.cl-foot) { display: none !important; }
+#page.pl-h > .cl-heroes { display: none !important; }      /* the account cards above say the same */
+.pl-home { display: flex; flex-direction: column; min-width: 0; }
+.pl-hi { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; column-gap: 12px; row-gap: 2px; margin: 2px 4px var(--s3); }
+.pl-hi b { white-space: nowrap; font: 760 24px/1.1 var(--sans); letter-spacing: -.025em; background: linear-gradient(92deg, #fff 0%, #dfe6ff 45%, #b9c6ff 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.pl-hi > span { font-size: 12.5px; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; text-shadow: 0 1px 10px rgba(0, 0, 0, .9), 0 0 2px rgba(0, 0, 0, .8); }
+.pl-hi b { filter: drop-shadow(0 2px 12px rgba(0, 0, 0, .7)); }
+:root[data-theme="light"] .pl-hi b { background: none; -webkit-text-fill-color: currentColor; color: var(--ink); }
+.pl-h3 { margin: 0 0 var(--s2); font: 650 var(--t-xs) var(--sans); text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+.pl-now { border-radius: 20px; padding: var(--s4) var(--s4) var(--s2); margin: 0 0 var(--s3); background: var(--glass); border: 1px solid var(--rim); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06); }
+.pl-now-r { display: flex; align-items: center; gap: var(--s3); min-height: 56px; padding: var(--s2) 0; border-top: 1px solid rgba(160, 170, 220, .08); color: inherit; text-decoration: none; cursor: pointer; }
+.pl-h3 + .pl-now-r { border-top: 0; }
+.pl-now-r > span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pl-now-r b { font-size: var(--t-m); font-weight: 650; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-now-r em { font-style: normal; font-size: var(--t-s); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-now-r strong { font: 700 var(--t-m) var(--sans); font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+.pl-now-r strong.up { color: var(--good-ink); } .pl-now-r strong.dn { color: var(--bad); }
+.pl-now-i { flex: none; width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; color: var(--c, var(--ink-2)); background: color-mix(in srgb, var(--c, #8aa0ff) 12%, transparent); border: 1px solid color-mix(in srgb, var(--c, #8aa0ff) 22%, transparent); }
+.pl-now-i.warn { --c: var(--warn); } .pl-now-i.new { --c: #8fa2ff; } .pl-now-i .ico { width: 18px; height: 18px; }
+.pl-now-r strong.pl-badge { min-width: 26px; height: 26px; padding: 0 8px; border-radius: 99px; display: inline-grid; place-items: center; font-size: 12.5px; color: #0b0f1e;
+  background: linear-gradient(180deg, #b9c6ff, #8fa2ff); box-shadow: 0 0 14px rgba(143, 162, 255, .55); }
+.pl-now-i { position: relative; } .pl-now-i.live::after { content: ""; position: absolute; inset: -1px; border-radius: inherit; border: 1.5px solid var(--c); opacity: 0; pointer-events: none; animation: pl-ring 2.4s var(--out) infinite; will-change: transform, opacity; }
+@keyframes pl-ring { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(1.45); opacity: 0; } }
+.pl-quick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s2); margin: 0 0 var(--s3); }
+.pl-quick a { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: var(--s3) 4px; border-radius: 18px; text-decoration: none; color: var(--ink); cursor: pointer;
+  background: var(--glass); border: 1px solid var(--rim); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06); transition: transform .18s var(--spring), border-color .2s; min-width: 0; }
+.pl-quick a i { width: 40px; height: 40px; border-radius: 14px; display: grid; place-items: center; color: #cfd8ff; background: radial-gradient(80% 80% at 30% 20%, rgba(130, 150, 255, .35), rgba(60, 70, 140, .12)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 6px 18px -8px rgba(109, 124, 255, .7); }
+.pl-quick a:nth-child(2) i { color: #c8f5ff; background: radial-gradient(80% 80% at 30% 20%, rgba(62, 224, 200, .32), rgba(30, 90, 120, .14)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 6px 18px -8px rgba(62, 224, 200, .6); }
+.pl-quick a:nth-child(3) i { color: #ffe3c6; background: radial-gradient(80% 80% at 30% 20%, rgba(255, 154, 61, .32), rgba(120, 60, 20, .14)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 6px 18px -8px rgba(255, 154, 61, .55); }
+.pl-quick a:nth-child(4) i { color: #eadcff; background: radial-gradient(80% 80% at 30% 20%, rgba(179, 136, 255, .36), rgba(80, 40, 140, .14)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 6px 18px -8px rgba(179, 136, 255, .6); }
+.pl-quick a i .ico { width: 20px; height: 20px; }
+.pl-quick b { font-size: 12px; font-weight: 650; white-space: nowrap; } .pl-quick em { font-style: normal; font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.pl-fold { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: var(--s3); width: 100%; min-height: 56px; padding: var(--s3) var(--s4); margin: 0 0 var(--s3); border-radius: 18px;
+  border: 1px dashed rgba(160, 170, 220, .2); color: var(--ink-2); }
+.pl-fold > span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; } .pl-fold b { font-size: var(--t-m); color: var(--ink); font-weight: 650; }
+.pl-fold em { font-style: normal; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-chev { width: 9px; height: 9px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg) translateY(-3px); transition: transform .25s var(--out); }
+.pl-fold[aria-expanded="true"] .pl-chev { transform: rotate(225deg); }
+.pl-btn { display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: 12px; font-size: 13px; font-weight: 600; color: var(--ink); text-decoration: none; cursor: pointer;
+  background: rgba(255, 255, 255, .05); border: 1px solid var(--rim); }
+
+/* ---------- the bot tabs: the same account card on top, the bot's own colour on the section bar ---------- */
+.pl-bot { margin: 0 0 var(--s3); }
+.pl-bot .su-acct { padding: 18px 16px; }
+.pl-why { margin: 8px 0 0; padding: 12px 16px; border-radius: 16px; background: rgba(255, 255, 255, .03); border: 1px solid var(--rim); }
+.pl-why-go { display: inline-block; margin-top: 8px; font-size: 12.5px; font-weight: 650; color: var(--bot, var(--accent)); text-decoration: none; cursor: pointer; }
+/* Zlarior Today: the "Right now" card says what the why list says; its Brain link is in the list now */
+:root[data-page="lit"] #page:has(> .pl-bot .pl-why) > .cl-plan { display: none; }
+.pl-why ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pl-why li { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+.pl-why li i { flex: none; width: 7px; height: 7px; border-radius: 50%; margin-top: 6px; background: var(--muted); }
+.pl-why li.ok i { background: var(--good); box-shadow: 0 0 8px var(--good); } .pl-why li.no i { background: var(--warn); } .pl-why li.ok span { color: var(--ink); }
+:root[data-theme="light"] .pl-why { background: rgba(20, 30, 60, .03); border-color: rgba(20, 30, 60, .1); }
+:root[data-bot="lit"][data-page="lit"] #page:has(> .pl-bot) > .hero, :root[data-bot="lit"][data-page="lit"] #page:has(> .pl-bot) > .cl-hero { display: none; }   /* only once the account card is there */
+:root[data-bot="atlas"][data-page="atlas"] #page:has(> .pl-bot) > .hero { display: none; }
+:root[data-bot="blitz"] .bl-hero-h h2 { display: none; }
+/* ATLAS Today: the account card above already says today's $ and the plan; its hero keeps the mode and the LIT rule */
+:root[data-page="atlas"] #page:has(> .pl-bot) .at-hero .at-day, :root[data-page="atlas"] #page:has(> .pl-bot) .at-hero .at-top .sc-note { display: none; }
+:root[data-page="atlas"] #page:has(> .pl-bot) .at-hero .at-h { font-size: 17px; margin: 6px 0 0; }
+:root[data-page="atlas"] #page:has(> .pl-bot) #atRoot > [data-at~="today"]:not(.at-hero) .sc-stats { display: none; }
+:root[data-bot] .zl-seg button.on { color: var(--ink); background: linear-gradient(180deg, color-mix(in srgb, var(--bot) 30%, transparent), color-mix(in srgb, var(--bot) 12%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bot) 45%, transparent), 0 6px 18px -10px var(--bot); }
+:root[data-bot] .zl-chips button.on { border-color: color-mix(in srgb, var(--bot) 55%, transparent); color: var(--ink); background: color-mix(in srgb, var(--bot) 16%, transparent); }
+:root[data-bot] .hero .eyebrow { color: var(--bot); }
+/* the sliding pill under the open tab (polish.js tabInd); without it the old per-tab background stays */
+.pl-tabind { position: absolute; top: 6px; bottom: 6px; left: 0; width: 0; opacity: 0; border-radius: 16px; pointer-events: none; z-index: 0; --ti: var(--accent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ti) 28%, transparent), color-mix(in srgb, var(--ti) 9%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ti) 34%, transparent), inset 0 1px 0 rgba(255, 255, 255, .12), 0 10px 26px -14px var(--ti);
+  transition: transform .42s var(--spring), width .42s var(--spring), opacity .2s, background .35s, box-shadow .35s; }
+.pl-tabind[data-t="lit"] { --ti: var(--zl); } .pl-tabind[data-t="atlas"] { --ti: var(--at); } .pl-tabind[data-t="blitz"] { --ti: var(--bz); }
+.tabs.pl-slide a { position: relative; z-index: 1; } .tabs.pl-slide a.on { background: none !important; box-shadow: none !important; }
+@media (prefers-reduced-motion: reduce) { .pl-tabind { transition: none; } }
+/* each bot's tab: a light when it is in a trade (green, pulsing), armed (amber) or blocked (red) */
+.tabs a { position: relative; }
+.pl-tdot { position: absolute; top: 9px; left: calc(50% + 8px); width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--surface, #10131a); pointer-events: none; box-sizing: content-box; }
+.pl-tdot[data-s="trade"] { background: var(--good); box-shadow: 0 0 8px var(--good); animation: pl-breathe 2s ease-in-out infinite; }
+.pl-tdot[data-s="armed"] { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+.pl-tdot[data-s="blocked"] { background: var(--bad); box-shadow: 0 0 8px var(--bad); }
+@media (prefers-reduced-motion: reduce) { .pl-tdot { animation: none !important; } }
+.tabs a[data-t="lit"].on { --accent: var(--zl); } .tabs a[data-t="atlas"].on { --accent: var(--at); } .tabs a[data-t="blitz"].on { --accent: var(--bz); }
+.tabs a.on .ico { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 70%, transparent)); }
+
+/* ---------- More: compact rows (one line each), clear group heads ---------- */
+:root[data-polish="on"] .cl-sec h4 { font-size: var(--t-xs); letter-spacing: .12em; color: var(--muted); margin: var(--s5) 4px var(--s2); }
+:root[data-polish="on"] .cl-list .cl-row { min-height: 56px; padding-top: 8px; padding-bottom: 8px; }
+:root[data-polish="on"] .cl-row .cl-rt em { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* the sticky search: no flat dark band around the field over the sky, the field itself carries the depth */
+:root[data-polish="on"] .cl-search { background: transparent; }
+:root[data-polish="on"] .cl-search label { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 12px 30px -18px rgba(0, 0, 0, .85); }
+:root[data-theme="light"] .cl-search label { box-shadow: 0 8px 24px -16px rgba(30, 40, 80, .35); }
+
+.pl-recent { margin: var(--s3) 4px 0; } .pl-recent .pl-h3 { display: block; margin-bottom: var(--s2); }
+.pl-chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; } .pl-chips::-webkit-scrollbar { display: none; }
+.pl-chips a { flex: none; height: 34px; padding: 0 14px; display: inline-flex; align-items: center; border-radius: 99px; font-size: 13px; font-weight: 600; color: var(--ink); text-decoration: none; cursor: pointer;
+  background: rgba(255, 255, 255, .05); border: 1px solid var(--rim); }
+.pl-toc { margin: 0 0 var(--s3); } .pl-toc .pl-h3 { display: block; margin: 0 4px var(--s2); }
+.pl-chips button { all: unset; box-sizing: border-box; flex: none; height: 32px; padding: 0 12px; display: inline-flex; align-items: center; border-radius: 99px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); cursor: pointer;
+  background: rgba(255, 255, 255, .04); border: 1px solid var(--rim); }
+.pl-chips button:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 85%, transparent); outline-offset: 2px; }
+:root[data-bot] .pl-toc .pl-chips button { border-color: color-mix(in srgb, var(--bot) 22%, var(--rim)); }
+:root[data-theme="light"] .pl-chips button { background: rgba(20, 30, 60, .04); border-color: rgba(20, 30, 60, .12); color: #2a3346; }
+:root[data-theme="light"] .pl-chips a { background: rgba(20, 30, 60, .04); border-color: rgba(20, 30, 60, .12); }
+
+/* ---------- empty states: say what will appear, and when ---------- */
+:root[data-polish="on"] .empty { border: 1px dashed rgba(160, 170, 220, .18); border-radius: 16px; background: rgba(255, 255, 255, .02); padding: 18px 16px; color: var(--ink-2); line-height: 1.5; }
+:root[data-polish="on"] .empty b { display: block; color: var(--ink); margin-bottom: 4px; }
+
+/* ---------- motion: page transition, card entrances, press states ---------- */
+:root[data-polish="on"] #page.page { animation: pl-page .34s var(--out); }   /* ONE page transition (wins over clean.js cl-in and space.css sp-warp, a full-page blur that costs frames on a phone); no fill: a finished transform must not stay "in effect" (it would be the containing block of fixed full-screen views) */
+@keyframes pl-page { from { opacity: 0; transform: translate3d(0, 10px, 0); } to { opacity: 1; transform: none; } }
+:root[data-polish="on"] #page.page[data-dir="r"] { animation-name: pl-page-r; } :root[data-polish="on"] #page.page[data-dir="l"] { animation-name: pl-page-l; }
+@keyframes pl-page-r { from { opacity: 0; transform: translate3d(28px, 0, 0); } to { opacity: 1; transform: none; } }
+@keyframes pl-page-l { from { opacity: 0; transform: translate3d(-28px, 0, 0); } to { opacity: 1; transform: none; } }
+:root[data-polish="on"] #page .pl-in { animation: pl-rise .52s var(--out) both; animation-delay: var(--d, 0ms); }   /* one card entrance (wins over the older 3D "rise") */
+@keyframes pl-rise { from { opacity: 0; transform: translate3d(0, 14px, 0) scale(.985); } to { opacity: 1; transform: none; } }
+:root[data-polish="on"] :is(button.card, a.card, .cl-row, .pl-now-r, .pl-quick a, .tabs a, .zl-seg button, .strip button, .pl-fold, .su-sum, .iconbtn):active { transform: scale(.975); transition: transform .08s; }
+:root[data-polish="on"] :is(button.card, .cl-row, .pl-quick a, .tabs a) { transition: transform .22s var(--spring), background .2s, border-color .2s; }
+.su-ring .v { transition: stroke-dasharray .9s var(--out); }
+.pl-first .su-ring .v { animation: pl-ringin 1.1s var(--out) both; }
+@keyframes pl-ringin { from { stroke-dasharray: 0 var(--C); } }
+.pl-first .su-spark .ln { stroke-dasharray: 240; animation: pl-draw 1.2s .15s var(--out) both; }
+@keyframes pl-draw { from { stroke-dashoffset: 240; } to { stroke-dashoffset: 0; } }
+
+/* ---------- keyboard: a visible focus ring on every new control (they reset their outline) ---------- */
+:is(.pl-fold, .pl-now-r, .pl-quick a, .pl-btn, .pl-chips a, .pl-why-go):focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 85%, transparent); outline-offset: 2px; border-radius: 14px; }
+
+/* ---------- the palette ---------- */
+.pl-pal { position: fixed; inset: 0; z-index: 3000; display: flex; justify-content: center; align-items: flex-start; padding: calc(14px + env(safe-area-inset-top)) 12px 12px; pointer-events: none; }
+.pl-pal-bg { position: absolute; inset: 0; background: rgba(3, 4, 10, .62); opacity: 0; transition: opacity .2s; pointer-events: auto; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.pl-pal-in { position: relative; width: min(640px, 100%); max-height: min(78vh, 640px); display: flex; flex-direction: column; border-radius: 22px; overflow: hidden; pointer-events: auto;
+  background: linear-gradient(180deg, rgba(24, 28, 42, .97), rgba(12, 14, 22, .97)); border: 1px solid rgba(170, 182, 235, .18); box-shadow: 0 30px 80px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .08);
+  transform: translate3d(0, -12px, 0) scale(.98); opacity: 0; transition: transform .26s var(--out), opacity .2s; }
+.pl-pal.on .pl-pal-bg { opacity: 1; } .pl-pal.on .pl-pal-in { transform: none; opacity: 1; }
+.pl-pal-q { display: flex; align-items: center; gap: 10px; padding: 0 12px 0 16px; height: 56px; border-bottom: 1px solid rgba(170, 182, 235, .12); color: var(--muted); }
+.pl-pal-q input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; font-size: 16px; color: var(--ink); }
+.pl-pal-x { all: unset; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink-2); padding: 8px 10px; border-radius: 10px; }
+.pl-pal-l { list-style: none; margin: 0; padding: 6px; overflow: auto; overscroll-behavior: contain; }
+.pl-pal-l li { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 10px; border-radius: 14px; cursor: pointer; }
+.pl-pal-l li.on { background: rgba(130, 150, 255, .12); box-shadow: inset 0 0 0 1px rgba(130, 150, 255, .22); }
+.pl-pal-l li > span { flex: 1; min-width: 0; display: flex; flex-direction: column; } .pl-pal-l b { font-size: 14px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-pal-l em { font-style: normal; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-pal-k { flex: none; width: 10px; height: 10px; border-radius: 3px; background: var(--c, #6d7cff); box-shadow: 0 0 10px var(--c, #6d7cff); }
+.pl-pal-k.page { --c: #8892b0; box-shadow: none; } .pl-pal-k.num { border-radius: 50%; }
+.pl-pal-none { cursor: default !important; }
+
+/* ---------- the sky: a little parallax (polish.js sets --px / --py from scroll and tilt) ---------- */
+.space-css > .sc-stars { transform: translate3d(calc(var(--px, 0) * 1px), calc(var(--py, 0) * 1px), 0); }
+.space-css > .sc-stars.sc-b { transform: translate3d(calc(var(--px, 0) * 2px), calc(var(--py, 0) * 2px), 0); }
+.space-css > .sc-earth { transform: translate3d(calc(var(--px, 0) * -1.5px), calc(var(--py, 0) * -1px), 0); }
+
+/* ---------- cinematic depth: a soft vignette and a faint top light over the sky (the CSS sky and the 3D scene) ---------- */
+:root:not([data-theme="light"]) .space-css::after, :root:not([data-theme="light"]) .fx-bg-space::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(130% 85% at 50% 30%, transparent 58%, rgba(2, 3, 9, .5) 100%), linear-gradient(180deg, rgba(120, 140, 255, .05), transparent 18%, transparent 80%, rgba(2, 3, 9, .32)); }
+
+/* ---------- the intro (first open of the day, skippable; index.html) ---------- */
+#splash .sp-line { min-height: 20px; font: 500 13px var(--sans); color: #cfd6f6; letter-spacing: .01em; opacity: 0; transform: translateY(6px); transition: opacity .5s var(--out), transform .5s var(--out); text-align: center; padding: 0 24px; }
+#splash .sp-line.on { opacity: 1; transform: none; } #splash .sp-line b { color: #fff; font-weight: 700; }
+#splash .sp-line[data-lvl="bad"] { color: #ffb3c1; } #splash .sp-line[data-lvl="warn"] { color: #ffe1a8; }
+#splash .sp-skip { position: absolute; right: 16px; bottom: calc(22px + env(safe-area-inset-bottom)); all: unset; position: absolute; cursor: pointer; font: 600 13px var(--sans); color: rgba(255, 255, 255, .7);
+  padding: 10px 16px; border-radius: 99px; border: 1px solid rgba(255, 255, 255, .16); background: rgba(255, 255, 255, .05); right: 16px; bottom: calc(22px + env(safe-area-inset-bottom)); }
+/* the Earth's limb rises at the bottom while the stars settle (one layer, transform only) */
+#splash::after { content: ""; position: absolute; left: 50%; bottom: 0; z-index: 1; width: 240vw; height: 240vw; margin-left: -120vw; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle at 50% 0%, #0d2048, #040814 38%, #02040a 60%);
+  box-shadow: 0 -1px 0 rgba(160, 205, 255, .75), 0 -14px 70px rgba(79, 155, 255, .45), inset 0 22px 60px rgba(79, 155, 255, .35);
+  transform: translate3d(0, calc(100% - 20vh), 0); animation: sp-limb 2.4s var(--out) .15s both; }
+@keyframes sp-limb { from { transform: translate3d(0, calc(100% + 6vh), 0); } to { transform: translate3d(0, calc(100% - 20vh), 0); } }
+#splash .sp-in, #splash .sp-orbs, #splash .sp-skip { z-index: 2; }
+@media (prefers-reduced-motion: reduce) { #splash::after { animation: none; } }
+#splash .sp-orbs { position: absolute; left: 50%; top: calc(50% - 40px); width: 0; height: 0; }
+#splash .sp-orbs i { position: absolute; left: -7px; top: -7px; width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, var(--c) 45%, color-mix(in srgb, var(--c) 40%, #000));
+  box-shadow: 0 0 18px var(--c), 0 0 40px color-mix(in srgb, var(--c) 50%, transparent); animation: sp-orbit 2.6s var(--out) both; animation-delay: var(--dl); }
+@keyframes sp-orbit {
+  0% { transform: rotate(var(--a0)) translateX(260px) scale(.3); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: rotate(calc(var(--a0) + 300deg)) translateX(98px) scale(1); opacity: 1; } }
+
+/* ---------- endless decorative motion only where it helps (Home); never next to a live 3D canvas ---------- */
+/* a looping animation in the header or the tab bar repaints the page every frame; on the Holodeck / Live View that steals
+   frames from the WebGL view (measured: ~2 fps in a software GPU), so the dots stay lit but still there */
+:root[data-polish="on"]:not([data-page="today"]) .live-chip .dot, :root[data-polish="on"]:not([data-page="today"]) header .su-dot.live::after { animation: none; }
+:root[data-page="holo"] .pl-tdot, :root[data-page="liveview"] .pl-tdot, :root[data-page="holo"] .su-dot.live::after, :root[data-page="liveview"] .su-dot.live::after { animation: none !important; }
+
+/* ---------- crisp icons: an 18 px icon on the 24 grid draws a 1.3 px line (soft on a plain screen); a touch heavier, exact ---------- */
+:root[data-polish="on"] svg.ico { stroke-width: 1.9; shape-rendering: geometricPrecision; }
+:root[data-polish="on"] .tabs a.on svg.ico { stroke-width: 2.15; }
+
+/* ---------- reduced motion: no animation at all ---------- */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-polish="on"] .page, .pl-in, :root[data-polish="on"] .su-ring .v, :root[data-polish="on"] .su-spark .ln, .pl-now-i.live::after, :root[data-polish="on"] .live-chip .dot { animation: none !important; }
+  .space-css > * { transform: none !important; }
+  .pl-pal-in, .pl-pal-bg { transition: none; }
+}
+:root[data-motion="off"] .page, :root[data-motion="off"] .pl-in { animation: none !important; }
+
+/* ---------- duplicates out: Zlarior Today shows "Right now" once (the plan line says the same; its page is a chip) ---------- */
+:root[data-page="lit"] #page > .cl-plan ~ .cl-plan { display: none; }
+/* the alert to acknowledge: compact on every page but Home */
+:root[data-polish="on"]:not([data-page="today"]) #apBan .ap-ban em { display: none; }
+:root[data-polish="on"] #apBan .mo-ban { padding-top: 10px; padding-bottom: 10px; }
+
+/* ---------- light mode: the same calm, dark ink on paper-white glass ---------- */
+:root[data-theme="light"] .pl-now, :root[data-theme="light"] .pl-quick a { background: linear-gradient(180deg, #fff, #f6f8fc); border-color: rgba(20, 30, 60, .1); box-shadow: 0 10px 26px -22px rgba(20, 30, 60, .4); }
+:root[data-theme="light"] .pl-pal-in { background: #fff; border-color: rgba(20, 30, 60, .12); }
+:root[data-theme="light"] .pl-pal-l li.on { background: rgba(80, 100, 255, .08); }
+:root[data-theme="light"] .pl-fold { border-color: rgba(20, 30, 60, .18); }
+:root[data-theme="light"] .toast { color: #eef1f8; }          /* the toast keeps its dark glass: light ink on it */
+:root[data-theme="light"] .pl-quick a i { color: #2b3a8f; }
+:root[data-theme="light"] :is(.pl-why-go, .su-a-h b, .su-week li > b, .su-first b) { filter: saturate(1.15) brightness(.8); }   /* the bot colours, readable on white */

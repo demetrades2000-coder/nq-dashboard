@@ -1,0 +1,79 @@
+/* Deep space theme (2026-10-29), shared by both dashboards: tools/web_public/space.css = web_next/css/space.css (byte-identical).
+   1. .space-css   the static CSS sky: star field, Milky Way, the eclipsed Sun, a dark Earth with its blue rim and the Moon's
+                   shadow. It paints at once (first paint, before the 3D layer loads) and stays when the 3D layer is off
+                   (Settings > 3D effects = Off, no WebGL 2, or the GPU is too old). The WebGL scene (fx.js, space.js) fades
+                   in over it and hides it.
+   2. Glass        cards become dark glass over space (a light top edge, depth shadow); dark theme only.
+   3. Warp         a page change zooms the new page in from depth (motion on, reduced-motion off). */
+.space-css { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; contain: strict;
+  background: radial-gradient(130% 90% at 80% 0%, #0b1030 0%, #050719 38%, #02030a 72%); }
+.space-css i { position: absolute; display: block; }
+.space-css .sc-stars { inset: -2px; opacity: .9;
+  background-image:
+    radial-gradient(1.2px 1.2px at 12% 18%, #fff 50%, transparent 52%), radial-gradient(1px 1px at 27% 62%, #cfe0ff 50%, transparent 52%),
+    radial-gradient(1.4px 1.4px at 41% 33%, #fff 50%, transparent 52%), radial-gradient(1px 1px at 55% 81%, #ffe9cf 50%, transparent 52%),
+    radial-gradient(1px 1px at 68% 12%, #fff 50%, transparent 52%), radial-gradient(1.6px 1.6px at 77% 47%, #dbe6ff 50%, transparent 52%),
+    radial-gradient(1px 1px at 89% 71%, #fff 50%, transparent 52%), radial-gradient(1px 1px at 6% 88%, #ffd9b0 50%, transparent 52%),
+    radial-gradient(1.2px 1.2px at 33% 6%, #fff 50%, transparent 52%), radial-gradient(1px 1px at 93% 28%, #c9d8ff 50%, transparent 52%),
+    radial-gradient(1px 1px at 61% 55%, #fff 50%, transparent 52%), radial-gradient(1px 1px at 18% 41%, #e6ecff 50%, transparent 52%);
+  background-size: 233px 233px; }
+.space-css .sc-stars.sc-b { opacity: .55; background-size: 389px 389px; transform: rotate(17deg) scale(1.3); }
+.space-css .sc-mw { left: -40vmax; top: -10vmax; width: 180vmax; height: 34vmax; transform: rotate(-24deg); filter: blur(18px); opacity: .55;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(214,196,255,.20), rgba(120,140,230,.08) 45%, transparent 70%); }
+.space-css .sc-sun { right: 14vw; top: 13vh; width: 2px; height: 2px; border-radius: 50%; background: #fff;
+  box-shadow: 0 0 2vmin 1.2vmin #fff, 0 0 7vmin 3vmin rgba(255,226,186,.5), 0 0 26vmin 10vmin rgba(255,190,140,.14); }
+.space-css .sc-moon { right: calc(14vw - 1.6vmin); top: calc(13vh - 1.4vmin); width: 3.6vmin; height: 3.6vmin; border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, #0b0d14, #020306 70%); box-shadow: 0 0 .5vmin .1vmin rgba(255,240,220,.65), 0 0 3vmin rgba(200,220,255,.25); }
+.space-css .sc-earth { left: 50%; bottom: -150vw; width: 230vw; height: 230vw; margin-left: -110vw; border-radius: 50%;
+  background:
+    radial-gradient(circle at 62% 9%, rgba(0,0,0,.72) 0, rgba(0,0,0,.45) 3.5%, rgba(0,0,0,0) 8.5%),
+    radial-gradient(circle at 72% 6%, #3f86c9 0, #1b4f86 7%, #0b2a4e 16%, #061427 27%, #030812 40%, #010309 60%);
+  box-shadow: 0 0 0 1px rgba(110,170,255,.45), 0 0 18px 3px rgba(79,155,255,.55), 0 0 70px 14px rgba(56,120,255,.22), inset 0 6px 22px rgba(120,180,255,.35); }
+@media (min-aspect-ratio: 4/5) {
+  .space-css .sc-earth { left: auto; right: -34vh; bottom: -64vh; width: 150vh; height: 150vh; margin: 0;
+    background:
+      radial-gradient(circle at 44% 22%, rgba(0,0,0,.72) 0, rgba(0,0,0,.45) 4%, rgba(0,0,0,0) 10%),
+      radial-gradient(circle at 56% 14%, #3f86c9 0, #1b4f86 8%, #0b2a4e 18%, #061427 30%, #030812 44%, #010309 62%); }
+  .space-css .sc-sun { right: 9vw; top: 15vh; }
+  .space-css .sc-moon { right: calc(9vw - 1.6vmin); top: calc(15vh - 1.4vmin); }
+}
+/* the WebGL scene fades in over the CSS sky, then the CSS sky stops drawing */
+.fx-bg .fx-space { opacity: 0; transition: opacity 1.4s ease; }
+.fx-bg .fx-space.on { opacity: 1; }
+body:has(.fx-space.on) .space-css { visibility: hidden; }
+/* the satellites' name tags (space.js labelStep): ride next to each bot's satellite, hidden behind the planet */
+.fx-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.fx-lab { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 5px; padding: 3px 8px 3px 6px; border-radius: 99px; white-space: nowrap;
+  font: 650 10px/1.2 Inter, system-ui, sans-serif; letter-spacing: .02em; color: #e8eefc; background: rgba(4,7,18,.55);
+  border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); box-shadow: 0 0 14px -4px var(--c); transition: opacity .5s ease; will-change: transform; }
+.fx-lab i { width: 6px; height: 6px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); }
+.fx-lab span { color: #aebbd6; font-weight: 600; text-transform: uppercase; font-size: 9px; letter-spacing: .08em; }
+.fx-lab[data-st="trade"] span, .fx-lab[data-st="armed"] span { color: var(--c); }
+.fx-lab.hid { opacity: 0; }
+:root[data-theme="light"] .space-css { display: none; }
+:root[data-theme="light"] .fx-bg.fx-bg-space { opacity: .08; }
+:root:not([data-theme="light"]) body { background-color: #02030a; }
+
+/* ------------------------------------------------------------------ 2. glass over space (dark theme) */
+/* low specificity (:where): a card with its own look (.card.tone, .lv-home, .nx-oracle ...) keeps it */
+:where(:root:not([data-theme="light"])) .card, :where(:root:not([data-theme="light"])) .nx .kpi {
+  background: linear-gradient(180deg, rgba(14,18,34,.66), rgba(7,9,20,.56)) padding-box,
+              linear-gradient(180deg, rgba(150,180,255,.22), rgba(120,140,220,.06) 40%, rgba(255,255,255,.03)) border-box;
+  border: 1px solid transparent;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 18px 46px -18px rgba(0,0,0,.85), 0 2px 10px rgba(0,0,0,.35); }
+/* small text that sits right on the sky (eyebrows, leads, footers): a soft dark halo keeps it readable over the Milky Way */
+:where(:root:not([data-theme="light"])) :is(.nx-eyebrow, .cc-lead, .eyebrow, .cl-foot, .mc-sess, .mc-eye) { text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 12px rgba(0,0,0,.75); }
+:where(:root:not([data-theme="light"])) .card .card { background: rgba(8,10,22,.42); border: 1px solid rgba(160,180,255,.08); box-shadow: none; }
+
+/* phones: no live blur over the moving 3D sky (an old iPhone would re-blur every frame); a darker glass instead */
+@media (max-width: 760px) {
+  :root:is([data-fx="max"], [data-fx="lite"]) :is(.top, .sub, .tabs, .strip) { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  :root:is([data-fx="max"], [data-fx="lite"]) .top { background: linear-gradient(180deg, rgba(3,4,12,.93), rgba(3,4,12,.74)); }
+  :root:is([data-fx="max"], [data-fx="lite"]) .tabs { background: rgba(8,10,20,.9); }
+  :root:is([data-fx="max"], [data-fx="lite"]) .sub { background: linear-gradient(180deg, rgba(3,4,12,.92), rgba(3,4,12,.62)); }
+}
+
+/* ------------------------------------------------------------------ 3. warp: the new page comes in from depth */
+@keyframes sp-warp { from { opacity: 0; transform: perspective(1000px) translateZ(-140px) scale(.97); filter: blur(5px); } 60% { filter: blur(0); } to { opacity: 1; transform: none; filter: none; } }
+:root[data-motion="on"] .page.entering, :root[data-motion="on"] .nx .page.active.sp-in { animation: sp-warp .55s cubic-bezier(.2,.8,.2,1) both; }
+@media (prefers-reduced-motion: reduce) { :root .page.entering, :root .nx .page.active.sp-in { animation: none !important; } }
